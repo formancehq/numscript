@@ -9,5 +9,5 @@ import (
 
 func TestParser(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] ( )`)
-	snaps.MatchSnapshot(t, p)
+	snaps.MatchSnapshot(t, p.Value)
 }

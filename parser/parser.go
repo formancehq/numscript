@@ -7,12 +7,31 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
-func Parse(input string) Program {
+type LexerError struct{}
+type ParserError struct{}
+
+type ParseResult[T any] struct {
+	Value        T
+	ParserErrors []ParserError
+	LexerErrors  []LexerError
+}
+
+func Parse(input string) ParseResult[Program] {
+	var parserErrors []ParserError
+	var lexerErrors []LexerError
+
 	is := antlr.NewInputStream(input)
 	lexer := parser.NewNumscriptLexer(is)
+
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := parser.NewNumscriptParser(stream)
-	return parseProgram(p.Program())
+
+	parser := parser.NewNumscriptParser(stream)
+
+	return ParseResult[Program]{
+		Value:        parseProgram(parser.Program()),
+		ParserErrors: parserErrors,
+		LexerErrors:  lexerErrors,
+	}
 }
 
 func parseProgram(programCtx parser.IProgramContext) Program {
