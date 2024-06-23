@@ -1,0 +1,21 @@
+
+[TestParser - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:20, Line:0},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset:  "EUR/2",
+                Amount: 100,
+            },
+        },
+    },
+}
+---

@@ -1,0 +1,42 @@
+token literal names:
+null
+null
+null
+null
+null
+'send'
+'('
+')'
+'['
+']'
+'='
+null
+null
+null
+null
+
+token symbolic names:
+null
+NEWLINE
+MULTILINE_COMMENT
+LINE_COMMENT
+WS
+SEND
+LPARENS
+RPARENS
+LBRACKET
+RBRACKET
+EQ
+NUMBER
+VARIABLE_NAME
+ACCOUNT
+ASSET
+
+rule names:
+program
+monetaryLit
+statement
+
+
+atn:
+[4, 1, 14, 23, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 1, 0, 5, 0, 8, 8, 0, 10, 0, 12, 0, 11, 9, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 0, 0, 3, 0, 2, 4, 0, 0, 20, 0, 9, 1, 0, 0, 0, 2, 12, 1, 0, 0, 0, 4, 17, 1, 0, 0, 0, 6, 8, 3, 4, 2, 0, 7, 6, 1, 0, 0, 0, 8, 11, 1, 0, 0, 0, 9, 7, 1, 0, 0, 0, 9, 10, 1, 0, 0, 0, 10, 1, 1, 0, 0, 0, 11, 9, 1, 0, 0, 0, 12, 13, 5, 8, 0, 0, 13, 14, 5, 14, 0, 0, 14, 15, 5, 11, 0, 0, 15, 16, 5, 9, 0, 0, 16, 3, 1, 0, 0, 0, 17, 18, 5, 5, 0, 0, 18, 19, 3, 2, 1, 0, 19, 20, 5, 6, 0, 0, 20, 21, 5, 7, 0, 0, 21, 5, 1, 0, 0, 0, 1, 9]
