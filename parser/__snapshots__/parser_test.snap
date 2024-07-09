@@ -296,3 +296,53 @@ parser.Program{
     },
 }
 ---
+
+[TestAllotmentDest - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset:  "EUR/2",
+                Amount: 100,
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
+                Name: "s",
+            },
+            Destination: &parser.DestinationAllotment{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:31, Line:2},
+                },
+                Items: {
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:2},
+                            End:   parser.Position{Character:29, Line:2},
+                        },
+                        Allotment: &parser.RatioLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:18, Line:2},
+                                End:   parser.Position{Character:21, Line:2},
+                            },
+                            Numerator:   0x1,
+                            Denominator: 0x2,
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+---

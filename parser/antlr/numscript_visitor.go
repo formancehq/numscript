@@ -41,8 +41,14 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#destVariable.
 	VisitDestVariable(ctx *DestVariableContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#destAllotment.
+	VisitDestAllotment(ctx *DestAllotmentContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#destSeq.
 	VisitDestSeq(ctx *DestSeqContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
+	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#statement.
 	VisitStatement(ctx *StatementContext) interface{}

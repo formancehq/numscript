@@ -41,8 +41,14 @@ type NumscriptListener interface {
 	// EnterDestVariable is called when entering the destVariable production.
 	EnterDestVariable(c *DestVariableContext)
 
+	// EnterDestAllotment is called when entering the destAllotment production.
+	EnterDestAllotment(c *DestAllotmentContext)
+
 	// EnterDestSeq is called when entering the destSeq production.
 	EnterDestSeq(c *DestSeqContext)
+
+	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
+	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
 
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
@@ -80,8 +86,14 @@ type NumscriptListener interface {
 	// ExitDestVariable is called when exiting the destVariable production.
 	ExitDestVariable(c *DestVariableContext)
 
+	// ExitDestAllotment is called when exiting the destAllotment production.
+	ExitDestAllotment(c *DestAllotmentContext)
+
 	// ExitDestSeq is called when exiting the destSeq production.
 	ExitDestSeq(c *DestSeqContext)
+
+	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
+	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
 
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)

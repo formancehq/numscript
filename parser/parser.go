@@ -158,13 +158,15 @@ func parseSourceAllotment(portionCtx parser.IPortionContext) SourceAllotmentValu
 }
 
 func parseDestination(destCtx parser.IDestinationContext) Destination {
+	range_ := ctxToRange(destCtx)
+
 	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
 		// Discard the '@'
 		name := destCtx.GetText()[1:]
 
 		return &AccountLiteral{
-			Range: ctxToRange(destCtx),
+			Range: range_,
 			Name:  name,
 		}
 
@@ -173,7 +175,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		name := destCtx.GetText()[1:]
 
 		return &VariableLiteral{
-			Range: ctxToRange(destCtx),
+			Range: range_,
 			Name:  name,
 		}
 
@@ -183,15 +185,42 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			destinations = append(destinations, parseDestination(destCtx))
 		}
 		return &DestinationSeq{
-			Range:        ctxToRange(destCtx),
+			Range:        range_,
 			Destinations: destinations,
 		}
 
+	case *parser.DestAllotmentContext:
+		var items []DestinationAllotmentItem
+		for _, itemCtx := range destCtx.AllAllotmentClauseDest() {
+			item := DestinationAllotmentItem{
+				Range:     ctxToRange(itemCtx),
+				Allotment: parseDestinationAllotment(itemCtx.Portion()),
+			}
+			items = append(items, item)
+		}
+		return &DestinationAllotment{
+			Range: range_,
+			Items: items,
+		}
+
 	default:
-		return nil
+		panic("Unhandled dest" + destCtx.GetText())
 
 	}
 
+}
+
+func parseDestinationAllotment(portionCtx parser.IPortionContext) DestinationAllotmentValue {
+	switch portionCtx.(type) {
+	case *parser.RatioContext:
+		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
+
+	case *parser.PercentageContext:
+		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
+
+	default:
+		panic("unhandled portion ctx")
+	}
 }
 
 func parseStatement(statementCtx parser.IStatementContext) Statement {

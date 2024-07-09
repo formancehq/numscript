@@ -52,7 +52,15 @@ func (v *BaseNumscriptVisitor) VisitDestVariable(ctx *DestVariableContext) inter
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitDestAllotment(ctx *DestAllotmentContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitDestSeq(ctx *DestSeqContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

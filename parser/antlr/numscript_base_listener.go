@@ -87,11 +87,23 @@ func (s *BaseNumscriptListener) EnterDestVariable(ctx *DestVariableContext) {}
 // ExitDestVariable is called when production destVariable is exited.
 func (s *BaseNumscriptListener) ExitDestVariable(ctx *DestVariableContext) {}
 
+// EnterDestAllotment is called when production destAllotment is entered.
+func (s *BaseNumscriptListener) EnterDestAllotment(ctx *DestAllotmentContext) {}
+
+// ExitDestAllotment is called when production destAllotment is exited.
+func (s *BaseNumscriptListener) ExitDestAllotment(ctx *DestAllotmentContext) {}
+
 // EnterDestSeq is called when production destSeq is entered.
 func (s *BaseNumscriptListener) EnterDestSeq(ctx *DestSeqContext) {}
 
 // ExitDestSeq is called when production destSeq is exited.
 func (s *BaseNumscriptListener) ExitDestSeq(ctx *DestSeqContext) {}
+
+// EnterAllotmentClauseDest is called when production allotmentClauseDest is entered.
+func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
+
+// ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
+func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
 
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}

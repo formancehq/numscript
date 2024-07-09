@@ -57,3 +57,11 @@ func TestAllotmentPercFloating(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestAllotmentDest(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = @s
+  destination = { 1/2 from @d }
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

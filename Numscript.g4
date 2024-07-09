@@ -42,9 +42,11 @@ source:
 allotmentClauseSrc: portion FROM source;
 
 destination:
-	ACCOUNT							# destAccount
-	| VARIABLE_NAME					# destVariable
-	| LBRACE destination* RBRACE	# destSeq;
+	ACCOUNT									# destAccount
+	| VARIABLE_NAME							# destVariable
+	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
+	| LBRACE destination* RBRACE			# destSeq;
+allotmentClauseDest: portion FROM source;
 
 statement:
 	SEND monetaryLit LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

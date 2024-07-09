@@ -73,13 +73,29 @@ type SourceAllotmentItem struct {
 // Destination exprs
 type Destination interface{ destination() }
 
-func (*DestinationSeq) destination()  {}
-func (*AccountLiteral) destination()  {}
-func (*VariableLiteral) destination() {}
+func (*DestinationSeq) destination()       {}
+func (*AccountLiteral) destination()       {}
+func (*VariableLiteral) destination()      {}
+func (*DestinationAllotment) destination() {}
+
+type DestinationAllotmentValue interface{ destinationAllotmentValue() }
+
+func (*RatioLiteral) destinationAllotmentValue()    {}
+func (*VariableLiteral) destinationAllotmentValue() {}
 
 type DestinationSeq struct {
 	Range        Range
 	Destinations []Destination
+}
+
+type DestinationAllotment struct {
+	Range Range
+	Items []DestinationAllotmentItem
+}
+
+type DestinationAllotmentItem struct {
+	Range     Range
+	Allotment DestinationAllotmentValue
 }
 
 // Statements
