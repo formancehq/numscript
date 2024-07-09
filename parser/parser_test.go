@@ -65,3 +65,19 @@ func TestAllotmentDest(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestCapped(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = max [EUR/2 10] from @src
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestCappedVariable(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = max $my_var from @src
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

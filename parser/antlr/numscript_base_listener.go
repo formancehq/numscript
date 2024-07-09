@@ -45,6 +45,18 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
+// EnterLitCap is called when production litCap is entered.
+func (s *BaseNumscriptListener) EnterLitCap(ctx *LitCapContext) {}
+
+// ExitLitCap is called when production litCap is exited.
+func (s *BaseNumscriptListener) ExitLitCap(ctx *LitCapContext) {}
+
+// EnterVarCap is called when production varCap is entered.
+func (s *BaseNumscriptListener) EnterVarCap(ctx *VarCapContext) {}
+
+// ExitVarCap is called when production varCap is exited.
+func (s *BaseNumscriptListener) ExitVarCap(ctx *VarCapContext) {}
+
 // EnterSrcAccount is called when production srcAccount is entered.
 func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 
@@ -68,6 +80,12 @@ func (s *BaseNumscriptListener) EnterSrcSeq(ctx *SrcSeqContext) {}
 
 // ExitSrcSeq is called when production srcSeq is exited.
 func (s *BaseNumscriptListener) ExitSrcSeq(ctx *SrcSeqContext) {}
+
+// EnterSrcCapped is called when production srcCapped is entered.
+func (s *BaseNumscriptListener) EnterSrcCapped(ctx *SrcCappedContext) {}
+
+// ExitSrcCapped is called when production srcCapped is exited.
+func (s *BaseNumscriptListener) ExitSrcCapped(ctx *SrcCappedContext) {}
 
 // EnterAllotmentClauseSrc is called when production allotmentClauseSrc is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) {}

@@ -381,3 +381,100 @@ parser.Program{
     },
 }
 ---
+
+[TestCapped - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset:  "EUR/2",
+                Amount: 100,
+            },
+            Source: &parser.SourceCapped{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:35, Line:1},
+                },
+                From: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:31, Line:1},
+                        End:   parser.Position{Character:35, Line:1},
+                    },
+                    Name: "src",
+                },
+                Cap: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:15, Line:1},
+                        End:   parser.Position{Character:25, Line:1},
+                    },
+                    Asset:  "EUR/2",
+                    Amount: 10,
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:21, Line:2},
+                },
+                Name: "dest",
+            },
+        },
+    },
+}
+---
+
+[TestCappedVariable - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset:  "EUR/2",
+                Amount: 100,
+            },
+            Source: &parser.SourceCapped{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:32, Line:1},
+                },
+                From: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:28, Line:1},
+                        End:   parser.Position{Character:32, Line:1},
+                    },
+                    Name: "src",
+                },
+                Cap: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:15, Line:1},
+                        End:   parser.Position{Character:22, Line:1},
+                    },
+                    Name: "my_var",
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:21, Line:2},
+                },
+                Name: "dest",
+            },
+        },
+    },
+}
+---

@@ -41,6 +41,11 @@ type RatioLiteral struct {
 	Denominator uint64
 }
 
+type CapLit interface{ capLit() }
+
+func (*MonetaryLiteral) capLit() {}
+func (*VariableLiteral) capLit() {}
+
 // Source exprs
 
 type Source interface{ source() }
@@ -49,6 +54,7 @@ func (*SourceSeq) source()       {}
 func (*SourceAllotment) source() {}
 func (*AccountLiteral) source()  {}
 func (*VariableLiteral) source() {}
+func (*SourceCapped) source()    {}
 
 type SourceSeq struct {
 	Range   Range
@@ -58,6 +64,12 @@ type SourceSeq struct {
 type SourceAllotment struct {
 	Range Range
 	Items []SourceAllotmentItem
+}
+
+type SourceCapped struct {
+	Range Range
+	From  Source
+	Cap   CapLit
 }
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }

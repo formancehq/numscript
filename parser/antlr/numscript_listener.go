@@ -20,6 +20,12 @@ type NumscriptListener interface {
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
+	// EnterLitCap is called when entering the litCap production.
+	EnterLitCap(c *LitCapContext)
+
+	// EnterVarCap is called when entering the varCap production.
+	EnterVarCap(c *VarCapContext)
+
 	// EnterSrcAccount is called when entering the srcAccount production.
 	EnterSrcAccount(c *SrcAccountContext)
 
@@ -31,6 +37,9 @@ type NumscriptListener interface {
 
 	// EnterSrcSeq is called when entering the srcSeq production.
 	EnterSrcSeq(c *SrcSeqContext)
+
+	// EnterSrcCapped is called when entering the srcCapped production.
+	EnterSrcCapped(c *SrcCappedContext)
 
 	// EnterAllotmentClauseSrc is called when entering the allotmentClauseSrc production.
 	EnterAllotmentClauseSrc(c *AllotmentClauseSrcContext)
@@ -65,6 +74,12 @@ type NumscriptListener interface {
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
+	// ExitLitCap is called when exiting the litCap production.
+	ExitLitCap(c *LitCapContext)
+
+	// ExitVarCap is called when exiting the varCap production.
+	ExitVarCap(c *VarCapContext)
+
 	// ExitSrcAccount is called when exiting the srcAccount production.
 	ExitSrcAccount(c *SrcAccountContext)
 
@@ -76,6 +91,9 @@ type NumscriptListener interface {
 
 	// ExitSrcSeq is called when exiting the srcSeq production.
 	ExitSrcSeq(c *SrcSeqContext)
+
+	// ExitSrcCapped is called when exiting the srcCapped production.
+	ExitSrcCapped(c *SrcCappedContext)
 
 	// ExitAllotmentClauseSrc is called when exiting the allotmentClauseSrc production.
 	ExitAllotmentClauseSrc(c *AllotmentClauseSrcContext)

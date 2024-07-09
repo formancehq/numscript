@@ -46,6 +46,24 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 	return Program{statements}
 }
 
+func parseCapLit(capCtx parser.ICapContext) CapLit {
+	switch capCtx := capCtx.(type) {
+	case *parser.LitCapContext:
+		return parseMonetaryLit(capCtx.MonetaryLit())
+
+	case *parser.VarCapContext:
+		// Discard the '$'
+		name := capCtx.GetText()[1:]
+		return &VariableLiteral{
+			Range: ctxToRange(capCtx),
+			Name:  name,
+		}
+
+	default:
+		panic("Invalid ctx")
+	}
+}
+
 func parseSource(sourceCtx parser.ISourceContext) Source {
 	range_ := ctxToRange(sourceCtx)
 
@@ -91,6 +109,13 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		return &SourceAllotment{
 			Range: range_,
 			Items: items,
+		}
+
+	case *parser.SrcCappedContext:
+		return &SourceCapped{
+			Range: range_,
+			From:  parseSource(sourceCtx.Source()),
+			Cap:   parseCapLit(sourceCtx.Cap_()),
 		}
 
 	case *parser.SourceContext:
@@ -234,7 +259,7 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 	}
 }
 
-func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) Literal {
+func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLiteral {
 	amtStr := monetaryLitCtx.GetAmt().GetText()
 
 	amt, err := strconv.Atoi(amtStr)

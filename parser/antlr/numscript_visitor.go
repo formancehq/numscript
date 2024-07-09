@@ -20,6 +20,12 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#monetaryLit.
 	VisitMonetaryLit(ctx *MonetaryLitContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#litCap.
+	VisitLitCap(ctx *LitCapContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#varCap.
+	VisitVarCap(ctx *VarCapContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcAccount.
 	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 
@@ -31,6 +37,9 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#srcSeq.
 	VisitSrcSeq(ctx *SrcSeqContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#srcCapped.
+	VisitSrcCapped(ctx *SrcCappedContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseSrc.
 	VisitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) interface{}

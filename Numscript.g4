@@ -6,6 +6,7 @@ NEWLINE: [\r\n]+;
 MULTILINE_COMMENT: '/*' (MULTILINE_COMMENT | .)*? '*/' -> skip;
 LINE_COMMENT: '//' .*? NEWLINE -> skip;
 
+MAX: 'max';
 SOURCE: 'source';
 DESTINATION: 'destination';
 SEND: 'send';
@@ -35,11 +36,14 @@ program: statement*;
 
 monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
+cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
+
 source:
 	ACCOUNT								# srcAccount
 	| VARIABLE_NAME						# srcVariable
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
-	| LBRACE source* RBRACE				# srcSeq;
+	| LBRACE source* RBRACE				# srcSeq
+	| MAX cap FROM source				# srcCapped;
 allotmentClauseSrc: portion FROM source;
 
 destination:

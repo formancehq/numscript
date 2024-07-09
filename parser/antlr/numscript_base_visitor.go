@@ -24,6 +24,14 @@ func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitLitCap(ctx *LitCapContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitVarCap(ctx *VarCapContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcAccount(ctx *SrcAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -37,6 +45,10 @@ func (v *BaseNumscriptVisitor) VisitSrcAllotment(ctx *SrcAllotmentContext) inter
 }
 
 func (v *BaseNumscriptVisitor) VisitSrcSeq(ctx *SrcSeqContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSrcCapped(ctx *SrcCappedContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
