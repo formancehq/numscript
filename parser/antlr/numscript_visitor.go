@@ -14,6 +14,9 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#monetaryLit.
 	VisitMonetaryLit(ctx *MonetaryLitContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#source.
+	VisitSource(ctx *SourceContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#statement.
 	VisitStatement(ctx *StatementContext) interface{}
 }

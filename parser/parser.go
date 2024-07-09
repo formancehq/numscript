@@ -44,8 +44,19 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 	return Program{statements}
 }
 
+func parseSource(sourceCtx parser.ISourceContext) Source {
+	// Discard the '@'
+	name := sourceCtx.GetText()[1:]
+
+	return &AccountLiteral{
+		Range: ctxToRange(sourceCtx),
+		Name:  name,
+	}
+}
+
 func parseStatement(statementCtx parser.IStatementContext) Statement {
 	return &SendStatement{
+		Source:   parseSource(statementCtx.Source()),
 		Range:    ctxToRange(statementCtx),
 		Monetary: parseMonetaryLit(statementCtx.MonetaryLit()),
 	}

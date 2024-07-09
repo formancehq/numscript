@@ -5,7 +5,7 @@ parser.Program{
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
-                End:   parser.Position{Character:20, Line:0},
+                End:   parser.Position{Character:1, Line:2},
             },
             Monetary: &parser.MonetaryLiteral{
                 Range: parser.Range{
@@ -14,6 +14,13 @@ parser.Program{
                 },
                 Asset:  "EUR/2",
                 Amount: 100,
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
+                Name: "src",
             },
         },
     },

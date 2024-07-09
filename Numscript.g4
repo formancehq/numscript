@@ -1,11 +1,12 @@
 grammar Numscript;
 
 // Tokens
+WS: [ \t\r\n]+ -> skip;
 NEWLINE: [\r\n]+;
 MULTILINE_COMMENT: '/*' (MULTILINE_COMMENT | .)*? '*/' -> skip;
 LINE_COMMENT: '//' .*? NEWLINE -> skip;
-WS: [ \t\r\n]+ -> skip;
 
+SOURCE: 'source';
 SEND: 'send';
 LPARENS: '(';
 RPARENS: ')';
@@ -22,4 +23,6 @@ program: statement*;
 
 monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
-statement: SEND monetaryLit LPARENS RPARENS;
+source: ACCOUNT;
+
+statement: SEND monetaryLit LPARENS SOURCE EQ source RPARENS;

@@ -33,6 +33,12 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
+// EnterSource is called when production source is entered.
+func (s *BaseNumscriptListener) EnterSource(ctx *SourceContext) {}
+
+// ExitSource is called when production source is exited.
+func (s *BaseNumscriptListener) ExitSource(ctx *SourceContext) {}
+
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}
 
