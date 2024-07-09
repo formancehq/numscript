@@ -3,6 +3,7 @@ package parser
 import (
 	parser "numscript/parser/antlr"
 	"strconv"
+	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
 )
@@ -45,13 +46,15 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 }
 
 func parseSource(sourceCtx parser.ISourceContext) Source {
+	range_ := ctxToRange(sourceCtx)
+
 	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
 		// Discard the '@'
 		name := sourceCtx.GetText()[1:]
 
 		return &AccountLiteral{
-			Range: ctxToRange(sourceCtx),
+			Range: range_,
 			Name:  name,
 		}
 
@@ -60,7 +63,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		name := sourceCtx.GetText()[1:]
 
 		return &VariableLiteral{
-			Range: ctxToRange(sourceCtx),
+			Range: range_,
 			Name:  name,
 		}
 
@@ -70,12 +73,67 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			sources = append(sources, parseSource(sourceCtx))
 		}
 		return &SourceSeq{
-			Range:   ctxToRange(sourceCtx),
+			Range:   range_,
 			Sources: sources,
 		}
 
+	case *parser.SrcAllotmentContext:
+		var items []SourceAllotmentItem
+		for _, itemCtx := range sourceCtx.AllAllotmentClauseSrc() {
+			item := SourceAllotmentItem{
+				Range:     ctxToRange(itemCtx),
+				Allotment: parsePortion(itemCtx.Portion()),
+			}
+			items = append(items, item)
+		}
+		return &SourceAllotment{
+			Range: range_,
+			Items: items,
+		}
+
+	case *parser.SourceContext:
+		panic("Invalid source context" + sourceCtx.GetText())
+
 	default:
 		panic("unhandled context: " + sourceCtx.GetText())
+	}
+}
+
+func parsePortion(portionCtx parser.IPortionContext) SourceAllotmentValue {
+	switch portionCtx.(type) {
+	case *parser.RatioContext:
+		split := strings.Split(portionCtx.GetText(), "/")
+
+		num, err := strconv.ParseUint(split[0], 0, 64)
+		if err != nil {
+			panic(err)
+		}
+
+		den, err := strconv.ParseUint(split[1], 0, 64)
+		if err != nil {
+			panic(err)
+		}
+
+		return &RatioLiteral{
+			Range:       ctxToRange(portionCtx),
+			Numerator:   num,
+			Denominator: den,
+		}
+
+	case *parser.PercentageContext:
+		str := strings.TrimSuffix(portionCtx.GetText(), "%")
+		num, err := strconv.ParseUint(str, 0, 64)
+		if err != nil {
+			panic(err)
+		}
+		return &RatioLiteral{
+			Range:       ctxToRange(portionCtx),
+			Numerator:   num,
+			Denominator: 100,
+		}
+
+	default:
+		panic("unhandled portion ctx")
 	}
 }
 

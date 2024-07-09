@@ -8,6 +8,14 @@ type BaseNumscriptVisitor struct {
 	*antlr.BaseParseTreeVisitor
 }
 
+func (v *BaseNumscriptVisitor) VisitRatio(ctx *RatioContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitPercentage(ctx *PercentageContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitProgram(ctx *ProgramContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -24,7 +32,15 @@ func (v *BaseNumscriptVisitor) VisitSrcVariable(ctx *SrcVariableContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitSrcAllotment(ctx *SrcAllotmentContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcSeq(ctx *SrcSeqContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

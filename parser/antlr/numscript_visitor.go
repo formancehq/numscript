@@ -8,6 +8,12 @@ import "github.com/antlr4-go/antlr/v4"
 type NumscriptVisitor interface {
 	antlr.ParseTreeVisitor
 
+	// Visit a parse tree produced by NumscriptParser#ratio.
+	VisitRatio(ctx *RatioContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#percentage.
+	VisitPercentage(ctx *PercentageContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#program.
 	VisitProgram(ctx *ProgramContext) interface{}
 
@@ -20,8 +26,14 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#srcVariable.
 	VisitSrcVariable(ctx *SrcVariableContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#srcAllotment.
+	VisitSrcAllotment(ctx *SrcAllotmentContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcSeq.
 	VisitSrcSeq(ctx *SrcSeqContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#allotmentClauseSrc.
+	VisitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#destAccount.
 	VisitDestAccount(ctx *DestAccountContext) interface{}

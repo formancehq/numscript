@@ -30,3 +30,22 @@ func TestSeq(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestAllotment(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = { 1/3 from @s1 }
+  destination = @d
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestAllotmentPerc(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = {
+    42% from @s1
+	1/2 from @s2
+  }
+  destination = @d
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

@@ -8,6 +8,12 @@ import "github.com/antlr4-go/antlr/v4"
 type NumscriptListener interface {
 	antlr.ParseTreeListener
 
+	// EnterRatio is called when entering the ratio production.
+	EnterRatio(c *RatioContext)
+
+	// EnterPercentage is called when entering the percentage production.
+	EnterPercentage(c *PercentageContext)
+
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
 
@@ -20,8 +26,14 @@ type NumscriptListener interface {
 	// EnterSrcVariable is called when entering the srcVariable production.
 	EnterSrcVariable(c *SrcVariableContext)
 
+	// EnterSrcAllotment is called when entering the srcAllotment production.
+	EnterSrcAllotment(c *SrcAllotmentContext)
+
 	// EnterSrcSeq is called when entering the srcSeq production.
 	EnterSrcSeq(c *SrcSeqContext)
+
+	// EnterAllotmentClauseSrc is called when entering the allotmentClauseSrc production.
+	EnterAllotmentClauseSrc(c *AllotmentClauseSrcContext)
 
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
@@ -35,6 +47,12 @@ type NumscriptListener interface {
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
 
+	// ExitRatio is called when exiting the ratio production.
+	ExitRatio(c *RatioContext)
+
+	// ExitPercentage is called when exiting the percentage production.
+	ExitPercentage(c *PercentageContext)
+
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)
 
@@ -47,8 +65,14 @@ type NumscriptListener interface {
 	// ExitSrcVariable is called when exiting the srcVariable production.
 	ExitSrcVariable(c *SrcVariableContext)
 
+	// ExitSrcAllotment is called when exiting the srcAllotment production.
+	ExitSrcAllotment(c *SrcAllotmentContext)
+
 	// ExitSrcSeq is called when exiting the srcSeq production.
 	ExitSrcSeq(c *SrcSeqContext)
+
+	// ExitAllotmentClauseSrc is called when exiting the allotmentClauseSrc production.
+	ExitAllotmentClauseSrc(c *AllotmentClauseSrcContext)
 
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)

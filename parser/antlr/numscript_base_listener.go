@@ -21,6 +21,18 @@ func (s *BaseNumscriptListener) EnterEveryRule(ctx antlr.ParserRuleContext) {}
 // ExitEveryRule is called when any rule is exited.
 func (s *BaseNumscriptListener) ExitEveryRule(ctx antlr.ParserRuleContext) {}
 
+// EnterRatio is called when production ratio is entered.
+func (s *BaseNumscriptListener) EnterRatio(ctx *RatioContext) {}
+
+// ExitRatio is called when production ratio is exited.
+func (s *BaseNumscriptListener) ExitRatio(ctx *RatioContext) {}
+
+// EnterPercentage is called when production percentage is entered.
+func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
+
+// ExitPercentage is called when production percentage is exited.
+func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
+
 // EnterProgram is called when production program is entered.
 func (s *BaseNumscriptListener) EnterProgram(ctx *ProgramContext) {}
 
@@ -45,11 +57,23 @@ func (s *BaseNumscriptListener) EnterSrcVariable(ctx *SrcVariableContext) {}
 // ExitSrcVariable is called when production srcVariable is exited.
 func (s *BaseNumscriptListener) ExitSrcVariable(ctx *SrcVariableContext) {}
 
+// EnterSrcAllotment is called when production srcAllotment is entered.
+func (s *BaseNumscriptListener) EnterSrcAllotment(ctx *SrcAllotmentContext) {}
+
+// ExitSrcAllotment is called when production srcAllotment is exited.
+func (s *BaseNumscriptListener) ExitSrcAllotment(ctx *SrcAllotmentContext) {}
+
 // EnterSrcSeq is called when production srcSeq is entered.
 func (s *BaseNumscriptListener) EnterSrcSeq(ctx *SrcSeqContext) {}
 
 // ExitSrcSeq is called when production srcSeq is exited.
 func (s *BaseNumscriptListener) ExitSrcSeq(ctx *SrcSeqContext) {}
+
+// EnterAllotmentClauseSrc is called when production allotmentClauseSrc is entered.
+func (s *BaseNumscriptListener) EnterAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) {}
+
+// ExitAllotmentClauseSrc is called when production allotmentClauseSrc is exited.
+func (s *BaseNumscriptListener) ExitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) {}
 
 // EnterDestAccount is called when production destAccount is entered.
 func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
