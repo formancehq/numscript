@@ -38,14 +38,26 @@ type VariableLiteral struct {
 
 type Source interface{ source() }
 
+func (*SourceSeq) source()       {}
 func (*AccountLiteral) source()  {}
 func (*VariableLiteral) source() {}
+
+type SourceSeq struct {
+	Range   Range
+	Sources []Source
+}
 
 // Destination exprs
 type Destination interface{ destination() }
 
+func (*DestinationSeq) destination()  {}
 func (*AccountLiteral) destination()  {}
 func (*VariableLiteral) destination() {}
+
+type DestinationSeq struct {
+	Range        Range
+	Destinations []Destination
+}
 
 // Statements
 

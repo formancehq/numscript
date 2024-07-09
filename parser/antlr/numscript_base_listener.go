@@ -45,6 +45,12 @@ func (s *BaseNumscriptListener) EnterSrcVariable(ctx *SrcVariableContext) {}
 // ExitSrcVariable is called when production srcVariable is exited.
 func (s *BaseNumscriptListener) ExitSrcVariable(ctx *SrcVariableContext) {}
 
+// EnterSrcSeq is called when production srcSeq is entered.
+func (s *BaseNumscriptListener) EnterSrcSeq(ctx *SrcSeqContext) {}
+
+// ExitSrcSeq is called when production srcSeq is exited.
+func (s *BaseNumscriptListener) ExitSrcSeq(ctx *SrcSeqContext) {}
+
 // EnterDestAccount is called when production destAccount is entered.
 func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
 
@@ -56,6 +62,12 @@ func (s *BaseNumscriptListener) EnterDestVariable(ctx *DestVariableContext) {}
 
 // ExitDestVariable is called when production destVariable is exited.
 func (s *BaseNumscriptListener) ExitDestVariable(ctx *DestVariableContext) {}
+
+// EnterDestSeq is called when production destSeq is entered.
+func (s *BaseNumscriptListener) EnterDestSeq(ctx *DestSeqContext) {}
+
+// ExitDestSeq is called when production destSeq is exited.
+func (s *BaseNumscriptListener) ExitDestSeq(ctx *DestSeqContext) {}
 
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}

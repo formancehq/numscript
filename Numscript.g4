@@ -13,6 +13,8 @@ LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
 RBRACKET: ']';
+LBRACE: '{';
+RBRACE: '}';
 EQ: '=';
 
 NUMBER: [0-9]+;
@@ -24,10 +26,15 @@ program: statement*;
 
 monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
-source: ACCOUNT # srcAccount | VARIABLE_NAME # srcVariable;
+source:
+	ACCOUNT					# srcAccount
+	| VARIABLE_NAME			# srcVariable
+	| LBRACE source* RBRACE	# srcSeq;
+
 destination:
-	ACCOUNT			# destAccount
-	| VARIABLE_NAME	# destVariable;
+	ACCOUNT							# destAccount
+	| VARIABLE_NAME					# destVariable
+	| LBRACE destination* RBRACE	# destSeq;
 
 statement:
 	SEND monetaryLit LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

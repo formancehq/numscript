@@ -20,11 +20,17 @@ type NumscriptListener interface {
 	// EnterSrcVariable is called when entering the srcVariable production.
 	EnterSrcVariable(c *SrcVariableContext)
 
+	// EnterSrcSeq is called when entering the srcSeq production.
+	EnterSrcSeq(c *SrcSeqContext)
+
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
 
 	// EnterDestVariable is called when entering the destVariable production.
 	EnterDestVariable(c *DestVariableContext)
+
+	// EnterDestSeq is called when entering the destSeq production.
+	EnterDestSeq(c *DestSeqContext)
 
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
@@ -41,11 +47,17 @@ type NumscriptListener interface {
 	// ExitSrcVariable is called when exiting the srcVariable production.
 	ExitSrcVariable(c *SrcVariableContext)
 
+	// ExitSrcSeq is called when exiting the srcSeq production.
+	ExitSrcSeq(c *SrcSeqContext)
+
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)
 
 	// ExitDestVariable is called when exiting the destVariable production.
 	ExitDestVariable(c *DestVariableContext)
+
+	// ExitDestSeq is called when exiting the destSeq production.
+	ExitDestSeq(c *DestSeqContext)
 
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)

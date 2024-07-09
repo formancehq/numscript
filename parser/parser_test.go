@@ -22,3 +22,11 @@ func TestVariable(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestSeq(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = { @s1 @s2 }
+  destination = { @d1 @d2 }
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

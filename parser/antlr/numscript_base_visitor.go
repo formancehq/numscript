@@ -24,11 +24,19 @@ func (v *BaseNumscriptVisitor) VisitSrcVariable(ctx *SrcVariableContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitSrcSeq(ctx *SrcSeqContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitDestAccount(ctx *DestAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseNumscriptVisitor) VisitDestVariable(ctx *DestVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitDestSeq(ctx *DestSeqContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

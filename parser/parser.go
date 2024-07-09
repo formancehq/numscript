@@ -45,7 +45,7 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 }
 
 func parseSource(sourceCtx parser.ISourceContext) Source {
-	switch sourceCtx.(type) {
+	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
 		// Discard the '@'
 		name := sourceCtx.GetText()[1:]
@@ -64,13 +64,23 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Name:  name,
 		}
 
+	case *parser.SrcSeqContext:
+		var sources []Source
+		for _, sourceCtx := range sourceCtx.AllSource() {
+			sources = append(sources, parseSource(sourceCtx))
+		}
+		return &SourceSeq{
+			Range:   ctxToRange(sourceCtx),
+			Sources: sources,
+		}
+
 	default:
-		panic("Unrecognized context")
+		panic("unhandled context: " + sourceCtx.GetText())
 	}
 }
 
 func parseDestination(destCtx parser.IDestinationContext) Destination {
-	switch destCtx.(type) {
+	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
 		// Discard the '@'
 		name := destCtx.GetText()[1:]
@@ -87,6 +97,16 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return &VariableLiteral{
 			Range: ctxToRange(destCtx),
 			Name:  name,
+		}
+
+	case *parser.DestSeqContext:
+		var destinations []Destination
+		for _, destCtx := range destCtx.AllDestination() {
+			destinations = append(destinations, parseDestination(destCtx))
+		}
+		return &DestinationSeq{
+			Range:        ctxToRange(destCtx),
+			Destinations: destinations,
 		}
 
 	default:
