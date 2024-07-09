@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	parser "numscript/parser/antlr"
 	"strconv"
 	"strings"
@@ -122,14 +123,26 @@ func parsePortion(portionCtx parser.IPortionContext) SourceAllotmentValue {
 
 	case *parser.PercentageContext:
 		str := strings.TrimSuffix(portionCtx.GetText(), "%")
-		num, err := strconv.ParseUint(str, 0, 64)
+		num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
 		if err != nil {
 			panic(err)
 		}
+
+		var denominator uint64
+
+		split := strings.Split(str, ".")
+		if len(split) > 1 {
+			// TODO verify this is always correct
+			floatingDigits := len(split[1])
+			denominator = (uint64)(math.Pow10(2 + floatingDigits))
+		} else {
+			denominator = 100
+		}
+
 		return &RatioLiteral{
 			Range:       ctxToRange(portionCtx),
 			Numerator:   num,
-			Denominator: 100,
+			Denominator: denominator,
 		}
 
 	default:
