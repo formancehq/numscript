@@ -33,17 +33,29 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
-// EnterAccount is called when production account is entered.
-func (s *BaseNumscriptListener) EnterAccount(ctx *AccountContext) {}
+// EnterSrcAccount is called when production srcAccount is entered.
+func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 
-// ExitAccount is called when production account is exited.
-func (s *BaseNumscriptListener) ExitAccount(ctx *AccountContext) {}
+// ExitSrcAccount is called when production srcAccount is exited.
+func (s *BaseNumscriptListener) ExitSrcAccount(ctx *SrcAccountContext) {}
 
-// EnterVariable is called when production variable is entered.
-func (s *BaseNumscriptListener) EnterVariable(ctx *VariableContext) {}
+// EnterSrcVariable is called when production srcVariable is entered.
+func (s *BaseNumscriptListener) EnterSrcVariable(ctx *SrcVariableContext) {}
 
-// ExitVariable is called when production variable is exited.
-func (s *BaseNumscriptListener) ExitVariable(ctx *VariableContext) {}
+// ExitSrcVariable is called when production srcVariable is exited.
+func (s *BaseNumscriptListener) ExitSrcVariable(ctx *SrcVariableContext) {}
+
+// EnterDestAccount is called when production destAccount is entered.
+func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
+
+// ExitDestAccount is called when production destAccount is exited.
+func (s *BaseNumscriptListener) ExitDestAccount(ctx *DestAccountContext) {}
+
+// EnterDestVariable is called when production destVariable is entered.
+func (s *BaseNumscriptListener) EnterDestVariable(ctx *DestVariableContext) {}
+
+// ExitDestVariable is called when production destVariable is exited.
+func (s *BaseNumscriptListener) ExitDestVariable(ctx *DestVariableContext) {}
 
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}

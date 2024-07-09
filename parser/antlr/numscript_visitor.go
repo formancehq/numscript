@@ -14,11 +14,17 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#monetaryLit.
 	VisitMonetaryLit(ctx *MonetaryLitContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#account.
-	VisitAccount(ctx *AccountContext) interface{}
+	// Visit a parse tree produced by NumscriptParser#srcAccount.
+	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#variable.
-	VisitVariable(ctx *VariableContext) interface{}
+	// Visit a parse tree produced by NumscriptParser#srcVariable.
+	VisitSrcVariable(ctx *SrcVariableContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#destAccount.
+	VisitDestAccount(ctx *DestAccountContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#destVariable.
+	VisitDestVariable(ctx *DestVariableContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#statement.
 	VisitStatement(ctx *StatementContext) interface{}

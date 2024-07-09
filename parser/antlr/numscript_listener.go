@@ -14,11 +14,17 @@ type NumscriptListener interface {
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
-	// EnterAccount is called when entering the account production.
-	EnterAccount(c *AccountContext)
+	// EnterSrcAccount is called when entering the srcAccount production.
+	EnterSrcAccount(c *SrcAccountContext)
 
-	// EnterVariable is called when entering the variable production.
-	EnterVariable(c *VariableContext)
+	// EnterSrcVariable is called when entering the srcVariable production.
+	EnterSrcVariable(c *SrcVariableContext)
+
+	// EnterDestAccount is called when entering the destAccount production.
+	EnterDestAccount(c *DestAccountContext)
+
+	// EnterDestVariable is called when entering the destVariable production.
+	EnterDestVariable(c *DestVariableContext)
 
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
@@ -29,11 +35,17 @@ type NumscriptListener interface {
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
-	// ExitAccount is called when exiting the account production.
-	ExitAccount(c *AccountContext)
+	// ExitSrcAccount is called when exiting the srcAccount production.
+	ExitSrcAccount(c *SrcAccountContext)
 
-	// ExitVariable is called when exiting the variable production.
-	ExitVariable(c *VariableContext)
+	// ExitSrcVariable is called when exiting the srcVariable production.
+	ExitSrcVariable(c *SrcVariableContext)
+
+	// ExitDestAccount is called when exiting the destAccount production.
+	ExitDestAccount(c *DestAccountContext)
+
+	// ExitDestVariable is called when exiting the destVariable production.
+	ExitDestVariable(c *DestVariableContext)
 
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)

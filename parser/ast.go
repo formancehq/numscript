@@ -41,6 +41,12 @@ type Source interface{ source() }
 func (*AccountLiteral) source()  {}
 func (*VariableLiteral) source() {}
 
+// Destination exprs
+type Destination interface{ destination() }
+
+func (*AccountLiteral) destination()  {}
+func (*VariableLiteral) destination() {}
+
 // Statements
 
 type Statement interface{ statement() }
@@ -48,9 +54,10 @@ type Statement interface{ statement() }
 func (*SendStatement) statement() {}
 
 type SendStatement struct {
-	Range    Range
-	Monetary Literal
-	Source   Source
+	Range       Range
+	Monetary    Literal
+	Source      Source
+	Destination Destination
 }
 
 type Program struct {

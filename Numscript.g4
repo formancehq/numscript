@@ -7,6 +7,7 @@ MULTILINE_COMMENT: '/*' (MULTILINE_COMMENT | .)*? '*/' -> skip;
 LINE_COMMENT: '//' .*? NEWLINE -> skip;
 
 SOURCE: 'source';
+DESTINATION: 'destination';
 SEND: 'send';
 LPARENS: '(';
 RPARENS: ')';
@@ -23,6 +24,10 @@ program: statement*;
 
 monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
-source: ACCOUNT # account | VARIABLE_NAME # variable;
+source: ACCOUNT # srcAccount | VARIABLE_NAME # srcVariable;
+destination:
+	ACCOUNT			# destAccount
+	| VARIABLE_NAME	# destVariable;
 
-statement: SEND monetaryLit LPARENS SOURCE EQ source RPARENS;
+statement:
+	SEND monetaryLit LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

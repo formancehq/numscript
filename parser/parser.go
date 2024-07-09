@@ -46,7 +46,7 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 
 func parseSource(sourceCtx parser.ISourceContext) Source {
 	switch sourceCtx.(type) {
-	case *parser.AccountContext:
+	case *parser.SrcAccountContext:
 		// Discard the '@'
 		name := sourceCtx.GetText()[1:]
 
@@ -55,8 +55,8 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Name:  name,
 		}
 
-	case *parser.VariableContext:
-		// Discard the '@'
+	case *parser.SrcVariableContext:
+		// Discard the '$'
 		name := sourceCtx.GetText()[1:]
 
 		return &VariableLiteral{
@@ -67,14 +67,41 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	default:
 		panic("Unrecognized context")
 	}
+}
+
+func parseDestination(destCtx parser.IDestinationContext) Destination {
+	switch destCtx.(type) {
+	case *parser.DestAccountContext:
+		// Discard the '@'
+		name := destCtx.GetText()[1:]
+
+		return &AccountLiteral{
+			Range: ctxToRange(destCtx),
+			Name:  name,
+		}
+
+	case *parser.DestVariableContext:
+		// Discard the '$'
+		name := destCtx.GetText()[1:]
+
+		return &VariableLiteral{
+			Range: ctxToRange(destCtx),
+			Name:  name,
+		}
+
+	default:
+		return nil
+
+	}
 
 }
 
 func parseStatement(statementCtx parser.IStatementContext) Statement {
 	return &SendStatement{
-		Source:   parseSource(statementCtx.Source()),
-		Range:    ctxToRange(statementCtx),
-		Monetary: parseMonetaryLit(statementCtx.MonetaryLit()),
+		Source:      parseSource(statementCtx.Source()),
+		Destination: parseDestination(statementCtx.Destination()),
+		Range:       ctxToRange(statementCtx),
+		Monetary:    parseMonetaryLit(statementCtx.MonetaryLit()),
 	}
 }
 
