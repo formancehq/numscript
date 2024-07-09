@@ -81,3 +81,15 @@ func TestCappedVariable(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestNested(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = {
+    max [COIN 42] from @src
+	@a
+	@b
+  }
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
