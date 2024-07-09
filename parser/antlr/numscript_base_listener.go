@@ -33,11 +33,17 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
-// EnterSource is called when production source is entered.
-func (s *BaseNumscriptListener) EnterSource(ctx *SourceContext) {}
+// EnterAccount is called when production account is entered.
+func (s *BaseNumscriptListener) EnterAccount(ctx *AccountContext) {}
 
-// ExitSource is called when production source is exited.
-func (s *BaseNumscriptListener) ExitSource(ctx *SourceContext) {}
+// ExitAccount is called when production account is exited.
+func (s *BaseNumscriptListener) ExitAccount(ctx *AccountContext) {}
+
+// EnterVariable is called when production variable is entered.
+func (s *BaseNumscriptListener) EnterVariable(ctx *VariableContext) {}
+
+// ExitVariable is called when production variable is exited.
+func (s *BaseNumscriptListener) ExitVariable(ctx *VariableContext) {}
 
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}

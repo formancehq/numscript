@@ -14,8 +14,11 @@ type NumscriptListener interface {
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
-	// EnterSource is called when entering the source production.
-	EnterSource(c *SourceContext)
+	// EnterAccount is called when entering the account production.
+	EnterAccount(c *AccountContext)
+
+	// EnterVariable is called when entering the variable production.
+	EnterVariable(c *VariableContext)
 
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
@@ -26,8 +29,11 @@ type NumscriptListener interface {
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
-	// ExitSource is called when exiting the source production.
-	ExitSource(c *SourceContext)
+	// ExitAccount is called when exiting the account production.
+	ExitAccount(c *AccountContext)
+
+	// ExitVariable is called when exiting the variable production.
+	ExitVariable(c *VariableContext)
 
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)

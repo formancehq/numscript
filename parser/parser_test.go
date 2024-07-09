@@ -13,3 +13,10 @@ func TestPlainAddress(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestVariable(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = $example_var
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

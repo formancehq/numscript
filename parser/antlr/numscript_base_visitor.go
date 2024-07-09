@@ -16,7 +16,11 @@ func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interfa
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitSource(ctx *SourceContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitAccount(ctx *AccountContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitVariable(ctx *VariableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

@@ -45,13 +45,29 @@ func parseProgram(programCtx parser.IProgramContext) Program {
 }
 
 func parseSource(sourceCtx parser.ISourceContext) Source {
-	// Discard the '@'
-	name := sourceCtx.GetText()[1:]
+	switch sourceCtx.(type) {
+	case *parser.AccountContext:
+		// Discard the '@'
+		name := sourceCtx.GetText()[1:]
 
-	return &AccountLiteral{
-		Range: ctxToRange(sourceCtx),
-		Name:  name,
+		return &AccountLiteral{
+			Range: ctxToRange(sourceCtx),
+			Name:  name,
+		}
+
+	case *parser.VariableContext:
+		// Discard the '@'
+		name := sourceCtx.GetText()[1:]
+
+		return &VariableLiteral{
+			Range: ctxToRange(sourceCtx),
+			Name:  name,
+		}
+
+	default:
+		panic("Unrecognized context")
 	}
+
 }
 
 func parseStatement(statementCtx parser.IStatementContext) Statement {

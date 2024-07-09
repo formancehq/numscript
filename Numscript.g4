@@ -23,6 +23,6 @@ program: statement*;
 
 monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
-source: ACCOUNT;
+source: ACCOUNT # account | VARIABLE_NAME # variable;
 
 statement: SEND monetaryLit LPARENS SOURCE EQ source RPARENS;

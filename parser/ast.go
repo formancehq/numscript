@@ -16,6 +16,7 @@ type Literal interface{ literal() }
 
 func (*MonetaryLiteral) literal() {}
 func (*AccountLiteral) literal()  {}
+func (*VariableLiteral) literal() {}
 
 type MonetaryLiteral struct {
 	Range  Range
@@ -28,11 +29,17 @@ type AccountLiteral struct {
 	Name  string
 }
 
+type VariableLiteral struct {
+	Range Range
+	Name  string
+}
+
 // Source exprs
 
 type Source interface{ source() }
 
-func (*AccountLiteral) source() {}
+func (*AccountLiteral) source()  {}
+func (*VariableLiteral) source() {}
 
 // Statements
 
