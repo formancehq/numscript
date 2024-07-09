@@ -10,6 +10,7 @@ SOURCE: 'source';
 DESTINATION: 'destination';
 SEND: 'send';
 FROM: 'from';
+TO: 'to';
 LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
@@ -46,7 +47,7 @@ destination:
 	| VARIABLE_NAME							# destVariable
 	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
 	| LBRACE destination* RBRACE			# destSeq;
-allotmentClauseDest: portion FROM source;
+allotmentClauseDest: portion TO destination;
 
 statement:
 	SEND monetaryLit LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

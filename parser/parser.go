@@ -84,6 +84,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			item := SourceAllotmentItem{
 				Range:     ctxToRange(itemCtx),
 				Allotment: parseSourceAllotment(itemCtx.Portion()),
+				From:      parseSource(itemCtx.Source()),
 			}
 			items = append(items, item)
 		}
@@ -195,6 +196,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			item := DestinationAllotmentItem{
 				Range:     ctxToRange(itemCtx),
 				Allotment: parseDestinationAllotment(itemCtx.Portion()),
+				To:        parseDestination(itemCtx.Destination()),
 			}
 			items = append(items, item)
 		}

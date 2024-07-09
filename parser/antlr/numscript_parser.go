@@ -34,12 +34,12 @@ func numscriptParserInit() {
 	staticData := &NumscriptParserStaticData
 	staticData.LiteralNames = []string{
 		"", "", "", "", "", "'source'", "'destination'", "'send'", "'from'",
-		"'('", "')'", "'['", "']'", "'{'", "'}'", "'='",
+		"'to'", "'('", "')'", "'['", "']'", "'{'", "'}'", "'='",
 	}
 	staticData.SymbolicNames = []string{
 		"", "WS", "NEWLINE", "MULTILINE_COMMENT", "LINE_COMMENT", "SOURCE",
-		"DESTINATION", "SEND", "FROM", "LPARENS", "RPARENS", "LBRACKET", "RBRACKET",
-		"LBRACE", "RBRACE", "EQ", "RATIO_PORTION_LITERAL", "PERCENTAGE_PORTION_LITERAL",
+		"DESTINATION", "SEND", "FROM", "TO", "LPARENS", "RPARENS", "LBRACKET",
+		"RBRACKET", "LBRACE", "RBRACE", "EQ", "RATIO_PORTION_LITERAL", "PERCENTAGE_PORTION_LITERAL",
 		"NUMBER", "VARIABLE_NAME", "ACCOUNT", "ASSET",
 	}
 	staticData.RuleNames = []string{
@@ -48,7 +48,7 @@ func numscriptParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 21, 91, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 22, 91, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 1, 0, 1, 0, 3, 0, 19, 8, 0, 1, 1,
 		5, 1, 22, 8, 1, 10, 1, 12, 1, 25, 9, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1,
 		3, 1, 3, 1, 3, 1, 3, 4, 3, 36, 8, 3, 11, 3, 12, 3, 37, 1, 3, 1, 3, 1, 3,
@@ -59,31 +59,31 @@ func numscriptParserInit() {
 		7, 1, 7, 1, 7, 1, 7, 1, 7, 1, 7, 1, 7, 1, 7, 0, 0, 8, 0, 2, 4, 6, 8, 10,
 		12, 14, 0, 0, 94, 0, 18, 1, 0, 0, 0, 2, 23, 1, 0, 0, 0, 4, 26, 1, 0, 0,
 		0, 6, 49, 1, 0, 0, 0, 8, 51, 1, 0, 0, 0, 10, 73, 1, 0, 0, 0, 12, 75, 1,
-		0, 0, 0, 14, 79, 1, 0, 0, 0, 16, 19, 5, 16, 0, 0, 17, 19, 5, 17, 0, 0,
+		0, 0, 0, 14, 79, 1, 0, 0, 0, 16, 19, 5, 17, 0, 0, 17, 19, 5, 18, 0, 0,
 		18, 16, 1, 0, 0, 0, 18, 17, 1, 0, 0, 0, 19, 1, 1, 0, 0, 0, 20, 22, 3, 14,
 		7, 0, 21, 20, 1, 0, 0, 0, 22, 25, 1, 0, 0, 0, 23, 21, 1, 0, 0, 0, 23, 24,
-		1, 0, 0, 0, 24, 3, 1, 0, 0, 0, 25, 23, 1, 0, 0, 0, 26, 27, 5, 11, 0, 0,
-		27, 28, 5, 21, 0, 0, 28, 29, 5, 18, 0, 0, 29, 30, 5, 12, 0, 0, 30, 5, 1,
-		0, 0, 0, 31, 50, 5, 20, 0, 0, 32, 50, 5, 19, 0, 0, 33, 35, 5, 13, 0, 0,
+		1, 0, 0, 0, 24, 3, 1, 0, 0, 0, 25, 23, 1, 0, 0, 0, 26, 27, 5, 12, 0, 0,
+		27, 28, 5, 22, 0, 0, 28, 29, 5, 19, 0, 0, 29, 30, 5, 13, 0, 0, 30, 5, 1,
+		0, 0, 0, 31, 50, 5, 21, 0, 0, 32, 50, 5, 20, 0, 0, 33, 35, 5, 14, 0, 0,
 		34, 36, 3, 8, 4, 0, 35, 34, 1, 0, 0, 0, 36, 37, 1, 0, 0, 0, 37, 35, 1,
-		0, 0, 0, 37, 38, 1, 0, 0, 0, 38, 39, 1, 0, 0, 0, 39, 40, 5, 14, 0, 0, 40,
-		50, 1, 0, 0, 0, 41, 45, 5, 13, 0, 0, 42, 44, 3, 6, 3, 0, 43, 42, 1, 0,
+		0, 0, 0, 37, 38, 1, 0, 0, 0, 38, 39, 1, 0, 0, 0, 39, 40, 5, 15, 0, 0, 40,
+		50, 1, 0, 0, 0, 41, 45, 5, 14, 0, 0, 42, 44, 3, 6, 3, 0, 43, 42, 1, 0,
 		0, 0, 44, 47, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0, 45, 46, 1, 0, 0, 0, 46, 48,
-		1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 50, 5, 14, 0, 0, 49, 31, 1, 0, 0, 0,
+		1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 50, 5, 15, 0, 0, 49, 31, 1, 0, 0, 0,
 		49, 32, 1, 0, 0, 0, 49, 33, 1, 0, 0, 0, 49, 41, 1, 0, 0, 0, 50, 7, 1, 0,
 		0, 0, 51, 52, 3, 0, 0, 0, 52, 53, 5, 8, 0, 0, 53, 54, 3, 6, 3, 0, 54, 9,
-		1, 0, 0, 0, 55, 74, 5, 20, 0, 0, 56, 74, 5, 19, 0, 0, 57, 59, 5, 13, 0,
+		1, 0, 0, 0, 55, 74, 5, 21, 0, 0, 56, 74, 5, 20, 0, 0, 57, 59, 5, 14, 0,
 		0, 58, 60, 3, 12, 6, 0, 59, 58, 1, 0, 0, 0, 60, 61, 1, 0, 0, 0, 61, 59,
-		1, 0, 0, 0, 61, 62, 1, 0, 0, 0, 62, 63, 1, 0, 0, 0, 63, 64, 5, 14, 0, 0,
-		64, 74, 1, 0, 0, 0, 65, 69, 5, 13, 0, 0, 66, 68, 3, 10, 5, 0, 67, 66, 1,
+		1, 0, 0, 0, 61, 62, 1, 0, 0, 0, 62, 63, 1, 0, 0, 0, 63, 64, 5, 15, 0, 0,
+		64, 74, 1, 0, 0, 0, 65, 69, 5, 14, 0, 0, 66, 68, 3, 10, 5, 0, 67, 66, 1,
 		0, 0, 0, 68, 71, 1, 0, 0, 0, 69, 67, 1, 0, 0, 0, 69, 70, 1, 0, 0, 0, 70,
-		72, 1, 0, 0, 0, 71, 69, 1, 0, 0, 0, 72, 74, 5, 14, 0, 0, 73, 55, 1, 0,
+		72, 1, 0, 0, 0, 71, 69, 1, 0, 0, 0, 72, 74, 5, 15, 0, 0, 73, 55, 1, 0,
 		0, 0, 73, 56, 1, 0, 0, 0, 73, 57, 1, 0, 0, 0, 73, 65, 1, 0, 0, 0, 74, 11,
-		1, 0, 0, 0, 75, 76, 3, 0, 0, 0, 76, 77, 5, 8, 0, 0, 77, 78, 3, 6, 3, 0,
+		1, 0, 0, 0, 75, 76, 3, 0, 0, 0, 76, 77, 5, 9, 0, 0, 77, 78, 3, 10, 5, 0,
 		78, 13, 1, 0, 0, 0, 79, 80, 5, 7, 0, 0, 80, 81, 3, 4, 2, 0, 81, 82, 5,
-		9, 0, 0, 82, 83, 5, 5, 0, 0, 83, 84, 5, 15, 0, 0, 84, 85, 3, 6, 3, 0, 85,
-		86, 5, 6, 0, 0, 86, 87, 5, 15, 0, 0, 87, 88, 3, 10, 5, 0, 88, 89, 5, 10,
-		0, 0, 89, 15, 1, 0, 0, 0, 8, 18, 23, 37, 45, 49, 61, 69, 73,
+		10, 0, 0, 82, 83, 5, 5, 0, 0, 83, 84, 5, 16, 0, 0, 84, 85, 3, 6, 3, 0,
+		85, 86, 5, 6, 0, 0, 86, 87, 5, 16, 0, 0, 87, 88, 3, 10, 5, 0, 88, 89, 5,
+		11, 0, 0, 89, 15, 1, 0, 0, 0, 8, 18, 23, 37, 45, 49, 61, 69, 73,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -130,19 +130,20 @@ const (
 	NumscriptParserDESTINATION                = 6
 	NumscriptParserSEND                       = 7
 	NumscriptParserFROM                       = 8
-	NumscriptParserLPARENS                    = 9
-	NumscriptParserRPARENS                    = 10
-	NumscriptParserLBRACKET                   = 11
-	NumscriptParserRBRACKET                   = 12
-	NumscriptParserLBRACE                     = 13
-	NumscriptParserRBRACE                     = 14
-	NumscriptParserEQ                         = 15
-	NumscriptParserRATIO_PORTION_LITERAL      = 16
-	NumscriptParserPERCENTAGE_PORTION_LITERAL = 17
-	NumscriptParserNUMBER                     = 18
-	NumscriptParserVARIABLE_NAME              = 19
-	NumscriptParserACCOUNT                    = 20
-	NumscriptParserASSET                      = 21
+	NumscriptParserTO                         = 9
+	NumscriptParserLPARENS                    = 10
+	NumscriptParserRPARENS                    = 11
+	NumscriptParserLBRACKET                   = 12
+	NumscriptParserRBRACKET                   = 13
+	NumscriptParserLBRACE                     = 14
+	NumscriptParserRBRACE                     = 15
+	NumscriptParserEQ                         = 16
+	NumscriptParserRATIO_PORTION_LITERAL      = 17
+	NumscriptParserPERCENTAGE_PORTION_LITERAL = 18
+	NumscriptParserNUMBER                     = 19
+	NumscriptParserVARIABLE_NAME              = 20
+	NumscriptParserACCOUNT                    = 21
+	NumscriptParserASSET                      = 22
 )
 
 // NumscriptParser rules.
@@ -1099,7 +1100,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1581056) != 0 {
+		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&3162112) != 0 {
 			{
 				p.SetState(42)
 				p.Source()
@@ -1700,7 +1701,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1581056) != 0 {
+		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&3162112) != 0 {
 			{
 				p.SetState(66)
 				p.Destination()
@@ -1748,8 +1749,8 @@ type IAllotmentClauseDestContext interface {
 
 	// Getter signatures
 	Portion() IPortionContext
-	FROM() antlr.TerminalNode
-	Source() ISourceContext
+	TO() antlr.TerminalNode
+	Destination() IDestinationContext
 
 	// IsAllotmentClauseDestContext differentiates from other interfaces.
 	IsAllotmentClauseDestContext()
@@ -1803,14 +1804,14 @@ func (s *AllotmentClauseDestContext) Portion() IPortionContext {
 	return t.(IPortionContext)
 }
 
-func (s *AllotmentClauseDestContext) FROM() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserFROM, 0)
+func (s *AllotmentClauseDestContext) TO() antlr.TerminalNode {
+	return s.GetToken(NumscriptParserTO, 0)
 }
 
-func (s *AllotmentClauseDestContext) Source() ISourceContext {
+func (s *AllotmentClauseDestContext) Destination() IDestinationContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ISourceContext); ok {
+		if _, ok := ctx.(IDestinationContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -1820,7 +1821,7 @@ func (s *AllotmentClauseDestContext) Source() ISourceContext {
 		return nil
 	}
 
-	return t.(ISourceContext)
+	return t.(IDestinationContext)
 }
 
 func (s *AllotmentClauseDestContext) GetRuleContext() antlr.RuleContext {
@@ -1863,7 +1864,7 @@ func (p *NumscriptParser) AllotmentClauseDest() (localctx IAllotmentClauseDestCo
 	}
 	{
 		p.SetState(76)
-		p.Match(NumscriptParserFROM)
+		p.Match(NumscriptParserTO)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -1871,7 +1872,7 @@ func (p *NumscriptParser) AllotmentClauseDest() (localctx IAllotmentClauseDestCo
 	}
 	{
 		p.SetState(77)
-		p.Source()
+		p.Destination()
 	}
 
 errorExit:

@@ -68,6 +68,7 @@ func (*VariableLiteral) sourceAllotmentValue() {}
 type SourceAllotmentItem struct {
 	Range     Range
 	Allotment SourceAllotmentValue
+	From      Source
 }
 
 // Destination exprs
@@ -96,6 +97,7 @@ type DestinationAllotment struct {
 type DestinationAllotmentItem struct {
 	Range     Range
 	Allotment DestinationAllotmentValue
+	To        Destination
 }
 
 // Statements
