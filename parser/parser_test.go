@@ -7,7 +7,7 @@ import (
 	"github.com/gkampitakis/go-snaps/snaps"
 )
 
-func TestParser(t *testing.T) {
+func TestPlainAddress(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = @src
 )`)

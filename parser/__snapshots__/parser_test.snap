@@ -1,5 +1,4 @@
-
-[TestParser - 1]
+[TestPlainAddress - 1]
 parser.Program{
     Statements: {
         &parser.SendStatement{
