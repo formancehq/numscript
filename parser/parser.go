@@ -83,7 +83,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		for _, itemCtx := range sourceCtx.AllAllotmentClauseSrc() {
 			item := SourceAllotmentItem{
 				Range:     ctxToRange(itemCtx),
-				Allotment: parsePortion(itemCtx.Portion()),
+				Allotment: parseSourceAllotment(itemCtx.Portion()),
 			}
 			items = append(items, item)
 		}
@@ -100,50 +100,57 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	}
 }
 
-func parsePortion(portionCtx parser.IPortionContext) SourceAllotmentValue {
+func parseRatio(source string, range_ Range) *RatioLiteral {
+	split := strings.Split(source, "/")
+
+	num, err := strconv.ParseUint(split[0], 0, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	den, err := strconv.ParseUint(split[1], 0, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return &RatioLiteral{
+		Range:       range_,
+		Numerator:   num,
+		Denominator: den,
+	}
+}
+
+func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
+	str := strings.TrimSuffix(source, "%")
+	num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	var denominator uint64
+	split := strings.Split(str, ".")
+	if len(split) > 1 {
+		// TODO verify this is always correct
+		floatingDigits := len(split[1])
+		denominator = (uint64)(math.Pow10(2 + floatingDigits))
+	} else {
+		denominator = 100
+	}
+
+	return &RatioLiteral{
+		Range:       range_,
+		Numerator:   num,
+		Denominator: denominator,
+	}
+}
+
+func parseSourceAllotment(portionCtx parser.IPortionContext) SourceAllotmentValue {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
-		split := strings.Split(portionCtx.GetText(), "/")
-
-		num, err := strconv.ParseUint(split[0], 0, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		den, err := strconv.ParseUint(split[1], 0, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		return &RatioLiteral{
-			Range:       ctxToRange(portionCtx),
-			Numerator:   num,
-			Denominator: den,
-		}
+		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
 
 	case *parser.PercentageContext:
-		str := strings.TrimSuffix(portionCtx.GetText(), "%")
-		num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		var denominator uint64
-
-		split := strings.Split(str, ".")
-		if len(split) > 1 {
-			// TODO verify this is always correct
-			floatingDigits := len(split[1])
-			denominator = (uint64)(math.Pow10(2 + floatingDigits))
-		} else {
-			denominator = 100
-		}
-
-		return &RatioLiteral{
-			Range:       ctxToRange(portionCtx),
-			Numerator:   num,
-			Denominator: denominator,
-		}
+		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
 
 	default:
 		panic("unhandled portion ctx")
