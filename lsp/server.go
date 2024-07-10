@@ -39,9 +39,13 @@ func RunServer(handler Handler) {
 		}
 
 		// TODO is the number of bytes correct?
-		fmt.Printf(`Content-Length: %d\r\n\r\n%s`, len(response), response)
+		_, err = fmt.Printf(`Content-Length: %v\r\n\r\n%v`, len(response), string(response))
+		if err != nil {
+			panic(err)
+		}
 
-		// os.Stderr.WriteString("RES " + string(response))
+		os.Stderr.WriteString(fmt.Sprintf(`Content-Length: %v\r\n\r\n%v`, len(response), string(response)))
+
 	}
 
 }
