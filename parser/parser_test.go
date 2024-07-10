@@ -15,6 +15,14 @@ func TestPlainAddress(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestMultipleSends(t *testing.T) {
+	p := parser.Parse(`
+	send [COIN 10] ( source = @src destination = @dest )
+	send [COIN 20] ( source = @src destination = @dest )
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestVariable(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = $example_var_src

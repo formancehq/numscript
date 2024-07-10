@@ -549,3 +549,66 @@ parser.Program{
     },
 }
 ---
+
+[TestMultipleSends - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:1, Line:1},
+                End:   parser.Position{Character:53, Line:1},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:6, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
+                Asset:  "COIN",
+                Amount: 10,
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:27, Line:1},
+                    End:   parser.Position{Character:31, Line:1},
+                },
+                Name: "src",
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:46, Line:1},
+                    End:   parser.Position{Character:51, Line:1},
+                },
+                Name: "dest",
+            },
+        },
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:1, Line:2},
+                End:   parser.Position{Character:53, Line:2},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:6, Line:2},
+                    End:   parser.Position{Character:15, Line:2},
+                },
+                Asset:  "COIN",
+                Amount: 20,
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:27, Line:2},
+                    End:   parser.Position{Character:31, Line:2},
+                },
+                Name: "src",
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:46, Line:2},
+                    End:   parser.Position{Character:51, Line:2},
+                },
+                Name: "dest",
+            },
+        },
+    },
+}
+---
