@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	lsp "numscript/lsp"
@@ -19,7 +18,7 @@ func main() {
 
 	switch firstArg {
 	case "lsp":
-		runServer()
+		lsp.RunServer(lsp.NewHandler())
 		return
 
 	case "parse":
@@ -66,33 +65,4 @@ func handle(r jsonrpc2.Request) any {
 		return nil
 	}
 
-}
-
-func runServer() {
-	buf := lsp.NewMessageBuffer(os.Stdin)
-
-	for {
-		request := buf.Read()
-
-		bytes, err := json.Marshal(handle(request))
-		if err != nil {
-			panic(err)
-		}
-
-		rawMsg := json.RawMessage(bytes)
-		jsonRes := jsonrpc2.Response{
-			ID:     request.ID,
-			Result: &rawMsg,
-		}
-
-		response, err := jsonRes.MarshalJSON()
-		if err != nil {
-			panic(err)
-		}
-
-		// TODO is the number of bytes correct?
-		fmt.Printf(`Content-Length: %d\r\n\r\n%s`, len(response), response)
-
-		// os.Stderr.WriteString("RES " + string(res))
-	}
 }

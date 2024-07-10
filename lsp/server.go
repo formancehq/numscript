@@ -2,13 +2,49 @@ package lsp
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/textproto"
+	"os"
 	"strconv"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
+
+type Handler interface {
+	Handle(r jsonrpc2.Request) any
+}
+
+func RunServer(handler Handler) {
+	buf := NewMessageBuffer(os.Stdin)
+
+	for {
+		request := buf.Read()
+
+		bytes, err := json.Marshal(handler.Handle(request))
+		if err != nil {
+			panic(err)
+		}
+
+		rawMsg := json.RawMessage(bytes)
+		jsonRes := jsonrpc2.Response{
+			ID:     request.ID,
+			Result: &rawMsg,
+		}
+
+		response, err := jsonRes.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO is the number of bytes correct?
+		fmt.Printf(`Content-Length: %d\r\n\r\n%s`, len(response), response)
+
+		// os.Stderr.WriteString("RES " + string(response))
+	}
+
+}
 
 type MessageBuffer struct{ reader *bufio.Reader }
 
