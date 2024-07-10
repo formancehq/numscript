@@ -10,29 +10,58 @@ import (
 )
 
 type LexerError struct{}
-type ParserError struct{}
+type ParserError struct {
+	Range Range
+	Msg   string
+}
 
 type ParseResult[T any] struct {
-	Value        T
-	ParserErrors []ParserError
-	LexerErrors  []LexerError
+	Value       T
+	Errors      []ParserError
+	LexerErrors []LexerError
+}
+
+type ErrorListener struct {
+	antlr.DefaultErrorListener
+	Errors []ParserError
+}
+
+func (l *ErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, startL, startC int, msg string, e antlr.RecognitionException) {
+	length := 1
+	if token, ok := offendingSymbol.(antlr.Token); ok {
+		length = len(token.GetText())
+	}
+	endL := startL
+	endC := startC + length - 1 // -1 so that end character is inside the offending token
+	l.Errors = append(l.Errors, ParserError{
+		Msg: msg,
+		Range: Range{
+			Start: Position{Character: startC, Line: startL - 1},
+			End:   Position{Character: endC, Line: endL - 1},
+		},
+	})
 }
 
 func Parse(input string) ParseResult[Program] {
-	var parserErrors []ParserError
-	var lexerErrors []LexerError
+	// TODO handle lexer errors
+	listener := &ErrorListener{}
 
 	is := antlr.NewInputStream(input)
 	lexer := parser.NewNumscriptLexer(is)
+	lexer.RemoveErrorListeners()
+	lexer.AddErrorListener(listener)
 
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 
 	parser := parser.NewNumscriptParser(stream)
+	parser.RemoveErrorListeners()
+	parser.AddErrorListener(listener)
+
+	parsed := parseProgram(parser.Program())
 
 	return ParseResult[Program]{
-		Value:        parseProgram(parser.Program()),
-		ParserErrors: parserErrors,
-		LexerErrors:  lexerErrors,
+		Value:  parsed,
+		Errors: listener.Errors,
 	}
 }
 
@@ -119,7 +148,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		}
 
 	case *parser.SourceContext:
-		panic("Invalid source context" + sourceCtx.GetText())
+		return nil
 
 	default:
 		panic("unhandled context: " + sourceCtx.GetText())
