@@ -16,7 +16,10 @@ func main() {
 
 	switch firstArg {
 	case "lsp":
-		lsp.RunServer(lsp.NewHandler())
+		lsp.RunServer(lsp.ServerArgs[lsp.State]{
+			InitialState: lsp.InitialState(),
+			Handler:      lsp.Handle,
+		})
 		return
 
 	case "parse":

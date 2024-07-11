@@ -1,8 +1,8 @@
 package parser
 
 type Position struct {
-	Character int
-	Line      int
+	Character uint32
+	Line      uint32
 }
 
 type Range struct {
