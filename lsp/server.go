@@ -16,6 +16,15 @@ type Handler interface {
 	Handle(r jsonrpc2.Request) any
 }
 
+func encodeMessage(msg any) string {
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+
+	return fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(bytes), bytes)
+}
+
 func RunServer(handler Handler) {
 	buf := NewMessageBuffer(os.Stdin)
 
@@ -33,19 +42,11 @@ func RunServer(handler Handler) {
 			Result: &rawMsg,
 		}
 
-		response, err := jsonRes.MarshalJSON()
+		encoded := encodeMessage(jsonRes)
+		_, err = fmt.Print(encoded)
 		if err != nil {
 			panic(err)
 		}
-
-		// TODO is the number of bytes correct?
-		_, err = fmt.Printf(`Content-Length: %v\r\n\r\n%v`, len(response), string(response))
-		if err != nil {
-			panic(err)
-		}
-
-		os.Stderr.WriteString(fmt.Sprintf(`Content-Length: %v\r\n\r\n%v`, len(response), string(response)))
-
 	}
 
 }
@@ -63,6 +64,9 @@ func (mb *MessageBuffer) Read() jsonrpc2.Request {
 
 	headers, err := tpr.ReadMIMEHeader()
 	if err != nil {
+		if err.Error() == "EOF" {
+			os.Exit(0)
+		}
 		panic(err)
 	}
 
