@@ -36,8 +36,8 @@ func (l *ErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol
 	l.Errors = append(l.Errors, ParserError{
 		Msg: msg,
 		Range: Range{
-			Start: Position{Character: uint32(startC), Line: uint32(startL - 1)},
-			End:   Position{Character: uint32(endC), Line: uint32(endL - 1)},
+			Start: Position{Character: startC, Line: startL - 1},
+			End:   Position{Character: endC, Line: endL - 1},
 		},
 	})
 }
@@ -309,14 +309,14 @@ func ctxToRange(ctx antlr.ParserRuleContext) Range {
 
 	return Range{
 		Start: Position{
-			Line:      uint32(startTk.GetLine() - 1),
-			Character: uint32(startTk.GetColumn()),
+			Line:      startTk.GetLine() - 1,
+			Character: startTk.GetColumn(),
 		},
 		End: Position{
-			Line: uint32(endTk.GetLine() - 1),
+			Line: endTk.GetLine() - 1,
 
 			// this is based on the assumption that a token cannot span multiple lines
-			Character: uint32(endTk.GetColumn() + len(endTk.GetText())),
+			Character: endTk.GetColumn() + len(endTk.GetText()),
 		},
 	}
 }

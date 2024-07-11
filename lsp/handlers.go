@@ -84,8 +84,8 @@ func Handle(r jsonrpc2.Request, state *State) any {
 
 func ConvertPosition(p parser.Position) Position {
 	return Position{
-		Line:      p.Line,
-		Character: p.Character,
+		Line:      uint32(p.Line),
+		Character: uint32(p.Character),
 	}
 }
 
