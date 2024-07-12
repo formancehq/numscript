@@ -40,11 +40,6 @@ type RatioLiteral struct {
 	Denominator uint64
 }
 
-type CapLit interface{ capLit() }
-
-func (*MonetaryLiteral) capLit() {}
-func (*VariableLiteral) capLit() {}
-
 // Source exprs
 
 type Source interface{ source() }
@@ -68,7 +63,7 @@ type SourceAllotment struct {
 type SourceCapped struct {
 	Range Range
 	From  Source
-	Cap   CapLit
+	Cap   Literal
 }
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }

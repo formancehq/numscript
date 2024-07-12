@@ -53,3 +53,16 @@ func (e *DuplicateVariable) Message() string {
 func (*DuplicateVariable) Severity() Severity {
 	return ErrorSeverity
 }
+
+type UnboundVariable struct {
+	Name string
+}
+
+// TODO evaluate suggestion using Levenshtein distance
+func (e *UnboundVariable) Message() string {
+	return fmt.Sprintf("The variable '$%s' was not declared", e.Name)
+}
+
+func (*UnboundVariable) Severity() Severity {
+	return ErrorSeverity
+}

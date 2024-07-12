@@ -123,7 +123,7 @@ func parseVarType(tk antlr.Token) *TypeDecl {
 	}
 }
 
-func parseCapLit(capCtx parser.ICapContext) CapLit {
+func parseCapLit(capCtx parser.ICapContext) Literal {
 	switch capCtx := capCtx.(type) {
 	case *parser.LitCapContext:
 		return parseMonetaryLit(capCtx.MonetaryLit())
