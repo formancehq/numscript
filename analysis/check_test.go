@@ -37,3 +37,30 @@ func TestValidType(t *testing.T) {
 	diagnostics := analysis.Check(program).Diagnostics
 	assert.Len(t, diagnostics, 0)
 }
+
+func TestDuplicateVariable(t *testing.T) {
+	input := `vars {
+  asset $x
+  account $y
+  portion $x
+}`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Line: 3, Character: 10},
+			End:   parser.Position{Line: 3, Character: 10 + len("$x")},
+		},
+		d1.Range,
+	)
+
+	assert.Equal(t,
+		&analysis.DuplicateVariable{Name: "x"},
+		d1.Kind,
+	)
+}

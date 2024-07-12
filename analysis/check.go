@@ -1,6 +1,8 @@
 package analysis
 
-import "numscript/parser"
+import (
+	"numscript/parser"
+)
 
 var AllowedTypes = []string{"monetary", "account", "portion", "asset", "number", "string"}
 
@@ -20,20 +22,29 @@ func Check(p parser.Program) CheckResult {
 }
 
 func (res *CheckResult) checkProgram(program parser.Program) {
-	for _, var_ := range program.Vars {
-		type_ := var_.Type
+	declaredVars := make(map[string]struct{})
+
+	for _, varDecl := range program.Vars {
 		isAllowed := false
 		for _, allowedType := range AllowedTypes {
-			if allowedType == type_.Name {
+			if allowedType == varDecl.Type.Name {
 				isAllowed = true
 				break
 			}
 		}
 		if !isAllowed {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: type_.Range,
-				Kind:  &InvalidType{Name: type_.Name},
+				Range: varDecl.Type.Range,
+				Kind:  &InvalidType{Name: varDecl.Type.Name},
 			})
+		}
+		if _, ok := declaredVars[varDecl.Name.Name]; ok {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: varDecl.Name.Range,
+				Kind:  &DuplicateVariable{Name: varDecl.Name.Name},
+			})
+		} else {
+			declaredVars[varDecl.Name.Name] = struct{}{}
 		}
 	}
 }

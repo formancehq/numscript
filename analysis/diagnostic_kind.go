@@ -19,6 +19,8 @@ type DiagnosticKind interface {
 	Severity() Severity
 }
 
+// ###### Diagnostics
+
 type InvalidType struct {
 	Name string
 }
@@ -37,5 +39,17 @@ func (e *InvalidType) Message() string {
 }
 
 func (*InvalidType) Severity() Severity {
+	return ErrorSeverity
+}
+
+type DuplicateVariable struct {
+	Name string
+}
+
+func (e *DuplicateVariable) Message() string {
+	return fmt.Sprintf("A variable with the name '$%s' was already declared", e.Name)
+}
+
+func (*DuplicateVariable) Severity() Severity {
 	return ErrorSeverity
 }

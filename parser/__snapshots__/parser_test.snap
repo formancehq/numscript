@@ -785,14 +785,14 @@ parser.Program{
             Name: &parser.VariableLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:16, Line:0},
-                    End:   parser.Position{Character:22, Line:0},
+                    End:   parser.Position{Character:23, Line:0},
                 },
                 Name: "my_var",
             },
             Type: &parser.TypeDecl{
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:0},
-                    End:   parser.Position{Character:14, Line:0},
+                    End:   parser.Position{Character:15, Line:0},
                 },
                 Name: "monetary",
             },
@@ -814,7 +814,7 @@ parser.Program{
             Type: &parser.TypeDecl{
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:0},
-                    End:   parser.Position{Character:14, Line:0},
+                    End:   parser.Position{Character:15, Line:0},
                 },
                 Name: "monetary",
             },
