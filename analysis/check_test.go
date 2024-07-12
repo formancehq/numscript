@@ -19,7 +19,7 @@ func TestInvalidType(t *testing.T) {
 	assert.Equal(t,
 		parser.Range{
 			Start: parser.Position{Character: 7},
-			End:   parser.Position{Character: 7 + len("invalid") - 1},
+			End:   parser.Position{Character: 7 + len("invalid")},
 		},
 		d1.Range,
 	)
@@ -28,4 +28,12 @@ func TestInvalidType(t *testing.T) {
 		&analysis.InvalidType{Name: "invalid"},
 		d1.Kind,
 	)
+}
+
+func TestValidType(t *testing.T) {
+	input := `vars { monetary $my_var }`
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 0)
 }

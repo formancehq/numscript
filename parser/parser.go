@@ -403,11 +403,11 @@ func tokenToRange(tk antlr.Token) Range {
 	return Range{
 		Start: Position{
 			Line:      tk.GetLine() - 1,
-			Character: tk.GetStart(),
+			Character: tk.GetColumn(),
 		},
 		End: Position{
 			Line:      tk.GetLine() - 1,
-			Character: tk.GetStop(),
+			Character: tk.GetColumn() + len(tk.GetText()),
 		},
 	}
 }

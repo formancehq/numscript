@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"numscript/analysis"
 	"numscript/parser"
 
 	"github.com/sourcegraph/jsonrpc2"
@@ -27,9 +28,15 @@ func (state *State) updateDocument(uri DocumentURI, text string) {
 	for _, parseErr := range parseResult.Errors {
 		diagnostics = append(diagnostics, Diagnostic{
 			Message: parseErr.Msg,
-			Range:   ConvertRange(parseErr.Range),
+			Range:   convertRange(parseErr.Range),
 		})
 	}
+
+	checkResult := analysis.Check(parseResult.Value)
+	for _, diagnostic := range checkResult.Diagnostics {
+		diagnostics = append(diagnostics, convertDiagnostic(diagnostic))
+	}
+
 	SendNotification("textDocument/publishDiagnostics", PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
@@ -82,16 +89,24 @@ func Handle(r jsonrpc2.Request, state *State) any {
 	}
 }
 
-func ConvertPosition(p parser.Position) Position {
+func convertPosition(p parser.Position) Position {
 	return Position{
 		Line:      uint32(p.Line),
 		Character: uint32(p.Character),
 	}
 }
 
-func ConvertRange(p parser.Range) Range {
+func convertRange(p parser.Range) Range {
 	return Range{
-		Start: ConvertPosition(p.Start),
-		End:   ConvertPosition(p.End),
+		Start: convertPosition(p.Start),
+		End:   convertPosition(p.End),
+	}
+}
+
+func convertDiagnostic(d analysis.Diagnostic) Diagnostic {
+	return Diagnostic{
+		Range:    convertRange(d.Range),
+		Severity: DiagnosticSeverity(d.Kind.Severity()),
+		Message:  d.Kind.Message(),
 	}
 }

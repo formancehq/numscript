@@ -2,7 +2,7 @@ package analysis
 
 import "numscript/parser"
 
-var allowedTypes = []string{"monetary", "account", "portion", "asset", "number", "string"}
+var AllowedTypes = []string{"monetary", "account", "portion", "asset", "number", "string"}
 
 type Diagnostic struct {
 	Range parser.Range
@@ -21,36 +21,19 @@ func Check(p parser.Program) CheckResult {
 
 func (res *CheckResult) checkProgram(program parser.Program) {
 	for _, var_ := range program.Vars {
+		type_ := var_.Type
 		isAllowed := false
-		for _, allowedType := range allowedTypes {
-			if allowedType == var_.Name.Name {
+		for _, allowedType := range AllowedTypes {
+			if allowedType == type_.Name {
 				isAllowed = true
 				break
 			}
 		}
 		if !isAllowed {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: var_.Type.Range,
-				Kind:  &InvalidType{Name: var_.Type.Name},
+				Range: type_.Range,
+				Kind:  &InvalidType{Name: type_.Name},
 			})
 		}
 	}
-}
-
-func Example() {
-	parsed := parser.Parse("")
-
-	st := parsed.Value.Statements[0]
-
-	switch st := st.(type) {
-	case *parser.SendStatement:
-
-		pointer := st
-
-		var example map[*parser.SendStatement]int = make(map[*parser.SendStatement]int)
-		example[pointer] = 0
-
-		return
-	}
-
 }
