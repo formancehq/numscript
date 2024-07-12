@@ -10,8 +10,7 @@ type Range struct {
 	End   Position
 }
 
-// Literals
-
+// does it even make sense to have a literal supertype?
 type Literal interface{ literal() }
 
 func (*MonetaryLiteral) literal() {}

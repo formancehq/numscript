@@ -58,5 +58,7 @@ destination:
 	| LBRACE destination* RBRACE			# destSeq;
 allotmentClauseDest: portion TO destination;
 
+sendExpr: monetaryLit # sendMon | VARIABLE_NAME # sendVariable;
+
 statement:
-	SEND monetaryLit LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;
+	SEND sendExpr LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

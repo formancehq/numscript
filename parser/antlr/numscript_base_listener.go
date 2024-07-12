@@ -135,6 +135,18 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDes
 // ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
 
+// EnterSendMon is called when production sendMon is entered.
+func (s *BaseNumscriptListener) EnterSendMon(ctx *SendMonContext) {}
+
+// ExitSendMon is called when production sendMon is exited.
+func (s *BaseNumscriptListener) ExitSendMon(ctx *SendMonContext) {}
+
+// EnterSendVariable is called when production sendVariable is entered.
+func (s *BaseNumscriptListener) EnterSendVariable(ctx *SendVariableContext) {}
+
+// ExitSendVariable is called when production sendVariable is exited.
+func (s *BaseNumscriptListener) ExitSendVariable(ctx *SendVariableContext) {}
+
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}
 

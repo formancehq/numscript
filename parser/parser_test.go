@@ -32,6 +32,14 @@ func TestVariable(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestVariableMonetary(t *testing.T) {
+	p := parser.Parse(`send $example (
+  source = @a
+  destination = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestSeq(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = { @s1 @s2 }

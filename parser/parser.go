@@ -352,7 +352,22 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 		Source:      parseSource(statementCtx.Source()),
 		Destination: parseDestination(statementCtx.Destination()),
 		Range:       ctxToRange(statementCtx),
-		Monetary:    parseMonetaryLit(statementCtx.MonetaryLit()),
+		Monetary:    parseSendExpr(statementCtx.SendExpr()),
+	}
+}
+
+func parseSendExpr(sendExpr parser.ISendExprContext) Literal {
+	switch sendExpr := sendExpr.(type) {
+	case *parser.SendVariableContext:
+		return parseVarLiteral(sendExpr.VARIABLE_NAME().GetSymbol())
+
+	case *parser.SendMonContext:
+		return parseMonetaryLit(sendExpr.MonetaryLit())
+
+	case *parser.SendExprContext:
+		return nil
+	default:
+		panic("Unhandled SendExprContext")
 	}
 }
 

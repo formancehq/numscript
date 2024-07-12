@@ -65,6 +65,12 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#sendMon.
+	VisitSendMon(ctx *SendMonContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#sendVariable.
+	VisitSendVariable(ctx *SendVariableContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#statement.
 	VisitStatement(ctx *StatementContext) interface{}
 }

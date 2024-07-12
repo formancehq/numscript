@@ -84,6 +84,14 @@ func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDest
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitSendMon(ctx *SendMonContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSendVariable(ctx *SendVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitStatement(ctx *StatementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
