@@ -119,3 +119,5 @@ func TestUnboundCurrenciesVars(t *testing.T) {
 	diagnostics := analysis.Check(program).Diagnostics
 	assert.Len(t, diagnostics, 2)
 }
+
+// TODO unbound vars in declr
