@@ -92,19 +92,34 @@ func parseVarDeclaration(varDecl parser.IVarDeclarationContext) *VarDeclaration 
 		return nil
 	}
 
-	type_ := varDecl.GetType_().GetText()
+	return &VarDeclaration{
+		Range: ctxToRange(varDecl),
+		Type:  parseVarType(varDecl.GetType_()),
+		Name:  parseVarLiteral(varDecl.GetName()),
+	}
+}
 
-	// Discard the '$'
-	if varDecl.GetName() == nil || varDecl.GetName().GetTokenIndex() == -1 {
+func parseVarLiteral(tk antlr.Token) *VariableLiteral {
+	if tk == nil || tk.GetTokenIndex() == -1 {
 		return nil
 	}
 
-	name := varDecl.GetName().GetText()[1:]
+	name := tk.GetText()[1:]
 
-	return &VarDeclaration{
-		Range: ctxToRange(varDecl),
-		Type:  type_,
+	return &VariableLiteral{
+		Range: tokenToRange(tk),
 		Name:  name,
+	}
+}
+
+func parseVarType(tk antlr.Token) *TypeDecl {
+	if tk == nil || tk.GetTokenIndex() == -1 {
+		return nil
+	}
+
+	return &TypeDecl{
+		Range: tokenToRange(tk),
+		Name:  tk.GetText(),
 	}
 }
 
@@ -380,6 +395,19 @@ func ctxToRange(ctx antlr.ParserRuleContext) Range {
 
 			// this is based on the assumption that a token cannot span multiple lines
 			Character: endTk.GetColumn() + len(endTk.GetText()),
+		},
+	}
+}
+
+func tokenToRange(tk antlr.Token) Range {
+	return Range{
+		Start: Position{
+			Line:      tk.GetLine() - 1,
+			Character: tk.GetStart(),
+		},
+		End: Position{
+			Line:      tk.GetLine() - 1,
+			Character: tk.GetStop(),
 		},
 	}
 }

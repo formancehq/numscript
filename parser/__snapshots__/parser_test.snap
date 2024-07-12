@@ -782,8 +782,20 @@ parser.Program{
                 Start: parser.Position{Character:7, Line:0},
                 End:   parser.Position{Character:23, Line:0},
             },
-            Name: "my_var",
-            Type: "monetary",
+            Name: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:0},
+                    End:   parser.Position{Character:22, Line:0},
+                },
+                Name: "my_var",
+            },
+            Type: &parser.TypeDecl{
+                Range: parser.Range{
+                    Start: parser.Position{Character:7, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
+                Name: "monetary",
+            },
         },
     },
     Statements: nil,
@@ -791,5 +803,23 @@ parser.Program{
 ---
 
 [TestFaultToleranceVarName - 1]
-parser.Program{}
+parser.Program{
+    Vars: {
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:7, Line:0},
+                End:   parser.Position{Character:18, Line:0},
+            },
+            Name: (*parser.VariableLiteral)(nil),
+            Type: &parser.TypeDecl{
+                Range: parser.Range{
+                    Start: parser.Position{Character:7, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
+                Name: "monetary",
+            },
+        },
+    },
+    Statements: nil,
+}
 ---

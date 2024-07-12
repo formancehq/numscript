@@ -125,10 +125,15 @@ type SendStatement struct {
 	Destination Destination
 }
 
-type VarDeclaration struct {
+type TypeDecl struct {
 	Range Range
 	Name  string
-	Type  string
+}
+
+type VarDeclaration struct {
+	Range Range
+	Name  *VariableLiteral
+	Type  *TypeDecl
 }
 
 type Program struct {
