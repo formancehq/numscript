@@ -13,12 +13,14 @@ type Diagnostic struct {
 
 type CheckResult struct {
 	declaredVars map[string]struct{}
+	unusedVars   map[string]parser.Range
 	Diagnostics  []Diagnostic
 }
 
 func Check(program parser.Program) CheckResult {
 	res := CheckResult{
 		declaredVars: make(map[string]struct{}),
+		unusedVars:   make(map[string]parser.Range),
 	}
 	for _, varDecl := range program.Vars {
 		res.checkVarDecl(varDecl)
@@ -29,6 +31,14 @@ func Check(program parser.Program) CheckResult {
 			res.checkLiteral(statement.Monetary)
 			res.checkSource(statement.Source)
 		}
+	}
+
+	// after static AST traversal is complete, check for unused vars
+	for name, rng := range res.unusedVars {
+		res.Diagnostics = append(res.Diagnostics, Diagnostic{
+			Range: rng,
+			Kind:  &UnusedVar{Name: name},
+		})
 	}
 	return res
 }
@@ -57,6 +67,7 @@ func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
 		})
 	} else {
 		res.declaredVars[varDecl.Name.Name] = struct{}{}
+		res.unusedVars[varDecl.Name.Name] = varDecl.Name.Range
 	}
 }
 
@@ -69,6 +80,7 @@ func (res *CheckResult) checkLiteral(lit parser.Literal) {
 				Kind:  &UnboundVariable{Name: lit.Name},
 			})
 		}
+		delete(res.unusedVars, lit.Name)
 
 	case *parser.MonetaryLiteral:
 		return

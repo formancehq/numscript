@@ -9,7 +9,11 @@ import (
 )
 
 func TestInvalidType(t *testing.T) {
-	input := `vars { invalid $my_var }`
+	input := `vars { invalid $my_var }
+send [C 10] (
+	source = $my_var
+	destination = $my_var
+)`
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.Check(program).Diagnostics
@@ -31,7 +35,11 @@ func TestInvalidType(t *testing.T) {
 }
 
 func TestValidType(t *testing.T) {
-	input := `vars { monetary $my_var }`
+	input := `vars { monetary $my_var }
+send [C 10] (
+	source = $my_var
+	destination = $my_var
+)`
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.Check(program).Diagnostics
@@ -43,7 +51,11 @@ func TestDuplicateVariable(t *testing.T) {
   asset $x
   account $y
   portion $x
-}`
+}
+  send [C 10] (
+	source = { $x $y }
+	destination = @dest
+)`
 
 	program := parser.Parse(input).Value
 
@@ -121,3 +133,26 @@ func TestUnboundCurrenciesVars(t *testing.T) {
 }
 
 // TODO unbound vars in declr
+
+func TestUnusedVarInSource(t *testing.T) {
+	input := `vars { monetary $unused_var }`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Character: 16},
+			End:   parser.Position{Character: 16 + len("$unused_var")},
+		},
+		d1.Range,
+	)
+
+	assert.Equal(t,
+		&analysis.UnusedVar{Name: "unused_var"},
+		d1.Kind,
+	)
+}

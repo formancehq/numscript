@@ -66,3 +66,15 @@ func (e *UnboundVariable) Message() string {
 func (*UnboundVariable) Severity() Severity {
 	return ErrorSeverity
 }
+
+type UnusedVar struct {
+	Name string
+}
+
+func (e *UnusedVar) Message() string {
+	return fmt.Sprintf("The variable '$%s' is never used", e.Name)
+}
+
+func (*UnusedVar) Severity() Severity {
+	return WarningSeverity
+}
