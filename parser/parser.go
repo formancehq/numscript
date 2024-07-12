@@ -88,12 +88,19 @@ func parseCapLit(capCtx parser.ICapContext) CapLit {
 			Name:  name,
 		}
 
+	case *parser.CapContext:
+		return nil
+
 	default:
 		panic("Invalid ctx")
 	}
 }
 
 func parseSource(sourceCtx parser.ISourceContext) Source {
+	if sourceCtx == nil {
+		return nil
+	}
+
 	range_ := ctxToRange(sourceCtx)
 
 	switch sourceCtx := sourceCtx.(type) {
@@ -207,12 +214,19 @@ func parseSourceAllotment(portionCtx parser.IPortionContext) SourceAllotmentValu
 	case *parser.PercentageContext:
 		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
 
+	case *parser.PortionContext:
+		return nil
+
 	default:
 		panic("unhandled portion ctx")
 	}
 }
 
 func parseDestination(destCtx parser.IDestinationContext) Destination {
+	if destCtx == nil {
+		return nil
+	}
+
 	range_ := ctxToRange(destCtx)
 
 	switch destCtx := destCtx.(type) {
@@ -259,6 +273,9 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			Items: items,
 		}
 
+	case *parser.DestinationContext:
+		return nil
+
 	default:
 		panic("Unhandled dest" + destCtx.GetText())
 
@@ -273,6 +290,9 @@ func parseDestinationAllotment(portionCtx parser.IPortionContext) DestinationAll
 
 	case *parser.PercentageContext:
 		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
+
+	case *parser.PortionContext:
+		return nil
 
 	default:
 		panic("unhandled portion ctx")
@@ -289,6 +309,16 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 }
 
 func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLiteral {
+
+	if monetaryLitCtx.GetAmt() == nil {
+		return nil
+	}
+
+	// TODO better err handling
+	if monetaryLitCtx.GetAmt().GetTokenIndex() == -1 {
+		return nil
+	}
+
 	amtStr := monetaryLitCtx.GetAmt().GetText()
 
 	amt, err := strconv.Atoi(amtStr)

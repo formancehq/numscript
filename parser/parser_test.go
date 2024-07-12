@@ -101,3 +101,39 @@ func TestNested(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestFaultToleranceSend(t *testing.T) {
+	p := parser.Parse(`send `)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceMonetary(t *testing.T) {
+	p := parser.Parse(`send [COIN]`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceNoAddr(t *testing.T) {
+	p := parser.Parse(`send  (
+  source = @
+  destination = {
+	@
+  }
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceInvalidDest(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+    source = @a
+    destination =
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceInvalidSrcTk(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+    source = max
+    destination = @d
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}

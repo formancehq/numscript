@@ -612,3 +612,144 @@ parser.Program{
     },
 }
 ---
+
+[TestFaultTolerance - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:5},
+            },
+            Monetary:    (*parser.MonetaryLiteral)(nil),
+            Source:      nil,
+            Destination: &parser.DestinationSeq{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:3, Line:4},
+                },
+                Destinations: nil,
+            },
+        },
+    },
+}
+---
+
+[TestFaultToleranceSend - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:4, Line:0},
+            },
+            Monetary:    (*parser.MonetaryLiteral)(nil),
+            Source:      nil,
+            Destination: nil,
+        },
+    },
+}
+---
+
+[TestFaultToleranceMonetary - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:11, Line:0},
+            },
+            Monetary:    (*parser.MonetaryLiteral)(nil),
+            Source:      nil,
+            Destination: nil,
+        },
+    },
+}
+---
+
+[TestFaultToleranceNoAddr - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:5},
+            },
+            Monetary:    (*parser.MonetaryLiteral)(nil),
+            Source:      nil,
+            Destination: &parser.DestinationSeq{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:3, Line:4},
+                },
+                Destinations: nil,
+            },
+        },
+    },
+}
+---
+
+[TestFaultToleranceInvalidDest - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
+                Asset:  "COIN",
+                Amount: 10,
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:13, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
+                Name: "a",
+            },
+            Destination: nil,
+        },
+    },
+}
+---
+
+[TestFaultToleranceInvalidSrcTk - 1]
+parser.Program{
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
+                Asset:  "COIN",
+                Amount: 10,
+            },
+            Source: &parser.SourceCapped{
+                Range: parser.Range{
+                    Start: parser.Position{Character:13, Line:1},
+                    End:   parser.Position{Character:16, Line:1},
+                },
+                From: nil,
+                Cap:  nil,
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:18, Line:2},
+                    End:   parser.Position{Character:20, Line:2},
+                },
+                Name: "d",
+            },
+        },
+    },
+}
+---
