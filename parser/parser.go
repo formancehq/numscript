@@ -67,12 +67,45 @@ func Parse(input string) ParseResult[Program] {
 
 func parseProgram(programCtx parser.IProgramContext) Program {
 	var statements []Statement
-
 	for _, statementCtx := range programCtx.AllStatement() {
 		statements = append(statements, parseStatement(statementCtx))
 	}
 
-	return Program{statements}
+	var vars []VarDeclaration
+	if declarationCtx := programCtx.VarsDeclaration(); declarationCtx != nil {
+		for _, varDecl := range declarationCtx.AllVarDeclaration() {
+			decl := parseVarDeclaration(varDecl)
+			if decl != nil {
+				vars = append(vars, *decl)
+			}
+		}
+	}
+
+	return Program{
+		Statements: statements,
+		Vars:       vars,
+	}
+}
+
+func parseVarDeclaration(varDecl parser.IVarDeclarationContext) *VarDeclaration {
+	if varDecl == nil {
+		return nil
+	}
+
+	type_ := varDecl.GetType_().GetText()
+
+	// Discard the '$'
+	if varDecl.GetName() == nil || varDecl.GetName().GetTokenIndex() == -1 {
+		return nil
+	}
+
+	name := varDecl.GetName().GetText()[1:]
+
+	return &VarDeclaration{
+		Range: ctxToRange(varDecl),
+		Type:  type_,
+		Name:  name,
+	}
 }
 
 func parseCapLit(capCtx parser.ICapContext) CapLit {

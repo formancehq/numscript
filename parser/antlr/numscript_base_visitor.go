@@ -16,6 +16,14 @@ func (v *BaseNumscriptVisitor) VisitPercentage(ctx *PercentageContext) interface
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitVarDeclaration(ctx *VarDeclarationContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitVarsDeclaration(ctx *VarsDeclarationContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitProgram(ctx *ProgramContext) interface{} {
 	return v.VisitChildren(ctx)
 }

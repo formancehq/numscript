@@ -1,5 +1,6 @@
 [TestPlainAddress - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -35,6 +36,7 @@ parser.Program{
 
 [TestVariable - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -70,6 +72,7 @@ parser.Program{
 
 [TestSeq - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -135,6 +138,7 @@ parser.Program{
 
 [TestAllotment - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -192,6 +196,7 @@ parser.Program{
 
 [TestAllotmentPerc - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -270,6 +275,7 @@ parser.Program{
 
 [TestAllotmentPercFloating - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -327,6 +333,7 @@ parser.Program{
 
 [TestAllotmentDest - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -384,6 +391,7 @@ parser.Program{
 
 [TestCapped - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -433,6 +441,7 @@ parser.Program{
 
 [TestCappedVariable - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -481,6 +490,7 @@ parser.Program{
 
 [TestNested - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -552,6 +562,7 @@ parser.Program{
 
 [TestMultipleSends - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -637,6 +648,7 @@ parser.Program{
 
 [TestFaultToleranceSend - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -653,6 +665,7 @@ parser.Program{
 
 [TestFaultToleranceMonetary - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -669,6 +682,7 @@ parser.Program{
 
 [TestFaultToleranceNoAddr - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -691,6 +705,7 @@ parser.Program{
 
 [TestFaultToleranceInvalidDest - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -720,6 +735,7 @@ parser.Program{
 
 [TestFaultToleranceInvalidSrcTk - 1]
 parser.Program{
+    Vars:       nil,
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -752,4 +768,28 @@ parser.Program{
         },
     },
 }
+---
+
+[TestEmptyVars - 1]
+parser.Program{}
+---
+
+[TestSingleVar - 1]
+parser.Program{
+    Vars: {
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:7, Line:0},
+                End:   parser.Position{Character:23, Line:0},
+            },
+            Name: "my_var",
+            Type: "monetary",
+        },
+    },
+    Statements: nil,
+}
+---
+
+[TestFaultToleranceVarName - 1]
+parser.Program{}
 ---

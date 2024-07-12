@@ -14,6 +14,12 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#percentage.
 	VisitPercentage(ctx *PercentageContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#varDeclaration.
+	VisitVarDeclaration(ctx *VarDeclarationContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#varsDeclaration.
+	VisitVarsDeclaration(ctx *VarsDeclarationContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#program.
 	VisitProgram(ctx *ProgramContext) interface{}
 

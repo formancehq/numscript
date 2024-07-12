@@ -14,6 +14,12 @@ type NumscriptListener interface {
 	// EnterPercentage is called when entering the percentage production.
 	EnterPercentage(c *PercentageContext)
 
+	// EnterVarDeclaration is called when entering the varDeclaration production.
+	EnterVarDeclaration(c *VarDeclarationContext)
+
+	// EnterVarsDeclaration is called when entering the varsDeclaration production.
+	EnterVarsDeclaration(c *VarsDeclarationContext)
+
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
 
@@ -67,6 +73,12 @@ type NumscriptListener interface {
 
 	// ExitPercentage is called when exiting the percentage production.
 	ExitPercentage(c *PercentageContext)
+
+	// ExitVarDeclaration is called when exiting the varDeclaration production.
+	ExitVarDeclaration(c *VarDeclarationContext)
+
+	// ExitVarsDeclaration is called when exiting the varsDeclaration production.
+	ExitVarsDeclaration(c *VarsDeclarationContext)
 
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)

@@ -33,6 +33,18 @@ func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
 // ExitPercentage is called when production percentage is exited.
 func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
 
+// EnterVarDeclaration is called when production varDeclaration is entered.
+func (s *BaseNumscriptListener) EnterVarDeclaration(ctx *VarDeclarationContext) {}
+
+// ExitVarDeclaration is called when production varDeclaration is exited.
+func (s *BaseNumscriptListener) ExitVarDeclaration(ctx *VarDeclarationContext) {}
+
+// EnterVarsDeclaration is called when production varsDeclaration is entered.
+func (s *BaseNumscriptListener) EnterVarsDeclaration(ctx *VarsDeclarationContext) {}
+
+// ExitVarsDeclaration is called when production varsDeclaration is exited.
+func (s *BaseNumscriptListener) ExitVarsDeclaration(ctx *VarsDeclarationContext) {}
+
 // EnterProgram is called when production program is entered.
 func (s *BaseNumscriptListener) EnterProgram(ctx *ProgramContext) {}
 

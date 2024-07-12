@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPlainAddress(t *testing.T) {
@@ -100,6 +101,26 @@ func TestNested(t *testing.T) {
   destination = @dest
 )`)
 	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestEmptyVars(t *testing.T) {
+	p := parser.Parse(`vars { }`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+func TestSingleVar(t *testing.T) {
+	p := parser.Parse(`vars { monetary $my_var }`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+// ------- Fault tolerance tests
+
+func TestFaultToleranceVarName(t *testing.T) {
+	p := parser.Parse(`vars { monetary 42  }`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.NotEmpty(t, p.Errors)
 }
 
 func TestFaultToleranceSend(t *testing.T) {
