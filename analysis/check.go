@@ -115,6 +115,23 @@ func (res *CheckResult) checkLiteral(lit parser.Literal) {
 	}
 }
 
+func (res *CheckResult) assertType(varLit *parser.VariableLiteral, requiredType string) {
+	resolved := res.ResolveVar(varLit)
+	if resolved == nil || resolved.Type == nil {
+		return
+	}
+
+	if resolved.Type.Name != requiredType {
+		res.Diagnostics = append(res.Diagnostics, Diagnostic{
+			Range: varLit.Range,
+			Kind: &TypeMismatch{
+				Expected: requiredType,
+				Got:      resolved.Name.Name,
+			},
+		})
+	}
+}
+
 func (res *CheckResult) checkSource(source parser.Source) {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
@@ -128,6 +145,10 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.SourceCapped:
 		res.checkLiteral(source.Cap)
 		res.checkSource(source.From)
+
+		if varLit, ok := source.Cap.(*parser.VariableLiteral); ok {
+			res.assertType(varLit, "monetary")
+		}
 
 	case *parser.SourceAllotment:
 		for _, allottedItem := range source.Items {

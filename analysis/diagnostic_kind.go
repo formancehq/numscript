@@ -78,3 +78,16 @@ func (e *UnusedVar) Message() string {
 func (*UnusedVar) Severity() Severity {
 	return WarningSeverity
 }
+
+type TypeMismatch struct {
+	Expected string
+	Got      string
+}
+
+func (e *TypeMismatch) Message() string {
+	return fmt.Sprintf("Type mismatch (expected '%s', got '%s' instead)", e.Expected, e.Got)
+}
+
+func (*TypeMismatch) Severity() Severity {
+	return ErrorSeverity
+}

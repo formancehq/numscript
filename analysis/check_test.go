@@ -156,3 +156,32 @@ func TestUnusedVarInSource(t *testing.T) {
 		d1.Kind,
 	)
 }
+
+func TestWrongTypeForCap(t *testing.T) {
+	input := `vars { account $account }
+
+send [COIN 100] (
+  	source = max $account from @a
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "monetary",
+			Got:      "account",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$account", 1),
+		d1.Range,
+	)
+
+}
