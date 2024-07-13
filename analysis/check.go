@@ -53,31 +53,43 @@ func Check(program parser.Program) CheckResult {
 	return res
 }
 
-func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
+func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
 	// check type is a valid type (e.g. portion, account, ...)
 	isAllowed := false
 	for _, allowedType := range AllowedTypes {
-		if allowedType == varDecl.Type.Name {
+		if allowedType == typeDecl.Name {
 			isAllowed = true
 			break
 		}
 	}
 	if !isAllowed {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: varDecl.Type.Range,
-			Kind:  &InvalidType{Name: varDecl.Type.Name},
+			Range: typeDecl.Range,
+			Kind:  &InvalidType{Name: typeDecl.Name},
 		})
 	}
+}
 
+func (res *CheckResult) checkDuplicateVars(variableName parser.VariableLiteral, decl parser.VarDeclaration) {
 	// check there aren't duplicate variables
-	if _, ok := res.declaredVars[varDecl.Name.Name]; ok {
+	if _, ok := res.declaredVars[variableName.Name]; ok {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: varDecl.Name.Range,
-			Kind:  &DuplicateVariable{Name: varDecl.Name.Name},
+			Range: variableName.Range,
+			Kind:  &DuplicateVariable{Name: variableName.Name},
 		})
 	} else {
-		res.declaredVars[varDecl.Name.Name] = varDecl
-		res.unusedVars[varDecl.Name.Name] = varDecl.Name.Range
+		res.declaredVars[variableName.Name] = decl
+		res.unusedVars[variableName.Name] = variableName.Range
+	}
+}
+
+func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
+	if varDecl.Type != nil {
+		res.checkVarType(*varDecl.Type)
+	}
+
+	if varDecl.Name != nil {
+		res.checkDuplicateVars(*varDecl.Name, varDecl)
 	}
 }
 
