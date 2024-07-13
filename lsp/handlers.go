@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"fmt"
 	"numscript/analysis"
 	"numscript/parser"
 
@@ -11,6 +12,7 @@ import (
 type InMemoryDocument struct {
 	Text        string
 	ParseResult parser.ParseResult[parser.Program]
+	CheckResult analysis.CheckResult
 }
 
 type State struct {
@@ -19,22 +21,24 @@ type State struct {
 
 func (state *State) updateDocument(uri DocumentURI, text string) {
 	parseResult := parser.Parse(text)
+	checkResult := analysis.Check(parseResult.Value)
 
 	state.documents[uri] = InMemoryDocument{
 		Text:        text,
 		ParseResult: parseResult,
+		CheckResult: checkResult,
 	}
+
 	var diagnostics []Diagnostic = make([]Diagnostic, 0)
 	for _, parseErr := range parseResult.Errors {
 		diagnostics = append(diagnostics, Diagnostic{
 			Message: parseErr.Msg,
-			Range:   convertRange(parseErr.Range),
+			Range:   toLspRange(parseErr.Range),
 		})
 	}
 
-	checkResult := analysis.Check(parseResult.Value)
 	for _, diagnostic := range checkResult.Diagnostics {
-		diagnostics = append(diagnostics, convertDiagnostic(diagnostic))
+		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
 	SendNotification("textDocument/publishDiagnostics", PublishDiagnosticsParams{
@@ -49,6 +53,41 @@ func InitialState() State {
 	}
 }
 
+func (state *State) handleHover(params HoverParams) *Hover {
+	position := fromLspPosition(params.Position)
+
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+
+	hoverable := analysis.HoverOn(doc.ParseResult.Value, position)
+
+	switch hoverable := hoverable.(type) {
+	case *analysis.VariableHover:
+
+		varLit := hoverable.Node
+		resolution := doc.CheckResult.ResolveVar(varLit)
+
+		if resolution == nil {
+			return nil
+		}
+
+		msg := fmt.Sprintf("`%s: %s`", varLit.Name, resolution.Type.Name)
+
+		return &Hover{
+			Contents: MarkupContent{
+				Value: msg,
+				Kind:  "markdown",
+			},
+			Range: toLspRange(hoverable.Range),
+		}
+	default:
+		return nil
+	}
+
+}
+
 func Handle(r jsonrpc2.Request, state *State) any {
 	switch r.Method {
 	case "initialize":
@@ -58,6 +97,7 @@ func Handle(r jsonrpc2.Request, state *State) any {
 					OpenClose: true,
 					Change:    Full,
 				},
+				HoverProvider: true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -82,6 +122,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		state.updateDocument(p.TextDocument.URI, text)
 		return nil
 
+	case "textDocument/hover":
+		var p HoverParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleHover(p)
+
 	default:
 		// Unhandled method
 		// TODO should it panic?
@@ -89,23 +134,30 @@ func Handle(r jsonrpc2.Request, state *State) any {
 	}
 }
 
-func convertPosition(p parser.Position) Position {
+func fromLspPosition(p Position) parser.Position {
+	return parser.Position{
+		Line:      int(p.Line),
+		Character: int(p.Character),
+	}
+}
+
+func toLspPosition(p parser.Position) Position {
 	return Position{
 		Line:      uint32(p.Line),
 		Character: uint32(p.Character),
 	}
 }
 
-func convertRange(p parser.Range) Range {
+func toLspRange(p parser.Range) Range {
 	return Range{
-		Start: convertPosition(p.Start),
-		End:   convertPosition(p.End),
+		Start: toLspPosition(p.Start),
+		End:   toLspPosition(p.End),
 	}
 }
 
-func convertDiagnostic(d analysis.Diagnostic) Diagnostic {
+func toLspDiagnostic(d analysis.Diagnostic) Diagnostic {
 	return Diagnostic{
-		Range:    convertRange(d.Range),
+		Range:    toLspRange(d.Range),
 		Severity: DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
 	}

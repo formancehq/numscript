@@ -13,12 +13,17 @@ func (p1 *Position) GtEq(p2 Position) bool {
 	return p1.Line > p2.Line
 }
 
+func (p *Position) AsRange() Range {
+	//  position >= r.Start && r.End >= position
+	return Range{Start: *p, End: *p}
+}
+
 type Range struct {
 	Start Position
 	End   Position
 }
 
-func (r *Range) Contains(position Position) bool {
+func (r Range) Contains(position Position) bool {
 	//  position >= r.Start && r.End >= position
 	return position.GtEq(r.Start) && r.End.GtEq(position)
 }
@@ -55,13 +60,22 @@ type RatioLiteral struct {
 
 // Source exprs
 
-type Source interface{ source() }
+type Source interface {
+	source()
+	GetRange() Range
+}
 
 func (*SourceSeq) source()       {}
 func (*SourceAllotment) source() {}
 func (*AccountLiteral) source()  {}
 func (*VariableLiteral) source() {}
 func (*SourceCapped) source()    {}
+
+func (s *SourceSeq) GetRange() Range       { return s.Range }
+func (s *SourceAllotment) GetRange() Range { return s.Range }
+func (s *AccountLiteral) GetRange() Range  { return s.Range }
+func (s *VariableLiteral) GetRange() Range { return s.Range }
+func (s *SourceCapped) GetRange() Range    { return s.Range }
 
 type SourceSeq struct {
 	Range   Range

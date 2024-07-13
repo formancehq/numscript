@@ -12,15 +12,25 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	declaredVars map[string]struct{}
-	unusedVars   map[string]parser.Range
-	Diagnostics  []Diagnostic
+	declaredVars  map[string]parser.VarDeclaration
+	unusedVars    map[string]parser.Range
+	varResolution map[*parser.VariableLiteral]parser.VarDeclaration
+	Diagnostics   []Diagnostic
+}
+
+func (r CheckResult) ResolveVar(v *parser.VariableLiteral) *parser.VarDeclaration {
+	k, ok := r.varResolution[v]
+	if !ok {
+		return nil
+	}
+	return &k
 }
 
 func Check(program parser.Program) CheckResult {
 	res := CheckResult{
-		declaredVars: make(map[string]struct{}),
-		unusedVars:   make(map[string]parser.Range),
+		declaredVars:  make(map[string]parser.VarDeclaration),
+		unusedVars:    make(map[string]parser.Range),
+		varResolution: make(map[*parser.VariableLiteral]parser.VarDeclaration),
 	}
 	for _, varDecl := range program.Vars {
 		res.checkVarDecl(varDecl)
@@ -66,7 +76,7 @@ func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
 			Kind:  &DuplicateVariable{Name: varDecl.Name.Name},
 		})
 	} else {
-		res.declaredVars[varDecl.Name.Name] = struct{}{}
+		res.declaredVars[varDecl.Name.Name] = varDecl
 		res.unusedVars[varDecl.Name.Name] = varDecl.Name.Range
 	}
 }
@@ -74,7 +84,9 @@ func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
 func (res *CheckResult) checkLiteral(lit parser.Literal) {
 	switch lit := lit.(type) {
 	case *parser.VariableLiteral:
-		if _, ok := res.declaredVars[lit.Name]; !ok {
+		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
+			res.varResolution[lit] = varDeclaration
+		} else {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: lit.Range,
 				Kind:  &UnboundVariable{Name: lit.Name},
