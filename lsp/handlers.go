@@ -73,7 +73,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 			return nil
 		}
 
-		msg := fmt.Sprintf("`%s: %s`", varLit.Name, resolution.Type.Name)
+		msg := fmt.Sprintf("```numscript\n$%s: %s\n```", varLit.Name, resolution.Type.Name)
 
 		return &Hover{
 			Contents: MarkupContent{
@@ -85,7 +85,24 @@ func (state *State) handleHover(params HoverParams) *Hover {
 	default:
 		return nil
 	}
+}
 
+func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+
+	position := fromLspPosition(params.Position)
+	res := analysis.GotoDefinition(doc.ParseResult.Value, position, doc.CheckResult)
+	if res == nil {
+		return nil
+	}
+
+	return &Location{
+		Range: toLspRange(res.Range),
+		URI:   params.TextDocument.URI,
+	}
 }
 
 func Handle(r jsonrpc2.Request, state *State) any {
@@ -97,7 +114,8 @@ func Handle(r jsonrpc2.Request, state *State) any {
 					OpenClose: true,
 					Change:    Full,
 				},
-				HoverProvider: true,
+				HoverProvider:      true,
+				DefinitionProvider: true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -126,6 +144,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		var p HoverParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleHover(p)
+
+	case "textDocument/definition":
+		var p DefinitionParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleGotoDefinition(p)
 
 	default:
 		// Unhandled method

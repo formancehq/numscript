@@ -70,7 +70,15 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 	switch source := source.(type) {
 	case *parser.SourceCapped:
-		return hoverOnSource(source.From, position)
+		hover := hoverOnLiteral(source.Cap, position)
+		if hover != nil {
+			return hover
+		}
+		hover = hoverOnSource(source.From, position)
+		if hover != nil {
+			return hover
+		}
+		return nil
 
 	case *parser.SourceSeq:
 		for _, source := range source.Sources {
