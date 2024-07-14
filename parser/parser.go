@@ -327,7 +327,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		for _, itemCtx := range destCtx.AllAllotmentClauseDest() {
 			item := DestinationAllotmentItem{
 				Range:     ctxToRange(itemCtx),
-				Allotment: parseDestinationAllotment(itemCtx.Portion()),
+				Allotment: parseDestinationAllotment(itemCtx.Allotment()),
 				To:        parseDestination(itemCtx.Destination()),
 			}
 			items = append(items, item)
@@ -347,7 +347,23 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 
 }
 
-func parseDestinationAllotment(portionCtx parser.IPortionContext) DestinationAllotmentValue {
+func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) DestinationAllotmentValue {
+	switch allotmentCtx := allotmentCtx.(type) {
+	case *parser.RemainingAllotmentContext:
+		return &RemainingAllotment{}
+
+	case *parser.PortionedAllotmentContext:
+		return parseDestinationPortion(allotmentCtx.Portion())
+
+	case *parser.AllotmentContext:
+		return nil
+
+	default:
+		panic("unhandled portion ctx")
+	}
+}
+
+func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllotmentValue {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
 		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))

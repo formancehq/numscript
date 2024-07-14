@@ -98,7 +98,7 @@ func numscriptParserInit() {
 		1, 0, 0, 0, 107, 110, 1, 0, 0, 0, 108, 106, 1, 0, 0, 0, 108, 109, 1, 0,
 		0, 0, 109, 111, 1, 0, 0, 0, 110, 108, 1, 0, 0, 0, 111, 113, 5, 18, 0, 0,
 		112, 94, 1, 0, 0, 0, 112, 95, 1, 0, 0, 0, 112, 96, 1, 0, 0, 0, 112, 104,
-		1, 0, 0, 0, 113, 19, 1, 0, 0, 0, 114, 115, 3, 0, 0, 0, 115, 116, 5, 11,
+		1, 0, 0, 0, 113, 19, 1, 0, 0, 0, 114, 115, 3, 12, 6, 0, 115, 116, 5, 11,
 		0, 0, 116, 117, 3, 18, 9, 0, 117, 21, 1, 0, 0, 0, 118, 121, 3, 8, 4, 0,
 		119, 121, 5, 24, 0, 0, 120, 118, 1, 0, 0, 0, 120, 119, 1, 0, 0, 0, 121,
 		23, 1, 0, 0, 0, 122, 123, 5, 9, 0, 0, 123, 124, 3, 22, 11, 0, 124, 125,
@@ -2579,7 +2579,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for ok := true; ok; ok = _la == NumscriptParserRATIO_PORTION_LITERAL || _la == NumscriptParserPERCENTAGE_PORTION_LITERAL {
+		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&3149824) != 0) {
 			{
 				p.SetState(97)
 				p.AllotmentClauseDest()
@@ -2666,7 +2666,7 @@ type IAllotmentClauseDestContext interface {
 	GetParser() antlr.Parser
 
 	// Getter signatures
-	Portion() IPortionContext
+	Allotment() IAllotmentContext
 	TO() antlr.TerminalNode
 	Destination() IDestinationContext
 
@@ -2706,10 +2706,10 @@ func NewAllotmentClauseDestContext(parser antlr.Parser, parent antlr.ParserRuleC
 
 func (s *AllotmentClauseDestContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *AllotmentClauseDestContext) Portion() IPortionContext {
+func (s *AllotmentClauseDestContext) Allotment() IAllotmentContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IPortionContext); ok {
+		if _, ok := ctx.(IAllotmentContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -2719,7 +2719,7 @@ func (s *AllotmentClauseDestContext) Portion() IPortionContext {
 		return nil
 	}
 
-	return t.(IPortionContext)
+	return t.(IAllotmentContext)
 }
 
 func (s *AllotmentClauseDestContext) TO() antlr.TerminalNode {
@@ -2778,7 +2778,7 @@ func (p *NumscriptParser) AllotmentClauseDest() (localctx IAllotmentClauseDestCo
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(114)
-		p.Portion()
+		p.Allotment()
 	}
 	{
 		p.SetState(115)

@@ -58,6 +58,10 @@ type RatioLiteral struct {
 	Denominator uint64
 }
 
+type RemainingAllotment struct {
+	Range Range
+}
+
 // Source exprs
 
 type Source interface {
@@ -95,10 +99,6 @@ type SourceCapped struct {
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }
 
-type RemainingAllotment struct {
-	Range Range
-}
-
 func (*RemainingAllotment) sourceAllotmentValue() {}
 func (*RatioLiteral) sourceAllotmentValue()       {}
 func (*VariableLiteral) sourceAllotmentValue()    {}
@@ -119,8 +119,9 @@ func (*DestinationAllotment) destination() {}
 
 type DestinationAllotmentValue interface{ destinationAllotmentValue() }
 
-func (*RatioLiteral) destinationAllotmentValue()    {}
-func (*VariableLiteral) destinationAllotmentValue() {}
+func (*RemainingAllotment) destinationAllotmentValue() {}
+func (*RatioLiteral) destinationAllotmentValue()       {}
+func (*VariableLiteral) destinationAllotmentValue()    {}
 
 type DestinationSeq struct {
 	Range        Range

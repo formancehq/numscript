@@ -61,7 +61,7 @@ destination:
 	| VARIABLE_NAME							# destVariable
 	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
 	| LBRACE destination* RBRACE			# destSeq;
-allotmentClauseDest: portion TO destination;
+allotmentClauseDest: allotment TO destination;
 
 sendExpr: monetaryLit # sendMon | VARIABLE_NAME # sendVariable;
 
