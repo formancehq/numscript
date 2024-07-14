@@ -18,7 +18,7 @@ send [C 10] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.Check(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	assert.Lenf(t, diagnostics, 1, "xs: %#v", diagnostics)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -36,7 +36,7 @@ send [C 10] (
 }
 
 func TestValidType(t *testing.T) {
-	input := `vars { monetary $my_var }
+	input := `vars { account $my_var }
 send [C 10] (
 	source = $my_var
 	destination = $my_var
@@ -49,7 +49,7 @@ send [C 10] (
 
 func TestDuplicateVariable(t *testing.T) {
 	input := `vars {
-  asset $x
+  account $x
   account $y
   portion $x
 }

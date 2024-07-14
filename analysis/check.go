@@ -55,16 +55,19 @@ func Check(program parser.Program) CheckResult {
 	return res
 }
 
-func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
-	// check type is a valid type (e.g. portion, account, ...)
+func isTypeAllowed(typeName string) bool {
 	isAllowed := false
 	for _, allowedType := range AllowedTypes {
-		if allowedType == typeDecl.Name {
+		if allowedType == typeName {
 			isAllowed = true
 			break
 		}
 	}
-	if !isAllowed {
+	return isAllowed
+}
+
+func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
+	if !isTypeAllowed(typeDecl.Name) {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
 			Range: typeDecl.Range,
 			Kind:  &InvalidType{Name: typeDecl.Name},
@@ -119,7 +122,7 @@ func (res *CheckResult) checkLiteral(lit parser.Literal) {
 
 func (res *CheckResult) assertType(varLit *parser.VariableLiteral, requiredType string) {
 	resolved := res.ResolveVar(varLit)
-	if resolved == nil || resolved.Type == nil {
+	if resolved == nil || resolved.Type == nil || !isTypeAllowed(resolved.Type.Name) {
 		return
 	}
 
