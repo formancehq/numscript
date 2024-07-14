@@ -105,6 +105,14 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 				continue
 			}
 
+			switch allot := item.Allotment.(type) {
+			case parser.Literal:
+				hover := hoverOnLiteral(allot, position)
+				if hover != nil {
+					return hover
+				}
+			}
+
 			hover := hoverOnSource(item.From, position)
 			if hover != nil {
 				return hover
@@ -140,6 +148,14 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 			// TODO binary search
 			if !item.Range.Contains(position) {
 				continue
+			}
+
+			switch allot := item.Allotment.(type) {
+			case parser.Literal:
+				hover := hoverOnLiteral(allot, position)
+				if hover != nil {
+					return hover
+				}
 			}
 
 			hover := hoverOnDestination(item.To, position)

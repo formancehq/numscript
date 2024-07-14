@@ -101,3 +101,37 @@ send [C 10] (
 	resolved := checkResult.ResolveVar(variableHover.Node)
 	assert.NotNil(t, resolved)
 }
+
+func TestHoverOnSrcVariableAllotment(t *testing.T) {
+	input := `vars { portion $portion }
+
+send [C 10] (
+	source = { $portion from @a }
+	destination = @dest
+)`
+
+	rng := RangeOfIndexed(input, "$portion", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}
+
+func TestHoverOnDestVariableAllotment(t *testing.T) {
+	input := `vars { portion $portion }
+
+send [C 10] (
+	source = @s
+	destination = { $portion to @a }
+)`
+
+	rng := RangeOfIndexed(input, "$portion", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}
