@@ -212,6 +212,68 @@ send [COIN 100] (
 
 }
 
+func TestWrongTypeForSrcAllotmentPortion(t *testing.T) {
+	input := `vars { string $p }
+
+send [COIN 100] (
+  	source = {
+		$p from @a
+		remaining from @b
+	}
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "portion",
+			Got:      "string",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$p", 1),
+		d1.Range,
+	)
+}
+
+func TestWrongTypeForDestAllotmentPortion(t *testing.T) {
+	input := `vars { string $p }
+
+send [COIN 100] (
+  	source = @s
+  	destination = {
+		$p to @a
+		remaining to @dest
+	}
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "portion",
+			Got:      "string",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$p", 1),
+		d1.Range,
+	)
+}
+
 func TestBadRemainingInSource(t *testing.T) {
 	input := `send [COIN 100] (
   	source = {
@@ -425,4 +487,21 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 		RangeOfIndexed(input, "remaining", 0),
 		d1.Range,
 	)
+}
+
+func TestNoSingleAllotmentVariable(t *testing.T) {
+	input := `vars { portion $allot }
+
+send [COIN 100] (
+   source = {
+		$allot from @s1
+		remaining from @s2
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }

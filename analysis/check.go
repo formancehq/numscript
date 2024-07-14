@@ -128,7 +128,7 @@ func (res *CheckResult) assertType(varLit *parser.VariableLiteral, requiredType 
 			Range: varLit.Range,
 			Kind: &TypeMismatch{
 				Expected: requiredType,
-				Got:      resolved.Name.Name,
+				Got:      resolved.Type.Name,
 			},
 		})
 	}
@@ -160,6 +160,9 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			isLast := i == len(source.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
+			case *parser.VariableLiteral:
+				res.checkLiteral(allotment)
+				res.assertType(allotment, "portion")
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
@@ -199,6 +202,9 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 			isLast := i == len(source.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
+			case *parser.VariableLiteral:
+				res.checkLiteral(allotment)
+				res.assertType(allotment, "portion")
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:

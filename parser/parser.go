@@ -353,6 +353,9 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) Destinatio
 	case *parser.PortionedAllotmentContext:
 		return parseDestinationPortion(allotmentCtx.Portion())
 
+	case *parser.PortionVariableContext:
+		return variableLiteralFromCtx(allotmentCtx)
+
 	case *parser.AllotmentContext:
 		return nil
 
