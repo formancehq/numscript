@@ -32,6 +32,12 @@ type NumscriptListener interface {
 	// EnterVarCap is called when entering the varCap production.
 	EnterVarCap(c *VarCapContext)
 
+	// EnterPortionedAllotment is called when entering the portionedAllotment production.
+	EnterPortionedAllotment(c *PortionedAllotmentContext)
+
+	// EnterRemainingAllotment is called when entering the remainingAllotment production.
+	EnterRemainingAllotment(c *RemainingAllotmentContext)
+
 	// EnterSrcAccount is called when entering the srcAccount production.
 	EnterSrcAccount(c *SrcAccountContext)
 
@@ -97,6 +103,12 @@ type NumscriptListener interface {
 
 	// ExitVarCap is called when exiting the varCap production.
 	ExitVarCap(c *VarCapContext)
+
+	// ExitPortionedAllotment is called when exiting the portionedAllotment production.
+	ExitPortionedAllotment(c *PortionedAllotmentContext)
+
+	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
+	ExitRemainingAllotment(c *RemainingAllotmentContext)
 
 	// ExitSrcAccount is called when exiting the srcAccount production.
 	ExitSrcAccount(c *SrcAccountContext)

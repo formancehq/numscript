@@ -163,6 +163,7 @@ func TestAllotmentPerc(t *testing.T) {
   source = {
     42% from @s1
 	1/2 from @s2
+	remaining from @s3
   }
   destination = @d
 )`)

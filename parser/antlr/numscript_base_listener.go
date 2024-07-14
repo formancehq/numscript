@@ -69,6 +69,18 @@ func (s *BaseNumscriptListener) EnterVarCap(ctx *VarCapContext) {}
 // ExitVarCap is called when production varCap is exited.
 func (s *BaseNumscriptListener) ExitVarCap(ctx *VarCapContext) {}
 
+// EnterPortionedAllotment is called when production portionedAllotment is entered.
+func (s *BaseNumscriptListener) EnterPortionedAllotment(ctx *PortionedAllotmentContext) {}
+
+// ExitPortionedAllotment is called when production portionedAllotment is exited.
+func (s *BaseNumscriptListener) ExitPortionedAllotment(ctx *PortionedAllotmentContext) {}
+
+// EnterRemainingAllotment is called when production remainingAllotment is entered.
+func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentContext) {}
+
+// ExitRemainingAllotment is called when production remainingAllotment is exited.
+func (s *BaseNumscriptListener) ExitRemainingAllotment(ctx *RemainingAllotmentContext) {}
+
 // EnterSrcAccount is called when production srcAccount is entered.
 func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 

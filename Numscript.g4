@@ -13,6 +13,7 @@ DESTINATION: 'destination';
 SEND: 'send';
 FROM: 'from';
 TO: 'to';
+REMAINING: 'remaining';
 LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
@@ -43,13 +44,17 @@ monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
+allotment:
+	portion		# portionedAllotment
+	| REMAINING	# remainingAllotment;
+
 source:
 	ACCOUNT								# srcAccount
 	| VARIABLE_NAME						# srcVariable
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
 	| LBRACE source* RBRACE				# srcSeq
 	| MAX cap FROM source				# srcCapped;
-allotmentClauseSrc: portion FROM source;
+allotmentClauseSrc: allotment FROM source;
 
 destination:
 	ACCOUNT									# destAccount

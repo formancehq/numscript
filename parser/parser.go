@@ -185,7 +185,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		for _, itemCtx := range sourceCtx.AllAllotmentClauseSrc() {
 			item := SourceAllotmentItem{
 				Range:     ctxToRange(itemCtx),
-				Allotment: parseSourceAllotment(itemCtx.Portion()),
+				Allotment: parseAllotment(itemCtx.Allotment()),
 				From:      parseSource(itemCtx.Source()),
 			}
 			items = append(items, item)
@@ -254,7 +254,23 @@ func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
 	}
 }
 
-func parseSourceAllotment(portionCtx parser.IPortionContext) SourceAllotmentValue {
+func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue {
+	switch allotmentCtx := allotmentCtx.(type) {
+	case *parser.PortionedAllotmentContext:
+		return parsePortionSource(allotmentCtx.Portion())
+
+	case *parser.RemainingAllotmentContext:
+		return &RemainingAllotment{}
+
+	case *parser.AllotmentContext:
+		return nil
+
+	default:
+		return nil
+	}
+}
+
+func parsePortionSource(portionCtx parser.IPortionContext) SourceAllotmentValue {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
 		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))

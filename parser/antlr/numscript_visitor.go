@@ -32,6 +32,12 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#varCap.
 	VisitVarCap(ctx *VarCapContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#portionedAllotment.
+	VisitPortionedAllotment(ctx *PortionedAllotmentContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#remainingAllotment.
+	VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcAccount.
 	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 

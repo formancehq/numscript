@@ -201,7 +201,7 @@ parser.Program{
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
-                End:   parser.Position{Character:1, Line:6},
+                End:   parser.Position{Character:1, Line:7},
             },
             Monetary: &parser.MonetaryLiteral{
                 Range: parser.Range{
@@ -214,7 +214,7 @@ parser.Program{
             Source: &parser.SourceAllotment{
                 Range: parser.Range{
                     Start: parser.Position{Character:11, Line:1},
-                    End:   parser.Position{Character:3, Line:4},
+                    End:   parser.Position{Character:3, Line:5},
                 },
                 Items: {
                     {
@@ -259,12 +259,26 @@ parser.Program{
                             Name: "s2",
                         },
                     },
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:4},
+                            End:   parser.Position{Character:19, Line:4},
+                        },
+                        Allotment: &parser.RemainingAllotment{},
+                        From:      &parser.AccountLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:16, Line:4},
+                                End:   parser.Position{Character:19, Line:4},
+                            },
+                            Name: "s3",
+                        },
+                    },
                 },
             },
             Destination: &parser.AccountLiteral{
                 Range: parser.Range{
-                    Start: parser.Position{Character:16, Line:5},
-                    End:   parser.Position{Character:18, Line:5},
+                    Start: parser.Position{Character:16, Line:6},
+                    End:   parser.Position{Character:18, Line:6},
                 },
                 Name: "d",
             },

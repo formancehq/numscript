@@ -40,6 +40,14 @@ func (v *BaseNumscriptVisitor) VisitVarCap(ctx *VarCapContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitPortionedAllotment(ctx *PortionedAllotmentContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcAccount(ctx *SrcAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }

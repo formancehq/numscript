@@ -95,8 +95,13 @@ type SourceCapped struct {
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }
 
-func (*RatioLiteral) sourceAllotmentValue()    {}
-func (*VariableLiteral) sourceAllotmentValue() {}
+type RemainingAllotment struct {
+	Range Range
+}
+
+func (*RemainingAllotment) sourceAllotmentValue() {}
+func (*RatioLiteral) sourceAllotmentValue()       {}
+func (*VariableLiteral) sourceAllotmentValue()    {}
 
 type SourceAllotmentItem struct {
 	Range     Range
