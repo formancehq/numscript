@@ -5,7 +5,14 @@ import (
 	"numscript/parser"
 )
 
-var AllowedTypes = []string{"monetary", "account", "portion", "asset", "number", "string"}
+const TypeMonetary = "monetary"
+const TypeAccount = "account"
+const TypePortion = "portion"
+const TypeAsset = "asset"
+const TypeNumber = "number"
+const TypeString = "string"
+
+var AllowedTypes = []string{TypeMonetary, TypeAccount, TypePortion, TypeAsset, TypeNumber, TypeString}
 
 type Diagnostic struct {
 	Range parser.Range
@@ -39,7 +46,7 @@ func Check(program parser.Program) CheckResult {
 	for _, statement := range program.Statements {
 		switch statement := statement.(type) {
 		case *parser.SendStatement:
-			res.checkLiteral(statement.Monetary)
+			res.checkLiteral(statement.Monetary, TypeMonetary)
 			res.checkSource(statement.Source)
 			res.checkDestination(statement.Destination)
 		}
@@ -98,7 +105,7 @@ func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
 	}
 }
 
-func (res *CheckResult) checkLiteral(lit parser.Literal) {
+func (res *CheckResult) checkLiteral(lit parser.Literal, expectedType string) {
 	switch lit := lit.(type) {
 	case *parser.VariableLiteral:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -118,9 +125,16 @@ func (res *CheckResult) checkLiteral(lit parser.Literal) {
 	default:
 		panic("unhandled clause")
 	}
+
+	res.assertType(lit, expectedType)
 }
 
-func (res *CheckResult) assertType(varLit *parser.VariableLiteral, requiredType string) {
+func (res *CheckResult) assertType(lit parser.Literal, requiredType string) {
+	varLit, ok := lit.(*parser.VariableLiteral)
+	if !ok {
+		return
+	}
+
 	resolved := res.ResolveVar(varLit)
 	if resolved == nil || resolved.Type == nil || !isTypeAllowed(resolved.Type.Name) {
 		return
@@ -142,20 +156,12 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.AccountLiteral:
 
 	case *parser.VariableLiteral:
-		res.checkLiteral(source)
-		res.assertType(source, "account")
+		res.checkLiteral(source, TypeAccount)
 
 	case *parser.SourceOverdraft:
-		res.checkLiteral(source.Address)
+		res.checkLiteral(source.Address, TypeAccount)
 		if source.Bounded != nil {
-			res.checkLiteral(*source.Bounded)
-			if variableLiteral, ok := (*source.Bounded).(*parser.VariableLiteral); ok {
-				res.assertType(variableLiteral, "monetary")
-			}
-		}
-
-		if variableLiteral, ok := source.Address.(*parser.VariableLiteral); ok {
-			res.assertType(variableLiteral, "account")
+			res.checkLiteral(*source.Bounded, TypeMonetary)
 		}
 
 	case *parser.SourceSeq:
@@ -164,12 +170,8 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceCapped:
-		res.checkLiteral(source.Cap)
+		res.checkLiteral(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
-
-		if varLit, ok := source.Cap.(*parser.VariableLiteral); ok {
-			res.assertType(varLit, "monetary")
-		}
 
 	case *parser.SourceAllotment:
 		var remainingAllotment *parser.RemainingAllotment = nil
@@ -180,8 +182,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.VariableLiteral:
-				res.checkLiteral(allotment)
-				res.assertType(allotment, "portion")
+				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
@@ -208,8 +209,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 func (res *CheckResult) checkDestination(source parser.Destination) {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
-		res.checkLiteral(source)
-		res.assertType(source, "account")
+		res.checkLiteral(source, TypeAccount)
 
 	case *parser.DestinationSeq:
 		for _, dest := range source.Destinations {
@@ -225,8 +225,7 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.VariableLiteral:
-				res.checkLiteral(allotment)
-				res.assertType(allotment, "portion")
+				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
