@@ -91,3 +91,12 @@ func (e *TypeMismatch) Message() string {
 func (*TypeMismatch) Severity() Severity {
 	return ErrorSeverity
 }
+
+type RemainingIsNotLast struct{}
+
+func (e *RemainingIsNotLast) Message() string {
+	return "A 'remaining' clause should be the last in an allotment expression"
+}
+func (*RemainingIsNotLast) Severity() Severity {
+	return ErrorSeverity
+}

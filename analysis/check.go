@@ -151,7 +151,17 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceAllotment:
-		for _, allottedItem := range source.Items {
+		for i, allottedItem := range source.Items {
+			isLast := i == len(source.Items)-1
+
+			_, isRemaining := allottedItem.Allotment.(*parser.RemainingAllotment)
+			if isRemaining && !isLast {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Range: source.Range,
+					Kind:  &RemainingIsNotLast{},
+				})
+			}
+
 			res.checkSource(allottedItem.From)
 		}
 	}

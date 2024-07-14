@@ -185,3 +185,34 @@ send [COIN 100] (
 	)
 
 }
+
+func TestBadRemainingInSource(t *testing.T) {
+	input := `send [COIN 100] (
+  	source = {
+		1/2 from @a
+		remaining from @b
+		1/2 from @c
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.RemainingIsNotLast{},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Line: 1, Character: 12},
+			End:   parser.Position{Line: 5, Character: 5},
+		},
+		d1.Range,
+	)
+
+}
