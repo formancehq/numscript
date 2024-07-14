@@ -56,6 +56,10 @@ variableAccount:
 	ACCOUNT			# accountName
 	| VARIABLE_NAME	# accountVariable;
 
+variableMonetary:
+	monetaryLit		# monetary
+	| VARIABLE_NAME	# monetaryVariable;
+
 source:
 	variableAccount ALLOWING UNBOUNDED OVERDRAFT	# srcAccountUnboundedOverdraft
 	| ACCOUNT										# srcAccount
@@ -72,7 +76,5 @@ destination:
 	| LBRACE destination* RBRACE			# destSeq;
 allotmentClauseDest: allotment TO destination;
 
-sendExpr: monetaryLit # sendMon | VARIABLE_NAME # sendVariable;
-
 statement:
-	SEND sendExpr LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;
+	SEND variableMonetary LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS;

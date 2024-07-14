@@ -60,6 +60,14 @@ func (v *BaseNumscriptVisitor) VisitAccountVariable(ctx *AccountVariableContext)
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitMonetary(ctx *MonetaryContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -105,14 +113,6 @@ func (v *BaseNumscriptVisitor) VisitDestSeq(ctx *DestSeqContext) interface{} {
 }
 
 func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitSendMon(ctx *SendMonContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitSendVariable(ctx *SendVariableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

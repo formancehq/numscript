@@ -47,6 +47,12 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#accountVariable.
 	VisitAccountVariable(ctx *AccountVariableContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#monetary.
+	VisitMonetary(ctx *MonetaryContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#monetaryVariable.
+	VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcAccountUnboundedOverdraft.
 	VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{}
 
@@ -82,12 +88,6 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#sendMon.
-	VisitSendMon(ctx *SendMonContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#sendVariable.
-	VisitSendVariable(ctx *SendVariableContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#statement.
 	VisitStatement(ctx *StatementContext) interface{}

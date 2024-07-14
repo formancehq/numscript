@@ -47,6 +47,12 @@ type NumscriptListener interface {
 	// EnterAccountVariable is called when entering the accountVariable production.
 	EnterAccountVariable(c *AccountVariableContext)
 
+	// EnterMonetary is called when entering the monetary production.
+	EnterMonetary(c *MonetaryContext)
+
+	// EnterMonetaryVariable is called when entering the monetaryVariable production.
+	EnterMonetaryVariable(c *MonetaryVariableContext)
+
 	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
 	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
@@ -82,12 +88,6 @@ type NumscriptListener interface {
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
-
-	// EnterSendMon is called when entering the sendMon production.
-	EnterSendMon(c *SendMonContext)
-
-	// EnterSendVariable is called when entering the sendVariable production.
-	EnterSendVariable(c *SendVariableContext)
 
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
@@ -131,6 +131,12 @@ type NumscriptListener interface {
 	// ExitAccountVariable is called when exiting the accountVariable production.
 	ExitAccountVariable(c *AccountVariableContext)
 
+	// ExitMonetary is called when exiting the monetary production.
+	ExitMonetary(c *MonetaryContext)
+
+	// ExitMonetaryVariable is called when exiting the monetaryVariable production.
+	ExitMonetaryVariable(c *MonetaryVariableContext)
+
 	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
 	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
@@ -166,12 +172,6 @@ type NumscriptListener interface {
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
-
-	// ExitSendMon is called when exiting the sendMon production.
-	ExitSendMon(c *SendMonContext)
-
-	// ExitSendVariable is called when exiting the sendVariable production.
-	ExitSendVariable(c *SendVariableContext)
 
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)

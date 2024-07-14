@@ -99,6 +99,18 @@ func (s *BaseNumscriptListener) EnterAccountVariable(ctx *AccountVariableContext
 // ExitAccountVariable is called when production accountVariable is exited.
 func (s *BaseNumscriptListener) ExitAccountVariable(ctx *AccountVariableContext) {}
 
+// EnterMonetary is called when production monetary is entered.
+func (s *BaseNumscriptListener) EnterMonetary(ctx *MonetaryContext) {}
+
+// ExitMonetary is called when production monetary is exited.
+func (s *BaseNumscriptListener) ExitMonetary(ctx *MonetaryContext) {}
+
+// EnterMonetaryVariable is called when production monetaryVariable is entered.
+func (s *BaseNumscriptListener) EnterMonetaryVariable(ctx *MonetaryVariableContext) {}
+
+// ExitMonetaryVariable is called when production monetaryVariable is exited.
+func (s *BaseNumscriptListener) ExitMonetaryVariable(ctx *MonetaryVariableContext) {}
+
 // EnterSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is entered.
 func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
 }
@@ -172,18 +184,6 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDes
 
 // ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
-
-// EnterSendMon is called when production sendMon is entered.
-func (s *BaseNumscriptListener) EnterSendMon(ctx *SendMonContext) {}
-
-// ExitSendMon is called when production sendMon is exited.
-func (s *BaseNumscriptListener) ExitSendMon(ctx *SendMonContext) {}
-
-// EnterSendVariable is called when production sendVariable is entered.
-func (s *BaseNumscriptListener) EnterSendVariable(ctx *SendVariableContext) {}
-
-// ExitSendVariable is called when production sendVariable is exited.
-func (s *BaseNumscriptListener) ExitSendVariable(ctx *SendVariableContext) {}
 
 // EnterStatement is called when production statement is entered.
 func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}
