@@ -1,6 +1,7 @@
 package analysis_test
 
 import (
+	"math/big"
 	"numscript/analysis"
 	"numscript/parser"
 	"testing"
@@ -107,11 +108,8 @@ func TestUnboundVarInDest(t *testing.T) {
 	input := `send [C 1] (
   source = @src
   destination = {
-	@a
-  	max [C 1] from {
-		1/2 from @a
-		1/2 from $unbound_var
-	}
+	1/2 to @a
+	1/2 to $unbound_var
   }
 )`
 
@@ -274,4 +272,157 @@ func TestBadRemainingInDest(t *testing.T) {
 		d1.Range,
 	)
 
+}
+
+func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
+	input := `send [COIN 100] (
+   source = {
+		1/3 from @s1
+		1/3 from @s2
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadAllotmentSum{
+			Sum: *big.NewRat(2, 3),
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Line: 1, Character: 12},
+			End:   parser.Position{Line: 4, Character: 5},
+		},
+		d1.Range,
+	)
+}
+
+func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
+	input := `send [COIN 100] (
+   source = {
+		2/3 from @s1
+		2/3 from @s2
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadAllotmentSum{
+			Sum: *big.NewRat(4, 3),
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Line: 1, Character: 12},
+			End:   parser.Position{Line: 4, Character: 5},
+		},
+		d1.Range,
+	)
+
+}
+
+func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
+	input := `send [COIN 100] (
+   source = @src
+  	destination = {
+		1/3 to @d1
+		1/3 to @d2
+    }
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadAllotmentSum{
+			Sum: *big.NewRat(2, 3),
+		},
+		d1.Kind,
+	)
+}
+
+func TestNoBadAllotmentWhenRemaining(t *testing.T) {
+	input := `send [COIN 100] (
+   source = {
+		1/3 from @s1
+		1/3 from @s2
+		remaining from @s3
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
+}
+
+func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
+	input := `send [COIN 100] (
+   source = {
+		2/3 from @s1
+		2/3 from @s2
+		remaining from @s3
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadAllotmentSum{
+			Sum: *big.NewRat(4, 3),
+		},
+		d1.Kind,
+	)
+}
+
+func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
+	input := `send [COIN 100] (
+   source = {
+		2/3 from @s1
+		1/3 from @s2
+		remaining from @s3
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.RedundantRemaining{},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "remaining", 0),
+		d1.Range,
+	)
 }

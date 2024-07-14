@@ -264,8 +264,13 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:4},
                             End:   parser.Position{Character:19, Line:4},
                         },
-                        Allotment: &parser.RemainingAllotment{},
-                        From:      &parser.AccountLiteral{
+                        Allotment: &parser.RemainingAllotment{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:1, Line:4},
+                                End:   parser.Position{Character:10, Line:4},
+                            },
+                        },
+                        From: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:16, Line:4},
                                 End:   parser.Position{Character:19, Line:4},
@@ -929,8 +934,13 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:4},
                             End:   parser.Position{Character:17, Line:4},
                         },
-                        Allotment: &parser.RemainingAllotment{},
-                        To:        &parser.AccountLiteral{
+                        Allotment: &parser.RemainingAllotment{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:1, Line:4},
+                                End:   parser.Position{Character:10, Line:4},
+                            },
+                        },
+                        To: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:14, Line:4},
                                 End:   parser.Position{Character:17, Line:4},

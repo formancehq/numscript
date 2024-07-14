@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"math/big"
 	"numscript/parser"
 )
 
@@ -152,19 +153,31 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceAllotment:
+		var remainingAllotment *parser.RemainingAllotment = nil
+
+		sum := big.NewRat(0, 1)
 		for i, allottedItem := range source.Items {
 			isLast := i == len(source.Items)-1
 
-			_, isRemaining := allottedItem.Allotment.(*parser.RemainingAllotment)
-			if isRemaining && !isLast {
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Range: source.Range,
-					Kind:  &RemainingIsNotLast{},
-				})
+			switch allotment := allottedItem.Allotment.(type) {
+			case *parser.RatioLiteral:
+				sum.Add(sum, allotment.ToRatio())
+			case *parser.RemainingAllotment:
+				if isLast {
+					remainingAllotment = allotment
+				} else {
+					res.Diagnostics = append(res.Diagnostics, Diagnostic{
+						Range: source.Range,
+						Kind:  &RemainingIsNotLast{},
+					})
+				}
 			}
 
 			res.checkSource(allottedItem.From)
 		}
+
+		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
+
 	}
 }
 
@@ -179,18 +192,57 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 		}
 
 	case *parser.DestinationAllotment:
+		var remainingAllotment *parser.RemainingAllotment = nil
+		sum := big.NewRat(0, 1)
+
 		for i, allottedItem := range source.Items {
 			isLast := i == len(source.Items)-1
 
-			_, isRemaining := allottedItem.Allotment.(*parser.RemainingAllotment)
-			if isRemaining && !isLast {
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Range: source.Range,
-					Kind:  &RemainingIsNotLast{},
-				})
+			switch allotment := allottedItem.Allotment.(type) {
+			case *parser.RatioLiteral:
+				sum.Add(sum, allotment.ToRatio())
+			case *parser.RemainingAllotment:
+				if isLast {
+					remainingAllotment = allotment
+				} else {
+					res.Diagnostics = append(res.Diagnostics, Diagnostic{
+						Range: source.Range,
+						Kind:  &RemainingIsNotLast{},
+					})
+				}
 			}
 
 			res.checkDestination(allottedItem.To)
+		}
+
+		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
+	}
+}
+
+func (res *CheckResult) checkHasBadAllotmentSum(
+	sum big.Rat, rng parser.Range, remaining *parser.RemainingAllotment,
+) {
+	cmp := sum.Cmp(big.NewRat(1, 1))
+	switch cmp {
+	case 1, -1:
+		if cmp == -1 && remaining != nil {
+			return
+		}
+
+		res.Diagnostics = append(res.Diagnostics, Diagnostic{
+			Range: rng,
+			Kind: &BadAllotmentSum{
+				Sum: sum,
+			},
+		})
+
+	// sum == 1
+	case 0:
+		if remaining != nil {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: remaining.Range,
+				Kind:  &RedundantRemaining{},
+			})
 		}
 	}
 }

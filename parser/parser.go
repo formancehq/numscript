@@ -260,7 +260,9 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 		return parsePortionSource(allotmentCtx.Portion())
 
 	case *parser.RemainingAllotmentContext:
-		return &RemainingAllotment{}
+		return &RemainingAllotment{
+			Range: ctxToRange(allotmentCtx),
+		}
 
 	case *parser.AllotmentContext:
 		return nil
@@ -350,7 +352,9 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) DestinationAllotmentValue {
 	switch allotmentCtx := allotmentCtx.(type) {
 	case *parser.RemainingAllotmentContext:
-		return &RemainingAllotment{}
+		return &RemainingAllotment{
+			Range: ctxToRange(allotmentCtx),
+		}
 
 	case *parser.PortionedAllotmentContext:
 		return parseDestinationPortion(allotmentCtx.Portion())

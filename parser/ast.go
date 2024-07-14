@@ -1,5 +1,7 @@
 package parser
 
+import "math/big"
+
 type Position struct {
 	Character int
 	Line      int
@@ -56,6 +58,10 @@ type RatioLiteral struct {
 	Range       Range
 	Numerator   uint64
 	Denominator uint64
+}
+
+func (r RatioLiteral) ToRatio() *big.Rat {
+	return big.NewRat(int64(r.Numerator), int64(r.Denominator))
 }
 
 type RemainingAllotment struct {

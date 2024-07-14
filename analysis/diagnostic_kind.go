@@ -1,6 +1,9 @@
 package analysis
 
-import "fmt"
+import (
+	"fmt"
+	"math/big"
+)
 
 type Severity = byte
 
@@ -99,4 +102,36 @@ func (e *RemainingIsNotLast) Message() string {
 }
 func (*RemainingIsNotLast) Severity() Severity {
 	return ErrorSeverity
+}
+
+type BadAllotmentSum struct {
+	Sum big.Rat
+}
+
+func (e *BadAllotmentSum) Message() string {
+	one := big.NewRat(1, 1)
+
+	switch e.Sum.Cmp(one) {
+	// sum > 1
+	case 1:
+		return fmt.Sprintf("Allotment portions are greater than one (Got %s)", e.Sum.String())
+
+	// sum < 1
+	case -1:
+		return fmt.Sprintf("Allotment portions are lesser than one (Got %s). Maybe try adding a 'remaining' clause?", e.Sum.String())
+	}
+
+	panic("Invalid diagnostic")
+}
+func (*BadAllotmentSum) Severity() Severity {
+	return ErrorSeverity
+}
+
+type RedundantRemaining struct{}
+
+func (e *RedundantRemaining) Message() string {
+	return "Redundant 'remaining' clause (allotment already sums to 1)"
+}
+func (*RedundantRemaining) Severity() Severity {
+	return WarningSeverity
 }
