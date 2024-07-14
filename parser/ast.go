@@ -110,12 +110,18 @@ type SourceAllotmentItem struct {
 }
 
 // Destination exprs
-type Destination interface{ destination() }
+type Destination interface {
+	destination()
+	GetRange() Range
+}
 
 func (*DestinationSeq) destination()       {}
 func (*AccountLiteral) destination()       {}
 func (*VariableLiteral) destination()      {}
 func (*DestinationAllotment) destination() {}
+
+func (d *DestinationSeq) GetRange() Range       { return d.Range }
+func (d *DestinationAllotment) GetRange() Range { return d.Range }
 
 type DestinationAllotmentValue interface{ destinationAllotmentValue() }
 

@@ -47,6 +47,11 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 		return hover
 	}
 
+	hover = hoverOnDestination(sendStatement.Destination, position)
+	if hover != nil {
+		return hover
+	}
+
 	return nil
 }
 
@@ -109,6 +114,42 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 	case *parser.VariableLiteral:
 		return hoverOnLiteral(source, position)
 
+	}
+
+	return nil
+
+}
+
+func hoverOnDestination(destination parser.Destination, position parser.Position) Hover {
+	switch source := destination.(type) {
+	case *parser.DestinationSeq:
+		for _, destination := range source.Destinations {
+			// TODO binary search
+			if !destination.GetRange().Contains(position) {
+				continue
+			}
+
+			hover := hoverOnDestination(destination, position)
+			if hover != nil {
+				return hover
+			}
+		}
+
+	case *parser.DestinationAllotment:
+		for _, item := range source.Items {
+			// TODO binary search
+			if !item.Range.Contains(position) {
+				continue
+			}
+
+			hover := hoverOnDestination(item.To, position)
+			if hover != nil {
+				return hover
+			}
+		}
+
+	case *parser.VariableLiteral:
+		return hoverOnLiteral(source, position)
 	}
 
 	return nil
