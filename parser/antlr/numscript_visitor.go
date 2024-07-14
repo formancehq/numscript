@@ -41,6 +41,15 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#remainingAllotment.
 	VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#accountName.
+	VisitAccountName(ctx *AccountNameContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#accountVariable.
+	VisitAccountVariable(ctx *AccountVariableContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#srcAccountUnboundedOverdraft.
+	VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcAccount.
 	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 

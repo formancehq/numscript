@@ -135,3 +135,20 @@ send [C 10] (
 
 	assert.NotNilf(t, hover, "hover should not be nil")
 }
+
+func TestHoverOnUnboundSrc(t *testing.T) {
+	input := `vars { account $acc }
+
+send [C 10] (
+	source = $acc allowing unbounded overdraft
+	destination = @dest
+)`
+
+	rng := RangeOfIndexed(input, "$acc", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}

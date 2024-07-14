@@ -87,6 +87,26 @@ func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentC
 // ExitRemainingAllotment is called when production remainingAllotment is exited.
 func (s *BaseNumscriptListener) ExitRemainingAllotment(ctx *RemainingAllotmentContext) {}
 
+// EnterAccountName is called when production accountName is entered.
+func (s *BaseNumscriptListener) EnterAccountName(ctx *AccountNameContext) {}
+
+// ExitAccountName is called when production accountName is exited.
+func (s *BaseNumscriptListener) ExitAccountName(ctx *AccountNameContext) {}
+
+// EnterAccountVariable is called when production accountVariable is entered.
+func (s *BaseNumscriptListener) EnterAccountVariable(ctx *AccountVariableContext) {}
+
+// ExitAccountVariable is called when production accountVariable is exited.
+func (s *BaseNumscriptListener) ExitAccountVariable(ctx *AccountVariableContext) {}
+
+// EnterSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is entered.
+func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
+}
+
+// ExitSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is exited.
+func (s *BaseNumscriptListener) ExitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
+}
+
 // EnterSrcAccount is called when production srcAccount is entered.
 func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 

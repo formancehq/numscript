@@ -14,6 +14,9 @@ SEND: 'send';
 FROM: 'from';
 TO: 'to';
 REMAINING: 'remaining';
+ALLOWING: 'allowing';
+UNBOUNDED: 'unbounded';
+OVERDRAFT: 'overdraft';
 LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
@@ -49,12 +52,17 @@ allotment:
 	| VARIABLE_NAME	# portionVariable
 	| REMAINING		# remainingAllotment;
 
+variableAccount:
+	ACCOUNT			# accountName
+	| VARIABLE_NAME	# accountVariable;
+
 source:
-	ACCOUNT								# srcAccount
-	| VARIABLE_NAME						# srcVariable
-	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
-	| LBRACE source* RBRACE				# srcSeq
-	| MAX cap FROM source				# srcCapped;
+	variableAccount ALLOWING UNBOUNDED OVERDRAFT	# srcAccountUnboundedOverdraft
+	| ACCOUNT										# srcAccount
+	| VARIABLE_NAME									# srcVariable
+	| LBRACE allotmentClauseSrc+ RBRACE				# srcAllotment
+	| LBRACE source* RBRACE							# srcSeq
+	| MAX cap FROM source							# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 destination:

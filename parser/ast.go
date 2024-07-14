@@ -80,12 +80,14 @@ func (*SourceAllotment) source() {}
 func (*AccountLiteral) source()  {}
 func (*VariableLiteral) source() {}
 func (*SourceCapped) source()    {}
+func (*SourceOverdraft) source() {}
 
 func (s *SourceSeq) GetRange() Range       { return s.Range }
 func (s *SourceAllotment) GetRange() Range { return s.Range }
 func (s *AccountLiteral) GetRange() Range  { return s.Range }
 func (s *VariableLiteral) GetRange() Range { return s.Range }
 func (s *SourceCapped) GetRange() Range    { return s.Range }
+func (s *SourceOverdraft) GetRange() Range { return s.Range }
 
 type SourceSeq struct {
 	Range   Range
@@ -101,6 +103,11 @@ type SourceCapped struct {
 	Range Range
 	From  Source
 	Cap   Literal
+}
+
+type SourceOverdraft struct {
+	Range   Range
+	Address Literal
 }
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }

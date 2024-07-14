@@ -1011,3 +1011,85 @@ parser.Program{
     },
 }
 ---
+
+[TestOverdraftUnbounded - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:7, Line:0},
+                },
+                Name: "x",
+            },
+            Source: &parser.SourceOverdraft{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:1},
+                    End:   parser.Position{Character:43, Line:1},
+                },
+                Address: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:10, Line:1},
+                        End:   parser.Position{Character:14, Line:1},
+                    },
+                    Name: "src",
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:15, Line:2},
+                    End:   parser.Position{Character:20, Line:2},
+                },
+                Name: "dest",
+            },
+        },
+    },
+}
+---
+
+[TestOverdraftUnboundedVariable - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:7, Line:0},
+                },
+                Name: "x",
+            },
+            Source: &parser.SourceOverdraft{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:1},
+                    End:   parser.Position{Character:50, Line:1},
+                },
+                Address: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:10, Line:1},
+                        End:   parser.Position{Character:21, Line:1},
+                    },
+                    Name: "my_src_var",
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:15, Line:2},
+                    End:   parser.Position{Character:20, Line:2},
+                },
+                Name: "dest",
+            },
+        },
+    },
+}
+---

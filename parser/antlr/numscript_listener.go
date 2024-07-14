@@ -41,6 +41,15 @@ type NumscriptListener interface {
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
 
+	// EnterAccountName is called when entering the accountName production.
+	EnterAccountName(c *AccountNameContext)
+
+	// EnterAccountVariable is called when entering the accountVariable production.
+	EnterAccountVariable(c *AccountVariableContext)
+
+	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
+	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
+
 	// EnterSrcAccount is called when entering the srcAccount production.
 	EnterSrcAccount(c *SrcAccountContext)
 
@@ -115,6 +124,15 @@ type NumscriptListener interface {
 
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)
+
+	// ExitAccountName is called when exiting the accountName production.
+	ExitAccountName(c *AccountNameContext)
+
+	// ExitAccountVariable is called when exiting the accountVariable production.
+	ExitAccountVariable(c *AccountVariableContext)
+
+	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
+	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
 	// ExitSrcAccount is called when exiting the srcAccount production.
 	ExitSrcAccount(c *SrcAccountContext)

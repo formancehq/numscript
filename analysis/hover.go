@@ -72,6 +72,9 @@ func hoverOnLiteral(sendStatement parser.Literal, position parser.Position) Hove
 }
 
 func hoverOnSource(source parser.Source, position parser.Position) Hover {
+	if !source.GetRange().Contains(position) {
+		return nil
+	}
 
 	switch source := source.(type) {
 	case *parser.SourceCapped:
@@ -80,6 +83,13 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 			return hover
 		}
 		hover = hoverOnSource(source.From, position)
+		if hover != nil {
+			return hover
+		}
+		return nil
+
+	case *parser.SourceOverdraft:
+		hover := hoverOnLiteral(source.Address, position)
 		if hover != nil {
 			return hover
 		}
@@ -129,6 +139,10 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 }
 
 func hoverOnDestination(destination parser.Destination, position parser.Position) Hover {
+	if !destination.GetRange().Contains(position) {
+		return nil
+	}
+
 	switch source := destination.(type) {
 	case *parser.DestinationSeq:
 		for _, destination := range source.Destinations {

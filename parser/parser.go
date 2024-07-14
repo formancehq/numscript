@@ -185,12 +185,35 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Cap:   parseCapLit(sourceCtx.Cap_()),
 		}
 
+	case *parser.SrcAccountUnboundedOverdraftContext:
+		return &SourceOverdraft{
+			Range:   ctxToRange(sourceCtx),
+			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+		}
+
 	case *parser.SourceContext:
 		return nil
 
 	default:
 		panic("unhandled context: " + sourceCtx.GetText())
 	}
+}
+
+func parseVariableAccount(variableAccountCtx parser.IVariableAccountContext) Literal {
+	switch variableAccountCtx := variableAccountCtx.(type) {
+	case *parser.AccountNameContext:
+		return accountLiteralFromCtx(variableAccountCtx)
+
+	case *parser.AccountVariableContext:
+		return variableLiteralFromCtx(variableAccountCtx)
+
+	case *parser.VariableAccountContext:
+		return nil
+
+	default:
+		panic("Unhandled clause")
+	}
+
 }
 
 func parseRatio(source string, range_ Range) *RatioLiteral {

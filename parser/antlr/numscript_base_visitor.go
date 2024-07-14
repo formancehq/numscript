@@ -52,6 +52,18 @@ func (v *BaseNumscriptVisitor) VisitRemainingAllotment(ctx *RemainingAllotmentCo
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitAccountName(ctx *AccountNameContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAccountVariable(ctx *AccountVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcAccount(ctx *SrcAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }

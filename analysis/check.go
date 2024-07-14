@@ -112,11 +112,11 @@ func (res *CheckResult) checkLiteral(lit parser.Literal) {
 		delete(res.unusedVars, lit.Name)
 
 	case *parser.MonetaryLiteral:
-		return
+	case *parser.AccountLiteral:
+	case *parser.RatioLiteral:
 
 	default:
-		// TODO
-		panic("TODO ")
+		panic("unhandled clause")
 	}
 }
 
@@ -139,9 +139,17 @@ func (res *CheckResult) assertType(varLit *parser.VariableLiteral, requiredType 
 
 func (res *CheckResult) checkSource(source parser.Source) {
 	switch source := source.(type) {
+	case *parser.AccountLiteral:
+
 	case *parser.VariableLiteral:
 		res.checkLiteral(source)
 		res.assertType(source, "account")
+
+	case *parser.SourceOverdraft:
+		res.checkLiteral(source.Address)
+		if variableLiteral, ok := source.Address.(*parser.VariableLiteral); ok {
+			res.assertType(variableLiteral, "account")
+		}
 
 	case *parser.SourceSeq:
 		for _, source := range source.Sources {
@@ -185,6 +193,8 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
 
+	default:
+		panic("unhandled clause")
 	}
 }
 
