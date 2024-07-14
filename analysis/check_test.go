@@ -103,6 +103,34 @@ func TestUnboundVarInSource(t *testing.T) {
 	)
 }
 
+func TestUnboundVarInDest(t *testing.T) {
+	input := `send [C 1] (
+  source = @src
+  destination = {
+	@a
+  	max [C 1] from {
+		1/2 from @a
+		1/2 from $unbound_var
+	}
+  }
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Lenf(t, diagnostics, 1, "expected len to be 1")
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		RangeOfIndexed(input, "$unbound_var", 0),
+		d1.Range,
+	)
+	assert.Equal(t,
+		&analysis.UnboundVariable{Name: "unbound_var"},
+		d1.Kind,
+	)
+}
+
 func TestUnboundMany(t *testing.T) {
 	input := `send [C 1] (
   	source = {
@@ -211,6 +239,37 @@ func TestBadRemainingInSource(t *testing.T) {
 		parser.Range{
 			Start: parser.Position{Line: 1, Character: 12},
 			End:   parser.Position{Line: 5, Character: 5},
+		},
+		d1.Range,
+	)
+
+}
+
+func TestBadRemainingInDest(t *testing.T) {
+	input := `send [COIN 100] (
+  	source = @a
+  	destination = {
+		1/2 from @a
+		remaining from @b
+		1/2 from @c
+    }
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.RemainingIsNotLast{},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		parser.Range{
+			Start: parser.Position{Line: 2, Character: 17},
+			End:   parser.Position{Line: 6, Character: 5},
 		},
 		d1.Range,
 	)

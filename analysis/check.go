@@ -40,6 +40,7 @@ func Check(program parser.Program) CheckResult {
 		case *parser.SendStatement:
 			res.checkLiteral(statement.Monetary)
 			res.checkSource(statement.Source)
+			res.checkDestination(statement.Destination)
 		}
 	}
 
@@ -163,6 +164,33 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			}
 
 			res.checkSource(allottedItem.From)
+		}
+	}
+}
+
+func (res *CheckResult) checkDestination(source parser.Destination) {
+	switch source := source.(type) {
+	case *parser.VariableLiteral:
+		res.checkLiteral(source)
+
+	case *parser.DestinationSeq:
+		for _, dest := range source.Destinations {
+			res.checkDestination(dest)
+		}
+
+	case *parser.DestinationAllotment:
+		for i, allottedItem := range source.Items {
+			isLast := i == len(source.Items)-1
+
+			_, isRemaining := allottedItem.Allotment.(*parser.RemainingAllotment)
+			if isRemaining && !isLast {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Range: source.Range,
+					Kind:  &RemainingIsNotLast{},
+				})
+			}
+
+			res.checkDestination(allottedItem.To)
 		}
 	}
 }
