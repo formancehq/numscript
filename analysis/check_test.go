@@ -212,6 +212,62 @@ send [COIN 100] (
 
 }
 
+func TestWrongTypeForSrcAccount(t *testing.T) {
+	input := `vars { portion $x }
+
+send [COIN 100] (
+  	source = $x
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "account",
+			Got:      "portion",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$x", 1),
+		d1.Range,
+	)
+}
+
+func TestWrongTypeForDestAccount(t *testing.T) {
+	input := `vars { portion $x }
+
+send [COIN 100] (
+  	source = @src
+  	destination = $x
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "account",
+			Got:      "portion",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$x", 1),
+		d1.Range,
+	)
+}
+
 func TestWrongTypeForSrcAllotmentPortion(t *testing.T) {
 	input := `vars { string $p }
 

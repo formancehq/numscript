@@ -138,6 +138,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
 		res.checkLiteral(source)
+		res.assertType(source, "account")
 
 	case *parser.SourceSeq:
 		for _, source := range source.Sources {
@@ -188,6 +189,7 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
 		res.checkLiteral(source)
+		res.assertType(source, "account")
 
 	case *parser.DestinationSeq:
 		for _, dest := range source.Destinations {
