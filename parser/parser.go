@@ -148,13 +148,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 
 	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
-		// Discard the '@'
-		name := sourceCtx.GetText()[1:]
-
-		return &AccountLiteral{
-			Range: range_,
-			Name:  name,
-		}
+		return accountLiteralFromCtx(sourceCtx)
 
 	case *parser.SrcVariableContext:
 		return variableLiteralFromCtx(sourceCtx)
@@ -274,6 +268,16 @@ func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *VariableLiteral {
 	}
 }
 
+func accountLiteralFromCtx(ctx antlr.ParserRuleContext) *AccountLiteral {
+	// Discard the '@'
+	name := ctx.GetText()[1:]
+
+	return &AccountLiteral{
+		Range: ctxToRange(ctx),
+		Name:  name,
+	}
+}
+
 func parsePortionSource(portionCtx parser.IPortionContext) SourceAllotmentValue {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
@@ -299,13 +303,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 
 	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
-		// Discard the '@'
-		name := destCtx.GetText()[1:]
-
-		return &AccountLiteral{
-			Range: range_,
-			Name:  name,
-		}
+		return accountLiteralFromCtx(destCtx)
 
 	case *parser.DestVariableContext:
 		return variableLiteralFromCtx(destCtx)
