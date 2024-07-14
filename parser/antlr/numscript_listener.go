@@ -35,6 +35,9 @@ type NumscriptListener interface {
 	// EnterPortionedAllotment is called when entering the portionedAllotment production.
 	EnterPortionedAllotment(c *PortionedAllotmentContext)
 
+	// EnterPortionVariable is called when entering the portionVariable production.
+	EnterPortionVariable(c *PortionVariableContext)
+
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
 
@@ -106,6 +109,9 @@ type NumscriptListener interface {
 
 	// ExitPortionedAllotment is called when exiting the portionedAllotment production.
 	ExitPortionedAllotment(c *PortionedAllotmentContext)
+
+	// ExitPortionVariable is called when exiting the portionVariable production.
+	ExitPortionVariable(c *PortionVariableContext)
 
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)

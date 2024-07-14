@@ -178,6 +178,16 @@ func TestAllotmentPercFloating(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestAllotmentVariableSource(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = {
+	$x from @a
+  }
+  destination = @d
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestAllotmentDest(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = @s

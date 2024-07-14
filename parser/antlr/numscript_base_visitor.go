@@ -44,6 +44,10 @@ func (v *BaseNumscriptVisitor) VisitPortionedAllotment(ctx *PortionedAllotmentCo
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitPortionVariable(ctx *PortionVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{} {
 	return v.VisitChildren(ctx)
 }

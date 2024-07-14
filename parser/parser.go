@@ -129,12 +129,7 @@ func parseCapLit(capCtx parser.ICapContext) Literal {
 		return parseMonetaryLit(capCtx.MonetaryLit())
 
 	case *parser.VarCapContext:
-		// Discard the '$'
-		name := capCtx.GetText()[1:]
-		return &VariableLiteral{
-			Range: ctxToRange(capCtx),
-			Name:  name,
-		}
+		return variableLiteralFromCtx(capCtx)
 
 	case *parser.CapContext:
 		return nil
@@ -162,13 +157,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		}
 
 	case *parser.SrcVariableContext:
-		// Discard the '$'
-		name := sourceCtx.GetText()[1:]
-
-		return &VariableLiteral{
-			Range: range_,
-			Name:  name,
-		}
+		return variableLiteralFromCtx(sourceCtx)
 
 	case *parser.SrcSeqContext:
 		var sources []Source
@@ -264,11 +253,24 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 			Range: ctxToRange(allotmentCtx),
 		}
 
+	case *parser.PortionVariableContext:
+		return variableLiteralFromCtx(allotmentCtx)
+
 	case *parser.AllotmentContext:
 		return nil
 
 	default:
-		return nil
+		panic("Invalid allotment")
+	}
+}
+
+func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *VariableLiteral {
+	// Discard the '$'
+	name := ctx.GetText()[1:]
+
+	return &VariableLiteral{
+		Range: ctxToRange(ctx),
+		Name:  name,
 	}
 }
 
@@ -306,13 +308,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		}
 
 	case *parser.DestVariableContext:
-		// Discard the '$'
-		name := destCtx.GetText()[1:]
-
-		return &VariableLiteral{
-			Range: range_,
-			Name:  name,
-		}
+		return variableLiteralFromCtx(destCtx)
 
 	case *parser.DestSeqContext:
 		var destinations []Destination

@@ -45,8 +45,9 @@ monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
 allotment:
-	portion		# portionedAllotment
-	| REMAINING	# remainingAllotment;
+	portion			# portionedAllotment
+	| VARIABLE_NAME	# portionVariable
+	| REMAINING		# remainingAllotment;
 
 source:
 	ACCOUNT								# srcAccount

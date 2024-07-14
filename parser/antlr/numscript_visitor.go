@@ -35,6 +35,9 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#portionedAllotment.
 	VisitPortionedAllotment(ctx *PortionedAllotmentContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#portionVariable.
+	VisitPortionVariable(ctx *PortionVariableContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#remainingAllotment.
 	VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{}
 

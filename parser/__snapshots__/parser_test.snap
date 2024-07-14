@@ -954,3 +954,60 @@ parser.Program{
     },
 }
 ---
+
+[TestAllotmentVariableSource - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:5},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset:  "EUR/2",
+                Amount: 100,
+            },
+            Source: &parser.SourceAllotment{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:3, Line:3},
+                },
+                Items: {
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:2},
+                            End:   parser.Position{Character:11, Line:2},
+                        },
+                        Allotment: &parser.VariableLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:1, Line:2},
+                                End:   parser.Position{Character:3, Line:2},
+                            },
+                            Name: "x",
+                        },
+                        From: &parser.AccountLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:9, Line:2},
+                                End:   parser.Position{Character:11, Line:2},
+                            },
+                            Name: "a",
+                        },
+                    },
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:4},
+                    End:   parser.Position{Character:18, Line:4},
+                },
+                Name: "d",
+            },
+        },
+    },
+}
+---

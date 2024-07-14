@@ -75,6 +75,12 @@ func (s *BaseNumscriptListener) EnterPortionedAllotment(ctx *PortionedAllotmentC
 // ExitPortionedAllotment is called when production portionedAllotment is exited.
 func (s *BaseNumscriptListener) ExitPortionedAllotment(ctx *PortionedAllotmentContext) {}
 
+// EnterPortionVariable is called when production portionVariable is entered.
+func (s *BaseNumscriptListener) EnterPortionVariable(ctx *PortionVariableContext) {}
+
+// ExitPortionVariable is called when production portionVariable is exited.
+func (s *BaseNumscriptListener) ExitPortionVariable(ctx *PortionVariableContext) {}
+
 // EnterRemainingAllotment is called when production remainingAllotment is entered.
 func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentContext) {}
 
