@@ -295,6 +295,34 @@ send [COIN 100] (
 	)
 }
 
+func TestWrongTypeForBoundedOverdraftCap(t *testing.T) {
+	input := `vars { portion $x }
+
+send [COIN 100] (
+  	source = @x allowing overdraft up to $x
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "monetary",
+			Got:      "portion",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$x", 1),
+		d1.Range,
+	)
+}
+
 func TestWrongTypeForSrcAllotmentPortion(t *testing.T) {
 	input := `vars { string $p }
 

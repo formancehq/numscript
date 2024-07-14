@@ -265,6 +265,15 @@ func TestOverdraftUnboundedVariable(t *testing.T) {
 	assert.Empty(t, p.Errors)
 }
 
+func TestBoundedOverdraft(t *testing.T) {
+	p := parser.Parse(`send $x (
+	source = $my_src_var allowing overdraft up to [COIN 100]
+	destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 // ------- Fault tolerance tests
 
 func TestFaultToleranceVarName(t *testing.T) {

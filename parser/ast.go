@@ -108,6 +108,7 @@ type SourceCapped struct {
 type SourceOverdraft struct {
 	Range   Range
 	Address Literal
+	Bounded *Literal
 }
 
 type SourceAllotmentValue interface{ sourceAllotmentValue() }

@@ -147,6 +147,13 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	case *parser.SourceOverdraft:
 		res.checkLiteral(source.Address)
+		if source.Bounded != nil {
+			res.checkLiteral(*source.Bounded)
+			if variableLiteral, ok := (*source.Bounded).(*parser.VariableLiteral); ok {
+				res.assertType(variableLiteral, "monetary")
+			}
+		}
+
 		if variableLiteral, ok := source.Address.(*parser.VariableLiteral); ok {
 			res.assertType(variableLiteral, "account")
 		}

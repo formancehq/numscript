@@ -93,6 +93,14 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 		if hover != nil {
 			return hover
 		}
+
+		if source.Bounded != nil {
+			hover := hoverOnLiteral(*source.Bounded, position)
+			if hover != nil {
+				return hover
+			}
+		}
+
 		return nil
 
 	case *parser.SourceSeq:

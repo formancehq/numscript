@@ -72,6 +72,10 @@ func (v *BaseNumscriptVisitor) VisitSrcAccountUnboundedOverdraft(ctx *SrcAccount
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitSrcAccount(ctx *SrcAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }

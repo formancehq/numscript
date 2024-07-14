@@ -119,6 +119,14 @@ func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccoun
 func (s *BaseNumscriptListener) ExitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
 }
 
+// EnterSrcAccountBoundedOverdraft is called when production srcAccountBoundedOverdraft is entered.
+func (s *BaseNumscriptListener) EnterSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) {
+}
+
+// ExitSrcAccountBoundedOverdraft is called when production srcAccountBoundedOverdraft is exited.
+func (s *BaseNumscriptListener) ExitSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) {
+}
+
 // EnterSrcAccount is called when production srcAccount is entered.
 func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 

@@ -191,6 +191,15 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Address: parseVariableAccount(sourceCtx.VariableAccount()),
 		}
 
+	case *parser.SrcAccountBoundedOverdraftContext:
+		varMon := parseVariableMonetary(sourceCtx.VariableMonetary())
+
+		return &SourceOverdraft{
+			Range:   ctxToRange(sourceCtx),
+			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+			Bounded: &varMon,
+		}
+
 	case *parser.SourceContext:
 		return nil
 
@@ -408,11 +417,11 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 		Source:      parseSource(statementCtx.Source()),
 		Destination: parseDestination(statementCtx.Destination()),
 		Range:       ctxToRange(statementCtx),
-		Monetary:    parseSendExpr(statementCtx.VariableMonetary()),
+		Monetary:    parseVariableMonetary(statementCtx.VariableMonetary()),
 	}
 }
 
-func parseSendExpr(sendExpr parser.IVariableMonetaryContext) Literal {
+func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
 	switch sendExpr := sendExpr.(type) {
 	case *parser.MonetaryVariableContext:
 		return parseVarLiteral(sendExpr.VARIABLE_NAME().GetSymbol())

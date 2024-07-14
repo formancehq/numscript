@@ -152,3 +152,20 @@ send [C 10] (
 
 	assert.NotNilf(t, hover, "hover should not be nil")
 }
+
+func TestHoverOnBoundedCap(t *testing.T) {
+	input := `vars { monetary $mon }
+
+send [C 10] (
+	source = @s allowing overdraft up to $mon
+	destination = @dest
+)`
+
+	rng := RangeOfIndexed(input, "$mon", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}

@@ -56,6 +56,9 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#srcAccountUnboundedOverdraft.
 	VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#srcAccountBoundedOverdraft.
+	VisitSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#srcAccount.
 	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 

@@ -12,6 +12,7 @@ SOURCE: 'source';
 DESTINATION: 'destination';
 SEND: 'send';
 FROM: 'from';
+UP: 'up';
 TO: 'to';
 REMAINING: 'remaining';
 ALLOWING: 'allowing';
@@ -61,12 +62,13 @@ variableMonetary:
 	| VARIABLE_NAME	# monetaryVariable;
 
 source:
-	variableAccount ALLOWING UNBOUNDED OVERDRAFT	# srcAccountUnboundedOverdraft
-	| ACCOUNT										# srcAccount
-	| VARIABLE_NAME									# srcVariable
-	| LBRACE allotmentClauseSrc+ RBRACE				# srcAllotment
-	| LBRACE source* RBRACE							# srcSeq
-	| MAX cap FROM source							# srcCapped;
+	variableAccount ALLOWING UNBOUNDED OVERDRAFT				# srcAccountUnboundedOverdraft
+	| variableAccount ALLOWING OVERDRAFT UP TO variableMonetary	# srcAccountBoundedOverdraft
+	| ACCOUNT													# srcAccount
+	| VARIABLE_NAME												# srcVariable
+	| LBRACE allotmentClauseSrc+ RBRACE							# srcAllotment
+	| LBRACE source* RBRACE										# srcSeq
+	| MAX cap FROM source										# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 destination:
