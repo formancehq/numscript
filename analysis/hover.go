@@ -14,6 +14,13 @@ type VariableHover struct {
 func (*VariableHover) hover() {}
 
 func HoverOn(program parser.Program, position parser.Position) Hover {
+	for _, varDecl := range program.Vars {
+		hover := hoverOnVar(varDecl, position)
+		if hover != nil {
+			return hover
+		}
+	}
+
 	for _, statement := range program.Statements {
 		// TODO binary search into statements
 		if statement == nil || !statement.GetRange().Contains(position) {
@@ -35,6 +42,21 @@ func HoverOn(program parser.Program, position parser.Position) Hover {
 		}
 
 	}
+	return nil
+}
+
+func hoverOnVar(varDecl parser.VarDeclaration, position parser.Position) Hover {
+	if !varDecl.Range.Contains(position) {
+		return nil
+	}
+
+	if varDecl.Origin != nil {
+		hover := hoverOnFnCall(*varDecl.Origin, position)
+		if hover != nil {
+			return hover
+		}
+	}
+
 	return nil
 }
 

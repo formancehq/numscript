@@ -213,3 +213,18 @@ set_tx_meta($str, 42)
 
 	assert.NotNilf(t, hover, "hover should not be nil")
 }
+
+func TestHoverOnOriginFnCall(t *testing.T) {
+	input := `vars {
+		string $arg
+		number $meta_variable = meta(@account, $arg)
+	}`
+
+	rng := RangeOfIndexed(input, "$arg", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}
