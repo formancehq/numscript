@@ -105,6 +105,25 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 	}
 }
 
+func (state *State) handleCompletion(params CompletionParams) *CompletionList {
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+	position := fromLspPosition(params.Position)
+	completion := analysis.HandleCompletion(doc.ParseResult.Value, position)
+
+	ret := CompletionList{IsIncomplete: false}
+	for _, item := range completion.Items {
+		ret.Items = append(ret.Items, CompletionItem{
+			Label: item.Label,
+			Kind:  VariableCompletion,
+		})
+	}
+
+	return &ret
+}
+
 func Handle(r jsonrpc2.Request, state *State) any {
 	switch r.Method {
 	case "initialize":
@@ -116,6 +135,9 @@ func Handle(r jsonrpc2.Request, state *State) any {
 				},
 				HoverProvider:      true,
 				DefinitionProvider: true,
+				CompletionProvider: &CompletionOptions{
+					TriggerCharacters: []string{"$"},
+				},
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -149,6 +171,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		var p DefinitionParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleGotoDefinition(p)
+
+	case "textDocument/completion":
+		var p CompletionParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleCompletion(p)
 
 	default:
 		// Unhandled method
