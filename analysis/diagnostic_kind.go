@@ -135,3 +135,16 @@ func (e *RedundantRemaining) Message() string {
 func (*RedundantRemaining) Severity() Severity {
 	return WarningSeverity
 }
+
+type UnknownFunction struct {
+	Name string
+}
+
+func (e *UnknownFunction) Message() string {
+	// TODO suggest alternatives using Levenshtein distance
+	return fmt.Sprintf("The function '%s' does not exist", e.Name)
+}
+
+func (*UnknownFunction) Severity() Severity {
+	return ErrorSeverity
+}

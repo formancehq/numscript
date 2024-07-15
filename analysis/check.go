@@ -15,6 +15,11 @@ const TypeString = "string"
 
 var AllowedTypes = []string{TypeMonetary, TypeAccount, TypePortion, TypeAsset, TypeNumber, TypeString}
 
+const FnSetTxMeta = "set_tx_meta"
+const FnSetAccountMeta = "set_account_meta"
+
+var AllowedToplevelFns = []string{FnSetAccountMeta, FnSetTxMeta}
+
 type Diagnostic struct {
 	Range parser.Range
 	Kind  DiagnosticKind
@@ -50,6 +55,8 @@ func Check(program parser.Program) CheckResult {
 			res.checkLiteral(statement.Monetary, TypeMonetary)
 			res.checkSource(statement.Source)
 			res.checkDestination(statement.Destination)
+		case *parser.FnCallStatement:
+			res.checkFnCallStatement(statement)
 		}
 	}
 
@@ -61,6 +68,29 @@ func Check(program parser.Program) CheckResult {
 		})
 	}
 	return res
+}
+
+func (res *CheckResult) checkFnCallStatement(statement *parser.FnCallStatement) {
+	if !isFunctionAllowedInStatement(statement.Caller.Name) {
+		res.Diagnostics = append(res.Diagnostics, Diagnostic{
+			Range: statement.Caller.Range,
+			Kind: &UnknownFunction{
+				Name: statement.Caller.Name,
+			},
+		})
+		return
+	}
+}
+
+func isFunctionAllowedInStatement(typeName string) bool {
+	isAllowed := false
+	for _, allowedType := range AllowedToplevelFns {
+		if allowedType == typeName {
+			isAllowed = true
+			break
+		}
+	}
+	return isAllowed
 }
 
 func isTypeAllowed(typeName string) bool {

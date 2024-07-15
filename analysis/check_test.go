@@ -672,3 +672,32 @@ send [COIN 100] (
 	diagnostics := analysis.Check(program).Diagnostics
 	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }
+
+func TestCheckNoUnboundFunctionCall(t *testing.T) {
+	input := `invalid_fn_call()`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.UnknownFunction{Name: "invalid_fn_call"},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "invalid_fn_call", 0),
+		d1.Range,
+	)
+}
+
+func TestAllowedFnCall(t *testing.T) {
+	input := `set_tx_meta("for_cone", "true")`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 0)
+}
