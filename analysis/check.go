@@ -22,7 +22,8 @@ const FnSetAccountMeta = "set_account_meta"
 var AllowedToplevelFns = []string{FnSetAccountMeta, FnSetTxMeta}
 
 var TopLevelFunctionsTypes = map[string][]string{
-	FnSetTxMeta: {"string", "*"},
+	FnSetTxMeta:      {"string", "*"},
+	FnSetAccountMeta: {"account", "string", "*"},
 }
 
 type Diagnostic struct {
