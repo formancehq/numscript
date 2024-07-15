@@ -274,6 +274,31 @@ func TestBoundedOverdraft(t *testing.T) {
 	assert.Empty(t, p.Errors)
 }
 
+func TestFunctionCallNoArgs(t *testing.T) {
+	p := parser.Parse(`example_fn()`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+func TestFunctionCallOneArg(t *testing.T) {
+	p := parser.Parse(`example_fn(@example)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+func TestFunctionCallManyArgs(t *testing.T) {
+	p := parser.Parse(`
+example_fn(
+	[COIN 42],
+	100,
+	1/2,
+	$my_var,
+	"example_str"
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 // ------- Fault tolerance tests
 
 func TestFaultToleranceVarName(t *testing.T) {

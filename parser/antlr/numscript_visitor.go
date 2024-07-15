@@ -8,6 +8,27 @@ import "github.com/antlr4-go/antlr/v4"
 type NumscriptVisitor interface {
 	antlr.ParseTreeVisitor
 
+	// Visit a parse tree produced by NumscriptParser#assetLiteral.
+	VisitAssetLiteral(ctx *AssetLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#stringLiteral.
+	VisitStringLiteral(ctx *StringLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#monetaryLiteral.
+	VisitMonetaryLiteral(ctx *MonetaryLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#accountLiteral.
+	VisitAccountLiteral(ctx *AccountLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#variableLiteral.
+	VisitVariableLiteral(ctx *VariableLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#portionLiteral.
+	VisitPortionLiteral(ctx *PortionLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#numberLiteral.
+	VisitNumberLiteral(ctx *NumberLiteralContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#ratio.
 	VisitRatio(ctx *RatioContext) interface{}
 
@@ -104,6 +125,15 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#statement.
-	VisitStatement(ctx *StatementContext) interface{}
+	// Visit a parse tree produced by NumscriptParser#functionCallArgs.
+	VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#functionCall.
+	VisitFunctionCall(ctx *FunctionCallContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#sendStatement.
+	VisitSendStatement(ctx *SendStatementContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#fnCallStatement.
+	VisitFnCallStatement(ctx *FnCallStatementContext) interface{}
 }

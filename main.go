@@ -35,7 +35,7 @@ func main() {
 
 		parsed := parser.Parse(string(dat))
 
-		fmt.Printf("Lexing errors: %d\nParser errors: %d\n\n", len(parsed.LexerErrors), len(parsed.Errors))
+		fmt.Printf("Parser errors: %d\n\n", len(parsed.Errors))
 		for _, err := range parsed.Errors {
 			fmt.Printf("%v,  (line=%d, char=%d) ", err.Msg, err.Range.Start.Line, err.Range.Start.Character)
 		}

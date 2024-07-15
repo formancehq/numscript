@@ -42,6 +42,7 @@ func (*AccountLiteral) literal()  {}
 func (*VariableLiteral) literal() {}
 func (*RatioLiteral) literal()    {}
 func (*NumberLiteral) literal()   {}
+func (*StringLiteral) literal()   {}
 
 func (l *AssetLiteral) GetRange() Range    { return l.Range }
 func (l *MonetaryLiteral) GetRange() Range { return l.Range }
@@ -49,6 +50,7 @@ func (l *AccountLiteral) GetRange() Range  { return l.Range }
 func (l *VariableLiteral) GetRange() Range { return l.Range }
 func (l *RatioLiteral) GetRange() Range    { return l.Range }
 func (l *NumberLiteral) GetRange() Range   { return l.Range }
+func (l *StringLiteral) GetRange() Range   { return l.Range }
 
 type AssetLiteral struct {
 	Range Range
@@ -58,6 +60,11 @@ type AssetLiteral struct {
 type NumberLiteral struct {
 	Range  Range
 	Number int
+}
+
+type StringLiteral struct {
+	Range  Range
+	String string
 }
 
 type MonetaryLiteral struct {
@@ -183,7 +190,19 @@ type DestinationAllotmentItem struct {
 
 type Statement interface{ statement() }
 
-func (*SendStatement) statement() {}
+func (*FnCallStatement) statement() {}
+func (*SendStatement) statement()   {}
+
+type Identifier struct {
+	Range Range
+	Name  string
+}
+
+type FnCallStatement struct {
+	Range  Range
+	Caller Identifier
+	Args   []Literal
+}
 
 type SendStatement struct {
 	Range       Range

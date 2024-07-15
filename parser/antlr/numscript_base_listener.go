@@ -21,6 +21,48 @@ func (s *BaseNumscriptListener) EnterEveryRule(ctx antlr.ParserRuleContext) {}
 // ExitEveryRule is called when any rule is exited.
 func (s *BaseNumscriptListener) ExitEveryRule(ctx antlr.ParserRuleContext) {}
 
+// EnterAssetLiteral is called when production assetLiteral is entered.
+func (s *BaseNumscriptListener) EnterAssetLiteral(ctx *AssetLiteralContext) {}
+
+// ExitAssetLiteral is called when production assetLiteral is exited.
+func (s *BaseNumscriptListener) ExitAssetLiteral(ctx *AssetLiteralContext) {}
+
+// EnterStringLiteral is called when production stringLiteral is entered.
+func (s *BaseNumscriptListener) EnterStringLiteral(ctx *StringLiteralContext) {}
+
+// ExitStringLiteral is called when production stringLiteral is exited.
+func (s *BaseNumscriptListener) ExitStringLiteral(ctx *StringLiteralContext) {}
+
+// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
+func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
+func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// EnterAccountLiteral is called when production accountLiteral is entered.
+func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
+
+// ExitAccountLiteral is called when production accountLiteral is exited.
+func (s *BaseNumscriptListener) ExitAccountLiteral(ctx *AccountLiteralContext) {}
+
+// EnterVariableLiteral is called when production variableLiteral is entered.
+func (s *BaseNumscriptListener) EnterVariableLiteral(ctx *VariableLiteralContext) {}
+
+// ExitVariableLiteral is called when production variableLiteral is exited.
+func (s *BaseNumscriptListener) ExitVariableLiteral(ctx *VariableLiteralContext) {}
+
+// EnterPortionLiteral is called when production portionLiteral is entered.
+func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
+
+// ExitPortionLiteral is called when production portionLiteral is exited.
+func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
+
+// EnterNumberLiteral is called when production numberLiteral is entered.
+func (s *BaseNumscriptListener) EnterNumberLiteral(ctx *NumberLiteralContext) {}
+
+// ExitNumberLiteral is called when production numberLiteral is exited.
+func (s *BaseNumscriptListener) ExitNumberLiteral(ctx *NumberLiteralContext) {}
+
 // EnterRatio is called when production ratio is entered.
 func (s *BaseNumscriptListener) EnterRatio(ctx *RatioContext) {}
 
@@ -217,8 +259,26 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDes
 // ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
 
-// EnterStatement is called when production statement is entered.
-func (s *BaseNumscriptListener) EnterStatement(ctx *StatementContext) {}
+// EnterFunctionCallArgs is called when production functionCallArgs is entered.
+func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
 
-// ExitStatement is called when production statement is exited.
-func (s *BaseNumscriptListener) ExitStatement(ctx *StatementContext) {}
+// ExitFunctionCallArgs is called when production functionCallArgs is exited.
+func (s *BaseNumscriptListener) ExitFunctionCallArgs(ctx *FunctionCallArgsContext) {}
+
+// EnterFunctionCall is called when production functionCall is entered.
+func (s *BaseNumscriptListener) EnterFunctionCall(ctx *FunctionCallContext) {}
+
+// ExitFunctionCall is called when production functionCall is exited.
+func (s *BaseNumscriptListener) ExitFunctionCall(ctx *FunctionCallContext) {}
+
+// EnterSendStatement is called when production sendStatement is entered.
+func (s *BaseNumscriptListener) EnterSendStatement(ctx *SendStatementContext) {}
+
+// ExitSendStatement is called when production sendStatement is exited.
+func (s *BaseNumscriptListener) ExitSendStatement(ctx *SendStatementContext) {}
+
+// EnterFnCallStatement is called when production fnCallStatement is entered.
+func (s *BaseNumscriptListener) EnterFnCallStatement(ctx *FnCallStatementContext) {}
+
+// ExitFnCallStatement is called when production fnCallStatement is exited.
+func (s *BaseNumscriptListener) ExitFnCallStatement(ctx *FnCallStatementContext) {}

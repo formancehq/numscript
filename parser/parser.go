@@ -9,16 +9,14 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
-type LexerError struct{}
 type ParserError struct {
 	Range Range
 	Msg   string
 }
 
 type ParseResult[T any] struct {
-	Value       T
-	Errors      []ParserError
-	LexerErrors []LexerError
+	Value  T
+	Errors []ParserError
 }
 
 type ErrorListener struct {
@@ -65,20 +63,27 @@ func Parse(input string) ParseResult[Program] {
 	}
 }
 
-func parseProgram(programCtx parser.IProgramContext) Program {
-	var statements []Statement
-	for _, statementCtx := range programCtx.AllStatement() {
-		statements = append(statements, parseStatement(statementCtx))
+func parseVarsDeclaration(varsCtx parser.IVarsDeclarationContext) []VarDeclaration {
+	if varsCtx == nil {
+		return nil
 	}
 
 	var vars []VarDeclaration
-	if declarationCtx := programCtx.VarsDeclaration(); declarationCtx != nil {
-		for _, varDecl := range declarationCtx.AllVarDeclaration() {
-			decl := parseVarDeclaration(varDecl)
-			if decl != nil {
-				vars = append(vars, *decl)
-			}
+	for _, varDecl := range varsCtx.AllVarDeclaration() {
+		decl := parseVarDeclaration(varDecl)
+		if decl != nil {
+			vars = append(vars, *decl)
 		}
+	}
+	return vars
+}
+
+func parseProgram(programCtx parser.IProgramContext) Program {
+	vars := parseVarsDeclaration(programCtx.VarsDeclaration())
+
+	var statements []Statement
+	for _, statementCtx := range programCtx.AllStatement() {
+		statements = append(statements, parseStatement(statementCtx))
 	}
 
 	return Program{
@@ -290,6 +295,50 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 	}
 }
 
+func parseStringLiteralCtx(stringCtx *parser.StringLiteralContext) *StringLiteral {
+	rawStr := stringCtx.GetText()
+	// Remove leading and trailing '"'
+	innerStr := rawStr[1 : len(rawStr)-1]
+	return &StringLiteral{
+		Range:  ctxToRange(stringCtx),
+		String: innerStr,
+	}
+}
+
+func parseLiteral(literalCtx parser.ILiteralContext) Literal {
+	switch literalCtx := literalCtx.(type) {
+	case *parser.AccountLiteralContext:
+		return accountLiteralFromCtx(literalCtx)
+
+	case *parser.MonetaryLiteralContext:
+		return parseMonetaryLit(literalCtx.MonetaryLit())
+
+	case *parser.AssetLiteralContext:
+		return &AssetLiteral{
+			Range: ctxToRange(literalCtx),
+			Asset: literalCtx.GetText(),
+		}
+
+	case *parser.NumberLiteralContext:
+		return parseNumberLiteral(literalCtx.NUMBER())
+
+	case *parser.PortionLiteralContext:
+		return parsePortionSource(literalCtx.Portion())
+
+	case *parser.VariableLiteralContext:
+		return variableLiteralFromCtx(literalCtx)
+
+	case *parser.StringLiteralContext:
+		return parseStringLiteralCtx(literalCtx)
+
+	case *parser.LiteralContext:
+		return nil
+
+	default:
+		panic("unhandled clause")
+	}
+}
+
 func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *VariableLiteral {
 	// Discard the '$'
 	name := ctx.GetText()[1:]
@@ -310,7 +359,7 @@ func accountLiteralFromCtx(ctx antlr.ParserRuleContext) *AccountLiteral {
 	}
 }
 
-func parsePortionSource(portionCtx parser.IPortionContext) SourceAllotmentValue {
+func parsePortionSource(portionCtx parser.IPortionContext) *RatioLiteral {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
 		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
@@ -412,7 +461,45 @@ func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllot
 	}
 }
 
+func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []Literal {
+	if fnCallArgCtx == nil {
+		return nil
+	}
+
+	var args []Literal
+	for _, literal := range fnCallArgCtx.AllLiteral() {
+		args = append(args, parseLiteral(literal))
+	}
+	return args
+}
+
 func parseStatement(statementCtx parser.IStatementContext) Statement {
+	switch statementCtx := statementCtx.(type) {
+	case *parser.SendStatementContext:
+		return parseSendStatement(statementCtx)
+
+	case *parser.FnCallStatementContext:
+		ident := statementCtx.FunctionCall().IDENTIFIER()
+		allArgs := statementCtx.FunctionCall().FunctionCallArgs()
+
+		return &FnCallStatement{
+			Range: ctxToRange(statementCtx),
+			Caller: Identifier{
+				Range: tokenToRange(ident.GetSymbol()),
+				Name:  ident.GetSymbol().GetText(),
+			},
+			Args: parseFnArgs(allArgs),
+		}
+
+	case *parser.StatementContext:
+		return nil
+
+	default:
+		panic("unhandled clause")
+	}
+}
+
+func parseSendStatement(statementCtx *parser.SendStatementContext) *SendStatement {
 	return &SendStatement{
 		Source:      parseSource(statementCtx.Source()),
 		Destination: parseDestination(statementCtx.Destination()),
@@ -437,20 +524,24 @@ func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
 	}
 }
 
+func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
+	amtStr := numNode.GetText()
+
+	amt, err := strconv.Atoi(amtStr)
+	if err != nil {
+		panic("Invalid amt: " + amtStr)
+	}
+
+	return &NumberLiteral{
+		Range:  tokenToRange(numNode.GetSymbol()),
+		Number: amt,
+	}
+}
+
 func parseVariableNumber(numCtx parser.IVariableNumberContext) Literal {
 	switch numCtx := numCtx.(type) {
 	case *parser.NumberContext:
-		amtStr := numCtx.NUMBER().GetText()
-
-		amt, err := strconv.Atoi(amtStr)
-		if err != nil {
-			panic("Invalid amt: " + amtStr)
-		}
-
-		return &NumberLiteral{
-			Range:  ctxToRange(numCtx),
-			Number: amt,
-		}
+		return parseNumberLiteral(numCtx.NUMBER())
 
 	case *parser.NumberVariableContext:
 		return parseVarLiteral(numCtx.VARIABLE_NAME().GetSymbol())

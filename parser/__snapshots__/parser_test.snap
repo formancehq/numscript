@@ -1385,3 +1385,127 @@ parser.Program{
     },
 }
 ---
+
+[TestFunctionCallNoArgs - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCallStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:12, Line:0},
+            },
+            Caller: parser.Identifier{
+                Range: parser.Range{
+                    Start: parser.Position{},
+                    End:   parser.Position{Character:10, Line:0},
+                },
+                Name: "example_fn",
+            },
+            Args: nil,
+        },
+    },
+}
+---
+
+[TestFunctionCallOneArg - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCallStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:20, Line:0},
+            },
+            Caller: parser.Identifier{
+                Range: parser.Range{
+                    Start: parser.Position{},
+                    End:   parser.Position{Character:10, Line:0},
+                },
+                Name: "example_fn",
+            },
+            Args: {
+                &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:0},
+                        End:   parser.Position{Character:19, Line:0},
+                    },
+                    Name: "example",
+                },
+            },
+        },
+    },
+}
+---
+
+[TestFunctionCallManyArgs - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCallStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:1, Line:7},
+            },
+            Caller: parser.Identifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:10, Line:1},
+                },
+                Name: "example_fn",
+            },
+            Args: {
+                &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:10, Line:2},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:2, Line:2},
+                            End:   parser.Position{Character:6, Line:2},
+                        },
+                        Asset: "COIN",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:7, Line:2},
+                            End:   parser.Position{Character:9, Line:2},
+                        },
+                        Number: 42,
+                    },
+                },
+                &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:3},
+                        End:   parser.Position{Character:4, Line:3},
+                    },
+                    Number: 100,
+                },
+                &parser.RatioLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:4},
+                        End:   parser.Position{Character:4, Line:4},
+                    },
+                    Numerator:   0x1,
+                    Denominator: 0x2,
+                },
+                &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:5},
+                        End:   parser.Position{Character:8, Line:5},
+                    },
+                    Name: "my_var",
+                },
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:6},
+                        End:   parser.Position{Character:14, Line:6},
+                    },
+                    String: "example_str",
+                },
+            },
+        },
+    },
+}
+---

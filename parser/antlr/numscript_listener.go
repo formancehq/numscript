@@ -8,6 +8,27 @@ import "github.com/antlr4-go/antlr/v4"
 type NumscriptListener interface {
 	antlr.ParseTreeListener
 
+	// EnterAssetLiteral is called when entering the assetLiteral production.
+	EnterAssetLiteral(c *AssetLiteralContext)
+
+	// EnterStringLiteral is called when entering the stringLiteral production.
+	EnterStringLiteral(c *StringLiteralContext)
+
+	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
+	EnterMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// EnterAccountLiteral is called when entering the accountLiteral production.
+	EnterAccountLiteral(c *AccountLiteralContext)
+
+	// EnterVariableLiteral is called when entering the variableLiteral production.
+	EnterVariableLiteral(c *VariableLiteralContext)
+
+	// EnterPortionLiteral is called when entering the portionLiteral production.
+	EnterPortionLiteral(c *PortionLiteralContext)
+
+	// EnterNumberLiteral is called when entering the numberLiteral production.
+	EnterNumberLiteral(c *NumberLiteralContext)
+
 	// EnterRatio is called when entering the ratio production.
 	EnterRatio(c *RatioContext)
 
@@ -104,8 +125,38 @@ type NumscriptListener interface {
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
 
-	// EnterStatement is called when entering the statement production.
-	EnterStatement(c *StatementContext)
+	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
+	EnterFunctionCallArgs(c *FunctionCallArgsContext)
+
+	// EnterFunctionCall is called when entering the functionCall production.
+	EnterFunctionCall(c *FunctionCallContext)
+
+	// EnterSendStatement is called when entering the sendStatement production.
+	EnterSendStatement(c *SendStatementContext)
+
+	// EnterFnCallStatement is called when entering the fnCallStatement production.
+	EnterFnCallStatement(c *FnCallStatementContext)
+
+	// ExitAssetLiteral is called when exiting the assetLiteral production.
+	ExitAssetLiteral(c *AssetLiteralContext)
+
+	// ExitStringLiteral is called when exiting the stringLiteral production.
+	ExitStringLiteral(c *StringLiteralContext)
+
+	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
+	ExitMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// ExitAccountLiteral is called when exiting the accountLiteral production.
+	ExitAccountLiteral(c *AccountLiteralContext)
+
+	// ExitVariableLiteral is called when exiting the variableLiteral production.
+	ExitVariableLiteral(c *VariableLiteralContext)
+
+	// ExitPortionLiteral is called when exiting the portionLiteral production.
+	ExitPortionLiteral(c *PortionLiteralContext)
+
+	// ExitNumberLiteral is called when exiting the numberLiteral production.
+	ExitNumberLiteral(c *NumberLiteralContext)
 
 	// ExitRatio is called when exiting the ratio production.
 	ExitRatio(c *RatioContext)
@@ -203,6 +254,15 @@ type NumscriptListener interface {
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
 
-	// ExitStatement is called when exiting the statement production.
-	ExitStatement(c *StatementContext)
+	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
+	ExitFunctionCallArgs(c *FunctionCallArgsContext)
+
+	// ExitFunctionCall is called when exiting the functionCall production.
+	ExitFunctionCall(c *FunctionCallContext)
+
+	// ExitSendStatement is called when exiting the sendStatement production.
+	ExitSendStatement(c *SendStatementContext)
+
+	// ExitFnCallStatement is called when exiting the fnCallStatement production.
+	ExitFnCallStatement(c *FnCallStatementContext)
 }

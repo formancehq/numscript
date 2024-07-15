@@ -8,6 +8,34 @@ type BaseNumscriptVisitor struct {
 	*antlr.BaseParseTreeVisitor
 }
 
+func (v *BaseNumscriptVisitor) VisitAssetLiteral(ctx *AssetLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitStringLiteral(ctx *StringLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitMonetaryLiteral(ctx *MonetaryLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAccountLiteral(ctx *AccountLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitVariableLiteral(ctx *VariableLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitPortionLiteral(ctx *PortionLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitNumberLiteral(ctx *NumberLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitRatio(ctx *RatioContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -136,6 +164,18 @@ func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDest
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitStatement(ctx *StatementContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitFunctionCall(ctx *FunctionCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSendStatement(ctx *SendStatementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitFnCallStatement(ctx *FnCallStatementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
