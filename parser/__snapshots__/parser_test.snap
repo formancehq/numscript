@@ -1020,6 +1020,7 @@ parser.Program{
                 },
                 Name: "monetary",
             },
+            Origin: (*parser.FnCallStatement)(nil),
         },
     },
     Statements: nil,
@@ -1042,6 +1043,7 @@ parser.Program{
                 },
                 Name: "monetary",
             },
+            Origin: (*parser.FnCallStatement)(nil),
         },
     },
     Statements: nil,
@@ -1538,5 +1540,62 @@ parser.Program{
             },
         },
     },
+}
+---
+
+[TestVarOrigin - 1]
+parser.Program{
+    Vars: {
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:1, Line:2},
+                End:   parser.Position{Character:49, Line:2},
+            },
+            Name: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:2},
+                    End:   parser.Position{Character:17, Line:2},
+                },
+                Name: "my_var",
+            },
+            Type: &parser.TypeDecl{
+                Range: parser.Range{
+                    Start: parser.Position{Character:1, Line:2},
+                    End:   parser.Position{Character:9, Line:2},
+                },
+                Name: "monetary",
+            },
+            Origin: &parser.FnCallStatement{
+                Range: parser.Range{
+                    Start: parser.Position{Character:20, Line:2},
+                    End:   parser.Position{Character:49, Line:2},
+                },
+                Caller: parser.Identifier{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:20, Line:2},
+                        End:   parser.Position{Character:29, Line:2},
+                    },
+                    Name: "origin_fn",
+                },
+                Args: {
+                    &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:30, Line:2},
+                            End:   parser.Position{Character:41, Line:2},
+                        },
+                        Name: "my_account",
+                    },
+                    &parser.StringLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:43, Line:2},
+                            End:   parser.Position{Character:48, Line:2},
+                        },
+                        String: "str",
+                    },
+                },
+            },
+        },
+    },
+    Statements: nil,
 }
 ---

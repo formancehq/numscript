@@ -97,10 +97,16 @@ func parseVarDeclaration(varDecl parser.IVarDeclarationContext) *VarDeclaration 
 		return nil
 	}
 
+	var fnCallStatement *FnCallStatement
+	if varDecl.VarOrigin() != nil {
+		fnCallStatement = parseFnCall(varDecl.VarOrigin().FunctionCall())
+	}
+
 	return &VarDeclaration{
-		Range: ctxToRange(varDecl),
-		Type:  parseVarType(varDecl.GetType_()),
-		Name:  parseVarLiteral(varDecl.GetName()),
+		Range:  ctxToRange(varDecl),
+		Type:   parseVarType(varDecl.GetType_()),
+		Name:   parseVarLiteral(varDecl.GetName()),
+		Origin: fnCallStatement,
 	}
 }
 
@@ -473,23 +479,32 @@ func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []Literal {
 	return args
 }
 
+func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCallStatement {
+	if fnCallCtx == nil {
+		return nil
+	}
+
+	ident := fnCallCtx.IDENTIFIER()
+	allArgs := fnCallCtx.FunctionCallArgs()
+
+	return &FnCallStatement{
+		Range: ctxToRange(fnCallCtx),
+		Caller: Identifier{
+			Range: tokenToRange(ident.GetSymbol()),
+			Name:  ident.GetSymbol().GetText(),
+		},
+		Args: parseFnArgs(allArgs),
+	}
+}
+
 func parseStatement(statementCtx parser.IStatementContext) Statement {
 	switch statementCtx := statementCtx.(type) {
 	case *parser.SendStatementContext:
 		return parseSendStatement(statementCtx)
 
 	case *parser.FnCallStatementContext:
-		ident := statementCtx.FunctionCall().IDENTIFIER()
-		allArgs := statementCtx.FunctionCall().FunctionCallArgs()
 
-		return &FnCallStatement{
-			Range: ctxToRange(statementCtx),
-			Caller: Identifier{
-				Range: tokenToRange(ident.GetSymbol()),
-				Name:  ident.GetSymbol().GetText(),
-			},
-			Args: parseFnArgs(allArgs),
-		}
+		return parseFnCall(statementCtx.FunctionCall())
 
 	case *parser.StatementContext:
 		return nil

@@ -35,6 +35,15 @@ type NumscriptListener interface {
 	// EnterPercentage is called when entering the percentage production.
 	EnterPercentage(c *PercentageContext)
 
+	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
+	EnterFunctionCallArgs(c *FunctionCallArgsContext)
+
+	// EnterFunctionCall is called when entering the functionCall production.
+	EnterFunctionCall(c *FunctionCallContext)
+
+	// EnterVarOrigin is called when entering the varOrigin production.
+	EnterVarOrigin(c *VarOriginContext)
+
 	// EnterVarDeclaration is called when entering the varDeclaration production.
 	EnterVarDeclaration(c *VarDeclarationContext)
 
@@ -125,12 +134,6 @@ type NumscriptListener interface {
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
 
-	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
-	EnterFunctionCallArgs(c *FunctionCallArgsContext)
-
-	// EnterFunctionCall is called when entering the functionCall production.
-	EnterFunctionCall(c *FunctionCallContext)
-
 	// EnterSendStatement is called when entering the sendStatement production.
 	EnterSendStatement(c *SendStatementContext)
 
@@ -163,6 +166,15 @@ type NumscriptListener interface {
 
 	// ExitPercentage is called when exiting the percentage production.
 	ExitPercentage(c *PercentageContext)
+
+	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
+	ExitFunctionCallArgs(c *FunctionCallArgsContext)
+
+	// ExitFunctionCall is called when exiting the functionCall production.
+	ExitFunctionCall(c *FunctionCallContext)
+
+	// ExitVarOrigin is called when exiting the varOrigin production.
+	ExitVarOrigin(c *VarOriginContext)
 
 	// ExitVarDeclaration is called when exiting the varDeclaration production.
 	ExitVarDeclaration(c *VarDeclarationContext)
@@ -253,12 +265,6 @@ type NumscriptListener interface {
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
-
-	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
-	ExitFunctionCallArgs(c *FunctionCallArgsContext)
-
-	// ExitFunctionCall is called when exiting the functionCall production.
-	ExitFunctionCall(c *FunctionCallContext)
 
 	// ExitSendStatement is called when exiting the sendStatement production.
 	ExitSendStatement(c *SendStatementContext)

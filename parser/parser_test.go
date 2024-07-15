@@ -299,6 +299,16 @@ example_fn(
 	assert.Empty(t, p.Errors)
 }
 
+func TestVarOrigin(t *testing.T) {
+	p := parser.Parse(`
+vars {
+	monetary $my_var = origin_fn(@my_account, "str")
+}
+`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 // ------- Fault tolerance tests
 
 func TestFaultToleranceVarName(t *testing.T) {

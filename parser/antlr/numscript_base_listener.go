@@ -75,6 +75,24 @@ func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
 // ExitPercentage is called when production percentage is exited.
 func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
 
+// EnterFunctionCallArgs is called when production functionCallArgs is entered.
+func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
+
+// ExitFunctionCallArgs is called when production functionCallArgs is exited.
+func (s *BaseNumscriptListener) ExitFunctionCallArgs(ctx *FunctionCallArgsContext) {}
+
+// EnterFunctionCall is called when production functionCall is entered.
+func (s *BaseNumscriptListener) EnterFunctionCall(ctx *FunctionCallContext) {}
+
+// ExitFunctionCall is called when production functionCall is exited.
+func (s *BaseNumscriptListener) ExitFunctionCall(ctx *FunctionCallContext) {}
+
+// EnterVarOrigin is called when production varOrigin is entered.
+func (s *BaseNumscriptListener) EnterVarOrigin(ctx *VarOriginContext) {}
+
+// ExitVarOrigin is called when production varOrigin is exited.
+func (s *BaseNumscriptListener) ExitVarOrigin(ctx *VarOriginContext) {}
+
 // EnterVarDeclaration is called when production varDeclaration is entered.
 func (s *BaseNumscriptListener) EnterVarDeclaration(ctx *VarDeclarationContext) {}
 
@@ -258,18 +276,6 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDes
 
 // ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
-
-// EnterFunctionCallArgs is called when production functionCallArgs is entered.
-func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
-
-// ExitFunctionCallArgs is called when production functionCallArgs is exited.
-func (s *BaseNumscriptListener) ExitFunctionCallArgs(ctx *FunctionCallArgsContext) {}
-
-// EnterFunctionCall is called when production functionCall is entered.
-func (s *BaseNumscriptListener) EnterFunctionCall(ctx *FunctionCallContext) {}
-
-// ExitFunctionCall is called when production functionCall is exited.
-func (s *BaseNumscriptListener) ExitFunctionCall(ctx *FunctionCallContext) {}
 
 // EnterSendStatement is called when production sendStatement is entered.
 func (s *BaseNumscriptListener) EnterSendStatement(ctx *SendStatementContext) {}

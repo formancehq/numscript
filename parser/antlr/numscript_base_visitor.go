@@ -44,6 +44,18 @@ func (v *BaseNumscriptVisitor) VisitPercentage(ctx *PercentageContext) interface
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitFunctionCall(ctx *FunctionCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitVarOrigin(ctx *VarOriginContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitVarDeclaration(ctx *VarDeclarationContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -161,14 +173,6 @@ func (v *BaseNumscriptVisitor) VisitDestSeq(ctx *DestSeqContext) interface{} {
 }
 
 func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitFunctionCall(ctx *FunctionCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

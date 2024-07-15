@@ -223,9 +223,10 @@ type TypeDecl struct {
 }
 
 type VarDeclaration struct {
-	Range Range
-	Name  *VariableLiteral
-	Type  *TypeDecl
+	Range  Range
+	Name   *VariableLiteral
+	Type   *TypeDecl
+	Origin *FnCallStatement
 }
 
 type Program struct {

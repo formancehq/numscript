@@ -35,6 +35,15 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#percentage.
 	VisitPercentage(ctx *PercentageContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#functionCallArgs.
+	VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#functionCall.
+	VisitFunctionCall(ctx *FunctionCallContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#varOrigin.
+	VisitVarOrigin(ctx *VarOriginContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#varDeclaration.
 	VisitVarDeclaration(ctx *VarDeclarationContext) interface{}
 
@@ -124,12 +133,6 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#functionCallArgs.
-	VisitFunctionCallArgs(ctx *FunctionCallArgsContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#functionCall.
-	VisitFunctionCall(ctx *FunctionCallContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#sendStatement.
 	VisitSendStatement(ctx *SendStatementContext) interface{}

@@ -52,7 +52,12 @@ portion:
 	RATIO_PORTION_LITERAL			# ratio
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
-varDeclaration: type_ = IDENTIFIER name = VARIABLE_NAME;
+functionCallArgs: literal ( COMMA literal)*;
+functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
+
+varOrigin: EQ functionCall;
+varDeclaration:
+	type_ = IDENTIFIER name = VARIABLE_NAME varOrigin?;
 varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
 program: varsDeclaration? statement* EOF;
@@ -97,10 +102,6 @@ destination:
 	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
 	| LBRACE destination* RBRACE			# destSeq;
 allotmentClauseDest: allotment TO destination;
-
-functionCallArgs: literal ( COMMA literal)*;
-
-functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
 
 statement:
 	SEND variableMonetary LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
