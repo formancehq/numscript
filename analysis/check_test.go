@@ -701,3 +701,81 @@ func TestAllowedFnCall(t *testing.T) {
 	diagnostics := analysis.Check(program).Diagnostics
 	assert.Len(t, diagnostics, 0)
 }
+
+func TestCheckFnCallTypesWrongType(t *testing.T) {
+	input := `set_tx_meta(@addr, 42)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "string",
+			Got:      "account",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "@addr", 0),
+		d1.Range,
+	)
+}
+
+func TestTooFewFnArgs(t *testing.T) {
+	input := `set_tx_meta("arg")`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadArity{
+			Expected: 2,
+			Actual:   1,
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, `set_tx_meta("arg")`, 0),
+		d1.Range,
+	)
+}
+
+func TestTooManyFnArgs(t *testing.T) {
+	input := `set_tx_meta("arg", "ok", 10, 20)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.BadArity{
+			Expected: 2,
+			Actual:   4,
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, `10, 20`, 0),
+		d1.Range,
+	)
+}
+
+func TestCheckTrailingCommaFnCall(t *testing.T) {
+	input := `set_tx_meta("ciao", 42, 10, )`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+}

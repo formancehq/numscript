@@ -342,3 +342,8 @@ func TestFaultToleranceInvalidSrcTk(t *testing.T) {
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestFaultToleranceTrailingComma(t *testing.T) {
+	p := parser.Parse(`set_tx_meta(1, )`)
+	snaps.MatchSnapshot(t, p.Value)
+}

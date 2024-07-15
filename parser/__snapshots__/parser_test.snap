@@ -1509,3 +1509,34 @@ parser.Program{
     },
 }
 ---
+
+[TestFaultToleranceTrailingComma - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCallStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:16, Line:0},
+            },
+            Caller: parser.Identifier{
+                Range: parser.Range{
+                    Start: parser.Position{},
+                    End:   parser.Position{Character:11, Line:0},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:0},
+                        End:   parser.Position{Character:13, Line:0},
+                    },
+                    Number: 1,
+                },
+                nil,
+            },
+        },
+    },
+}
+---

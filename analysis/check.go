@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"numscript/parser"
+	"slices"
 )
 
 const TypeMonetary = "monetary"
@@ -19,6 +20,10 @@ const FnSetTxMeta = "set_tx_meta"
 const FnSetAccountMeta = "set_account_meta"
 
 var AllowedToplevelFns = []string{FnSetAccountMeta, FnSetTxMeta}
+
+var TopLevelFunctionsTypes = map[string][]string{
+	FnSetTxMeta: {"string", "*"},
+}
 
 type Diagnostic struct {
 	Range parser.Range
@@ -71,37 +76,69 @@ func Check(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) checkFnCallStatement(statement *parser.FnCallStatement) {
-	if !isFunctionAllowedInStatement(statement.Caller.Name) {
+	var validArgs []parser.Literal
+	for _, lit := range statement.Args {
+		if lit != nil {
+			validArgs = append(validArgs, lit)
+		}
+	}
+
+	if sig, ok := TopLevelFunctionsTypes[statement.Caller.Name]; ok {
+		actualArgs := len(validArgs)
+		expectedArgs := len(sig)
+
+		if actualArgs < expectedArgs {
+			// Too few args
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: statement.Range,
+				Kind: &BadArity{
+					Expected: expectedArgs,
+					Actual:   actualArgs,
+				},
+			})
+		} else if actualArgs > expectedArgs {
+			// Too many args
+			firstIllegalArg := validArgs[expectedArgs]
+			lastIllegalArg := validArgs[len(validArgs)-1]
+
+			if lastIllegalArg != nil {
+				rng := parser.Range{
+					Start: firstIllegalArg.GetRange().Start,
+					End:   lastIllegalArg.GetRange().End,
+				}
+
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Range: rng,
+					Kind: &BadArity{
+						Expected: expectedArgs,
+						Actual:   actualArgs,
+					},
+				})
+			}
+
+		}
+
+		for index, arg := range validArgs {
+			lastElemIndex := len(sig) - 1
+			if index > lastElemIndex {
+				break
+			}
+
+			type_ := sig[index]
+			res.checkLiteral(arg, type_)
+		}
+	} else {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
 			Range: statement.Caller.Range,
 			Kind: &UnknownFunction{
 				Name: statement.Caller.Name,
 			},
 		})
-		return
 	}
-}
-
-func isFunctionAllowedInStatement(typeName string) bool {
-	isAllowed := false
-	for _, allowedType := range AllowedToplevelFns {
-		if allowedType == typeName {
-			isAllowed = true
-			break
-		}
-	}
-	return isAllowed
 }
 
 func isTypeAllowed(typeName string) bool {
-	isAllowed := false
-	for _, allowedType := range AllowedTypes {
-		if allowedType == typeName {
-			isAllowed = true
-			break
-		}
-	}
-	return isAllowed
+	return slices.Contains(AllowedTypes, typeName)
 }
 
 func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
@@ -136,7 +173,7 @@ func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
 	}
 }
 
-func (res *CheckResult) checkLiteral(lit parser.Literal, expectedType string) {
+func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {
 	switch lit := lit.(type) {
 	case *parser.VariableLiteral:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -149,39 +186,42 @@ func (res *CheckResult) checkLiteral(lit parser.Literal, expectedType string) {
 		}
 		delete(res.unusedVars, lit.Name)
 
+		resolved := res.ResolveVar(lit)
+		if resolved == nil || resolved.Type == nil || !isTypeAllowed(resolved.Type.Name) {
+			return
+		}
+		res.assertHasType(lit, requiredType, resolved.Type.Name)
+
 	case *parser.MonetaryLiteral:
+		res.assertHasType(lit, requiredType, TypeMonetary)
 		res.checkLiteral(lit.Asset, TypeAsset)
 		res.checkLiteral(lit.Amount, TypeNumber)
-
 	case *parser.AccountLiteral:
+		res.assertHasType(lit, requiredType, TypeAccount)
 	case *parser.RatioLiteral:
+		res.assertHasType(lit, requiredType, TypePortion)
 	case *parser.AssetLiteral:
+		res.assertHasType(lit, requiredType, TypeAsset)
 	case *parser.NumberLiteral:
+		res.assertHasType(lit, requiredType, TypeNumber)
+	case *parser.StringLiteral:
+		res.assertHasType(lit, requiredType, TypeString)
 	}
-
-	res.assertType(lit, expectedType)
 }
 
-func (res *CheckResult) assertType(lit parser.Literal, requiredType string) {
-	varLit, ok := lit.(*parser.VariableLiteral)
-	if !ok {
+func (res *CheckResult) assertHasType(lit parser.Literal, requiredType string, actualType string) {
+	if requiredType == "*" || requiredType == actualType {
 		return
 	}
 
-	resolved := res.ResolveVar(varLit)
-	if resolved == nil || resolved.Type == nil || !isTypeAllowed(resolved.Type.Name) {
-		return
-	}
+	res.Diagnostics = append(res.Diagnostics, Diagnostic{
+		Range: lit.GetRange(),
+		Kind: &TypeMismatch{
+			Expected: requiredType,
+			Got:      actualType,
+		},
+	})
 
-	if resolved.Type.Name != requiredType {
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: varLit.Range,
-			Kind: &TypeMismatch{
-				Expected: requiredType,
-				Got:      resolved.Type.Name,
-			},
-		})
-	}
 }
 
 func (res *CheckResult) checkSource(source parser.Source) {

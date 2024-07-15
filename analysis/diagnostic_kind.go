@@ -148,3 +148,16 @@ func (e *UnknownFunction) Message() string {
 func (*UnknownFunction) Severity() Severity {
 	return ErrorSeverity
 }
+
+type BadArity struct {
+	Expected int
+	Actual   int
+}
+
+func (e *BadArity) Message() string {
+	return fmt.Sprintf("Wrong number of arguments (expected %d, got %d instead)", e.Expected, e.Actual)
+}
+
+func (*BadArity) Severity() Severity {
+	return ErrorSeverity
+}
