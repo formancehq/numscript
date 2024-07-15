@@ -128,6 +128,10 @@ func (res *CheckResult) checkFnCallStatement(statement *parser.FnCallStatement) 
 			res.checkLiteral(arg, type_)
 		}
 	} else {
+		for _, arg := range validArgs {
+			res.checkLiteral(arg, "*")
+		}
+
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
 			Range: statement.Caller.Range,
 			Kind: &UnknownFunction{
