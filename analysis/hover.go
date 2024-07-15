@@ -16,20 +16,24 @@ func (*VariableHover) hover() {}
 func HoverOn(program parser.Program, position parser.Position) Hover {
 	for _, statement := range program.Statements {
 		// TODO binary search into statements
+		if statement == nil || !statement.GetRange().Contains(position) {
+			continue
+		}
 
 		switch statement := statement.(type) {
 		case *parser.SendStatement:
-			if !statement.Range.Contains(position) {
-				continue
+			hover := hoverOnSendStatement(*statement, position)
+			if hover != nil {
+				return hover
 			}
 
-			if statement != nil {
-				hover := hoverOnSendStatement(*statement, position)
-				if hover != nil {
-					return hover
-				}
+		case *parser.FnCallStatement:
+			hover := hoverOnFnCall(*statement, position)
+			if hover != nil {
+				return hover
 			}
 		}
+
 	}
 	return nil
 }
@@ -201,6 +205,22 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 
 	case *parser.VariableLiteral:
 		return hoverOnLiteral(source, position)
+	}
+
+	return nil
+
+}
+
+func hoverOnFnCall(callStatement parser.FnCallStatement, position parser.Position) Hover {
+	if !callStatement.Range.Contains(position) {
+		return nil
+	}
+
+	for _, arg := range callStatement.Args {
+		hover := hoverOnLiteral(arg, position)
+		if hover != nil {
+			return hover
+		}
 	}
 
 	return nil

@@ -199,3 +199,17 @@ send [C 10] (
 
 	assert.NotNilf(t, hover, "hover should not be nil")
 }
+
+func TestHoverOnFnCall(t *testing.T) {
+	input := `vars { string $str }
+set_tx_meta($str, 42)
+`
+
+	rng := RangeOfIndexed(input, "$str", 1)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+}

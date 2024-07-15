@@ -188,10 +188,16 @@ type DestinationAllotmentItem struct {
 
 // Statements
 
-type Statement interface{ statement() }
+type Statement interface {
+	statement()
+	GetRange() Range
+}
 
 func (*FnCallStatement) statement() {}
 func (*SendStatement) statement()   {}
+
+func (s *FnCallStatement) GetRange() Range { return s.Range }
+func (s *SendStatement) GetRange() Range   { return s.Range }
 
 type Identifier struct {
 	Range Range
