@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"math/big"
 	"numscript/parser"
 )
@@ -154,6 +155,10 @@ func (res *CheckResult) assertType(lit parser.Literal, requiredType string) {
 }
 
 func (res *CheckResult) checkSource(source parser.Source) {
+	if source == nil {
+		return
+	}
+
 	switch source := source.(type) {
 	case *parser.AccountLiteral:
 
@@ -204,17 +209,21 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
 
 	default:
-		panic("unhandled clause")
+		panic(fmt.Sprintf("unhandled clause: %+s", source))
 	}
 }
 
-func (res *CheckResult) checkDestination(source parser.Destination) {
-	switch source := source.(type) {
+func (res *CheckResult) checkDestination(destination parser.Destination) {
+	if destination == nil {
+		return
+	}
+
+	switch destination := destination.(type) {
 	case *parser.VariableLiteral:
-		res.checkLiteral(source, TypeAccount)
+		res.checkLiteral(destination, TypeAccount)
 
 	case *parser.DestinationSeq:
-		for _, dest := range source.Destinations {
+		for _, dest := range destination.Destinations {
 			res.checkDestination(dest)
 		}
 
@@ -222,8 +231,8 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 		var remainingAllotment *parser.RemainingAllotment = nil
 		sum := big.NewRat(0, 1)
 
-		for i, allottedItem := range source.Items {
-			isLast := i == len(source.Items)-1
+		for i, allottedItem := range destination.Items {
+			isLast := i == len(destination.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.VariableLiteral:
@@ -235,7 +244,7 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 					remainingAllotment = allotment
 				} else {
 					res.Diagnostics = append(res.Diagnostics, Diagnostic{
-						Range: source.Range,
+						Range: destination.Range,
 						Kind:  &RemainingIsNotLast{},
 					})
 				}
@@ -244,7 +253,7 @@ func (res *CheckResult) checkDestination(source parser.Destination) {
 			res.checkDestination(allottedItem.To)
 		}
 
-		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
+		res.checkHasBadAllotmentSum(*sum, destination.Range, remainingAllotment)
 	}
 }
 

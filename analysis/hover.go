@@ -23,9 +23,11 @@ func HoverOn(program parser.Program, position parser.Position) Hover {
 				continue
 			}
 
-			hover := hoverOnSendStatement(*statement, position)
-			if hover != nil {
-				return hover
+			if statement != nil {
+				hover := hoverOnSendStatement(*statement, position)
+				if hover != nil {
+					return hover
+				}
 			}
 		}
 	}
