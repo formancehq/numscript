@@ -14,16 +14,42 @@ const TypeAsset = "asset"
 const TypeNumber = "number"
 const TypeString = "string"
 
-var AllowedTypes = []string{TypeMonetary, TypeAccount, TypePortion, TypeAsset, TypeNumber, TypeString}
+const TypeAny = "*"
+
+var AllowedTypes = []string{
+	TypeMonetary,
+	TypeAccount,
+	TypePortion,
+	TypeAsset,
+	TypeNumber,
+	TypeString,
+}
 
 const FnSetTxMeta = "set_tx_meta"
 const FnSetAccountMeta = "set_account_meta"
 
-var AllowedToplevelFns = []string{FnSetAccountMeta, FnSetTxMeta}
-
 var TopLevelFunctionsTypes = map[string][]string{
-	FnSetTxMeta:      {"string", "*"},
-	FnSetAccountMeta: {"account", "string", "*"},
+	FnSetTxMeta:      {TypeString, TypeAny},
+	FnSetAccountMeta: {TypeAccount, TypeString, TypeAny},
+}
+
+const FnVarOriginMeta = "meta"
+const FnVarOriginBalance = "balance"
+
+type OriginFnArity struct {
+	Args   []string
+	Return string
+}
+
+var OriginFunctionArities = map[string]OriginFnArity{
+	FnVarOriginMeta: {
+		Args:   []string{TypeAccount, TypeString},
+		Return: TypeAny,
+	},
+	FnVarOriginBalance: {
+		Args:   []string{TypeAccount, TypeAsset},
+		Return: TypeMonetary,
+	},
 }
 
 type Diagnostic struct {
@@ -53,7 +79,17 @@ func Check(program parser.Program) CheckResult {
 		varResolution: make(map[*parser.VariableLiteral]parser.VarDeclaration),
 	}
 	for _, varDecl := range program.Vars {
-		res.checkVarDecl(varDecl)
+		if varDecl.Type != nil {
+			res.checkVarType(*varDecl.Type)
+		}
+
+		if varDecl.Name != nil {
+			res.checkDuplicateVars(*varDecl.Name, varDecl)
+		}
+
+		if varDecl.Origin != nil {
+			res.checkVarOrigin(*varDecl.Origin, varDecl)
+		}
 	}
 	for _, statement := range program.Statements {
 		switch statement := statement.(type) {
@@ -62,7 +98,11 @@ func Check(program parser.Program) CheckResult {
 			res.checkSource(statement.Source)
 			res.checkDestination(statement.Destination)
 		case *parser.FnCallStatement:
-			res.checkFnCallStatement(statement)
+			var sig []string
+			if sigLookup, ok := TopLevelFunctionsTypes[statement.Caller.Name]; ok {
+				sig = sigLookup
+			}
+			res.checkFnCallArity(statement, sig)
 		}
 	}
 
@@ -76,7 +116,7 @@ func Check(program parser.Program) CheckResult {
 	return res
 }
 
-func (res *CheckResult) checkFnCallStatement(statement *parser.FnCallStatement) {
+func (res *CheckResult) checkFnCallArity(statement *parser.FnCallStatement, sig []string) {
 	var validArgs []parser.Literal
 	for _, lit := range statement.Args {
 		if lit != nil {
@@ -84,7 +124,7 @@ func (res *CheckResult) checkFnCallStatement(statement *parser.FnCallStatement) 
 		}
 	}
 
-	if sig, ok := TopLevelFunctionsTypes[statement.Caller.Name]; ok {
+	if sig != nil {
 		actualArgs := len(validArgs)
 		expectedArgs := len(sig)
 
@@ -168,14 +208,13 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.VariableLiteral, 
 	}
 }
 
-func (res *CheckResult) checkVarDecl(varDecl parser.VarDeclaration) {
-	if varDecl.Type != nil {
-		res.checkVarType(*varDecl.Type)
+func (res *CheckResult) checkVarOrigin(fnCall parser.FnCallStatement, decl parser.VarDeclaration) {
+	var sig []string
+	if sigLookup, ok := OriginFunctionArities[fnCall.Caller.Name]; ok {
+		sig = sigLookup.Args
+		res.assertHasType(decl.Name, sigLookup.Return, decl.Type.Name)
 	}
-
-	if varDecl.Name != nil {
-		res.checkDuplicateVars(*varDecl.Name, varDecl)
-	}
+	res.checkFnCallArity(&fnCall, sig)
 }
 
 func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {

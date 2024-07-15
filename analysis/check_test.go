@@ -779,3 +779,57 @@ func TestCheckTrailingCommaFnCall(t *testing.T) {
 	diagnostics := analysis.Check(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 }
+
+func TestCheckTypesOriginFn(t *testing.T) {
+	input := `
+	vars {
+		monetary $mon = meta(42, "str")
+	}
+
+	send $mon (
+		source = @s
+		destination = @d
+	)
+	`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "account",
+			Got:      "number",
+		},
+		d1.Kind,
+	)
+}
+
+func TestCheckReturnTypeOriginFn(t *testing.T) {
+	input := `
+	vars {
+		account $mon = balance(@account, EUR/2)
+	}
+
+	send [EUR/2 100] (
+		source = $mon
+		destination = @d
+	)
+	`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "monetary",
+			Got:      "account",
+		},
+		d1.Kind,
+	)
+}
