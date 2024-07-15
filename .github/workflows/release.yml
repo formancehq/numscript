@@ -28,4 +28,4 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --parallelism 2 --rm-dist --skip-validate
+          args: release
