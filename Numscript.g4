@@ -44,14 +44,11 @@ varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
 program: varsDeclaration? statement*;
 
-monetaryLit: LBRACKET (asset = ASSET) (amt = NUMBER) RBRACKET;
+variableNumber:
+	NUMBER			# number
+	| VARIABLE_NAME	# numberVariable;
 
-cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
-
-allotment:
-	portion			# portionedAllotment
-	| VARIABLE_NAME	# portionVariable
-	| REMAINING		# remainingAllotment;
+variableAsset: ASSET # asset | VARIABLE_NAME # assetVariable;
 
 variableAccount:
 	ACCOUNT			# accountName
@@ -60,6 +57,16 @@ variableAccount:
 variableMonetary:
 	monetaryLit		# monetary
 	| VARIABLE_NAME	# monetaryVariable;
+
+monetaryLit:
+	LBRACKET (asset = variableAsset) (amt = variableNumber) RBRACKET;
+
+cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
+
+allotment:
+	portion			# portionedAllotment
+	| VARIABLE_NAME	# portionVariable
+	| REMAINING		# remainingAllotment;
 
 source:
 	variableAccount ALLOWING UNBOUNDED OVERDRAFT				# srcAccountUnboundedOverdraft

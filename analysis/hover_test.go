@@ -34,6 +34,36 @@ send $amt (
 	assert.NotNil(t, resolved)
 }
 
+func TestHoverOnMonetaryVarAmt(t *testing.T) {
+	input := `vars { number $amt }
+
+send [COIN $amt] (
+	source = @a
+	destination = @b
+)`
+
+	rng := RangeOfIndexed(input, "$amt", 1)
+
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+	assert.NotNil(t, hover)
+}
+
+func TestHoverOnMonetaryVarAsset(t *testing.T) {
+	input := `vars { asset $asset }
+
+send [$asset 100] (
+	source = @a
+	destination = @b
+)`
+
+	rng := RangeOfIndexed(input, "$asset", 1)
+
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+	assert.NotNil(t, hover)
+}
+
 func TestHoverOnSource(t *testing.T) {
 	input := `vars { account $src }
 

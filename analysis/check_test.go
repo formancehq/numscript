@@ -183,6 +183,62 @@ func TestUnusedVarInSource(t *testing.T) {
 	)
 }
 
+func TestWrongTypeForMonetaryLitAsset(t *testing.T) {
+	input := `vars { account $a }
+
+send [$a 100] (
+  	source = @src
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "asset",
+			Got:      "account",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$a", 1),
+		d1.Range,
+	)
+}
+
+func TestWrongTypeForMonetaryLitNumber(t *testing.T) {
+	input := `vars { account $n }
+
+send [EUR/2 $n] (
+  	source = @src
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "number",
+			Got:      "account",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		RangeOfIndexed(input, "$n", 1),
+		d1.Range,
+	)
+}
+
 func TestWrongTypeForCap(t *testing.T) {
 	input := `vars { account $account }
 

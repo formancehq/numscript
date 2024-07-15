@@ -23,6 +23,30 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#program.
 	VisitProgram(ctx *ProgramContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#number.
+	VisitNumber(ctx *NumberContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#numberVariable.
+	VisitNumberVariable(ctx *NumberVariableContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#asset.
+	VisitAsset(ctx *AssetContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#assetVariable.
+	VisitAssetVariable(ctx *AssetVariableContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#accountName.
+	VisitAccountName(ctx *AccountNameContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#accountVariable.
+	VisitAccountVariable(ctx *AccountVariableContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#monetary.
+	VisitMonetary(ctx *MonetaryContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#monetaryVariable.
+	VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#monetaryLit.
 	VisitMonetaryLit(ctx *MonetaryLitContext) interface{}
 
@@ -40,18 +64,6 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#remainingAllotment.
 	VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#accountName.
-	VisitAccountName(ctx *AccountNameContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#accountVariable.
-	VisitAccountVariable(ctx *AccountVariableContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#monetary.
-	VisitMonetary(ctx *MonetaryContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#monetaryVariable.
-	VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#srcAccountUnboundedOverdraft.
 	VisitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) interface{}

@@ -31,17 +31,39 @@ func (r Range) Contains(position Position) bool {
 }
 
 // does it even make sense to have a literal supertype?
-type Literal interface{ literal() }
+type Literal interface {
+	literal()
+	GetRange() Range
+}
 
+func (*AssetLiteral) literal()    {}
 func (*MonetaryLiteral) literal() {}
 func (*AccountLiteral) literal()  {}
 func (*VariableLiteral) literal() {}
 func (*RatioLiteral) literal()    {}
+func (*NumberLiteral) literal()   {}
+
+func (l *AssetLiteral) GetRange() Range    { return l.Range }
+func (l *MonetaryLiteral) GetRange() Range { return l.Range }
+func (l *AccountLiteral) GetRange() Range  { return l.Range }
+func (l *VariableLiteral) GetRange() Range { return l.Range }
+func (l *RatioLiteral) GetRange() Range    { return l.Range }
+func (l *NumberLiteral) GetRange() Range   { return l.Range }
+
+type AssetLiteral struct {
+	Range Range
+	Asset string
+}
+
+type NumberLiteral struct {
+	Range  Range
+	Number int
+}
 
 type MonetaryLiteral struct {
 	Range  Range
-	Asset  string
-	Amount int
+	Asset  Literal
+	Amount Literal
 }
 
 type AccountLiteral struct {
@@ -84,8 +106,6 @@ func (*SourceOverdraft) source() {}
 
 func (s *SourceSeq) GetRange() Range       { return s.Range }
 func (s *SourceAllotment) GetRange() Range { return s.Range }
-func (s *AccountLiteral) GetRange() Range  { return s.Range }
-func (s *VariableLiteral) GetRange() Range { return s.Range }
 func (s *SourceCapped) GetRange() Range    { return s.Range }
 func (s *SourceOverdraft) GetRange() Range { return s.Range }
 

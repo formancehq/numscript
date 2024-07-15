@@ -28,6 +28,38 @@ func (v *BaseNumscriptVisitor) VisitProgram(ctx *ProgramContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitNumber(ctx *NumberContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitNumberVariable(ctx *NumberVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAsset(ctx *AssetContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAssetVariable(ctx *AssetVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAccountName(ctx *AccountNameContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitAccountVariable(ctx *AccountVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitMonetary(ctx *MonetaryContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -49,22 +81,6 @@ func (v *BaseNumscriptVisitor) VisitPortionVariable(ctx *PortionVariableContext)
 }
 
 func (v *BaseNumscriptVisitor) VisitRemainingAllotment(ctx *RemainingAllotmentContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAccountName(ctx *AccountNameContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAccountVariable(ctx *AccountVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetary(ctx *MonetaryContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

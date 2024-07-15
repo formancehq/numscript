@@ -55,17 +55,28 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 	return nil
 }
 
-func hoverOnLiteral(sendStatement parser.Literal, position parser.Position) Hover {
-	switch sendStatement := sendStatement.(type) {
+func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
+	if !lit.GetRange().Contains(position) {
+		return nil
+	}
+
+	switch lit := lit.(type) {
 	case *parser.VariableLiteral:
-		if !sendStatement.Range.Contains(position) {
-			return nil
+		return &VariableHover{
+			Range: lit.Range,
+			Node:  lit,
+		}
+	case *parser.MonetaryLiteral:
+		hover := hoverOnLiteral(lit.Amount, position)
+		if hover != nil {
+			return hover
 		}
 
-		return &VariableHover{
-			Range: sendStatement.Range,
-			Node:  sendStatement,
+		hover = hoverOnLiteral(lit.Asset, position)
+		if hover != nil {
+			return hover
 		}
+
 	}
 
 	return nil

@@ -437,28 +437,60 @@ func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
 	}
 }
 
-func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLiteral {
+func parseVariableNumber(numCtx parser.IVariableNumberContext) Literal {
+	switch numCtx := numCtx.(type) {
+	case *parser.NumberContext:
+		amtStr := numCtx.NUMBER().GetText()
 
+		amt, err := strconv.Atoi(amtStr)
+		if err != nil {
+			panic("Invalid amt: " + amtStr)
+		}
+
+		return &NumberLiteral{
+			Range:  ctxToRange(numCtx),
+			Number: amt,
+		}
+
+	case *parser.NumberVariableContext:
+		return parseVarLiteral(numCtx.VARIABLE_NAME().GetSymbol())
+
+	case *parser.VariableNumberContext:
+		return nil
+
+	default:
+		panic("Unhandled clause")
+	}
+}
+
+func parseVariableAsset(assetCtx parser.IVariableAssetContext) Literal {
+	switch assetCtx := assetCtx.(type) {
+	case *parser.AssetContext:
+		return &AssetLiteral{
+			Range: ctxToRange(assetCtx),
+			Asset: assetCtx.GetText(),
+		}
+
+	case *parser.AssetVariableContext:
+		return parseVarLiteral(assetCtx.VARIABLE_NAME().GetSymbol())
+
+	case *parser.VariableAssetContext:
+		return nil
+
+	default:
+		panic("Unhandled clause")
+	}
+}
+
+func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLiteral {
 	if monetaryLitCtx.GetAmt() == nil {
 		return nil
 	}
 
-	// TODO better err handling
-	if monetaryLitCtx.GetAmt().GetTokenIndex() == -1 {
-		return nil
-	}
-
-	amtStr := monetaryLitCtx.GetAmt().GetText()
-
-	amt, err := strconv.Atoi(amtStr)
-	if err != nil {
-		panic("Invalid amt: " + amtStr)
-	}
-
 	return &MonetaryLiteral{
 		Range:  ctxToRange(monetaryLitCtx),
-		Asset:  monetaryLitCtx.GetAsset().GetText(),
-		Amount: amt,
+		Asset:  parseVariableAsset(monetaryLitCtx.GetAsset()),
+		Amount: parseVariableNumber(monetaryLitCtx.GetAmt()),
 	}
 }
 

@@ -119,11 +119,13 @@ func (res *CheckResult) checkLiteral(lit parser.Literal, expectedType string) {
 		delete(res.unusedVars, lit.Name)
 
 	case *parser.MonetaryLiteral:
+		res.checkLiteral(lit.Asset, TypeAsset)
+		res.checkLiteral(lit.Amount, TypeNumber)
+
 	case *parser.AccountLiteral:
 	case *parser.RatioLiteral:
-
-	default:
-		panic("unhandled clause")
+	case *parser.AssetLiteral:
+	case *parser.NumberLiteral:
 	}
 
 	res.assertType(lit, expectedType)

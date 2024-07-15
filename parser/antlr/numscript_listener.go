@@ -23,6 +23,30 @@ type NumscriptListener interface {
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
 
+	// EnterNumber is called when entering the number production.
+	EnterNumber(c *NumberContext)
+
+	// EnterNumberVariable is called when entering the numberVariable production.
+	EnterNumberVariable(c *NumberVariableContext)
+
+	// EnterAsset is called when entering the asset production.
+	EnterAsset(c *AssetContext)
+
+	// EnterAssetVariable is called when entering the assetVariable production.
+	EnterAssetVariable(c *AssetVariableContext)
+
+	// EnterAccountName is called when entering the accountName production.
+	EnterAccountName(c *AccountNameContext)
+
+	// EnterAccountVariable is called when entering the accountVariable production.
+	EnterAccountVariable(c *AccountVariableContext)
+
+	// EnterMonetary is called when entering the monetary production.
+	EnterMonetary(c *MonetaryContext)
+
+	// EnterMonetaryVariable is called when entering the monetaryVariable production.
+	EnterMonetaryVariable(c *MonetaryVariableContext)
+
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
@@ -40,18 +64,6 @@ type NumscriptListener interface {
 
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
-
-	// EnterAccountName is called when entering the accountName production.
-	EnterAccountName(c *AccountNameContext)
-
-	// EnterAccountVariable is called when entering the accountVariable production.
-	EnterAccountVariable(c *AccountVariableContext)
-
-	// EnterMonetary is called when entering the monetary production.
-	EnterMonetary(c *MonetaryContext)
-
-	// EnterMonetaryVariable is called when entering the monetaryVariable production.
-	EnterMonetaryVariable(c *MonetaryVariableContext)
 
 	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
 	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
@@ -110,6 +122,30 @@ type NumscriptListener interface {
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)
 
+	// ExitNumber is called when exiting the number production.
+	ExitNumber(c *NumberContext)
+
+	// ExitNumberVariable is called when exiting the numberVariable production.
+	ExitNumberVariable(c *NumberVariableContext)
+
+	// ExitAsset is called when exiting the asset production.
+	ExitAsset(c *AssetContext)
+
+	// ExitAssetVariable is called when exiting the assetVariable production.
+	ExitAssetVariable(c *AssetVariableContext)
+
+	// ExitAccountName is called when exiting the accountName production.
+	ExitAccountName(c *AccountNameContext)
+
+	// ExitAccountVariable is called when exiting the accountVariable production.
+	ExitAccountVariable(c *AccountVariableContext)
+
+	// ExitMonetary is called when exiting the monetary production.
+	ExitMonetary(c *MonetaryContext)
+
+	// ExitMonetaryVariable is called when exiting the monetaryVariable production.
+	ExitMonetaryVariable(c *MonetaryVariableContext)
+
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
@@ -127,18 +163,6 @@ type NumscriptListener interface {
 
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)
-
-	// ExitAccountName is called when exiting the accountName production.
-	ExitAccountName(c *AccountNameContext)
-
-	// ExitAccountVariable is called when exiting the accountVariable production.
-	ExitAccountVariable(c *AccountVariableContext)
-
-	// ExitMonetary is called when exiting the monetary production.
-	ExitMonetary(c *MonetaryContext)
-
-	// ExitMonetaryVariable is called when exiting the monetaryVariable production.
-	ExitMonetaryVariable(c *MonetaryVariableContext)
 
 	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
 	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
