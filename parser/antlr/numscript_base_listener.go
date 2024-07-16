@@ -247,6 +247,24 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseSrc(ctx *AllotmentClauseSrcC
 // ExitAllotmentClauseSrc is called when production allotmentClauseSrc is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) {}
 
+// EnterDestinationTo is called when production destinationTo is entered.
+func (s *BaseNumscriptListener) EnterDestinationTo(ctx *DestinationToContext) {}
+
+// ExitDestinationTo is called when production destinationTo is exited.
+func (s *BaseNumscriptListener) ExitDestinationTo(ctx *DestinationToContext) {}
+
+// EnterDestinationKept is called when production destinationKept is entered.
+func (s *BaseNumscriptListener) EnterDestinationKept(ctx *DestinationKeptContext) {}
+
+// ExitDestinationKept is called when production destinationKept is exited.
+func (s *BaseNumscriptListener) ExitDestinationKept(ctx *DestinationKeptContext) {}
+
+// EnterDestinationInOrderClause is called when production destinationInOrderClause is entered.
+func (s *BaseNumscriptListener) EnterDestinationInOrderClause(ctx *DestinationInOrderClauseContext) {}
+
+// ExitDestinationInOrderClause is called when production destinationInOrderClause is exited.
+func (s *BaseNumscriptListener) ExitDestinationInOrderClause(ctx *DestinationInOrderClauseContext) {}
+
 // EnterDestAccount is called when production destAccount is entered.
 func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
 

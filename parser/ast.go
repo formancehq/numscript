@@ -171,9 +171,29 @@ func (*RatioLiteral) destinationAllotmentValue()       {}
 func (*VariableLiteral) destinationAllotmentValue()    {}
 
 type DestinationInorder struct {
-	Range        Range
-	Destinations []Destination
+	Range     Range
+	Clauses   []DestinationInorderClause
+	Remaining DestinationInorderTarget
 }
+
+type DestinationInorderClause struct {
+	Range Range
+	Cap   Literal
+	To    DestinationInorderTarget
+}
+
+type DestinationInorderTarget interface {
+	destinationInOrderTarget()
+}
+type DestinationKept struct {
+	Range Range
+}
+type DestinationTo struct {
+	Destination Destination
+}
+
+func (*DestinationKept) destinationInOrderTarget() {}
+func (*DestinationTo) destinationInOrderTarget()   {}
 
 type DestinationAllotment struct {
 	Range Range

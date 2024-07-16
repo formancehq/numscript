@@ -185,6 +185,20 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 }
 
+func hoverOnDestinationInorderTarget(inorderClause parser.DestinationInorderTarget, position parser.Position) Hover {
+	switch inorderClause := inorderClause.(type) {
+	case *parser.DestinationKept:
+		return nil
+
+	case *parser.DestinationTo:
+		return hoverOnDestination(inorderClause.Destination, position)
+
+	default:
+		panic("Unhandled clause")
+	}
+
+}
+
 func hoverOnDestination(destination parser.Destination, position parser.Position) Hover {
 	if !destination.GetRange().Contains(position) {
 		return nil
@@ -192,16 +206,26 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 
 	switch source := destination.(type) {
 	case *parser.DestinationInorder:
-		for _, destination := range source.Destinations {
+		for _, inorderClause := range source.Clauses {
 			// TODO binary search
-			if !destination.GetRange().Contains(position) {
+			if !inorderClause.Range.Contains(position) {
 				continue
 			}
 
-			hover := hoverOnDestination(destination, position)
+			hover := hoverOnLiteral(inorderClause.Cap, position)
 			if hover != nil {
 				return hover
 			}
+
+			hover = hoverOnDestinationInorderTarget(inorderClause.To, position)
+			if hover != nil {
+				return hover
+			}
+		}
+
+		hover := hoverOnDestinationInorderTarget(source.Remaining, position)
+		if hover != nil {
+			return hover
 		}
 
 	case *parser.DestinationAllotment:

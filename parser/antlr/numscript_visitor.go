@@ -119,6 +119,15 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseSrc.
 	VisitAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#destinationTo.
+	VisitDestinationTo(ctx *DestinationToContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#destinationKept.
+	VisitDestinationKept(ctx *DestinationKeptContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#destinationInOrderClause.
+	VisitDestinationInOrderClause(ctx *DestinationInOrderClauseContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#destAccount.
 	VisitDestAccount(ctx *DestAccountContext) interface{}
 

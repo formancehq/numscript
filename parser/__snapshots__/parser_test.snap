@@ -1584,3 +1584,102 @@ parser.Program{
     },
 }
 ---
+
+[TestInorderDestination - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:7},
+            },
+            Monetary: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:9, Line:0},
+                },
+                Name: "amt",
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
+                Name: "s",
+            },
+            Destination: &parser.DestinationInorder{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:3, Line:6},
+                },
+                Clauses: {
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:3},
+                            End:   parser.Position{Character:15, Line:3},
+                        },
+                        Cap: &parser.VariableLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:5, Line:3},
+                                End:   parser.Position{Character:8, Line:3},
+                            },
+                            Name: "m1",
+                        },
+                        To: &parser.DestinationTo{
+                            Destination: &parser.AccountLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:12, Line:3},
+                                    End:   parser.Position{Character:15, Line:3},
+                                },
+                                Name: "d1",
+                            },
+                        },
+                    },
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:4},
+                            End:   parser.Position{Character:16, Line:4},
+                        },
+                        Cap: &parser.MonetaryLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:5, Line:4},
+                                End:   parser.Position{Character:11, Line:4},
+                            },
+                            Asset: &parser.AssetLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:6, Line:4},
+                                    End:   parser.Position{Character:7, Line:4},
+                                },
+                                Asset: "C",
+                            },
+                            Amount: &parser.NumberLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:8, Line:4},
+                                    End:   parser.Position{Character:10, Line:4},
+                                },
+                                Number: 42,
+                            },
+                        },
+                        To: &parser.DestinationKept{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:12, Line:4},
+                                End:   parser.Position{Character:16, Line:4},
+                            },
+                        },
+                    },
+                },
+                Remaining: &parser.DestinationTo{
+                    Destination: &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:14, Line:5},
+                            End:   parser.Position{Character:17, Line:5},
+                        },
+                        Name: "d3",
+                    },
+                },
+            },
+        },
+    },
+}
+---

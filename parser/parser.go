@@ -396,13 +396,15 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return variableLiteralFromCtx(destCtx)
 
 	case *parser.DestInorderContext:
-		var destinations []Destination
-		for _, destCtx := range destCtx.AllDestination() {
-			destinations = append(destinations, parseDestination(destCtx))
+		var inorderClauses []DestinationInorderClause
+		for _, destInorderClause := range destCtx.AllDestinationInOrderClause() {
+			inorderClauses = append(inorderClauses, parseDestinationInorderClause(destInorderClause))
 		}
+
 		return &DestinationInorder{
-			Range:        range_,
-			Destinations: destinations,
+			Range:     range_,
+			Clauses:   inorderClauses,
+			Remaining: parseDestinationInorderTarget(destCtx.DestinationInOrderTarget()),
 		}
 
 	case *parser.DestAllotmentContext:
@@ -426,6 +428,32 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 	default:
 		panic("Unhandled dest" + destCtx.GetText())
 
+	}
+
+}
+
+func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseContext) DestinationInorderClause {
+	return DestinationInorderClause{
+		Range: ctxToRange(clauseCtx),
+		Cap:   parseLiteral(clauseCtx.Literal()),
+		To:    parseDestinationInorderTarget(clauseCtx.DestinationInOrderTarget()),
+	}
+}
+
+func parseDestinationInorderTarget(clauseCtx parser.IDestinationInOrderTargetContext) DestinationInorderTarget {
+	switch clauseCtx := clauseCtx.(type) {
+	case *parser.DestinationToContext:
+		return &DestinationTo{
+			Destination: parseDestination(clauseCtx.Destination()),
+		}
+	case *parser.DestinationKeptContext:
+		return &DestinationKept{
+			Range: ctxToRange(clauseCtx),
+		}
+	case *parser.DestinationInOrderTargetContext:
+		return nil
+	default:
+		panic("Unhandled clause")
 	}
 
 }

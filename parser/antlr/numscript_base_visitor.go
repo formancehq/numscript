@@ -156,6 +156,18 @@ func (v *BaseNumscriptVisitor) VisitAllotmentClauseSrc(ctx *AllotmentClauseSrcCo
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitDestinationTo(ctx *DestinationToContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitDestinationKept(ctx *DestinationKeptContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitDestinationInOrderClause(ctx *DestinationInOrderClauseContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitDestAccount(ctx *DestAccountContext) interface{} {
 	return v.VisitChildren(ctx)
 }

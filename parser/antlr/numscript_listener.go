@@ -119,6 +119,15 @@ type NumscriptListener interface {
 	// EnterAllotmentClauseSrc is called when entering the allotmentClauseSrc production.
 	EnterAllotmentClauseSrc(c *AllotmentClauseSrcContext)
 
+	// EnterDestinationTo is called when entering the destinationTo production.
+	EnterDestinationTo(c *DestinationToContext)
+
+	// EnterDestinationKept is called when entering the destinationKept production.
+	EnterDestinationKept(c *DestinationKeptContext)
+
+	// EnterDestinationInOrderClause is called when entering the destinationInOrderClause production.
+	EnterDestinationInOrderClause(c *DestinationInOrderClauseContext)
+
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
 
@@ -250,6 +259,15 @@ type NumscriptListener interface {
 
 	// ExitAllotmentClauseSrc is called when exiting the allotmentClauseSrc production.
 	ExitAllotmentClauseSrc(c *AllotmentClauseSrcContext)
+
+	// ExitDestinationTo is called when exiting the destinationTo production.
+	ExitDestinationTo(c *DestinationToContext)
+
+	// ExitDestinationKept is called when exiting the destinationKept production.
+	ExitDestinationKept(c *DestinationKeptContext)
+
+	// ExitDestinationInOrderClause is called when exiting the destinationInOrderClause production.
+	ExitDestinationInOrderClause(c *DestinationInOrderClauseContext)
 
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)

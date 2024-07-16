@@ -150,6 +150,19 @@ func TestInorderSource(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestInorderDestination(t *testing.T) {
+	p := parser.Parse(`send $amt (
+  source = @s
+  destination = {
+	max $m1 to @d1
+	max [C 42] kept
+	remaining to @d3
+  }
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 func TestAllotment(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = { 1/3 from @s1 }

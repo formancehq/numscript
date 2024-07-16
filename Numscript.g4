@@ -18,6 +18,7 @@ REMAINING: 'remaining';
 ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
+KEPT: 'kept';
 LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
@@ -96,11 +97,16 @@ source:
 	| MAX cap FROM source										# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
+destinationInOrderTarget:
+	TO destination	# destinationTo
+	| KEPT			# destinationKept;
+destinationInOrderClause: MAX literal destinationInOrderTarget;
+
 destination:
-	ACCOUNT									# destAccount
-	| VARIABLE_NAME							# destVariable
-	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
-	| LBRACE destination* RBRACE			# destInorder;
+	ACCOUNT																			# destAccount
+	| VARIABLE_NAME																	# destVariable
+	| LBRACE allotmentClauseDest+ RBRACE											# destAllotment
+	| LBRACE destinationInOrderClause* REMAINING destinationInOrderTarget RBRACE	# destInorder;
 allotmentClauseDest: allotment TO destination;
 
 statement:
