@@ -127,6 +127,17 @@ func (*BadAllotmentSum) Severity() Severity {
 	return ErrorSeverity
 }
 
+type FixedPortionVariable struct {
+	Value big.Rat
+}
+
+func (e *FixedPortionVariable) Message() string {
+	return fmt.Sprintf("This variable always has the same value (%s)", e.Value.String())
+}
+func (*FixedPortionVariable) Severity() Severity {
+	return WarningSeverity
+}
+
 type RedundantRemaining struct{}
 
 func (e *RedundantRemaining) Message() string {

@@ -589,6 +589,112 @@ func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 	)
 }
 
+func TestNoAllotmentLt1ErrIfVariable(t *testing.T) {
+	input := `vars {
+	portion $portion1
+	portion $portion2
+}
+
+send [COIN 100] (
+   source = {
+		1/3 from @s1
+		1/3 from @s2
+		$portion1 from @s3
+		$portion2 from @s4
+    }
+  	destination = @d
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 0)
+}
+
+func TestAllotmentGt1ErrIfVariable(t *testing.T) {
+	input := `vars {
+	portion $portion1
+	portion $portion2
+}
+
+send [COIN 100] (
+   source = @src
+  	destination = {
+		2/3 to @d1
+		2/3 to @d2
+		$portion1 to @d3
+		$portion2 to @d4
+    }
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	assert.IsType(t, diagnostics[0].Kind, &analysis.BadAllotmentSum{})
+}
+
+func TestAllotmentErrOnlyOneVar(t *testing.T) {
+	input := `vars { portion $portion }
+
+send [COIN 100] (
+   source = {
+		2/3 from @s1
+		$portion from @s2
+   }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 1)
+
+	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
+		Kind: &analysis.FixedPortionVariable{
+			Value: *big.NewRat(1, 3),
+		},
+		Range: RangeOfIndexed(input, "$portion", 1),
+	})
+}
+
+func TestAllotmentErrWhenVarIsZero(t *testing.T) {
+	input := `vars {
+	portion $portion1
+	portion $portion2
+}
+
+send [COIN 100] (
+   source = {
+		2/3 from @s1
+		1/3 from @s2
+		$portion1 from @s3
+		$portion2 from @s4
+   }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.Check(program).Diagnostics
+	assert.Len(t, diagnostics, 2)
+
+	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
+		Kind: &analysis.FixedPortionVariable{
+			Value: *big.NewRat(0, 1),
+		},
+		Range: RangeOfIndexed(input, "$portion1", 1),
+	})
+
+	assert.Equal(t, diagnostics[1], analysis.Diagnostic{
+		Kind: &analysis.FixedPortionVariable{
+			Value: *big.NewRat(0, 1),
+		},
+		Range: RangeOfIndexed(input, "$portion2", 1),
+	})
+}
+
 func TestNoBadAllotmentWhenRemaining(t *testing.T) {
 	input := `send [COIN 100] (
    source = {

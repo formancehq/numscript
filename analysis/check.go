@@ -296,6 +296,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	case *parser.SourceAllotment:
 		var remainingAllotment *parser.RemainingAllotment = nil
+		var variableLiterals []parser.VariableLiteral
 
 		sum := big.NewRat(0, 1)
 		for i, allottedItem := range source.Items {
@@ -303,6 +304,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.VariableLiteral:
+				variableLiterals = append(variableLiterals, *allotment)
 				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
@@ -320,7 +322,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.checkSource(allottedItem.From)
 		}
 
-		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment)
+		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment, variableLiterals)
 
 	default:
 		panic(fmt.Sprintf("unhandled clause: %+s", source))
@@ -342,7 +344,8 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 		}
 
 	case *parser.DestinationAllotment:
-		var remainingAllotment *parser.RemainingAllotment = nil
+		var remainingAllotment *parser.RemainingAllotment
+		var variableLiterals []parser.VariableLiteral
 		sum := big.NewRat(0, 1)
 
 		for i, allottedItem := range destination.Items {
@@ -350,6 +353,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.VariableLiteral:
+				variableLiterals = append(variableLiterals, *allotment)
 				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
@@ -367,29 +371,50 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 			res.checkDestination(allottedItem.To)
 		}
 
-		res.checkHasBadAllotmentSum(*sum, destination.Range, remainingAllotment)
+		res.checkHasBadAllotmentSum(*sum, destination.Range, remainingAllotment, variableLiterals)
 	}
 }
 
 func (res *CheckResult) checkHasBadAllotmentSum(
-	sum big.Rat, rng parser.Range, remaining *parser.RemainingAllotment,
+	sum big.Rat,
+	rng parser.Range,
+	remaining *parser.RemainingAllotment,
+	variableLiterals []parser.VariableLiteral,
 ) {
 	cmp := sum.Cmp(big.NewRat(1, 1))
 	switch cmp {
 	case 1, -1:
-		if cmp == -1 && remaining != nil {
+		if (cmp == -1 && remaining != nil) || (cmp == -1 && len(variableLiterals) > 1) {
 			return
 		}
 
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: rng,
-			Kind: &BadAllotmentSum{
-				Sum: sum,
-			},
-		})
+		if cmp == -1 && len(variableLiterals) == 1 {
+			var value big.Rat
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: variableLiterals[0].Range,
+				Kind: &FixedPortionVariable{
+					Value: *value.Sub(big.NewRat(1, 1), &sum),
+				},
+			})
+		} else {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: rng,
+				Kind: &BadAllotmentSum{
+					Sum: sum,
+				},
+			})
+		}
 
 	// sum == 1
 	case 0:
+		for _, varLit := range variableLiterals {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: varLit.Range,
+				Kind: &FixedPortionVariable{
+					Value: *big.NewRat(0, 1),
+				},
+			})
+		}
 		if remaining != nil {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: remaining.Range,
