@@ -7,24 +7,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -55,24 +57,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.VariableLiteral{
@@ -103,24 +107,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceAllotment{
@@ -173,24 +179,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:7},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceAllotment{
@@ -283,24 +291,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceAllotment{
@@ -353,24 +363,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -423,24 +435,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceCapped{
@@ -497,24 +511,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceCapped{
@@ -558,24 +574,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:7},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceInorder{
@@ -654,24 +672,26 @@ parser.Program{
                 Start: parser.Position{Character:1, Line:1},
                 End:   parser.Position{Character:53, Line:1},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:6, Line:1},
-                    End:   parser.Position{Character:15, Line:1},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:7, Line:1},
-                        End:   parser.Position{Character:11, Line:1},
+                        Start: parser.Position{Character:6, Line:1},
+                        End:   parser.Position{Character:15, Line:1},
                     },
-                    Asset: "COIN",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:1},
-                        End:   parser.Position{Character:14, Line:1},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:7, Line:1},
+                            End:   parser.Position{Character:11, Line:1},
+                        },
+                        Asset: "COIN",
                     },
-                    Number: 10,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:1},
+                            End:   parser.Position{Character:14, Line:1},
+                        },
+                        Number: 10,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -694,24 +714,26 @@ parser.Program{
                 Start: parser.Position{Character:1, Line:2},
                 End:   parser.Position{Character:53, Line:2},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:6, Line:2},
-                    End:   parser.Position{Character:15, Line:2},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:7, Line:2},
-                        End:   parser.Position{Character:11, Line:2},
+                        Start: parser.Position{Character:6, Line:2},
+                        End:   parser.Position{Character:15, Line:2},
                     },
-                    Asset: "COIN",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:2},
-                        End:   parser.Position{Character:14, Line:2},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:7, Line:2},
+                            End:   parser.Position{Character:11, Line:2},
+                        },
+                        Asset: "COIN",
                     },
-                    Number: 20,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:2},
+                            End:   parser.Position{Character:14, Line:2},
+                        },
+                        Number: 20,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -764,7 +786,7 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:4, Line:0},
             },
-            Monetary:    nil,
+            SentValue:   nil,
             Source:      nil,
             Destination: nil,
         },
@@ -781,20 +803,7 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:11, Line:0},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:11, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:10, Line:0},
-                    },
-                    Asset: "COIN",
-                },
-                Amount: nil,
-            },
+            SentValue:   nil,
             Source:      nil,
             Destination: nil,
         },
@@ -811,8 +820,8 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:5},
             },
-            Monetary: nil,
-            Source:   &parser.SourceInorder{
+            SentValue: nil,
+            Source:    &parser.SourceInorder{
                 Range: parser.Range{
                     Start: parser.Position{Character:11, Line:1},
                     End:   parser.Position{Character:3, Line:3},
@@ -834,24 +843,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:14, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:10, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:14, Line:0},
                     },
-                    Asset: "COIN",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:11, Line:0},
-                        End:   parser.Position{Character:13, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:10, Line:0},
+                        },
+                        Asset: "COIN",
                     },
-                    Number: 10,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:11, Line:0},
+                            End:   parser.Position{Character:13, Line:0},
+                        },
+                        Number: 10,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -876,24 +887,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:14, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:10, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:14, Line:0},
                     },
-                    Asset: "COIN",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:11, Line:0},
-                        End:   parser.Position{Character:13, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:10, Line:0},
+                        },
+                        Asset: "COIN",
                     },
-                    Number: 10,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:11, Line:0},
+                            End:   parser.Position{Character:13, Line:0},
+                        },
+                        Number: 10,
+                    },
                 },
             },
             Source: &parser.SourceCapped{
@@ -981,12 +994,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.VariableLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:13, Line:0},
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:13, Line:0},
+                    },
+                    Name: "example",
                 },
-                Name: "example",
             },
             Source: &parser.AccountLiteral{
                 Range: parser.Range{
@@ -1016,24 +1031,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:6},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.AccountLiteral{
@@ -1105,24 +1122,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:5},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceAllotment{
@@ -1174,12 +1193,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.VariableLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:7, Line:0},
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:7, Line:0},
+                    },
+                    Name: "x",
                 },
-                Name: "x",
             },
             Source: &parser.SourceOverdraft{
                 Range: parser.Range{
@@ -1216,12 +1237,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.VariableLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:7, Line:0},
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:7, Line:0},
+                    },
+                    Name: "x",
                 },
-                Name: "x",
             },
             Source: &parser.SourceOverdraft{
                 Range: parser.Range{
@@ -1258,12 +1281,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.VariableLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:7, Line:0},
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:7, Line:0},
+                    },
+                    Name: "x",
                 },
-                Name: "x",
             },
             Source: &parser.SourceOverdraft{
                 Range: parser.Range{
@@ -1531,24 +1556,26 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:3},
             },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
                     },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
                     },
-                    Number: 100,
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
                 },
             },
             Source: &parser.SourceInorder{
@@ -1594,12 +1621,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:7},
             },
-            Monetary: &parser.VariableLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:9, Line:0},
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:9, Line:0},
+                    },
+                    Name: "amt",
                 },
-                Name: "amt",
             },
             Source: &parser.AccountLiteral{
                 Range: parser.Range{
@@ -1678,6 +1707,47 @@ parser.Program{
                         Name: "d3",
                     },
                 },
+            },
+        },
+    },
+}
+---
+
+[TestSendAll - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            SentValue: &parser.SentValueAll{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
+                Asset: &parser.AssetLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:6, Line:0},
+                        End:   parser.Position{Character:11, Line:0},
+                    },
+                    Asset: "ASSET",
+                },
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:1},
+                    End:   parser.Position{Character:12, Line:1},
+                },
+                Name: "a",
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:15, Line:2},
+                    End:   parser.Position{Character:17, Line:2},
+                },
+                Name: "b",
             },
         },
     },

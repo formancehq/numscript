@@ -94,7 +94,7 @@ func Check(program parser.Program) CheckResult {
 	for _, statement := range program.Statements {
 		switch statement := statement.(type) {
 		case *parser.SendStatement:
-			res.checkLiteral(statement.Monetary, TypeMonetary)
+			res.checkSentValue(statement.SentValue)
 			res.checkSource(statement.Source)
 			res.checkDestination(statement.Destination)
 		case *parser.FnCallStatement:
@@ -170,7 +170,7 @@ func (res *CheckResult) checkFnCallArity(statement *parser.FnCallStatement, sig 
 		}
 	} else {
 		for _, arg := range validArgs {
-			res.checkLiteral(arg, "*")
+			res.checkLiteral(arg, TypeAny)
 		}
 
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
@@ -268,6 +268,15 @@ func (res *CheckResult) assertHasType(lit parser.Literal, requiredType string, a
 
 }
 
+func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
+	switch sentValue := sentValue.(type) {
+	case *parser.SentValueAll:
+		res.checkLiteral(sentValue.Asset, TypeAsset)
+	case *parser.SentValueLiteral:
+		res.checkLiteral(sentValue.Monetary, TypeMonetary)
+	}
+}
+
 func (res *CheckResult) checkSource(source parser.Source) {
 	if source == nil {
 		return
@@ -340,7 +349,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
-			res.checkLiteral(clause.Cap, "monetary")
+			res.checkLiteral(clause.Cap, TypeMonetary)
 			res.checkDestinationInorderTarget(clause.To)
 		}
 		res.checkDestinationInorderTarget(destination.Remaining)

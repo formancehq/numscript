@@ -104,6 +104,10 @@ func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseNumscriptVisitor) VisitSentAllLit(ctx *SentAllLitContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitLitCap(ctx *LitCapContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -185,6 +189,14 @@ func (v *BaseNumscriptVisitor) VisitDestInorder(ctx *DestInorderContext) interfa
 }
 
 func (v *BaseNumscriptVisitor) VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSentLiteral(ctx *SentLiteralContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitSentAll(ctx *SentAllContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

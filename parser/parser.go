@@ -542,12 +542,33 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 	}
 }
 
+func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
+	switch statementCtx := statementCtx.(type) {
+	case *parser.SentLiteralContext:
+		return &SentValueLiteral{
+			Monetary: parseLiteral(statementCtx.Literal()),
+		}
+	case *parser.SentAllContext:
+		return &SentValueAll{
+			Range: ctxToRange(statementCtx),
+			Asset: parseVariableAsset(statementCtx.SentAllLit().VariableAsset()),
+		}
+
+	case *parser.SentValueContext:
+		return nil
+
+	default:
+		panic("Unhandled clause")
+	}
+
+}
+
 func parseSendStatement(statementCtx *parser.SendStatementContext) *SendStatement {
 	return &SendStatement{
 		Source:      parseSource(statementCtx.Source()),
 		Destination: parseDestination(statementCtx.Destination()),
 		Range:       ctxToRange(statementCtx),
-		Monetary:    parseVariableMonetary(statementCtx.VariableMonetary()),
+		SentValue:   parseSentValue(statementCtx.SentValue()),
 	}
 }
 

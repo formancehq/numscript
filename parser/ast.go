@@ -230,9 +230,21 @@ type FnCallStatement struct {
 	Args   []Literal
 }
 
+type SentValue interface{ sentValue() }
+type SentValueLiteral struct {
+	Monetary Literal
+}
+type SentValueAll struct {
+	Range Range
+	Asset Literal
+}
+
+func (*SentValueLiteral) sentValue() {}
+func (*SentValueAll) sentValue()     {}
+
 type SendStatement struct {
 	Range       Range
-	Monetary    Literal
+	SentValue   SentValue
 	Source      Source
 	Destination Destination
 }

@@ -60,12 +60,25 @@ func hoverOnVar(varDecl parser.VarDeclaration, position parser.Position) Hover {
 	return nil
 }
 
+func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hover {
+	switch sentValue := sentValue.(type) {
+	case *parser.SentValueAll:
+		return hoverOnLiteral(sentValue.Asset, position)
+
+	case *parser.SentValueLiteral:
+		return hoverOnLiteral(sentValue.Monetary, position)
+
+	default:
+		panic("Unhandled clause")
+	}
+}
+
 func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Position) Hover {
 	if !sendStatement.Range.Contains(position) {
 		return nil
 	}
 
-	hover := hoverOnLiteral(sendStatement.Monetary, position)
+	hover := hoverOnSentValue(sendStatement.SentValue, position)
 	if hover != nil {
 		return hover
 	}

@@ -165,6 +165,12 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
+// EnterSentAllLit is called when production sentAllLit is entered.
+func (s *BaseNumscriptListener) EnterSentAllLit(ctx *SentAllLitContext) {}
+
+// ExitSentAllLit is called when production sentAllLit is exited.
+func (s *BaseNumscriptListener) ExitSentAllLit(ctx *SentAllLitContext) {}
+
 // EnterLitCap is called when production litCap is entered.
 func (s *BaseNumscriptListener) EnterLitCap(ctx *LitCapContext) {}
 
@@ -294,6 +300,18 @@ func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDes
 
 // ExitAllotmentClauseDest is called when production allotmentClauseDest is exited.
 func (s *BaseNumscriptListener) ExitAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}
+
+// EnterSentLiteral is called when production sentLiteral is entered.
+func (s *BaseNumscriptListener) EnterSentLiteral(ctx *SentLiteralContext) {}
+
+// ExitSentLiteral is called when production sentLiteral is exited.
+func (s *BaseNumscriptListener) ExitSentLiteral(ctx *SentLiteralContext) {}
+
+// EnterSentAll is called when production sentAll is entered.
+func (s *BaseNumscriptListener) EnterSentAll(ctx *SentAllContext) {}
+
+// ExitSentAll is called when production sentAll is exited.
+func (s *BaseNumscriptListener) ExitSentAll(ctx *SentAllContext) {}
 
 // EnterSendStatement is called when production sendStatement is entered.
 func (s *BaseNumscriptListener) EnterSendStatement(ctx *SendStatementContext) {}

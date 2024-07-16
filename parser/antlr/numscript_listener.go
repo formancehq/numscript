@@ -80,6 +80,9 @@ type NumscriptListener interface {
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
+	// EnterSentAllLit is called when entering the sentAllLit production.
+	EnterSentAllLit(c *SentAllLitContext)
+
 	// EnterLitCap is called when entering the litCap production.
 	EnterLitCap(c *LitCapContext)
 
@@ -142,6 +145,12 @@ type NumscriptListener interface {
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
+
+	// EnterSentLiteral is called when entering the sentLiteral production.
+	EnterSentLiteral(c *SentLiteralContext)
+
+	// EnterSentAll is called when entering the sentAll production.
+	EnterSentAll(c *SentAllContext)
 
 	// EnterSendStatement is called when entering the sendStatement production.
 	EnterSendStatement(c *SendStatementContext)
@@ -221,6 +230,9 @@ type NumscriptListener interface {
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
+	// ExitSentAllLit is called when exiting the sentAllLit production.
+	ExitSentAllLit(c *SentAllLitContext)
+
 	// ExitLitCap is called when exiting the litCap production.
 	ExitLitCap(c *LitCapContext)
 
@@ -283,6 +295,12 @@ type NumscriptListener interface {
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
+
+	// ExitSentLiteral is called when exiting the sentLiteral production.
+	ExitSentLiteral(c *SentLiteralContext)
+
+	// ExitSentAll is called when exiting the sentAll production.
+	ExitSentAll(c *SentAllContext)
 
 	// ExitSendStatement is called when exiting the sendStatement production.
 	ExitSendStatement(c *SendStatementContext)

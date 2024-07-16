@@ -27,6 +27,7 @@ LBRACE: '{';
 RBRACE: '}';
 COMMA: ',';
 EQ: '=';
+STAR: '*';
 
 RATIO_PORTION_LITERAL: [0-9]+ [ ]? '/' [ ]? [0-9]+;
 PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
@@ -80,6 +81,8 @@ variableMonetary:
 monetaryLit:
 	LBRACKET (asset = variableAsset) (amt = variableNumber) RBRACKET;
 
+sentAllLit: LBRACKET (asset = variableAsset) STAR RBRACKET;
+
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
 allotment:
@@ -109,6 +112,8 @@ destination:
 	| LBRACE destinationInOrderClause* REMAINING destinationInOrderTarget RBRACE	# destInorder;
 allotmentClauseDest: allotment TO destination;
 
+sentValue: literal # sentLiteral | sentAllLit # sentAll;
+
 statement:
-	SEND variableMonetary LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
-	| functionCall																		# fnCallStatement;
+	SEND sentValue LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
+	| functionCall																# fnCallStatement;

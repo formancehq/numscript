@@ -80,6 +80,9 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#monetaryLit.
 	VisitMonetaryLit(ctx *MonetaryLitContext) interface{}
 
+	// Visit a parse tree produced by NumscriptParser#sentAllLit.
+	VisitSentAllLit(ctx *SentAllLitContext) interface{}
+
 	// Visit a parse tree produced by NumscriptParser#litCap.
 	VisitLitCap(ctx *LitCapContext) interface{}
 
@@ -142,6 +145,12 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#sentLiteral.
+	VisitSentLiteral(ctx *SentLiteralContext) interface{}
+
+	// Visit a parse tree produced by NumscriptParser#sentAll.
+	VisitSentAll(ctx *SentAllContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#sendStatement.
 	VisitSendStatement(ctx *SendStatementContext) interface{}

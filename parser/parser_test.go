@@ -322,6 +322,16 @@ vars {
 	assert.Empty(t, p.Errors)
 }
 
+func TestSendAll(t *testing.T) {
+	p := parser.Parse(`send [ASSET *] (
+	source = @a
+	destination = @b
+)
+`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 // ------- Fault tolerance tests
 
 func TestFaultToleranceVarName(t *testing.T) {
