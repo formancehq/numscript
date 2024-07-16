@@ -92,7 +92,7 @@ source:
 	| ACCOUNT													# srcAccount
 	| VARIABLE_NAME												# srcVariable
 	| LBRACE allotmentClauseSrc+ RBRACE							# srcAllotment
-	| LBRACE source* RBRACE										# srcSeq
+	| LBRACE source* RBRACE										# srcInorder
 	| MAX cap FROM source										# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
@@ -100,7 +100,7 @@ destination:
 	ACCOUNT									# destAccount
 	| VARIABLE_NAME							# destVariable
 	| LBRACE allotmentClauseDest+ RBRACE	# destAllotment
-	| LBRACE destination* RBRACE			# destSeq;
+	| LBRACE destination* RBRACE			# destInorder;
 allotmentClauseDest: allotment TO destination;
 
 statement:

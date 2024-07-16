@@ -164,12 +164,12 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	case *parser.SrcVariableContext:
 		return variableLiteralFromCtx(sourceCtx)
 
-	case *parser.SrcSeqContext:
+	case *parser.SrcInorderContext:
 		var sources []Source
 		for _, sourceCtx := range sourceCtx.AllSource() {
 			sources = append(sources, parseSource(sourceCtx))
 		}
-		return &SourceSeq{
+		return &SourceInorder{
 			Range:   range_,
 			Sources: sources,
 		}
@@ -395,12 +395,12 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 	case *parser.DestVariableContext:
 		return variableLiteralFromCtx(destCtx)
 
-	case *parser.DestSeqContext:
+	case *parser.DestInorderContext:
 		var destinations []Destination
 		for _, destCtx := range destCtx.AllDestination() {
 			destinations = append(destinations, parseDestination(destCtx))
 		}
-		return &DestinationSeq{
+		return &DestinationInorder{
 			Range:        range_,
 			Destinations: destinations,
 		}

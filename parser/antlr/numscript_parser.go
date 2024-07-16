@@ -3676,95 +3676,6 @@ func (s *SrcVariableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 	}
 }
 
-type SrcSeqContext struct {
-	SourceContext
-}
-
-func NewSrcSeqContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcSeqContext {
-	var p = new(SrcSeqContext)
-
-	InitEmptySourceContext(&p.SourceContext)
-	p.parser = parser
-	p.CopyAll(ctx.(*SourceContext))
-
-	return p
-}
-
-func (s *SrcSeqContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *SrcSeqContext) LBRACE() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserLBRACE, 0)
-}
-
-func (s *SrcSeqContext) RBRACE() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserRBRACE, 0)
-}
-
-func (s *SrcSeqContext) AllSource() []ISourceContext {
-	children := s.GetChildren()
-	len := 0
-	for _, ctx := range children {
-		if _, ok := ctx.(ISourceContext); ok {
-			len++
-		}
-	}
-
-	tst := make([]ISourceContext, len)
-	i := 0
-	for _, ctx := range children {
-		if t, ok := ctx.(ISourceContext); ok {
-			tst[i] = t.(ISourceContext)
-			i++
-		}
-	}
-
-	return tst
-}
-
-func (s *SrcSeqContext) Source(i int) ISourceContext {
-	var t antlr.RuleContext
-	j := 0
-	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ISourceContext); ok {
-			if j == i {
-				t = ctx.(antlr.RuleContext)
-				break
-			}
-			j++
-		}
-	}
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(ISourceContext)
-}
-
-func (s *SrcSeqContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.EnterSrcSeq(s)
-	}
-}
-
-func (s *SrcSeqContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.ExitSrcSeq(s)
-	}
-}
-
-func (s *SrcSeqContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcSeq(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcAllotmentContext struct {
 	SourceContext
 }
@@ -3848,6 +3759,95 @@ func (s *SrcAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{}
 	switch t := visitor.(type) {
 	case NumscriptVisitor:
 		return t.VisitSrcAllotment(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type SrcInorderContext struct {
+	SourceContext
+}
+
+func NewSrcInorderContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcInorderContext {
+	var p = new(SrcInorderContext)
+
+	InitEmptySourceContext(&p.SourceContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*SourceContext))
+
+	return p
+}
+
+func (s *SrcInorderContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *SrcInorderContext) LBRACE() antlr.TerminalNode {
+	return s.GetToken(NumscriptParserLBRACE, 0)
+}
+
+func (s *SrcInorderContext) RBRACE() antlr.TerminalNode {
+	return s.GetToken(NumscriptParserRBRACE, 0)
+}
+
+func (s *SrcInorderContext) AllSource() []ISourceContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ISourceContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]ISourceContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ISourceContext); ok {
+			tst[i] = t.(ISourceContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *SrcInorderContext) Source(i int) ISourceContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISourceContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ISourceContext)
+}
+
+func (s *SrcInorderContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(NumscriptListener); ok {
+		listenerT.EnterSrcInorder(s)
+	}
+}
+
+func (s *SrcInorderContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(NumscriptListener); ok {
+		listenerT.ExitSrcInorder(s)
+	}
+}
+
+func (s *SrcInorderContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case NumscriptVisitor:
+		return t.VisitSrcInorder(s)
 
 	default:
 		return t.VisitChildren(s)
@@ -4131,7 +4131,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		}
 
 	case 6:
-		localctx = NewSrcSeqContext(p, localctx)
+		localctx = NewSrcInorderContext(p, localctx)
 		p.EnterOuterAlt(localctx, 6)
 		{
 			p.SetState(150)
@@ -4461,6 +4461,95 @@ func (s *DestVariableContext) Accept(visitor antlr.ParseTreeVisitor) interface{}
 	}
 }
 
+type DestInorderContext struct {
+	DestinationContext
+}
+
+func NewDestInorderContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *DestInorderContext {
+	var p = new(DestInorderContext)
+
+	InitEmptyDestinationContext(&p.DestinationContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*DestinationContext))
+
+	return p
+}
+
+func (s *DestInorderContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *DestInorderContext) LBRACE() antlr.TerminalNode {
+	return s.GetToken(NumscriptParserLBRACE, 0)
+}
+
+func (s *DestInorderContext) RBRACE() antlr.TerminalNode {
+	return s.GetToken(NumscriptParserRBRACE, 0)
+}
+
+func (s *DestInorderContext) AllDestination() []IDestinationContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IDestinationContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]IDestinationContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IDestinationContext); ok {
+			tst[i] = t.(IDestinationContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *DestInorderContext) Destination(i int) IDestinationContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IDestinationContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IDestinationContext)
+}
+
+func (s *DestInorderContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(NumscriptListener); ok {
+		listenerT.EnterDestInorder(s)
+	}
+}
+
+func (s *DestInorderContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(NumscriptListener); ok {
+		listenerT.ExitDestInorder(s)
+	}
+}
+
+func (s *DestInorderContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case NumscriptVisitor:
+		return t.VisitDestInorder(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
 type DestAccountContext struct {
 	DestinationContext
 }
@@ -4594,95 +4683,6 @@ func (s *DestAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{
 	}
 }
 
-type DestSeqContext struct {
-	DestinationContext
-}
-
-func NewDestSeqContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *DestSeqContext {
-	var p = new(DestSeqContext)
-
-	InitEmptyDestinationContext(&p.DestinationContext)
-	p.parser = parser
-	p.CopyAll(ctx.(*DestinationContext))
-
-	return p
-}
-
-func (s *DestSeqContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *DestSeqContext) LBRACE() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserLBRACE, 0)
-}
-
-func (s *DestSeqContext) RBRACE() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserRBRACE, 0)
-}
-
-func (s *DestSeqContext) AllDestination() []IDestinationContext {
-	children := s.GetChildren()
-	len := 0
-	for _, ctx := range children {
-		if _, ok := ctx.(IDestinationContext); ok {
-			len++
-		}
-	}
-
-	tst := make([]IDestinationContext, len)
-	i := 0
-	for _, ctx := range children {
-		if t, ok := ctx.(IDestinationContext); ok {
-			tst[i] = t.(IDestinationContext)
-			i++
-		}
-	}
-
-	return tst
-}
-
-func (s *DestSeqContext) Destination(i int) IDestinationContext {
-	var t antlr.RuleContext
-	j := 0
-	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IDestinationContext); ok {
-			if j == i {
-				t = ctx.(antlr.RuleContext)
-				break
-			}
-			j++
-		}
-	}
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IDestinationContext)
-}
-
-func (s *DestSeqContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.EnterDestSeq(s)
-	}
-}
-
-func (s *DestSeqContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.ExitDestSeq(s)
-	}
-}
-
-func (s *DestSeqContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestSeq(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 	localctx = NewDestinationContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 34, NumscriptParserRULE_destination)
@@ -4760,7 +4760,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		}
 
 	case 4:
-		localctx = NewDestSeqContext(p, localctx)
+		localctx = NewDestInorderContext(p, localctx)
 		p.EnterOuterAlt(localctx, 4)
 		{
 			p.SetState(179)

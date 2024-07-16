@@ -123,7 +123,7 @@ parser.Program{
                     Number: 100,
                 },
             },
-            Source: &parser.SourceSeq{
+            Source: &parser.SourceInorder{
                 Range: parser.Range{
                     Start: parser.Position{Character:11, Line:1},
                     End:   parser.Position{Character:22, Line:1},
@@ -145,7 +145,7 @@ parser.Program{
                     },
                 },
             },
-            Destination: &parser.DestinationSeq{
+            Destination: &parser.DestinationInorder{
                 Range: parser.Range{
                     Start: parser.Position{Character:16, Line:2},
                     End:   parser.Position{Character:27, Line:2},
@@ -656,7 +656,7 @@ parser.Program{
                     Number: 100,
                 },
             },
-            Source: &parser.SourceSeq{
+            Source: &parser.SourceInorder{
                 Range: parser.Range{
                     Start: parser.Position{Character:11, Line:1},
                     End:   parser.Position{Character:3, Line:5},
@@ -891,7 +891,7 @@ parser.Program{
             },
             Monetary:    nil,
             Source:      nil,
-            Destination: &parser.DestinationSeq{
+            Destination: &parser.DestinationInorder{
                 Range: parser.Range{
                     Start: parser.Position{Character:16, Line:2},
                     End:   parser.Position{Character:3, Line:4},

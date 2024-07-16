@@ -110,8 +110,8 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#srcAllotment.
 	VisitSrcAllotment(ctx *SrcAllotmentContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#srcSeq.
-	VisitSrcSeq(ctx *SrcSeqContext) interface{}
+	// Visit a parse tree produced by NumscriptParser#srcInorder.
+	VisitSrcInorder(ctx *SrcInorderContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#srcCapped.
 	VisitSrcCapped(ctx *SrcCappedContext) interface{}
@@ -128,8 +128,8 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#destAllotment.
 	VisitDestAllotment(ctx *DestAllotmentContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#destSeq.
-	VisitDestSeq(ctx *DestSeqContext) interface{}
+	// Visit a parse tree produced by NumscriptParser#destInorder.
+	VisitDestInorder(ctx *DestInorderContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#allotmentClauseDest.
 	VisitAllotmentClauseDest(ctx *AllotmentClauseDestContext) interface{}

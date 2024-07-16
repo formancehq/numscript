@@ -285,7 +285,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.checkLiteral(*source.Bounded, TypeMonetary)
 		}
 
-	case *parser.SourceSeq:
+	case *parser.SourceInorder:
 		for _, source := range source.Sources {
 			res.checkSource(source)
 		}
@@ -338,7 +338,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 	case *parser.VariableLiteral:
 		res.checkLiteral(destination, TypeAccount)
 
-	case *parser.DestinationSeq:
+	case *parser.DestinationInorder:
 		for _, dest := range destination.Destinations {
 			res.checkDestination(dest)
 		}

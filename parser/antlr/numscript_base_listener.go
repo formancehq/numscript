@@ -229,11 +229,11 @@ func (s *BaseNumscriptListener) EnterSrcAllotment(ctx *SrcAllotmentContext) {}
 // ExitSrcAllotment is called when production srcAllotment is exited.
 func (s *BaseNumscriptListener) ExitSrcAllotment(ctx *SrcAllotmentContext) {}
 
-// EnterSrcSeq is called when production srcSeq is entered.
-func (s *BaseNumscriptListener) EnterSrcSeq(ctx *SrcSeqContext) {}
+// EnterSrcInorder is called when production srcInorder is entered.
+func (s *BaseNumscriptListener) EnterSrcInorder(ctx *SrcInorderContext) {}
 
-// ExitSrcSeq is called when production srcSeq is exited.
-func (s *BaseNumscriptListener) ExitSrcSeq(ctx *SrcSeqContext) {}
+// ExitSrcInorder is called when production srcInorder is exited.
+func (s *BaseNumscriptListener) ExitSrcInorder(ctx *SrcInorderContext) {}
 
 // EnterSrcCapped is called when production srcCapped is entered.
 func (s *BaseNumscriptListener) EnterSrcCapped(ctx *SrcCappedContext) {}
@@ -265,11 +265,11 @@ func (s *BaseNumscriptListener) EnterDestAllotment(ctx *DestAllotmentContext) {}
 // ExitDestAllotment is called when production destAllotment is exited.
 func (s *BaseNumscriptListener) ExitDestAllotment(ctx *DestAllotmentContext) {}
 
-// EnterDestSeq is called when production destSeq is entered.
-func (s *BaseNumscriptListener) EnterDestSeq(ctx *DestSeqContext) {}
+// EnterDestInorder is called when production destInorder is entered.
+func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
 
-// ExitDestSeq is called when production destSeq is exited.
-func (s *BaseNumscriptListener) ExitDestSeq(ctx *DestSeqContext) {}
+// ExitDestInorder is called when production destInorder is exited.
+func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
 
 // EnterAllotmentClauseDest is called when production allotmentClauseDest is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}

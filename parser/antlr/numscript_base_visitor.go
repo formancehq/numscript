@@ -144,7 +144,7 @@ func (v *BaseNumscriptVisitor) VisitSrcAllotment(ctx *SrcAllotmentContext) inter
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitSrcSeq(ctx *SrcSeqContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitSrcInorder(ctx *SrcInorderContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -168,7 +168,7 @@ func (v *BaseNumscriptVisitor) VisitDestAllotment(ctx *DestAllotmentContext) int
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitDestSeq(ctx *DestSeqContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitDestInorder(ctx *DestInorderContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

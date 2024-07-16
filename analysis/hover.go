@@ -142,7 +142,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 		return nil
 
-	case *parser.SourceSeq:
+	case *parser.SourceInorder:
 		for _, source := range source.Sources {
 			// TODO binary search
 			if !source.GetRange().Contains(position) {
@@ -191,7 +191,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 	}
 
 	switch source := destination.(type) {
-	case *parser.DestinationSeq:
+	case *parser.DestinationInorder:
 		for _, destination := range source.Destinations {
 			// TODO binary search
 			if !destination.GetRange().Contains(position) {

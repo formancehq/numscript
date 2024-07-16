@@ -110,8 +110,8 @@ type NumscriptListener interface {
 	// EnterSrcAllotment is called when entering the srcAllotment production.
 	EnterSrcAllotment(c *SrcAllotmentContext)
 
-	// EnterSrcSeq is called when entering the srcSeq production.
-	EnterSrcSeq(c *SrcSeqContext)
+	// EnterSrcInorder is called when entering the srcInorder production.
+	EnterSrcInorder(c *SrcInorderContext)
 
 	// EnterSrcCapped is called when entering the srcCapped production.
 	EnterSrcCapped(c *SrcCappedContext)
@@ -128,8 +128,8 @@ type NumscriptListener interface {
 	// EnterDestAllotment is called when entering the destAllotment production.
 	EnterDestAllotment(c *DestAllotmentContext)
 
-	// EnterDestSeq is called when entering the destSeq production.
-	EnterDestSeq(c *DestSeqContext)
+	// EnterDestInorder is called when entering the destInorder production.
+	EnterDestInorder(c *DestInorderContext)
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
@@ -242,8 +242,8 @@ type NumscriptListener interface {
 	// ExitSrcAllotment is called when exiting the srcAllotment production.
 	ExitSrcAllotment(c *SrcAllotmentContext)
 
-	// ExitSrcSeq is called when exiting the srcSeq production.
-	ExitSrcSeq(c *SrcSeqContext)
+	// ExitSrcInorder is called when exiting the srcInorder production.
+	ExitSrcInorder(c *SrcInorderContext)
 
 	// ExitSrcCapped is called when exiting the srcCapped production.
 	ExitSrcCapped(c *SrcCappedContext)
@@ -260,8 +260,8 @@ type NumscriptListener interface {
 	// ExitDestAllotment is called when exiting the destAllotment production.
 	ExitDestAllotment(c *DestAllotmentContext)
 
-	// ExitDestSeq is called when exiting the destSeq production.
-	ExitDestSeq(c *DestSeqContext)
+	// ExitDestInorder is called when exiting the destInorder production.
+	ExitDestInorder(c *DestInorderContext)
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)
