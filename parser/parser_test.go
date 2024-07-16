@@ -142,10 +142,10 @@ func TestVariableMonetary(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
-func TestSeq(t *testing.T) {
+func TestInorderSource(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = { @s1 @s2 }
-  destination = { @d1 @d2 }
+  destination = @d
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
@@ -329,10 +329,10 @@ func TestFaultToleranceMonetary(t *testing.T) {
 
 func TestFaultToleranceNoAddr(t *testing.T) {
 	p := parser.Parse(`send  (
-  source = @
-  destination = {
+  source = {
 	@
   }
+  destination = @
 )`)
 	snaps.MatchSnapshot(t, p.Value)
 }

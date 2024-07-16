@@ -94,84 +94,6 @@ parser.Program{
 }
 ---
 
-[TestSeq - 1]
-parser.Program{
-    Vars:       nil,
-    Statements: {
-        &parser.SendStatement{
-            Range: parser.Range{
-                Start: parser.Position{},
-                End:   parser.Position{Character:1, Line:3},
-            },
-            Monetary: &parser.MonetaryLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:5, Line:0},
-                    End:   parser.Position{Character:16, Line:0},
-                },
-                Asset: &parser.AssetLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:6, Line:0},
-                        End:   parser.Position{Character:11, Line:0},
-                    },
-                    Asset: "EUR/2",
-                },
-                Amount: &parser.NumberLiteral{
-                    Range: parser.Range{
-                        Start: parser.Position{Character:12, Line:0},
-                        End:   parser.Position{Character:15, Line:0},
-                    },
-                    Number: 100,
-                },
-            },
-            Source: &parser.SourceInorder{
-                Range: parser.Range{
-                    Start: parser.Position{Character:11, Line:1},
-                    End:   parser.Position{Character:22, Line:1},
-                },
-                Sources: {
-                    &parser.AccountLiteral{
-                        Range: parser.Range{
-                            Start: parser.Position{Character:13, Line:1},
-                            End:   parser.Position{Character:16, Line:1},
-                        },
-                        Name: "s1",
-                    },
-                    &parser.AccountLiteral{
-                        Range: parser.Range{
-                            Start: parser.Position{Character:17, Line:1},
-                            End:   parser.Position{Character:20, Line:1},
-                        },
-                        Name: "s2",
-                    },
-                },
-            },
-            Destination: &parser.DestinationInorder{
-                Range: parser.Range{
-                    Start: parser.Position{Character:16, Line:2},
-                    End:   parser.Position{Character:27, Line:2},
-                },
-                Destinations: {
-                    &parser.AccountLiteral{
-                        Range: parser.Range{
-                            Start: parser.Position{Character:18, Line:2},
-                            End:   parser.Position{Character:21, Line:2},
-                        },
-                        Name: "d1",
-                    },
-                    &parser.AccountLiteral{
-                        Range: parser.Range{
-                            Start: parser.Position{Character:22, Line:2},
-                            End:   parser.Position{Character:25, Line:2},
-                        },
-                        Name: "d2",
-                    },
-                },
-            },
-        },
-    },
-}
----
-
 [TestAllotment - 1]
 parser.Program{
     Vars:       nil,
@@ -889,15 +811,15 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:5},
             },
-            Monetary:    nil,
-            Source:      nil,
-            Destination: &parser.DestinationInorder{
+            Monetary: nil,
+            Source:   &parser.SourceInorder{
                 Range: parser.Range{
-                    Start: parser.Position{Character:16, Line:2},
-                    End:   parser.Position{Character:3, Line:4},
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:3, Line:3},
                 },
-                Destinations: nil,
+                Sources: nil,
             },
+            Destination: nil,
         },
     },
 }
@@ -1597,5 +1519,68 @@ parser.Program{
         },
     },
     Statements: nil,
+}
+---
+
+[TestInorderSource - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            Monetary: &parser.MonetaryLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:16, Line:0},
+                },
+                Asset: &parser.AssetLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:6, Line:0},
+                        End:   parser.Position{Character:11, Line:0},
+                    },
+                    Asset: "EUR/2",
+                },
+                Amount: &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:0},
+                        End:   parser.Position{Character:15, Line:0},
+                    },
+                    Number: 100,
+                },
+            },
+            Source: &parser.SourceInorder{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:22, Line:1},
+                },
+                Sources: {
+                    &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:13, Line:1},
+                            End:   parser.Position{Character:16, Line:1},
+                        },
+                        Name: "s1",
+                    },
+                    &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:17, Line:1},
+                            End:   parser.Position{Character:20, Line:1},
+                        },
+                        Name: "s2",
+                    },
+                },
+            },
+            Destination: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:18, Line:2},
+                },
+                Name: "d",
+            },
+        },
+    },
 }
 ---
