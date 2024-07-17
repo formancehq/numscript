@@ -55,7 +55,7 @@ func TestFaultToleranceTrailingComma(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
-func TestFaultToleranceDestinationNoRemaining(t *testing.T) {
+func TestFaultToleranceDestinationNoRemainingMispelledFrom(t *testing.T) {
 	p := parser.Parse(`send [COIN 10] (
 		source = @a
 		destination = {

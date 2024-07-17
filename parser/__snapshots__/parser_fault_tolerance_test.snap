@@ -205,7 +205,7 @@ parser.Program{
 }
 ---
 
-[TestFaultToleranceDestinationNoRemaining - 1]
+[TestFaultToleranceDestinationNoRemainingMispelledFrom - 1]
 parser.Program{
     Vars:       nil,
     Statements: {
