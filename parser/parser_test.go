@@ -380,3 +380,14 @@ func TestFaultToleranceTrailingComma(t *testing.T) {
 	p := parser.Parse(`set_tx_meta(1, )`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestFaultToleranceDestinationNoRemaining(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+		source = @a
+		destination = {
+			max [COIN 10] from @x
+		}
+	)
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}

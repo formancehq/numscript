@@ -441,6 +441,10 @@ func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseCon
 }
 
 func parseDestinationInorderTarget(clauseCtx parser.IDestinationInOrderTargetContext) DestinationInorderTarget {
+	if clauseCtx == nil {
+		return nil
+	}
+
 	switch clauseCtx := clauseCtx.(type) {
 	case *parser.DestinationToContext:
 		return &DestinationTo{
@@ -452,6 +456,7 @@ func parseDestinationInorderTarget(clauseCtx parser.IDestinationInOrderTargetCon
 		}
 	case *parser.DestinationInOrderTargetContext:
 		return nil
+
 	default:
 		panic("Unhandled clause")
 	}
