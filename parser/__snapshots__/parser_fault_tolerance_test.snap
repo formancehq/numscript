@@ -283,3 +283,32 @@ parser.Program{
     },
 }
 ---
+
+[TestFaultToleranceIncompleteOrigin - 1]
+parser.Program{
+    Vars: {
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:1, Line:2},
+                End:   parser.Position{Character:11, Line:2},
+            },
+            Name: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:7, Line:2},
+                    End:   parser.Position{Character:9, Line:2},
+                },
+                Name: "a",
+            },
+            Type: &parser.TypeDecl{
+                Range: parser.Range{
+                    Start: parser.Position{Character:1, Line:2},
+                    End:   parser.Position{Character:6, Line:2},
+                },
+                Name: "asset",
+            },
+            Origin: (*parser.FnCall)(nil),
+        },
+    },
+    Statements: nil,
+}
+---

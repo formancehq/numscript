@@ -518,6 +518,10 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	}
 
 	ident := fnCallCtx.IDENTIFIER()
+	if ident == nil {
+		return nil
+	}
+
 	allArgs := fnCallCtx.FunctionCallArgs()
 
 	return &FnCall{

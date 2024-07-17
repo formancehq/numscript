@@ -65,3 +65,12 @@ func TestFaultToleranceDestinationNoRemainingMispelledFrom(t *testing.T) {
 	`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestFaultToleranceIncompleteOrigin(t *testing.T) {
+	p := parser.Parse(`
+vars {
+	asset $a = 
+}
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}
