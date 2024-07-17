@@ -82,6 +82,47 @@ func (state *State) handleHover(params HoverParams) *Hover {
 			},
 			Range: toLspRange(hoverable.Range),
 		}
+	case *analysis.BuiltinFnHover:
+		resolved := doc.CheckResult.ResolveBuiltinFn(hoverable.Node.Caller)
+		if resolved == nil {
+			return nil
+		}
+
+		var msg string
+		switch resolved := resolved.(type) {
+		case analysis.StatementFnCallResolution:
+			params := "("
+			for index, arg := range resolved.Params {
+				if index != 0 {
+					params += ", "
+				}
+				params += arg
+			}
+			params += ")"
+			msg = fmt.Sprintf("`%s%s`\n\n%s", hoverable.Node.Caller.Name, params, resolved.Docs)
+		case analysis.VarOriginFnCallResolution:
+			params := "("
+			for index, arg := range resolved.Params {
+				if index != 0 {
+					params += ", "
+				}
+				params += arg
+			}
+			params += ")"
+
+			msg = fmt.Sprintf("`%s%s -> %s`\n\n%s", hoverable.Node.Caller.Name, params, resolved.Return, resolved.Docs)
+		default:
+			panic("Unhandled clause")
+		}
+
+		return &Hover{
+			Contents: MarkupContent{
+				Value: msg,
+				Kind:  "markdown",
+			},
+			Range: toLspRange(hoverable.Range),
+		}
+
 	default:
 		return nil
 	}

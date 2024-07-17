@@ -97,7 +97,7 @@ func parseVarDeclaration(varDecl parser.IVarDeclarationContext) *VarDeclaration 
 		return nil
 	}
 
-	var fnCallStatement *FnCallStatement
+	var fnCallStatement *FnCall
 	if varDecl.VarOrigin() != nil {
 		fnCallStatement = parseFnCall(varDecl.VarOrigin().FunctionCall())
 	}
@@ -512,7 +512,7 @@ func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []Literal {
 	return args
 }
 
-func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCallStatement {
+func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	if fnCallCtx == nil {
 		return nil
 	}
@@ -520,9 +520,9 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCallStatement {
 	ident := fnCallCtx.IDENTIFIER()
 	allArgs := fnCallCtx.FunctionCallArgs()
 
-	return &FnCallStatement{
+	return &FnCall{
 		Range: ctxToRange(fnCallCtx),
-		Caller: Identifier{
+		Caller: &FnCallIdentifier{
 			Range: tokenToRange(ident.GetSymbol()),
 			Name:  ident.GetSymbol().GetText(),
 		},

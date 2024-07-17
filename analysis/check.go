@@ -14,7 +14,7 @@ const TypeAsset = "asset"
 const TypeNumber = "number"
 const TypeString = "string"
 
-const TypeAny = "*"
+const TypeAny = "any"
 
 var AllowedTypes = []string{
 	TypeMonetary,
@@ -25,30 +25,50 @@ var AllowedTypes = []string{
 	TypeString,
 }
 
-const FnSetTxMeta = "set_tx_meta"
-const FnSetAccountMeta = "set_account_meta"
-
-var TopLevelFunctionsTypes = map[string][]string{
-	FnSetTxMeta:      {TypeString, TypeAny},
-	FnSetAccountMeta: {TypeAccount, TypeString, TypeAny},
+type FnCallResolution interface {
+	GetParams() []string
+	fnCallResolution()
 }
 
+type VarOriginFnCallResolution struct {
+	Params []string
+	Docs   string
+	Return string
+}
+type StatementFnCallResolution struct {
+	Params []string
+	Docs   string
+}
+
+func (VarOriginFnCallResolution) fnCallResolution() {}
+func (StatementFnCallResolution) fnCallResolution() {}
+
+func (r VarOriginFnCallResolution) GetParams() []string { return r.Params }
+func (r StatementFnCallResolution) GetParams() []string { return r.Params }
+
+const FnSetTxMeta = "set_tx_meta"
+const FnSetAccountMeta = "set_account_meta"
 const FnVarOriginMeta = "meta"
 const FnVarOriginBalance = "balance"
 
-type OriginFnArity struct {
-	Args   []string
-	Return string
-}
-
-var OriginFunctionArities = map[string]OriginFnArity{
-	FnVarOriginMeta: {
-		Args:   []string{TypeAccount, TypeString},
-		Return: TypeAny,
+var Builtins = map[string]FnCallResolution{
+	FnSetTxMeta: StatementFnCallResolution{
+		Params: []string{TypeString, TypeAny},
+		Docs:   "set transaction metadata",
 	},
-	FnVarOriginBalance: {
-		Args:   []string{TypeAccount, TypeAsset},
+	FnSetAccountMeta: StatementFnCallResolution{
+		Params: []string{TypeAccount, TypeString, TypeAny},
+		Docs:   "set account metadata",
+	},
+	FnVarOriginMeta: VarOriginFnCallResolution{
+		Params: []string{TypeAccount, TypeString},
+		Return: TypeAny,
+		Docs:   "fetch account metadata",
+	},
+	FnVarOriginBalance: VarOriginFnCallResolution{
+		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
+		Docs:   "fetch account balance",
 	},
 }
 
@@ -58,10 +78,11 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	declaredVars  map[string]parser.VarDeclaration
-	unusedVars    map[string]parser.Range
-	varResolution map[*parser.VariableLiteral]parser.VarDeclaration
-	Diagnostics   []Diagnostic
+	declaredVars     map[string]parser.VarDeclaration
+	unusedVars       map[string]parser.Range
+	varResolution    map[*parser.VariableLiteral]parser.VarDeclaration
+	fnCallResolution map[*parser.FnCallIdentifier]FnCallResolution
+	Diagnostics      []Diagnostic
 }
 
 func (r CheckResult) ResolveVar(v *parser.VariableLiteral) *parser.VarDeclaration {
@@ -72,11 +93,20 @@ func (r CheckResult) ResolveVar(v *parser.VariableLiteral) *parser.VarDeclaratio
 	return &k
 }
 
+func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResolution {
+	k, ok := r.fnCallResolution[v]
+	if !ok {
+		return nil
+	}
+	return k
+}
+
 func Check(program parser.Program) CheckResult {
 	res := CheckResult{
-		declaredVars:  make(map[string]parser.VarDeclaration),
-		unusedVars:    make(map[string]parser.Range),
-		varResolution: make(map[*parser.VariableLiteral]parser.VarDeclaration),
+		declaredVars:     make(map[string]parser.VarDeclaration),
+		unusedVars:       make(map[string]parser.Range),
+		varResolution:    make(map[*parser.VariableLiteral]parser.VarDeclaration),
+		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
 	}
 	for _, varDecl := range program.Vars {
 		if varDecl.Type != nil {
@@ -97,12 +127,16 @@ func Check(program parser.Program) CheckResult {
 			res.checkSentValue(statement.SentValue)
 			res.checkSource(statement.Source)
 			res.checkDestination(statement.Destination)
-		case *parser.FnCallStatement:
-			var sig []string
-			if sigLookup, ok := TopLevelFunctionsTypes[statement.Caller.Name]; ok {
-				sig = sigLookup
+		case *parser.FnCall:
+			resolution, ok := Builtins[statement.Caller.Name]
+			if ok {
+				if varOrigin, ok := resolution.(StatementFnCallResolution); ok {
+					res.fnCallResolution[statement.Caller] = varOrigin
+				}
 			}
-			res.checkFnCallArity(statement, sig)
+
+			// This must come after resolution
+			res.checkFnCallArity(statement)
 		}
 	}
 
@@ -116,22 +150,25 @@ func Check(program parser.Program) CheckResult {
 	return res
 }
 
-func (res *CheckResult) checkFnCallArity(statement *parser.FnCallStatement, sig []string) {
+func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
+	resolution, resolved := res.fnCallResolution[fnCall.Caller]
+
 	var validArgs []parser.Literal
-	for _, lit := range statement.Args {
+	for _, lit := range fnCall.Args {
 		if lit != nil {
 			validArgs = append(validArgs, lit)
 		}
 	}
 
-	if sig != nil {
+	if resolved {
+		sig := resolution.GetParams()
 		actualArgs := len(validArgs)
 		expectedArgs := len(sig)
 
 		if actualArgs < expectedArgs {
 			// Too few args
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: statement.Range,
+				Range: fnCall.Range,
 				Kind: &BadArity{
 					Expected: expectedArgs,
 					Actual:   actualArgs,
@@ -174,9 +211,9 @@ func (res *CheckResult) checkFnCallArity(statement *parser.FnCallStatement, sig 
 		}
 
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: statement.Caller.Range,
+			Range: fnCall.Caller.Range,
 			Kind: &UnknownFunction{
-				Name: statement.Caller.Name,
+				Name: fnCall.Caller.Name,
 			},
 		})
 	}
@@ -208,13 +245,18 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.VariableLiteral, 
 	}
 }
 
-func (res *CheckResult) checkVarOrigin(fnCall parser.FnCallStatement, decl parser.VarDeclaration) {
-	var sig []string
-	if sigLookup, ok := OriginFunctionArities[fnCall.Caller.Name]; ok {
-		sig = sigLookup.Args
-		res.assertHasType(decl.Name, sigLookup.Return, decl.Type.Name)
+func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDeclaration) {
+	resolution, ok := Builtins[fnCall.Caller.Name]
+	if ok {
+		resolution, ok := resolution.(VarOriginFnCallResolution)
+		if ok {
+			res.fnCallResolution[decl.Origin.Caller] = resolution
+			res.assertHasType(decl.Name, resolution.Return, decl.Type.Name)
+		}
 	}
-	res.checkFnCallArity(&fnCall, sig)
+
+	// this must come after resolution
+	res.checkFnCallArity(&fnCall)
 }
 
 func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {
@@ -254,7 +296,7 @@ func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {
 }
 
 func (res *CheckResult) assertHasType(lit parser.Literal, requiredType string, actualType string) {
-	if requiredType == "*" || requiredType == actualType {
+	if requiredType == TypeAny || requiredType == actualType {
 		return
 	}
 

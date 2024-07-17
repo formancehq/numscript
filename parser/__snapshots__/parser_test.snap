@@ -780,7 +780,7 @@ parser.Program{
                 },
                 Name: "monetary",
             },
-            Origin: (*parser.FnCallStatement)(nil),
+            Origin: (*parser.FnCall)(nil),
         },
     },
     Statements: nil,
@@ -1141,12 +1141,12 @@ parser.Program{
 parser.Program{
     Vars:       nil,
     Statements: {
-        &parser.FnCallStatement{
+        &parser.FnCall{
             Range: parser.Range{
                 Start: parser.Position{},
                 End:   parser.Position{Character:12, Line:0},
             },
-            Caller: parser.Identifier{
+            Caller: &parser.FnCallIdentifier{
                 Range: parser.Range{
                     Start: parser.Position{},
                     End:   parser.Position{Character:10, Line:0},
@@ -1163,12 +1163,12 @@ parser.Program{
 parser.Program{
     Vars:       nil,
     Statements: {
-        &parser.FnCallStatement{
+        &parser.FnCall{
             Range: parser.Range{
                 Start: parser.Position{},
                 End:   parser.Position{Character:20, Line:0},
             },
-            Caller: parser.Identifier{
+            Caller: &parser.FnCallIdentifier{
                 Range: parser.Range{
                     Start: parser.Position{},
                     End:   parser.Position{Character:10, Line:0},
@@ -1193,12 +1193,12 @@ parser.Program{
 parser.Program{
     Vars:       nil,
     Statements: {
-        &parser.FnCallStatement{
+        &parser.FnCall{
             Range: parser.Range{
                 Start: parser.Position{Character:0, Line:1},
                 End:   parser.Position{Character:1, Line:7},
             },
-            Caller: parser.Identifier{
+            Caller: &parser.FnCallIdentifier{
                 Range: parser.Range{
                     Start: parser.Position{Character:0, Line:1},
                     End:   parser.Position{Character:10, Line:1},
@@ -1283,12 +1283,12 @@ parser.Program{
                 },
                 Name: "monetary",
             },
-            Origin: &parser.FnCallStatement{
+            Origin: &parser.FnCall{
                 Range: parser.Range{
                     Start: parser.Position{Character:20, Line:2},
                     End:   parser.Position{Character:49, Line:2},
                 },
-                Caller: parser.Identifier{
+                Caller: &parser.FnCallIdentifier{
                     Range: parser.Range{
                         Start: parser.Position{Character:20, Line:2},
                         End:   parser.Position{Character:29, Line:2},

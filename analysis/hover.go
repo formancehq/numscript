@@ -13,6 +13,21 @@ type VariableHover struct {
 
 func (*VariableHover) hover() {}
 
+type BuiltinFnHoverContext = uint
+
+const (
+	OriginContext BuiltinFnHoverContext = iota
+	StatementContext
+)
+
+type BuiltinFnHover struct {
+	Range   parser.Range
+	Node    *parser.FnCall
+	Context BuiltinFnHoverContext
+}
+
+func (*BuiltinFnHover) hover() {}
+
 func HoverOn(program parser.Program, position parser.Position) Hover {
 	for _, varDecl := range program.Vars {
 		hover := hoverOnVar(varDecl, position)
@@ -34,7 +49,7 @@ func HoverOn(program parser.Program, position parser.Position) Hover {
 				return hover
 			}
 
-		case *parser.FnCallStatement:
+		case *parser.FnCall:
 			hover := hoverOnFnCall(*statement, position)
 			if hover != nil {
 				return hover
@@ -270,9 +285,17 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 
 }
 
-func hoverOnFnCall(callStatement parser.FnCallStatement, position parser.Position) Hover {
+func hoverOnFnCall(callStatement parser.FnCall, position parser.Position) Hover {
 	if !callStatement.Range.Contains(position) {
 		return nil
+	}
+
+	if callStatement.Caller.Range.Contains(position) {
+		return &BuiltinFnHover{
+			Range:   callStatement.Caller.Range,
+			Node:    &callStatement,
+			Context: StatementContext,
+		}
 	}
 
 	for _, arg := range callStatement.Args {

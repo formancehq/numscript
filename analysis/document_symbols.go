@@ -1,6 +1,8 @@
 package analysis
 
-import "numscript/parser"
+import (
+	"numscript/parser"
+)
 
 type DocumentSymbolKind = float64
 
@@ -16,10 +18,6 @@ type DocumentSymbol struct {
 	Range          parser.Range
 	SelectionRange parser.Range
 	Kind           DocumentSymbolKind
-}
-
-func DocumentSymbols(program parser.Program) []DocumentSymbol {
-	return nil
 }
 
 // Note: Results are not sorted

@@ -262,3 +262,55 @@ func TestHoverOnOriginFnCall(t *testing.T) {
 
 	assert.NotNilf(t, hover, "hover should not be nil")
 }
+
+func TestHoverOnFnCallDocs(t *testing.T) {
+	input := `set_tx_meta()`
+
+	rng := RangeOfIndexed(input, "set_tx_meta", 0)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+
+	fnHover, ok := hover.(*analysis.BuiltinFnHover)
+	if !ok {
+		t.Fatalf("Expected a BuiltinFnHover")
+	}
+
+	assert.Equal(t, fnHover.Range, rng)
+	assert.NotNil(t, fnHover.Node)
+	assert.Equal(t, "set_tx_meta", fnHover.Node.Caller.Name)
+}
+
+func TestHoverOnFnOriginDocs(t *testing.T) {
+	input := `vars { monetary $m = balance(@a, COIN) }`
+
+	rng := RangeOfIndexed(input, "balance", 0)
+
+	program := parser.Parse(input).Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+
+	assert.NotNilf(t, hover, "hover should not be nil")
+
+	fnHover, ok := hover.(*analysis.BuiltinFnHover)
+	if !ok {
+		t.Fatalf("Expected a BuiltinFnHover")
+	}
+
+	assert.Equal(t, fnHover.Range, rng)
+	assert.NotNil(t, fnHover.Node)
+	assert.Equal(t, "balance", fnHover.Node.Caller.Name)
+
+	res := analysis.Check(program)
+	resolution := res.ResolveBuiltinFn(fnHover.Node.Caller)
+	assert.NotNil(t, resolution)
+
+	resolution, ok = resolution.(analysis.VarOriginFnCallResolution)
+	if !ok {
+		t.Fatalf("Expected a VarOriginFnCallResolution (got %v)", resolution)
+	}
+
+}

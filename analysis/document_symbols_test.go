@@ -3,6 +3,7 @@ package analysis_test
 import (
 	"numscript/analysis"
 	"numscript/parser"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestDocumentSymbolsWhenEmpty(t *testing.T) {
 func TestDocumentSymbols(t *testing.T) {
 	input := `vars {
 		monetary $mon
-		account $src
+		account $acc
 	}`
 
 	program := parser.Parse(input).Value
@@ -31,11 +32,26 @@ func TestDocumentSymbols(t *testing.T) {
 
 	assert.Len(t, symbols, 2)
 
-	assert.Equal(t, symbols[0], analysis.DocumentSymbol{
-		Name:   "mon",
-		Detail: "monetary",
-		Range:  RangeOfIndexed(input, "$mon", 0),
-		Kind:   analysis.DocumentSymbolVariable,
+	indexMon := slices.IndexFunc(symbols, func(s analysis.DocumentSymbol) bool {
+		return s.Name == "mon"
+	})
+	assert.Equal(t, symbols[indexMon], analysis.DocumentSymbol{
+		Name:           "mon",
+		Detail:         "monetary",
+		Range:          RangeOfIndexed(input, "$mon", 0),
+		SelectionRange: RangeOfIndexed(input, "$mon", 0),
+		Kind:           analysis.DocumentSymbolVariable,
+	})
+
+	indexSrc := slices.IndexFunc(symbols, func(s analysis.DocumentSymbol) bool {
+		return s.Name == "acc"
+	})
+	assert.Equal(t, symbols[indexSrc], analysis.DocumentSymbol{
+		Name:           "acc",
+		Detail:         "account",
+		Range:          RangeOfIndexed(input, "$acc", 0),
+		SelectionRange: RangeOfIndexed(input, "$acc", 0),
+		Kind:           analysis.DocumentSymbolVariable,
 	})
 
 }

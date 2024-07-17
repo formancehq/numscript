@@ -213,20 +213,20 @@ type Statement interface {
 	GetRange() Range
 }
 
-func (*FnCallStatement) statement() {}
-func (*SendStatement) statement()   {}
+func (*FnCall) statement()        {}
+func (*SendStatement) statement() {}
 
-func (s *FnCallStatement) GetRange() Range { return s.Range }
-func (s *SendStatement) GetRange() Range   { return s.Range }
+func (s *FnCall) GetRange() Range        { return s.Range }
+func (s *SendStatement) GetRange() Range { return s.Range }
 
-type Identifier struct {
+type FnCallIdentifier struct {
 	Range Range
 	Name  string
 }
 
-type FnCallStatement struct {
+type FnCall struct {
 	Range  Range
-	Caller Identifier
+	Caller *FnCallIdentifier
 	Args   []Literal
 }
 
@@ -258,7 +258,7 @@ type VarDeclaration struct {
 	Range  Range
 	Name   *VariableLiteral
 	Type   *TypeDecl
-	Origin *FnCallStatement
+	Origin *FnCall
 }
 
 type Program struct {
