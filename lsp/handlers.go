@@ -105,6 +105,26 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 	}
 }
 
+func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymbol {
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+
+	var lspDocumentSymbols []DocumentSymbol
+	for _, sym := range doc.CheckResult.GetSymbols() {
+		lspDocumentSymbols = append(lspDocumentSymbols, DocumentSymbol{
+			Name:           sym.Name,
+			Detail:         sym.Detail,
+			Kind:           SymbolKind(sym.Kind),
+			Range:          toLspRange(sym.Range),
+			SelectionRange: toLspRange(sym.SelectionRange),
+		})
+	}
+
+	return lspDocumentSymbols
+}
+
 func Handle(r jsonrpc2.Request, state *State) any {
 	switch r.Method {
 	case "initialize":
@@ -114,8 +134,9 @@ func Handle(r jsonrpc2.Request, state *State) any {
 					OpenClose: true,
 					Change:    Full,
 				},
-				HoverProvider:      true,
-				DefinitionProvider: true,
+				HoverProvider:          true,
+				DefinitionProvider:     true,
+				DocumentSymbolProvider: true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -149,6 +170,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		var p DefinitionParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleGotoDefinition(p)
+
+	case "textDocument/documentSymbol":
+		var p DocumentSymbolParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleGetSymbols(p)
 
 	default:
 		// Unhandled method
