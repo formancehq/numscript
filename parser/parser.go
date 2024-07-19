@@ -404,7 +404,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return &DestinationInorder{
 			Range:     range_,
 			Clauses:   inorderClauses,
-			Remaining: parseDestinationInorderTarget(destCtx.DestinationInOrderTarget()),
+			Remaining: parseKeptOrDestination(destCtx.KeptOrDestination()),
 		}
 
 	case *parser.DestAllotmentContext:
@@ -413,7 +413,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			item := DestinationAllotmentItem{
 				Range:     ctxToRange(itemCtx),
 				Allotment: parseDestinationAllotment(itemCtx.Allotment()),
-				To:        parseDestination(itemCtx.Destination()),
+				To:        parseKeptOrDestination(itemCtx.KeptOrDestination()),
 			}
 			items = append(items, item)
 		}
@@ -436,11 +436,11 @@ func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseCon
 	return DestinationInorderClause{
 		Range: ctxToRange(clauseCtx),
 		Cap:   parseLiteral(clauseCtx.Literal()),
-		To:    parseDestinationInorderTarget(clauseCtx.DestinationInOrderTarget()),
+		To:    parseKeptOrDestination(clauseCtx.KeptOrDestination()),
 	}
 }
 
-func parseDestinationInorderTarget(clauseCtx parser.IDestinationInOrderTargetContext) DestinationInorderTarget {
+func parseKeptOrDestination(clauseCtx parser.IKeptOrDestinationContext) KeptOrDestination {
 	if clauseCtx == nil {
 		return nil
 	}
@@ -454,7 +454,7 @@ func parseDestinationInorderTarget(clauseCtx parser.IDestinationInOrderTargetCon
 		return &DestinationKept{
 			Range: ctxToRange(clauseCtx),
 		}
-	case *parser.DestinationInOrderTargetContext:
+	case *parser.KeptOrDestinationContext:
 		return nil
 
 	default:

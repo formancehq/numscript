@@ -220,6 +220,15 @@ func TestAllotmentDestRemaining(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestAllotmentDestKept(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = @s
+  destination = { 1/2 kept }
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
 func TestCapped(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = max [EUR/2 10] from @src

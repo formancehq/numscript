@@ -411,12 +411,14 @@ parser.Program{
                             Numerator:   0x1,
                             Denominator: 0x2,
                         },
-                        To: &parser.AccountLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:25, Line:2},
-                                End:   parser.Position{Character:27, Line:2},
+                        To: &parser.DestinationTo{
+                            Destination: &parser.AccountLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:25, Line:2},
+                                    End:   parser.Position{Character:27, Line:2},
+                                },
+                                Name: "d",
                             },
-                            Name: "d",
                         },
                     },
                 },
@@ -881,12 +883,14 @@ parser.Program{
                             Numerator:   0x1,
                             Denominator: 0x2,
                         },
-                        To: &parser.AccountLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:10, Line:3},
-                                End:   parser.Position{Character:12, Line:3},
+                        To: &parser.DestinationTo{
+                            Destination: &parser.AccountLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:10, Line:3},
+                                    End:   parser.Position{Character:12, Line:3},
+                                },
+                                Name: "d",
                             },
-                            Name: "d",
                         },
                     },
                     {
@@ -900,12 +904,14 @@ parser.Program{
                                 End:   parser.Position{Character:10, Line:4},
                             },
                         },
-                        To: &parser.AccountLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:14, Line:4},
-                                End:   parser.Position{Character:17, Line:4},
+                        To: &parser.DestinationTo{
+                            Destination: &parser.AccountLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:14, Line:4},
+                                    End:   parser.Position{Character:17, Line:4},
+                                },
+                                Name: "d2",
                             },
-                            Name: "d2",
                         },
                     },
                 },
@@ -1519,6 +1525,77 @@ parser.Program{
                     End:   parser.Position{Character:17, Line:2},
                 },
                 Name: "b",
+            },
+        },
+    },
+}
+---
+
+[TestAllotmentDestKept - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:16, Line:0},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:15, Line:0},
+                        },
+                        Number: 100,
+                    },
+                },
+            },
+            Source: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
+                Name: "s",
+            },
+            Destination: &parser.DestinationAllotment{
+                Range: parser.Range{
+                    Start: parser.Position{Character:16, Line:2},
+                    End:   parser.Position{Character:28, Line:2},
+                },
+                Items: {
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:2},
+                            End:   parser.Position{Character:26, Line:2},
+                        },
+                        Allotment: &parser.RatioLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:18, Line:2},
+                                End:   parser.Position{Character:21, Line:2},
+                            },
+                            Numerator:   0x1,
+                            Denominator: 0x2,
+                        },
+                        To: &parser.DestinationKept{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:22, Line:2},
+                                End:   parser.Position{Character:26, Line:2},
+                            },
+                        },
+                    },
+                },
             },
         },
     },

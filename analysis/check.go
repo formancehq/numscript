@@ -392,9 +392,9 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
 			res.checkLiteral(clause.Cap, TypeMonetary)
-			res.checkDestinationInorderTarget(clause.To)
+			res.checkKeptOrDestination(clause.To)
 		}
-		res.checkDestinationInorderTarget(destination.Remaining)
+		res.checkKeptOrDestination(destination.Remaining)
 
 	case *parser.DestinationAllotment:
 		var remainingAllotment *parser.RemainingAllotment
@@ -421,14 +421,14 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 				}
 			}
 
-			res.checkDestination(allottedItem.To)
+			res.checkKeptOrDestination(allottedItem.To)
 		}
 
 		res.checkHasBadAllotmentSum(*sum, destination.Range, remainingAllotment, variableLiterals)
 	}
 }
 
-func (res *CheckResult) checkDestinationInorderTarget(target parser.DestinationInorderTarget) {
+func (res *CheckResult) checkKeptOrDestination(target parser.KeptOrDestination) {
 	switch target := target.(type) {
 	case *parser.DestinationTo:
 		res.checkDestination(target.Destination)

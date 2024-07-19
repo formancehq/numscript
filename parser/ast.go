@@ -173,17 +173,17 @@ func (*VariableLiteral) destinationAllotmentValue()    {}
 type DestinationInorder struct {
 	Range     Range
 	Clauses   []DestinationInorderClause
-	Remaining DestinationInorderTarget
+	Remaining KeptOrDestination
 }
 
 type DestinationInorderClause struct {
 	Range Range
 	Cap   Literal
-	To    DestinationInorderTarget
+	To    KeptOrDestination
 }
 
-type DestinationInorderTarget interface {
-	destinationInOrderTarget()
+type KeptOrDestination interface {
+	keptOrDestination()
 }
 type DestinationKept struct {
 	Range Range
@@ -192,8 +192,8 @@ type DestinationTo struct {
 	Destination Destination
 }
 
-func (*DestinationKept) destinationInOrderTarget() {}
-func (*DestinationTo) destinationInOrderTarget()   {}
+func (*DestinationKept) keptOrDestination() {}
+func (*DestinationTo) keptOrDestination()   {}
 
 type DestinationAllotment struct {
 	Range Range
@@ -203,7 +203,7 @@ type DestinationAllotment struct {
 type DestinationAllotmentItem struct {
 	Range     Range
 	Allotment DestinationAllotmentValue
-	To        Destination
+	To        KeptOrDestination
 }
 
 // Statements

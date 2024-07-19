@@ -213,7 +213,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 }
 
-func hoverOnDestinationInorderTarget(inorderClause parser.DestinationInorderTarget, position parser.Position) Hover {
+func hoverOnKeptOrDestination(inorderClause parser.KeptOrDestination, position parser.Position) Hover {
 	switch inorderClause := inorderClause.(type) {
 	case *parser.DestinationKept:
 		return nil
@@ -245,13 +245,13 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 				return hover
 			}
 
-			hover = hoverOnDestinationInorderTarget(inorderClause.To, position)
+			hover = hoverOnKeptOrDestination(inorderClause.To, position)
 			if hover != nil {
 				return hover
 			}
 		}
 
-		hover := hoverOnDestinationInorderTarget(source.Remaining, position)
+		hover := hoverOnKeptOrDestination(source.Remaining, position)
 		if hover != nil {
 			return hover
 		}
@@ -271,7 +271,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 				}
 			}
 
-			hover := hoverOnDestination(item.To, position)
+			hover := hoverOnKeptOrDestination(item.To, position)
 			if hover != nil {
 				return hover
 			}

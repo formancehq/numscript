@@ -100,17 +100,17 @@ source:
 	| MAX cap FROM source										# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
-destinationInOrderTarget:
+keptOrDestination:
 	TO destination	# destinationTo
 	| KEPT			# destinationKept;
-destinationInOrderClause: MAX literal destinationInOrderTarget;
+destinationInOrderClause: MAX literal keptOrDestination;
 
 destination:
-	ACCOUNT																			# destAccount
-	| VARIABLE_NAME																	# destVariable
-	| LBRACE allotmentClauseDest+ RBRACE											# destAllotment
-	| LBRACE destinationInOrderClause* REMAINING destinationInOrderTarget RBRACE	# destInorder;
-allotmentClauseDest: allotment TO destination;
+	ACCOUNT																	# destAccount
+	| VARIABLE_NAME															# destVariable
+	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
+	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
+allotmentClauseDest: allotment keptOrDestination;
 
 sentValue: literal # sentLiteral | sentAllLit # sentAll;
 
