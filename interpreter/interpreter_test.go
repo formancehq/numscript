@@ -1,6 +1,7 @@
 package interpreter_test
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 	machine "numscript/interpreter"
@@ -31,6 +32,13 @@ func NewTestCase() TestCase {
 			Error:    nil,
 		},
 	}
+}
+
+func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
+	var jsonVars map[string]string
+	err := json.Unmarshal([]byte(str), &jsonVars)
+	require.NoError(t, err)
+	c.vars = jsonVars
 }
 
 func (tc *TestCase) compile(t *testing.T, src string) {
@@ -117,6 +125,89 @@ func TestSend(t *testing.T) {
 				Source:      "alice",
 				Destination: "bob",
 			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestVariables(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $rider
+		account $driver
+		string 	$description
+ 		number 	$nb
+ 		asset 	$ass
+	}
+	send [$ass 999] (
+		source=$rider
+		destination=$driver
+	)
+ 	set_tx_meta("description", $description)
+ 	set_tx_meta("ride", $nb)`)
+	tc.vars = map[string]string{
+		"rider":       "users:001",
+		"driver":      "users:002",
+		"description": "midnight ride",
+		"nb":          "1",
+		"ass":         "EUR/2",
+	}
+	tc.setBalance("users:001", "EUR/2", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(999),
+				Source:      "users:001",
+				Destination: "users:002",
+			},
+		},
+		Metadata: map[string]machine.Value{
+			"description": machine.String("midnight ride"),
+			"ride":        machine.NewMonetaryInt(1),
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestVariablesJSON(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $rider
+		account $driver
+		string 	$description
+		number 	$nb
+		asset 	$ass
+	}
+	send [$ass 999] (
+		source=$rider
+		destination=$driver
+	)
+	set_tx_meta("description", $description)
+	set_tx_meta("ride", $nb)`)
+	tc.setVarsFromJSON(t, `{
+		"rider": "users:001",
+		"driver": "users:002",
+		"description": "midnight ride",
+		"nb": "1",
+ 		"ass": "EUR/2"
+	}`)
+	tc.setBalance("users:001", "EUR/2", 1000)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(999),
+				Source:      "users:001",
+				Destination: "users:002",
+			},
+		},
+		Metadata: map[string]machine.Value{
+			"description": machine.String("midnight ride"),
+			"ride":        machine.NewMonetaryInt(1),
 		},
 		Error: nil,
 	}
