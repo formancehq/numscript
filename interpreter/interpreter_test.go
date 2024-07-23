@@ -254,3 +254,48 @@ func TestSource(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestAllocation(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $rider
+		account $driver
+	}
+	send [GEM 15] (
+		source = $rider
+		destination = {
+			80% to $driver
+			8% to @a
+			12% to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"rider": "users:001",
+		"driver": "users:002"
+	}`)
+	tc.setBalance("users:001", "GEM", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(13),
+				Source:      "users:001",
+				Destination: "users:002",
+			},
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(1),
+				Source:      "users:001",
+				Destination: "a",
+			},
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(1),
+				Source:      "users:001",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

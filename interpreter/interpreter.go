@@ -266,6 +266,8 @@ func (s *programState) receiveFromAccount(name string, monetary Monetary) big.In
 }
 
 func (s *programState) receiveFrom(destination parser.Destination, monetary Monetary) big.Int {
+	monetaryAmount := big.Int(monetary.Amount)
+
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
 		return s.receiveFromAccount(destination.Name, monetary)
@@ -277,6 +279,19 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		}
 
 		return s.receiveFromAccount(string(account), monetary)
+
+	case *parser.DestinationAllotment:
+		var receivedTotal int64
+
+		var allotments []Allotment[parser.DestinationAllotmentItem]
+		for _, item := range destination.Items {
+		}
+
+		allot := makeAllotment(monetaryAmount.Int64(), allotments)
+		for i, a := range destination.Allotments {
+			receivedTotal += a.Value.receive(allot[i], ctx)
+		}
+		return receivedTotal
 
 	// case *parser.DestinationInorder:
 	// sentTotal := big.NewInt(0)
@@ -301,7 +316,6 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 	// return receivedTotal
 
-	// case *parser.SourceAllotment:
 	// case *parser.SourceCapped:
 	// case *parser.SourceOverdraft:
 	// case *parser.VariableLiteral:
