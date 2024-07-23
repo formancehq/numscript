@@ -213,3 +213,44 @@ func TestVariablesJSON(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestSource(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $balance
+		account $payment
+		account $seller
+	}
+	send [GEM 15] (
+		source = {
+			$balance
+			$payment
+		}
+		destination = $seller
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"balance": "users:001",
+		"payment": "payments:001",
+		"seller": "users:002"
+	}`)
+	tc.setBalance("users:001", "GEM", 3)
+	tc.setBalance("payments:001", "GEM", 12)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(3),
+				Source:      "users:001",
+				Destination: "users:002",
+			},
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(12),
+				Source:      "payments:001",
+				Destination: "users:002",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"numscript/analysis"
 	"numscript/parser"
@@ -15,8 +16,12 @@ type ExecutionResult struct {
 }
 
 type MissingFundsErr struct {
-	error
 	Missing big.Int
+	Sent    big.Int
+}
+
+func (m MissingFundsErr) Error() string {
+	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", m.Missing.String(), m.Sent.String())
 }
 
 func parseVar(type_ string, rawValue string) (Value, error) {
@@ -76,6 +81,7 @@ func RunProgram(
 	st := programState{
 		Vars:   parsedVars,
 		TxMeta: make(map[string]Value),
+		Store:  store,
 	}
 
 	var postings []Posting
@@ -157,7 +163,10 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		// sentTotal < monetary.Amount
 		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
 			var missing big.Int
-			return nil, MissingFundsErr{Missing: *missing.Sub((*big.Int)(&monetary.Amount), &sentTotal)}
+			return nil, MissingFundsErr{
+				Missing: *missing.Sub((*big.Int)(&monetary.Amount), &sentTotal),
+				Sent:    sentTotal,
+			}
 		}
 
 		st.receiveFrom(statement.Destination, monetary)
@@ -173,23 +182,40 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 }
 
-func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int {
-	// if s.Name != "world" {
-	// 	monetary = min(ctx.Balances[s.Name], monetary)
-	// }
+func (s *programState) getBalance(account string, asset string) *big.Int {
+	balance, ok := s.Store[account]
+	if !ok {
+		panic(fmt.Sprintf("balance for '%s' not found (given: %v)", account, s.Store))
+	}
 
-	mon := big.Int(monetary.Amount)
+	assetBalance, ok := balance.Balances[asset]
+	if !ok {
+		panic("balance not found for the given currency")
+	}
+	return assetBalance
+}
+
+func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int {
+	monetaryAmount := big.Int(monetary.Amount)
+
+	if name != "world" {
+		balance := s.getBalance(name, string(monetary.Asset))
+
+		// monetary = min(balance, monetary)
+		if balance.Cmp(&monetaryAmount) == -1 /* balance < monetary */ {
+			monetaryAmount.Set(balance)
+		}
+	}
+
 	s.Senders = append(s.Senders, Sender{
 		Name:     name,
-		Monetary: &mon,
+		Monetary: &monetaryAmount,
 		Asset:    string(monetary.Asset),
 	})
 
-	// if ctx.Balances != nil {
-	// 	ctx.Balances[s.Name] -= monetary
-	// }
-
-	return mon
+	assetBalance := s.getBalance(name, string(monetary.Asset))
+	assetBalance.Sub(assetBalance, &monetaryAmount)
+	return monetaryAmount
 }
 
 func (s *programState) trySending(source parser.Source, monetary Monetary) big.Int {
@@ -205,9 +231,21 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 	case *parser.AccountLiteral:
 		return s.trySendingAccount(source.Name, monetary)
 
+	case *parser.SourceInorder:
+		sentTotal := big.NewInt(0)
+		for _, source := range source.Sources {
+			var sendingMonetary big.Int
+			sendingMonetary.Sub((*big.Int)(&monetary.Amount), sentTotal)
+			sentAmt := s.trySending(source, Monetary{
+				Amount: MonetaryInt(sendingMonetary),
+				Asset:  monetary.Asset,
+			})
+			sentTotal.Add(sentTotal, &sentAmt)
+		}
+		return *sentTotal
+
 	// case *parser.SourceAllotment:
 	// case *parser.SourceCapped:
-	// case *parser.SourceInorder:
 	// case *parser.SourceOverdraft:
 	// case *parser.VariableLiteral:
 	default:
@@ -240,9 +278,31 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 		return s.receiveFromAccount(string(account), monetary)
 
+	// case *parser.DestinationInorder:
+	// sentTotal := big.NewInt(0)
+	// for _, source := range source.Sources {
+	// 	var sendingMonetary big.Int
+	// 	sendingMonetary.Sub((*big.Int)(&monetary.Amount), sentTotal)
+	// 	sentAmt := s.trySending(source, Monetary{
+	// 		Amount: MonetaryInt(sendingMonetary),
+	// 		Asset:  monetary.Asset,
+	// 	})
+	// 	sentTotal.Add(sentTotal, &sentAmt)
+	// }
+	// return *sentTotal
+
+	// receivedTotal := big.NewInt(0)
+	// for _, destination := range d.Destinations {
+	// 	receivedTotal += destination.receive(monetary-receivedTotal, ctx)
+	// 	// if receivedTotal >= monetary {
+	// 	// 	break
+	// 	// }
+	// }
+
+	// return receivedTotal
+
 	// case *parser.SourceAllotment:
 	// case *parser.SourceCapped:
-	// case *parser.SourceInorder:
 	// case *parser.SourceOverdraft:
 	// case *parser.VariableLiteral:
 	default:
