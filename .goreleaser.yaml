@@ -24,6 +24,8 @@ builds:
       - amd64
       - arm64
     binary: numscript
+    ldflags:
+      - -X main.Version=v{{ .Version }}
 
 archives:
   - format: tar.gz

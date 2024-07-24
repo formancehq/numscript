@@ -50,6 +50,9 @@ func main() {
 		})
 		return
 
+	case "version":
+		fmt.Printf("numscript %s\n", Version)
+
 	case "parse":
 		if *pathFlag == "" {
 			fmt.Println("Err: Path argument is required")
