@@ -12,6 +12,10 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
+// This has to be set dynamically via the following flag:
+// -ldflags "-X main.Version=0.0.1"
+var Version string = "develop"
+
 var pathFlag = flag.String("path", "", "path to execute")
 
 func recoverPanic() {
@@ -20,7 +24,7 @@ func recoverPanic() {
 		return
 	}
 
-	errMsg := fmt.Sprintf("[uncaught panic]: %s\n%s\n", r, string(debug.Stack()))
+	errMsg := fmt.Sprintf("[uncaught panic]@v%s: %s\n%s\n", Version, r, string(debug.Stack()))
 	os.Stderr.Write([]byte(errMsg))
 	sentry.CaptureMessage(errMsg)
 	sentry.Flush(2 * time.Second)
