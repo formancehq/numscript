@@ -17,12 +17,54 @@ const (
 	Hint
 )
 
+func SeverityToString(s Severity) string {
+	switch s {
+	case ErrorSeverity:
+		return "Error"
+	case WarningSeverity:
+		return "Warning"
+	case Information:
+		return "Info"
+	case Hint:
+		return "Hint"
+	default:
+		panic("Invalid error type")
+	}
+}
+
+func SeverityToAnsiString(s Severity) string {
+	switch s {
+	case ErrorSeverity:
+		return "\033[31mError\033[0m"
+	case WarningSeverity:
+		return "\033[33mWarning\033[0m"
+	case Information:
+		return "Info"
+	case Hint:
+		return "Hint"
+	default:
+		panic("Invalid error type")
+	}
+}
+
 type DiagnosticKind interface {
 	Message() string
 	Severity() Severity
 }
 
 // ###### Diagnostics
+
+type Parsing struct {
+	Description string
+}
+
+func (e *Parsing) Message() string {
+	return e.Description
+}
+
+func (*Parsing) Severity() Severity {
+	return ErrorSeverity
+}
 
 type InvalidType struct {
 	Name string

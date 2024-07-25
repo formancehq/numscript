@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"numscript/parser"
+	"numscript/analysis"
 	"os"
+	"sort"
 
 	"github.com/spf13/cobra"
 )
@@ -21,11 +22,29 @@ var checkCmd = &cobra.Command{
 			return
 		}
 
-		parsed := parser.Parse(string(dat))
+		res := analysis.CheckSource(string(dat))
+		sort.Slice(res.Diagnostics, func(i, j int) bool {
+			p1 := res.Diagnostics[i].Range.Start
+			p2 := res.Diagnostics[j].Range.Start
 
-		fmt.Printf("Parser errors: %d\n\n", len(parsed.Errors))
-		for _, err := range parsed.Errors {
-			fmt.Printf("%v,  (line=%d, char=%d) ", err.Msg, err.Range.Start.Line, err.Range.Start.Character)
+			return p2.GtEq(p1)
+		})
+
+		for i, d := range res.Diagnostics {
+			if i != 0 {
+				fmt.Print("\n\n")
+			}
+			errType := analysis.SeverityToAnsiString(d.Kind.Severity())
+			fmt.Printf("%s:%d:%d - %s\n%s\n", path, d.Range.Start.Line, d.Range.Start.Character, errType, d.Kind.Message())
 		}
+
+		fmt.Printf("\n\n")
+		errorsCount := res.GetErrorsCount()
+		if errorsCount != 0 {
+			fmt.Printf("\033[31mFound %d errors\033[0m\n", errorsCount)
+			os.Exit(1)
+		}
+
+		fmt.Printf("No errors found ✅\n")
 	},
 }
