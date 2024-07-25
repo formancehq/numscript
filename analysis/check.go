@@ -83,6 +83,27 @@ type CheckResult struct {
 	varResolution    map[*parser.VariableLiteral]parser.VarDeclaration
 	fnCallResolution map[*parser.FnCallIdentifier]FnCallResolution
 	Diagnostics      []Diagnostic
+	Program          parser.Program
+}
+
+func (r CheckResult) GetErrorsCount() int {
+	c := 0
+	for _, d := range r.Diagnostics {
+		if d.Kind.Severity() == ErrorSeverity {
+			c++
+		}
+	}
+	return c
+}
+
+func (r CheckResult) GetWarningsCount() int {
+	c := 0
+	for _, d := range r.Diagnostics {
+		if d.Kind.Severity() == WarningSeverity {
+			c++
+		}
+	}
+	return c
 }
 
 func (r CheckResult) ResolveVar(v *parser.VariableLiteral) *parser.VarDeclaration {
@@ -101,14 +122,18 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 	return k
 }
 
-func Check(program parser.Program) CheckResult {
-	res := CheckResult{
+func newCheckResult(program parser.Program) CheckResult {
+	return CheckResult{
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.VariableLiteral]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
+		Program:          program,
 	}
-	for _, varDecl := range program.Vars {
+}
+
+func (res *CheckResult) check() {
+	for _, varDecl := range res.Program.Vars {
 		if varDecl.Type != nil {
 			res.checkVarType(*varDecl.Type)
 		}
@@ -121,7 +146,7 @@ func Check(program parser.Program) CheckResult {
 			res.checkVarOrigin(*varDecl.Origin, varDecl)
 		}
 	}
-	for _, statement := range program.Statements {
+	for _, statement := range res.Program.Statements {
 		switch statement := statement.(type) {
 		case *parser.SendStatement:
 			res.checkSentValue(statement.SentValue)
@@ -147,7 +172,29 @@ func Check(program parser.Program) CheckResult {
 			Kind:  &UnusedVar{Name: name},
 		})
 	}
+}
+
+func CheckProgram(program parser.Program) CheckResult {
+	res := newCheckResult(program)
+	res.check()
 	return res
+}
+
+func CheckSource(source string) CheckResult {
+	result := parser.Parse(source)
+	res := newCheckResult(result.Value)
+	for _, parserError := range result.Errors {
+		res.Diagnostics = append(res.Diagnostics, parsingErrorToDiagnostic(parserError))
+	}
+	res.check()
+	return res
+}
+
+func parsingErrorToDiagnostic(parserError parser.ParserError) Diagnostic {
+	return Diagnostic{
+		Range: parserError.Range,
+		Kind:  &Parsing{Description: parserError.Msg},
+	}
 }
 
 func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {

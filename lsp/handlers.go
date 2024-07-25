@@ -11,7 +11,6 @@ import (
 
 type InMemoryDocument struct {
 	Text        string
-	ParseResult parser.ParseResult[parser.Program]
 	CheckResult analysis.CheckResult
 }
 
@@ -20,23 +19,14 @@ type State struct {
 }
 
 func (state *State) updateDocument(uri DocumentURI, text string) {
-	parseResult := parser.Parse(text)
-	checkResult := analysis.Check(parseResult.Value)
+	checkResult := analysis.CheckSource(text)
 
 	state.documents[uri] = InMemoryDocument{
 		Text:        text,
-		ParseResult: parseResult,
 		CheckResult: checkResult,
 	}
 
 	var diagnostics []Diagnostic = make([]Diagnostic, 0)
-	for _, parseErr := range parseResult.Errors {
-		diagnostics = append(diagnostics, Diagnostic{
-			Message: parseErr.Msg,
-			Range:   toLspRange(parseErr.Range),
-		})
-	}
-
 	for _, diagnostic := range checkResult.Diagnostics {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
@@ -61,7 +51,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 		return nil
 	}
 
-	hoverable := analysis.HoverOn(doc.ParseResult.Value, position)
+	hoverable := analysis.HoverOn(doc.CheckResult.Program, position)
 
 	switch hoverable := hoverable.(type) {
 	case *analysis.VariableHover:
@@ -135,7 +125,7 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 	}
 
 	position := fromLspPosition(params.Position)
-	res := analysis.GotoDefinition(doc.ParseResult.Value, position, doc.CheckResult)
+	res := analysis.GotoDefinition(doc.CheckResult.Program, position, doc.CheckResult)
 	if res == nil {
 		return nil
 	}

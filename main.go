@@ -1,10 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	lsp "numscript/lsp"
-	"numscript/parser"
+	"numscript/cmd"
 	"os"
 	"runtime/debug"
 	"time"
@@ -15,8 +13,6 @@ import (
 // This has to be set dynamically via the following flag:
 // -ldflags "-X main.Version=0.0.1"
 var Version string = "develop"
-
-var pathFlag = flag.String("path", "", "path to execute")
 
 func recoverPanic() {
 	r := recover()
@@ -39,40 +35,5 @@ func main() {
 	defer recoverPanic()
 	defer sentry.Flush(2 * time.Second)
 
-	flag.Parse()
-	firstArg := flag.Arg(0)
-
-	switch firstArg {
-	case "lsp":
-		lsp.RunServer(lsp.ServerArgs[lsp.State]{
-			InitialState: lsp.InitialState(),
-			Handler:      lsp.Handle,
-		})
-		return
-
-	case "version":
-		fmt.Printf("numscript %s\n", Version)
-
-	case "parse":
-		if *pathFlag == "" {
-			fmt.Println("Err: Path argument is required")
-			return
-		}
-
-		dat, err := os.ReadFile(*pathFlag)
-		if err != nil {
-			os.Stderr.Write([]byte(err.Error()))
-			return
-		}
-
-		parsed := parser.Parse(string(dat))
-
-		fmt.Printf("Parser errors: %d\n\n", len(parsed.Errors))
-		for _, err := range parsed.Errors {
-			fmt.Printf("%v,  (line=%d, char=%d) ", err.Msg, err.Range.Start.Line, err.Range.Start.Character)
-		}
-		return
-	default:
-		os.Stderr.Write([]byte(fmt.Sprintf("Invalid argument: '%s'", firstArg)))
-	}
+	cmd.Execute()
 }

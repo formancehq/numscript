@@ -13,7 +13,7 @@ func TestDocumentSymbolsWhenEmpty(t *testing.T) {
 	input := `set_tx_meta(@a, "k", 42)`
 
 	program := parser.Parse(input).Value
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 
 	symbols := checkResult.GetSymbols()
 	assert.Empty(t, symbols)
@@ -26,7 +26,7 @@ func TestDocumentSymbols(t *testing.T) {
 	}`
 
 	program := parser.Parse(input).Value
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 
 	symbols := checkResult.GetSymbols()
 

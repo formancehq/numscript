@@ -27,7 +27,7 @@ send $amt (
 
 	assert.Equal(t, rng, variableHover.Range)
 
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 	assert.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
@@ -91,7 +91,7 @@ send [C 10] (
 
 	assert.Equal(t, rng, variableHover.Range)
 
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 	assert.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
@@ -125,7 +125,7 @@ send [C 10] (
 
 	assert.Equal(t, rng, variableHover.Range)
 
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 	assert.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
@@ -159,7 +159,7 @@ send [C 10] (
 
 	assert.Equal(t, rng, variableHover.Range)
 
-	checkResult := analysis.Check(program)
+	checkResult := analysis.CheckProgram(program)
 	assert.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
@@ -304,7 +304,7 @@ func TestHoverOnFnOriginDocs(t *testing.T) {
 	assert.NotNil(t, fnHover.Node)
 	assert.Equal(t, "balance", fnHover.Node.Caller.Name)
 
-	res := analysis.Check(program)
+	res := analysis.CheckProgram(program)
 	resolution := res.ResolveBuiltinFn(fnHover.Node.Caller)
 	assert.NotNil(t, resolution)
 
