@@ -35,5 +35,7 @@ func main() {
 	defer recoverPanic()
 	defer sentry.Flush(2 * time.Second)
 
-	cmd.Execute()
+	cmd.Execute(cmd.CliOptions{
+		Version: Version,
+	})
 }

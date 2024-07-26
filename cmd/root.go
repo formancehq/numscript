@@ -7,16 +7,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CliOptions struct {
+	Version string
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "numscript",
-	Short: "Numscript cli", // TODO better descr
+	Short: "Numscript cli",
 	Long:  "Numscript cli",
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
 }
 
-func Execute() {
+func Execute(options CliOptions) {
+	rootCmd.Version = options.Version
+
 	rootCmd.AddCommand(lspCmd)
 	rootCmd.AddCommand(checkCmd)
 
