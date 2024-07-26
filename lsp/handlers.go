@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"numscript/analysis"
 	"numscript/parser"
+	"numscript/utils"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -102,7 +103,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 
 			msg = fmt.Sprintf("`%s%s -> %s`\n\n%s", hoverable.Node.Caller.Name, params, resolved.Return, resolved.Docs)
 		default:
-			panic("Unhandled clause")
+			utils.NonExhaustiveMatchPanic[any](resolved)
 		}
 
 		return &Hover{

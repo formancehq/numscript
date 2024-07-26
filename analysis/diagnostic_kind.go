@@ -3,6 +3,7 @@ package analysis
 import (
 	"fmt"
 	"math/big"
+	"numscript/utils"
 )
 
 type Severity = byte
@@ -17,21 +18,6 @@ const (
 	Hint
 )
 
-func SeverityToString(s Severity) string {
-	switch s {
-	case ErrorSeverity:
-		return "Error"
-	case WarningSeverity:
-		return "Warning"
-	case Information:
-		return "Info"
-	case Hint:
-		return "Hint"
-	default:
-		panic("Invalid error type")
-	}
-}
-
 func SeverityToAnsiString(s Severity) string {
 	switch s {
 	case ErrorSeverity:
@@ -43,7 +29,7 @@ func SeverityToAnsiString(s Severity) string {
 	case Hint:
 		return "Hint"
 	default:
-		panic("Invalid error type")
+		return utils.NonExhaustiveMatchPanic[string](s)
 	}
 }
 
@@ -163,7 +149,7 @@ func (e *BadAllotmentSum) Message() string {
 		return fmt.Sprintf("Allotment portions are lesser than one (Got %s). Maybe try adding a 'remaining' clause?", e.Sum.String())
 	}
 
-	panic("Invalid diagnostic")
+	panic(fmt.Sprintf("unreachable state: allotment=%s", e.Sum.String()))
 }
 func (*BadAllotmentSum) Severity() Severity {
 	return ErrorSeverity

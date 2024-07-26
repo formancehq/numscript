@@ -3,6 +3,7 @@ package parser
 import (
 	"math"
 	parser "numscript/parser/antlr"
+	"numscript/utils"
 	"strconv"
 	"strings"
 
@@ -146,7 +147,7 @@ func parseCapLit(capCtx parser.ICapContext) Literal {
 		return nil
 
 	default:
-		panic("Invalid ctx")
+		return utils.NonExhaustiveMatchPanic[Literal](capCtx.GetText())
 	}
 }
 
@@ -215,7 +216,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		return nil
 
 	default:
-		panic("unhandled context: " + sourceCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[Source](sourceCtx.GetText())
 	}
 }
 
@@ -231,7 +232,7 @@ func parseVariableAccount(variableAccountCtx parser.IVariableAccountContext) Lit
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](variableAccountCtx.GetText())
 	}
 
 }
@@ -297,7 +298,7 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 		return nil
 
 	default:
-		panic("Invalid allotment")
+		return utils.NonExhaustiveMatchPanic[SourceAllotmentValue](allotmentCtx.GetText())
 	}
 }
 
@@ -341,7 +342,7 @@ func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 		return nil
 
 	default:
-		panic("unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](literalCtx.GetText())
 	}
 }
 
@@ -377,7 +378,7 @@ func parsePortionSource(portionCtx parser.IPortionContext) *RatioLiteral {
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[*RatioLiteral](portionCtx.GetText())
 	}
 }
 
@@ -426,8 +427,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return nil
 
 	default:
-		panic("Unhandled dest" + destCtx.GetText())
-
+		return utils.NonExhaustiveMatchPanic[Destination](destCtx.GetText())
 	}
 
 }
@@ -458,7 +458,7 @@ func parseKeptOrDestination(clauseCtx parser.IKeptOrDestinationContext) KeptOrDe
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[KeptOrDestination](clauseCtx.GetText())
 	}
 
 }
@@ -480,7 +480,7 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) Destinatio
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](allotmentCtx.GetText())
 	}
 }
 
@@ -496,7 +496,7 @@ func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllot
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](portionCtx.GetText())
 	}
 }
 
@@ -547,7 +547,7 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 		return nil
 
 	default:
-		panic("unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Statement](statementCtx.GetText())
 	}
 }
 
@@ -567,7 +567,7 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[SentValue](statementCtx.GetText())
 	}
 
 }
@@ -593,7 +593,7 @@ func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](sendExpr.GetText())
 	}
 }
 
@@ -602,7 +602,7 @@ func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 
 	amt, err := strconv.Atoi(amtStr)
 	if err != nil {
-		panic("Invalid amt: " + amtStr)
+		panic("Invalid number: " + amtStr)
 	}
 
 	return &NumberLiteral{
@@ -623,7 +623,7 @@ func parseVariableNumber(numCtx parser.IVariableNumberContext) Literal {
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](numCtx.GetText())
 	}
 }
 
@@ -642,7 +642,7 @@ func parseVariableAsset(assetCtx parser.IVariableAssetContext) Literal {
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](assetCtx.GetText())
 	}
 }
 

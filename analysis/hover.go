@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"numscript/parser"
+	"numscript/utils"
 )
 
 type Hover interface{ hover() }
@@ -84,7 +85,7 @@ func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hove
 		return hoverOnLiteral(sentValue.Monetary, position)
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Hover](sentValue)
 	}
 }
 
@@ -222,7 +223,7 @@ func hoverOnKeptOrDestination(inorderClause parser.KeptOrDestination, position p
 		return hoverOnDestination(inorderClause.Destination, position)
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Hover](inorderClause)
 	}
 
 }
