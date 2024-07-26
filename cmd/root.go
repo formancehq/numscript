@@ -11,6 +11,9 @@ var rootCmd = &cobra.Command{
 	Use:   "numscript",
 	Short: "Numscript cli", // TODO better descr
 	Long:  "Numscript cli",
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 }
 
 func Execute() {

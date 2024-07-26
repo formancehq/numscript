@@ -55,8 +55,8 @@ func check(path string) {
 }
 
 var checkCmd = &cobra.Command{
-	Use:   "check",
-	Short: "check a numscript file",
+	Use:   "check <path>",
+	Short: "Check a numscript file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
