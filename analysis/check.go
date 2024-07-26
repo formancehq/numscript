@@ -26,6 +26,7 @@ var AllowedTypes = []string{
 }
 
 type FnCallResolution interface {
+	ContextName() string
 	GetParams() []string
 	fnCallResolution()
 }
@@ -39,6 +40,9 @@ type StatementFnCallResolution struct {
 	Params []string
 	Docs   string
 }
+
+func (VarOriginFnCallResolution) ContextName() string { return "variable origin" }
+func (StatementFnCallResolution) ContextName() string { return "statement" }
 
 func (VarOriginFnCallResolution) fnCallResolution() {}
 func (StatementFnCallResolution) fnCallResolution() {}

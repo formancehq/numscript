@@ -194,6 +194,10 @@ type UnknownFunction struct {
 }
 
 func (e *UnknownFunction) Message() string {
+	res, exists := Builtins[e.Name]
+	if exists {
+		return fmt.Sprintf("You cannot use this function here (try to use it in a %s context)", res.ContextName())
+	}
 	// TODO suggest alternatives using Levenshtein distance
 	return fmt.Sprintf("The function '%s' does not exist", e.Name)
 }
