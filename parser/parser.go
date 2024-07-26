@@ -200,15 +200,15 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	case *parser.SrcAccountUnboundedOverdraftContext:
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+			Address: parseLiteral(sourceCtx.GetAddress()),
 		}
 
 	case *parser.SrcAccountBoundedOverdraftContext:
-		varMon := parseVariableMonetary(sourceCtx.VariableMonetary())
+		varMon := parseLiteral(sourceCtx.GetMaxOvedraft())
 
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+			Address: parseLiteral(sourceCtx.GetAddress()),
 			Bounded: &varMon,
 		}
 
@@ -218,23 +218,6 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	default:
 		return utils.NonExhaustiveMatchPanic[Source](sourceCtx.GetText())
 	}
-}
-
-func parseVariableAccount(variableAccountCtx parser.IVariableAccountContext) Literal {
-	switch variableAccountCtx := variableAccountCtx.(type) {
-	case *parser.AccountNameContext:
-		return accountLiteralFromCtx(variableAccountCtx)
-
-	case *parser.AccountVariableContext:
-		return variableLiteralFromCtx(variableAccountCtx)
-
-	case *parser.VariableAccountContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[Literal](variableAccountCtx.GetText())
-	}
-
 }
 
 func parseRatio(source string, range_ Range) *RatioLiteral {
@@ -560,7 +543,7 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	case *parser.SentAllContext:
 		return &SentValueAll{
 			Range: ctxToRange(statementCtx),
-			Asset: parseVariableAsset(statementCtx.SentAllLit().VariableAsset()),
+			Asset: parseLiteral(statementCtx.SentAllLit().GetAsset()),
 		}
 
 	case *parser.SentValueContext:
@@ -581,22 +564,6 @@ func parseSendStatement(statementCtx *parser.SendStatementContext) *SendStatemen
 	}
 }
 
-func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
-	switch sendExpr := sendExpr.(type) {
-	case *parser.MonetaryVariableContext:
-		return parseVarLiteral(sendExpr.VARIABLE_NAME().GetSymbol())
-
-	case *parser.MonetaryContext:
-		return parseMonetaryLit(sendExpr.MonetaryLit())
-
-	case *parser.VariableMonetaryContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[Literal](sendExpr.GetText())
-	}
-}
-
 func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 	amtStr := numNode.GetText()
 
@@ -611,41 +578,6 @@ func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 	}
 }
 
-func parseVariableNumber(numCtx parser.IVariableNumberContext) Literal {
-	switch numCtx := numCtx.(type) {
-	case *parser.NumberContext:
-		return parseNumberLiteral(numCtx.NUMBER())
-
-	case *parser.NumberVariableContext:
-		return parseVarLiteral(numCtx.VARIABLE_NAME().GetSymbol())
-
-	case *parser.VariableNumberContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[Literal](numCtx.GetText())
-	}
-}
-
-func parseVariableAsset(assetCtx parser.IVariableAssetContext) Literal {
-	switch assetCtx := assetCtx.(type) {
-	case *parser.AssetContext:
-		return &AssetLiteral{
-			Range: ctxToRange(assetCtx),
-			Asset: assetCtx.GetText(),
-		}
-
-	case *parser.AssetVariableContext:
-		return parseVarLiteral(assetCtx.VARIABLE_NAME().GetSymbol())
-
-	case *parser.VariableAssetContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[Literal](assetCtx.GetText())
-	}
-}
-
 func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLiteral {
 	if monetaryLitCtx.GetAmt() == nil {
 		return nil
@@ -653,8 +585,8 @@ func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLitera
 
 	return &MonetaryLiteral{
 		Range:  ctxToRange(monetaryLitCtx),
-		Asset:  parseVariableAsset(monetaryLitCtx.GetAsset()),
-		Amount: parseVariableNumber(monetaryLitCtx.GetAmt()),
+		Asset:  parseLiteral(monetaryLitCtx.GetAsset()),
+		Amount: parseLiteral(monetaryLitCtx.GetAmt()),
 	}
 }
 

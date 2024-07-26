@@ -8,15 +8,23 @@ type BaseNumscriptVisitor struct {
 	*antlr.BaseParseTreeVisitor
 }
 
+func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitRatio(ctx *RatioContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseNumscriptVisitor) VisitPercentage(ctx *PercentageContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseNumscriptVisitor) VisitAssetLiteral(ctx *AssetLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseNumscriptVisitor) VisitStringLiteral(ctx *StringLiteralContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetaryLiteral(ctx *MonetaryLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -28,19 +36,15 @@ func (v *BaseNumscriptVisitor) VisitVariableLiteral(ctx *VariableLiteralContext)
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitPortionLiteral(ctx *PortionLiteralContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseNumscriptVisitor) VisitNumberLiteral(ctx *NumberLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitRatio(ctx *RatioContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitMonetaryLiteral(ctx *MonetaryLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitPercentage(ctx *PercentageContext) interface{} {
+func (v *BaseNumscriptVisitor) VisitPortionLiteral(ctx *PortionLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -65,42 +69,6 @@ func (v *BaseNumscriptVisitor) VisitVarsDeclaration(ctx *VarsDeclarationContext)
 }
 
 func (v *BaseNumscriptVisitor) VisitProgram(ctx *ProgramContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitNumber(ctx *NumberContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitNumberVariable(ctx *NumberVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAsset(ctx *AssetContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAssetVariable(ctx *AssetVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAccountName(ctx *AccountNameContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitAccountVariable(ctx *AccountVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetary(ctx *MonetaryContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetaryVariable(ctx *MonetaryVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitMonetaryLit(ctx *MonetaryLitContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

@@ -8,14 +8,20 @@ import "github.com/antlr4-go/antlr/v4"
 type NumscriptListener interface {
 	antlr.ParseTreeListener
 
+	// EnterMonetaryLit is called when entering the monetaryLit production.
+	EnterMonetaryLit(c *MonetaryLitContext)
+
+	// EnterRatio is called when entering the ratio production.
+	EnterRatio(c *RatioContext)
+
+	// EnterPercentage is called when entering the percentage production.
+	EnterPercentage(c *PercentageContext)
+
 	// EnterAssetLiteral is called when entering the assetLiteral production.
 	EnterAssetLiteral(c *AssetLiteralContext)
 
 	// EnterStringLiteral is called when entering the stringLiteral production.
 	EnterStringLiteral(c *StringLiteralContext)
-
-	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
-	EnterMonetaryLiteral(c *MonetaryLiteralContext)
 
 	// EnterAccountLiteral is called when entering the accountLiteral production.
 	EnterAccountLiteral(c *AccountLiteralContext)
@@ -23,17 +29,14 @@ type NumscriptListener interface {
 	// EnterVariableLiteral is called when entering the variableLiteral production.
 	EnterVariableLiteral(c *VariableLiteralContext)
 
-	// EnterPortionLiteral is called when entering the portionLiteral production.
-	EnterPortionLiteral(c *PortionLiteralContext)
-
 	// EnterNumberLiteral is called when entering the numberLiteral production.
 	EnterNumberLiteral(c *NumberLiteralContext)
 
-	// EnterRatio is called when entering the ratio production.
-	EnterRatio(c *RatioContext)
+	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
+	EnterMonetaryLiteral(c *MonetaryLiteralContext)
 
-	// EnterPercentage is called when entering the percentage production.
-	EnterPercentage(c *PercentageContext)
+	// EnterPortionLiteral is called when entering the portionLiteral production.
+	EnterPortionLiteral(c *PortionLiteralContext)
 
 	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
 	EnterFunctionCallArgs(c *FunctionCallArgsContext)
@@ -52,33 +55,6 @@ type NumscriptListener interface {
 
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
-
-	// EnterNumber is called when entering the number production.
-	EnterNumber(c *NumberContext)
-
-	// EnterNumberVariable is called when entering the numberVariable production.
-	EnterNumberVariable(c *NumberVariableContext)
-
-	// EnterAsset is called when entering the asset production.
-	EnterAsset(c *AssetContext)
-
-	// EnterAssetVariable is called when entering the assetVariable production.
-	EnterAssetVariable(c *AssetVariableContext)
-
-	// EnterAccountName is called when entering the accountName production.
-	EnterAccountName(c *AccountNameContext)
-
-	// EnterAccountVariable is called when entering the accountVariable production.
-	EnterAccountVariable(c *AccountVariableContext)
-
-	// EnterMonetary is called when entering the monetary production.
-	EnterMonetary(c *MonetaryContext)
-
-	// EnterMonetaryVariable is called when entering the monetaryVariable production.
-	EnterMonetaryVariable(c *MonetaryVariableContext)
-
-	// EnterMonetaryLit is called when entering the monetaryLit production.
-	EnterMonetaryLit(c *MonetaryLitContext)
 
 	// EnterSentAllLit is called when entering the sentAllLit production.
 	EnterSentAllLit(c *SentAllLitContext)
@@ -158,14 +134,20 @@ type NumscriptListener interface {
 	// EnterFnCallStatement is called when entering the fnCallStatement production.
 	EnterFnCallStatement(c *FnCallStatementContext)
 
+	// ExitMonetaryLit is called when exiting the monetaryLit production.
+	ExitMonetaryLit(c *MonetaryLitContext)
+
+	// ExitRatio is called when exiting the ratio production.
+	ExitRatio(c *RatioContext)
+
+	// ExitPercentage is called when exiting the percentage production.
+	ExitPercentage(c *PercentageContext)
+
 	// ExitAssetLiteral is called when exiting the assetLiteral production.
 	ExitAssetLiteral(c *AssetLiteralContext)
 
 	// ExitStringLiteral is called when exiting the stringLiteral production.
 	ExitStringLiteral(c *StringLiteralContext)
-
-	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
-	ExitMonetaryLiteral(c *MonetaryLiteralContext)
 
 	// ExitAccountLiteral is called when exiting the accountLiteral production.
 	ExitAccountLiteral(c *AccountLiteralContext)
@@ -173,17 +155,14 @@ type NumscriptListener interface {
 	// ExitVariableLiteral is called when exiting the variableLiteral production.
 	ExitVariableLiteral(c *VariableLiteralContext)
 
-	// ExitPortionLiteral is called when exiting the portionLiteral production.
-	ExitPortionLiteral(c *PortionLiteralContext)
-
 	// ExitNumberLiteral is called when exiting the numberLiteral production.
 	ExitNumberLiteral(c *NumberLiteralContext)
 
-	// ExitRatio is called when exiting the ratio production.
-	ExitRatio(c *RatioContext)
+	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
+	ExitMonetaryLiteral(c *MonetaryLiteralContext)
 
-	// ExitPercentage is called when exiting the percentage production.
-	ExitPercentage(c *PercentageContext)
+	// ExitPortionLiteral is called when exiting the portionLiteral production.
+	ExitPortionLiteral(c *PortionLiteralContext)
 
 	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
 	ExitFunctionCallArgs(c *FunctionCallArgsContext)
@@ -202,33 +181,6 @@ type NumscriptListener interface {
 
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)
-
-	// ExitNumber is called when exiting the number production.
-	ExitNumber(c *NumberContext)
-
-	// ExitNumberVariable is called when exiting the numberVariable production.
-	ExitNumberVariable(c *NumberVariableContext)
-
-	// ExitAsset is called when exiting the asset production.
-	ExitAsset(c *AssetContext)
-
-	// ExitAssetVariable is called when exiting the assetVariable production.
-	ExitAssetVariable(c *AssetVariableContext)
-
-	// ExitAccountName is called when exiting the accountName production.
-	ExitAccountName(c *AccountNameContext)
-
-	// ExitAccountVariable is called when exiting the accountVariable production.
-	ExitAccountVariable(c *AccountVariableContext)
-
-	// ExitMonetary is called when exiting the monetary production.
-	ExitMonetary(c *MonetaryContext)
-
-	// ExitMonetaryVariable is called when exiting the monetaryVariable production.
-	ExitMonetaryVariable(c *MonetaryVariableContext)
-
-	// ExitMonetaryLit is called when exiting the monetaryLit production.
-	ExitMonetaryLit(c *MonetaryLitContext)
 
 	// ExitSentAllLit is called when exiting the sentAllLit production.
 	ExitSentAllLit(c *SentAllLitContext)

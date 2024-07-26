@@ -1,9 +1,9 @@
 package analysis
 
 import (
-	"fmt"
 	"math/big"
 	"numscript/parser"
+	"numscript/utils"
 	"slices"
 )
 
@@ -427,7 +427,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment, variableLiterals)
 
 	default:
-		panic(fmt.Sprintf("unhandled clause: %+s", source))
+		utils.NonExhaustiveMatchPanic[any](source)
 	}
 }
 
