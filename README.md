@@ -1,6 +1,6 @@
 # Numscript CLI
 
-Numscript is the DSL used to express financial transaction within the [formance](https://www.formance.com/) ledger
+Numscript is the DSL used to express financial transaction within the [Formance](https://www.formance.com/) ledger
 
 The CLI in this repo allows you to play with numscript locally, check if there are parsing or logic errors in your numscript files, and run the numscript language server
 
