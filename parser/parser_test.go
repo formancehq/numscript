@@ -340,3 +340,15 @@ func TestSendAll(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 	assert.Empty(t, p.Errors)
 }
+
+func TestWhitespaceInRatio(t *testing.T) {
+	p := parser.Parse(`
+send $var (
+  source = @world
+  destination = {
+    1 / 6 to @player:1
+  }
+)
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}

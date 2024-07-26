@@ -223,12 +223,12 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 func parseRatio(source string, range_ Range) *RatioLiteral {
 	split := strings.Split(source, "/")
 
-	num, err := strconv.ParseUint(split[0], 0, 64)
+	num, err := strconv.ParseUint(strings.TrimSpace(split[0]), 0, 64)
 	if err != nil {
 		panic(err)
 	}
 
-	den, err := strconv.ParseUint(split[1], 0, 64)
+	den, err := strconv.ParseUint(strings.TrimSpace(split[1]), 0, 64)
 	if err != nil {
 		panic(err)
 	}
