@@ -20,7 +20,7 @@ func recoverPanic() {
 		return
 	}
 
-	errMsg := fmt.Sprintf("[uncaught panic]@v%s: %s\n%s\n", Version, r, string(debug.Stack()))
+	errMsg := fmt.Sprintf("[uncaught panic]@%s: %s\n%s\n", Version, r, string(debug.Stack()))
 	os.Stderr.Write([]byte(errMsg))
 	sentry.CaptureMessage(errMsg)
 	sentry.Flush(2 * time.Second)
