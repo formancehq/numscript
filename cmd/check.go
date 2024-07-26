@@ -38,10 +38,22 @@ var checkCmd = &cobra.Command{
 			fmt.Printf("%s:%d:%d - %s\n%s\n", path, d.Range.Start.Line, d.Range.Start.Character, errType, d.Kind.Message())
 		}
 
-		fmt.Printf("\n\n")
+		if len(res.Diagnostics) != 0 {
+			fmt.Printf("\n\n")
+		}
+
 		errorsCount := res.GetErrorsCount()
 		if errorsCount != 0 {
-			fmt.Printf("\033[31mFound %d errors\033[0m\n", errorsCount)
+
+			var pluralizedError string
+			if errorsCount == 1 {
+				pluralizedError = "error"
+			} else {
+				pluralizedError = "errors"
+
+			}
+
+			fmt.Printf("\033[31mFound %d %s\033[0m\n", errorsCount, pluralizedError)
 			os.Exit(1)
 		}
 
