@@ -20,8 +20,17 @@ type MissingFundsErr struct {
 	Sent    big.Int
 }
 
-func (m MissingFundsErr) Error() string {
-	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", m.Missing.String(), m.Sent.String())
+func (e MissingFundsErr) Error() string {
+	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", e.Missing.String(), e.Sent.String())
+}
+
+type TypeError struct {
+	Expected string
+	Value    Value
+}
+
+func (e TypeError) Error() string {
+	return fmt.Sprintf("Invalid value received. Expecting value of type %s (got %#v instead)", e.Expected, e.Value)
 }
 
 func parsePercentage(p string) big.Rat {
@@ -61,25 +70,25 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 
 func meta(
 	s *programState,
-	args []parser.Literal,
+	args []Value,
 ) (string, error) {
 	if len(args) < 2 {
 		panic("TODO handle type error in meta")
 	}
 
-	account, err := expectAccount(args[0], s.Vars)
+	account, err := expectAccount(args[0])
 	if err != nil {
 		return "", err
 	}
 
-	key, err := expectString(args[1], s.Vars)
+	key, err := expectString(args[1])
 	if err != nil {
 		return "", err
 	}
 
 	// body
 	accountMeta := s.Meta[account.String()]
-	value, ok := accountMeta[string(key)]
+	value, ok := accountMeta[string(*key)]
 
 	if !ok {
 		// TODO err
@@ -90,9 +99,14 @@ func meta(
 }
 
 func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, error) {
+	args, err := s.evaluateLiterals(fnCall.Args)
+	if err != nil {
+		return nil, err
+	}
+
 	switch fnCall.Caller.Name {
 	case "meta":
-		rawValue, err := meta(s, fnCall.Args)
+		rawValue, err := meta(s, args)
 		if err != nil {
 			return nil, err
 		}
@@ -176,13 +190,86 @@ type programState struct {
 	Meta      map[string]Metadata
 }
 
+func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
+	switch literal := literal.(type) {
+	case *parser.AssetLiteral:
+		return Asset(literal.Asset), nil
+	case *parser.AccountLiteral:
+		return AccountAddress(literal.Name), nil
+	case *parser.StringLiteral:
+		return String(literal.String), nil
+	case *parser.RatioLiteral:
+		return Portion(*literal.ToRatio()), nil
+	case *parser.NumberLiteral:
+		return MonetaryInt(*big.NewInt(int64(literal.Number))), nil
+	case *parser.MonetaryLiteral:
+		assetValue, err := st.evaluateLit(literal.Asset)
+		if err != nil {
+			return Monetary{}, err
+		}
+
+		asset, err := expectAsset(assetValue)
+		if err != nil {
+			return nil, err
+		}
+
+		amountValue, err := st.evaluateLit(literal.Amount)
+		if err != nil {
+			return Monetary{}, err
+		}
+
+		amount, err := expectNumber(amountValue)
+		if err != nil {
+			return nil, err
+		}
+
+		return Monetary{Asset: *asset, Amount: *amount}, nil
+
+	case *parser.VariableLiteral:
+		value, ok := st.Vars[literal.Name]
+		if !ok {
+			panic("TODO err for unbound variable")
+		}
+		return value, nil
+	default:
+		panic("TODO handle literal evaluation")
+	}
+}
+
+func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, error) {
+	var values []Value
+	for _, argLit := range literals {
+		value, err := st.evaluateLit(argLit)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
 func (st *programState) runStatement(statement parser.Statement) ([]Posting, error) {
 	st.Senders = nil
 	st.Receivers = nil
 
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		return nil, st.runFnCall(*statement)
+		args, err := st.evaluateLiterals(statement.Args)
+		if err != nil {
+			return nil, err
+		}
+
+		switch statement.Caller.Name {
+		case "set_tx_meta":
+			err := setTxMeta(st, args)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			panic("Invalid fn")
+		}
+		return nil, nil
+
 	case *parser.SendStatement:
 		return st.runSendStatement(*statement)
 	default:
@@ -190,30 +277,20 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 	}
 }
 
-func (st *programState) runFnCall(f parser.FnCall) error {
-	switch f.Caller.Name {
-	case "set_tx_meta":
-		if len(f.Args) != 2 {
-			// TODO err
-			panic("invalid args number")
-		}
-
-		k, err := expectString(f.Args[0], st.Vars)
-		if err != nil {
-			return err
-		}
-
-		meta, err := expectAnything(f.Args[1], st.Vars)
-		if err != nil {
-			return err
-		}
-
-		st.TxMeta[string(k)] = meta
-		return nil
-	default:
-		panic("TODO handle unknown caller")
+func setTxMeta(st *programState, args []Value) error {
+	if len(args) != 2 {
+		// TODO err
+		panic("invalid args number")
 	}
 
+	k, err := expectString(args[0])
+	if err != nil {
+		return err
+	}
+
+	meta := args[1]
+	st.TxMeta[string(*k)] = meta
+	return nil
 }
 
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
@@ -221,12 +298,16 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 	case *parser.SentValueAll:
 		panic("TODO handle send*")
 	case *parser.SentValueLiteral:
-		monetary, err := expectMonetary(sentValue.Monetary, st.Vars)
+		sentValue_, err := st.evaluateLit(sentValue.Monetary)
+		if err != nil {
+			return nil, err
+		}
+		monetary, err := expectMonetary(sentValue_)
 		if err != nil {
 			return nil, err
 		}
 
-		sentTotal := st.trySending(statement.Source, monetary)
+		sentTotal := st.trySending(statement.Source, *monetary)
 
 		// sentTotal < monetary.Amount
 		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
@@ -237,7 +318,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			}
 		}
 
-		st.receiveFrom(statement.Destination, monetary)
+		st.receiveFrom(statement.Destination, *monetary)
 
 		postings, err := Reconcile(st.Senders, st.Receivers)
 		if err != nil {
@@ -290,7 +371,7 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 func (s *programState) trySending(source parser.Source, monetary Monetary) big.Int {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
-		account, err := expectAccount(source, s.Vars)
+		account, err := expectAccountLit(source, s.Vars)
 		if err != nil {
 			// TODO return err
 			panic(err)
@@ -341,7 +422,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 	case *parser.AccountLiteral:
 		return s.receiveFromAccount(destination.Name, monetary)
 	case *parser.VariableLiteral:
-		account, err := expectAccount(destination, s.Vars)
+		account, err := expectAccountLit(destination, s.Vars)
 		if err != nil {
 			// TODO return err
 			panic(err)
@@ -364,7 +445,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				totalAllotment.Add(totalAllotment, rat)
 				allotments = append(allotments, *rat)
 			case *parser.VariableLiteral:
-				p, err := expectPortion(allotment, s.Vars)
+				p, err := expectPortionLit(allotment, s.Vars)
 				if err != nil {
 					// TODO return err
 					panic(err)

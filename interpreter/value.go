@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
+	"numscript/analysis"
 	"numscript/parser"
 )
 
@@ -35,60 +36,59 @@ func (Monetary) String() string         { panic("TODO impl") }
 func (Portion) String() string          { panic("TODO impl") }
 func (Asset) String() string            { panic("TODO impl") }
 
-// TODO expect* functions should receive evalutated term
-func expectMonetary(literal parser.Literal, vars map[string]Value) (Monetary, error) {
-	switch literal := literal.(type) {
-	case *parser.MonetaryLiteral:
-		asset, err := expectAsset(literal.Asset, vars)
-		if err != nil {
-			return Monetary{}, err
-		}
-
-		amt, err := expectAmount(literal.Amount)
-		if err != nil {
-			return Monetary{}, err
-		}
-
-		return Monetary{Asset: asset, Amount: amt}, nil
-
-	case *parser.VariableLiteral:
-		v := vars[literal.Name]
-		fmt.Printf("V: %s\n", v)
-		panic("TODO parse var lit")
+func expectMonetary(v Value) (*Monetary, error) {
+	switch v := v.(type) {
+	case Monetary:
+		return &v, nil
 
 	default:
-		panic("TODO invalid type (expected monetary)")
+		return nil, TypeError{Expected: analysis.TypeMonetary, Value: v}
 	}
 }
 
-func expectAmount(literal parser.Literal) (MonetaryInt, error) {
-	switch literal := literal.(type) {
-	case *parser.NumberLiteral:
-		return MonetaryInt(*big.NewInt(int64(literal.Number))), nil
+func expectNumber(v Value) (*MonetaryInt, error) {
+	switch v := v.(type) {
+	case MonetaryInt:
+		return &v, nil
 
 	default:
-		panic("TODO invalid type")
+		return nil, TypeError{Expected: analysis.TypeNumber, Value: v}
 	}
 }
 
-func expectAsset(literal parser.Literal, vars map[string]Value) (Asset, error) {
-	switch literal := literal.(type) {
-	case *parser.AssetLiteral:
-		return Asset(literal.Asset), nil
-
-	case *parser.VariableLiteral:
-		asset, ok := vars[literal.Name].(Asset)
-		if !ok {
-			panic("TODO ret err")
-		}
-		return asset, nil
+func expectString(v Value) (*String, error) {
+	switch v := v.(type) {
+	case String:
+		return &v, nil
 
 	default:
-		panic("TODO invalid type (expected asset)")
+		return nil, TypeError{Expected: analysis.TypeString, Value: v}
 	}
 }
 
-func expectAccount(literal parser.Literal, vars map[string]Value) (AccountAddress, error) {
+func expectAsset(v Value) (*Asset, error) {
+	switch v := v.(type) {
+	case Asset:
+		return &v, nil
+
+	default:
+		return nil, TypeError{Expected: analysis.TypeAsset, Value: v}
+	}
+}
+
+func expectAccount(v Value) (*AccountAddress, error) {
+	switch v := v.(type) {
+	case AccountAddress:
+		return &v, nil
+
+	default:
+		return nil, TypeError{Expected: analysis.TypeAccount, Value: v}
+	}
+}
+
+// TODO delete the following:
+
+func expectAccountLit(literal parser.Literal, vars map[string]Value) (AccountAddress, error) {
 	switch literal := literal.(type) {
 	case *parser.AccountLiteral:
 		return AccountAddress(literal.Name), nil
@@ -111,24 +111,7 @@ func expectAccount(literal parser.Literal, vars map[string]Value) (AccountAddres
 	}
 }
 
-func expectString(literal parser.Literal, vars map[string]Value) (String, error) {
-	switch literal := literal.(type) {
-	case *parser.StringLiteral:
-		return String(literal.String), nil
-
-	case *parser.VariableLiteral:
-		account, ok := vars[literal.Name].(String)
-		if !ok {
-			panic("TODO ret err")
-		}
-		return account, nil
-
-	default:
-		panic("TODO invalid type (expected asset)")
-	}
-}
-
-func expectPortion(literal parser.Literal, vars map[string]Value) (Portion, error) {
+func expectPortionLit(literal parser.Literal, vars map[string]Value) (Portion, error) {
 	switch literal := literal.(type) {
 	case *parser.RatioLiteral:
 		return Portion(*literal.ToRatio()), nil
@@ -139,22 +122,6 @@ func expectPortion(literal parser.Literal, vars map[string]Value) (Portion, erro
 			panic("TODO ret err")
 		}
 		return portion, nil
-
-	default:
-		panic("TODO invalid type (expected asset)")
-	}
-}
-
-func expectAnything(literal parser.Literal, vars map[string]Value) (Value, error) {
-	switch literal := literal.(type) {
-	case *parser.VariableLiteral:
-		value, ok := vars[literal.Name]
-		if !ok {
-			panic("TODO ret err")
-		}
-		return value, nil
-	case *parser.StringLiteral:
-		return String(literal.String), nil
 
 	default:
 		panic("TODO invalid type (expected asset)")
