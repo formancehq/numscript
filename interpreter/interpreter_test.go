@@ -456,3 +456,50 @@ func TestWorldSource(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestNoEmptyPostings(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [GEM 2] (
+		source = @world
+		destination = {
+			90% to @a
+			10% to @b
+		}
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(2),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+// TODO impl
+func TestEmptyPostings(t *testing.T) {
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [GEM *] (
+		source = @foo
+		destination = @bar
+	)`)
+	tc.setBalance("foo", "GEM", 0)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Source:      "foo",
+				Destination: "bar",
+				Amount:      big.NewInt(0),
+				Asset:       "GEM",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
