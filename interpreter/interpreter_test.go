@@ -299,3 +299,40 @@ func TestAllocation(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestDynamicAllocation(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		portion $p
+	}
+	send [GEM 15] (
+		source = @a
+		destination = {
+			80% to @b
+			$p to @c
+			remaining to @d
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"p": "15%"
+	}`)
+	tc.setBalance("a", "GEM", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(13),
+				Source:      "a",
+				Destination: "b",
+			},
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(2),
+				Source:      "a",
+				Destination: "c",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

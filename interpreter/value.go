@@ -10,6 +10,7 @@ type Value interface{ value() }
 
 type String string
 type Asset string
+type Portion big.Rat
 type AccountAddress string
 type MonetaryInt big.Int
 type Monetary struct {
@@ -21,6 +22,7 @@ func (String) value()         {}
 func (AccountAddress) value() {}
 func (MonetaryInt) value()    {}
 func (Monetary) value()       {}
+func (Portion) value()        {}
 func (Asset) value()          {}
 
 func expectMonetary(literal parser.Literal, vars map[string]Value) (Monetary, error) {
@@ -103,6 +105,23 @@ func expectString(literal parser.Literal, vars map[string]Value) (String, error)
 			panic("TODO ret err")
 		}
 		return account, nil
+
+	default:
+		panic("TODO invalid type (expected asset)")
+	}
+}
+
+func expectPortion(literal parser.Literal, vars map[string]Value) (Portion, error) {
+	switch literal := literal.(type) {
+	case *parser.RatioLiteral:
+		return Portion(*literal.ToRatio()), nil
+
+	case *parser.VariableLiteral:
+		portion, ok := vars[literal.Name].(Portion)
+		if !ok {
+			panic("TODO ret err")
+		}
+		return portion, nil
 
 	default:
 		panic("TODO invalid type (expected asset)")

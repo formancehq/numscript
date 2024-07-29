@@ -24,6 +24,16 @@ func (m MissingFundsErr) Error() string {
 	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", m.Missing.String(), m.Sent.String())
 }
 
+func parsePercentage(p string) big.Rat {
+	// TODO share code with parser
+	trimmed := p[:len(p)-1]
+	n, err := strconv.ParseInt(trimmed, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return *big.NewRat(n, 100)
+}
+
 func parseVar(type_ string, rawValue string) (Value, error) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
@@ -32,7 +42,7 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 	case analysis.TypeAccount:
 		return AccountAddress(rawValue), nil
 	case analysis.TypePortion:
-		panic("TODO handle parsing of: " + type_)
+		return Portion(parsePercentage(rawValue)), nil
 	case analysis.TypeAsset:
 		return Asset(rawValue), nil
 	case analysis.TypeNumber:
@@ -281,18 +291,31 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		return s.receiveFromAccount(string(account), monetary)
 
 	case *parser.DestinationAllotment:
+		// TODO runtime error when totalAllotment != 1?
+		totalAllotment := big.NewRat(0, 1)
 		receivedTotal := big.NewInt(0)
 		var allotments []big.Rat
 		for _, item := range destination.Items {
 			switch allotment := item.Allotment.(type) {
 			case *parser.RatioLiteral:
 				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
-				// TODO runtime error when rat > 1?
+				totalAllotment.Add(totalAllotment, rat)
 				allotments = append(allotments, *rat)
-			case *parser.RemainingAllotment:
-				panic("TODO remaining")
 			case *parser.VariableLiteral:
-				panic("TODO var allotment")
+				p, err := expectPortion(allotment, s.Vars)
+				if err != nil {
+					// TODO return err
+					panic(err)
+				}
+				rat := big.Rat(p)
+				totalAllotment.Add(totalAllotment, &rat)
+				allotments = append(allotments, rat)
+
+			case *parser.RemainingAllotment:
+				var rat big.Rat
+				rat.Sub(big.NewRat(1, 1), totalAllotment)
+				totalAllotment.Add(totalAllotment, &rat)
+				allotments = append(allotments, rat)
 			}
 		}
 
