@@ -281,17 +281,40 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		return s.receiveFromAccount(string(account), monetary)
 
 	case *parser.DestinationAllotment:
-		var receivedTotal int64
-
-		var allotments []Allotment[parser.DestinationAllotmentItem]
+		receivedTotal := big.NewInt(0)
+		var allotments []big.Rat
 		for _, item := range destination.Items {
+			switch allotment := item.Allotment.(type) {
+			case *parser.RatioLiteral:
+				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
+				// TODO runtime error when rat > 1?
+				allotments = append(allotments, *rat)
+			case *parser.RemainingAllotment:
+				panic("TODO remaining")
+			case *parser.VariableLiteral:
+				panic("TODO var allotment")
+			}
 		}
 
 		allot := makeAllotment(monetaryAmount.Int64(), allotments)
-		for i, a := range destination.Allotments {
-			receivedTotal += a.Value.receive(allot[i], ctx)
+		for i, allotmentItem := range destination.Items {
+			allot_ := allot[i]
+
+			switch allotmentItem := allotmentItem.To.(type) {
+			case *parser.DestinationTo:
+				dest := allotmentItem.Destination
+				receivedMon := monetary
+				receivedMon.Amount = NewMonetaryInt(allot_)
+				received := s.receiveFrom(dest, receivedMon)
+				receivedTotal.Add(receivedTotal, &received)
+
+			case *parser.DestinationKept:
+				panic("TODO handle kept destination")
+			}
+
 		}
-		return receivedTotal
+
+		return *receivedTotal
 
 	// case *parser.DestinationInorder:
 	// sentTotal := big.NewInt(0)
@@ -326,14 +349,14 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 }
 
-func makeAllotment[T interface{}](monetary int64, allotments []Allotment[T]) []int64 {
+func makeAllotment(monetary int64, allotments []big.Rat) []int64 {
 	parts := make([]int64, len(allotments))
 
 	var totalAllocated int64
 
 	for i, allot := range allotments {
 		var product big.Rat
-		product.Mul(&allot.Ratio, big.NewRat(monetary, 1))
+		product.Mul(&allot, big.NewRat(monetary, 1))
 
 		floored := product.Num().Int64() / product.Denom().Int64()
 

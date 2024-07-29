@@ -5,11 +5,6 @@ import (
 	"slices"
 )
 
-type Allotment[T interface{}] struct {
-	Ratio big.Rat
-	Value T
-}
-
 type Posting struct {
 	Source      string   `json:"source"`
 	Destination string   `json:"destination"`
