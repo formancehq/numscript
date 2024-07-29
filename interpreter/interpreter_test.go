@@ -336,3 +336,63 @@ func TestDynamicAllocation(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+// TODO impl
+func TestSendAll(t *testing.T) {
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @users:001
+		destination = @platform
+	)`)
+	tc.setBalance("users:001", "USD/2", 17)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(17),
+				Source:      "users:001",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+// TODO impl
+func TestSendAllMulti(t *testing.T) {
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+		  @users:001:wallet
+		  @users:001:credit
+		}
+		destination = @platform
+	)
+	`)
+	tc.setBalance("users:001:wallet", "USD/2", 19)
+	tc.setBalance("users:001:credit", "USD/2", 22)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(19),
+				Source:      "users:001:wallet",
+				Destination: "platform",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(22),
+				Source:      "users:001:credit",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
