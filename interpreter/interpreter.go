@@ -215,6 +215,9 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 		if balance.Cmp(&monetaryAmount) == -1 /* balance < monetary */ {
 			monetaryAmount.Set(balance)
 		}
+
+		assetBalance := s.getBalance(name, string(monetary.Asset))
+		assetBalance.Sub(assetBalance, &monetaryAmount)
 	}
 
 	s.Senders = append(s.Senders, Sender{
@@ -223,8 +226,6 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 		Asset:    string(monetary.Asset),
 	})
 
-	assetBalance := s.getBalance(name, string(monetary.Asset))
-	assetBalance.Sub(assetBalance, &monetaryAmount)
 	return monetaryAmount
 }
 

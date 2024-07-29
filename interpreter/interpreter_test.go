@@ -426,3 +426,33 @@ func TestInsufficientFunds(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestWorldSource(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [GEM 15] (
+		source = {
+			@a
+			@world
+		}
+		destination = @b
+	)`)
+	tc.setBalance("a", "GEM", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(1),
+				Source:      "a",
+				Destination: "b",
+			},
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(14),
+				Source:      "world",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
