@@ -2,7 +2,6 @@ package interpreter_test
 
 import (
 	"encoding/json"
-	"errors"
 	"math/big"
 	machine "numscript/interpreter"
 
@@ -78,7 +77,7 @@ func test(t *testing.T, testCase TestCase) {
 
 	expected := testCase.expected
 	if expected.Error != nil {
-		require.True(t, errors.Is(err, expected.Error), "got wrong error, want: %v, got: %v", expected.Error, err)
+		assert.Equal(t, err, expected.Error)
 		if expected.ErrorContains != "" {
 			require.ErrorContains(t, err, expected.ErrorContains)
 		}
@@ -393,6 +392,37 @@ func TestSendAllMulti(t *testing.T) {
 			},
 		},
 		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestInsufficientFunds(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $balance
+		account $payment
+		account $seller
+	}
+	send [GEM 16] (
+		source = {
+			$balance
+			$payment
+		}
+		destination = $seller
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"balance": "users:001",
+		"payment": "payments:001",
+		"seller": "users:002"
+	}`)
+	tc.setBalance("users:001", "GEM", 3)
+	tc.setBalance("payments:001", "GEM", 12)
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MissingFundsErr{
+			Missing: *big.NewInt(1),
+			Sent:    *big.NewInt(15),
+		},
 	}
 	test(t, tc)
 }
