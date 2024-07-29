@@ -6,7 +6,10 @@ import (
 	"numscript/parser"
 )
 
-type Value interface{ value() }
+type Value interface {
+	value()
+	String() string
+}
 
 type String string
 type Asset string
@@ -25,6 +28,14 @@ func (Monetary) value()       {}
 func (Portion) value()        {}
 func (Asset) value()          {}
 
+func (v String) String() string         { return string(v) }
+func (v AccountAddress) String() string { return string(v) }
+func (MonetaryInt) String() string      { panic("TODO impl") }
+func (Monetary) String() string         { panic("TODO impl") }
+func (Portion) String() string          { panic("TODO impl") }
+func (Asset) String() string            { panic("TODO impl") }
+
+// TODO expect* functions should receive evalutated term
 func expectMonetary(literal parser.Literal, vars map[string]Value) (Monetary, error) {
 	switch literal := literal.(type) {
 	case *parser.MonetaryLiteral:
@@ -83,9 +94,15 @@ func expectAccount(literal parser.Literal, vars map[string]Value) (AccountAddres
 		return AccountAddress(literal.Name), nil
 
 	case *parser.VariableLiteral:
-		account, ok := vars[literal.Name].(AccountAddress)
+		value, found := vars[literal.Name]
+		if !found {
+			panic("var not found")
+		}
+
+		account, ok := value.(AccountAddress)
 		if !ok {
-			panic("TODO ret err")
+			fmt.Printf("VALUE =%#v\n", value)
+			panic("TODO wrong type for var: " + literal.Name)
 		}
 		return account, nil
 

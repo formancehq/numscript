@@ -73,8 +73,7 @@ func test(t *testing.T, testCase TestCase) {
 		}
 	}
 
-	execResult, err := machine.RunProgram(*prog, testCase.vars, store)
-
+	execResult, err := machine.RunProgram(*prog, testCase.vars, store, testCase.meta)
 	expected := testCase.expected
 	if expected.Error != nil {
 		assert.Equal(t, err, expected.Error)
@@ -531,6 +530,53 @@ func TestAllocateDontTakeTooMuch(t *testing.T) {
 				Amount:      big.NewInt(100),
 				Source:      "users:002",
 				Destination: "bar",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestMetadata(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $sale
+		account $seller = meta($sale, "seller")
+		portion $commission = meta($seller, "commission")
+	}
+	send [EUR/2 100] (
+		source = $sale
+		destination = {
+			remaining to $seller
+			$commission to @platform
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"sale": "sales:042"
+	}`)
+	tc.meta = map[string]machine.Metadata{
+		"sales:042": {
+			"seller": "users:053",
+		},
+		"users:053": {
+			"commission": "12.5%",
+		},
+	}
+	tc.setBalance("sales:042", "EUR/2", 2500)
+	tc.setBalance("users:053", "EUR/2", 500)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(88),
+				Source:      "sales:042",
+				Destination: "users:053",
+			},
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(12),
+				Source:      "sales:042",
+				Destination: "platform",
 			},
 		},
 		Error: nil,

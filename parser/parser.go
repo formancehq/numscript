@@ -240,11 +240,11 @@ func parseRatio(source string, range_ Range) *RatioLiteral {
 	}
 }
 
-func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
+func ParsePercentageRatio(source string) (uint64, uint64, error) {
 	str := strings.TrimSuffix(source, "%")
 	num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
 	if err != nil {
-		panic(err)
+		return 0, 0, err
 	}
 
 	var denominator uint64
@@ -255,6 +255,15 @@ func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
 		denominator = (uint64)(math.Pow10(2 + floatingDigits))
 	} else {
 		denominator = 100
+	}
+
+	return num, denominator, nil
+}
+
+func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
+	num, denominator, err := ParsePercentageRatio(source)
+	if err != nil {
+		panic(err)
 	}
 
 	return &RatioLiteral{

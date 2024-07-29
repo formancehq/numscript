@@ -25,13 +25,11 @@ func (m MissingFundsErr) Error() string {
 }
 
 func parsePercentage(p string) big.Rat {
-	// TODO share code with parser
-	trimmed := p[:len(p)-1]
-	n, err := strconv.ParseInt(trimmed, 10, 64)
+	num, den, err := parser.ParsePercentageRatio(p)
 	if err != nil {
 		panic(err)
 	}
-	return *big.NewRat(n, 100)
+	return *big.NewRat(int64(num), int64(den))
 }
 
 func parseVar(type_ string, rawValue string) (Value, error) {
@@ -61,37 +59,96 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 
 }
 
-func parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) (map[string]Value, error) {
-	parsedVars := make(map[string]Value)
-	for _, varsDecl := range varDeclrs {
-		raw, ok := rawVars[varsDecl.Name.Name]
-		if !ok {
-			panic("TODO handle var not found")
-		}
-		parsed, err := parseVar(varsDecl.Type.Name, raw)
+func meta(
+	s *programState,
+	args []parser.Literal,
+) (string, error) {
+	if len(args) < 2 {
+		panic("TODO handle type error in meta")
+	}
+
+	account, err := expectAccount(args[0], s.Vars)
+	if err != nil {
+		return "", err
+	}
+
+	key, err := expectString(args[1], s.Vars)
+	if err != nil {
+		return "", err
+	}
+
+	// body
+	accountMeta := s.Meta[account.String()]
+	value, ok := accountMeta[string(key)]
+
+	if !ok {
+		// TODO err
+		panic("META NOT FOUND")
+	}
+
+	return value, nil
+}
+
+func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, error) {
+	switch fnCall.Caller.Name {
+	case "meta":
+		rawValue, err := meta(s, fnCall.Args)
 		if err != nil {
 			return nil, err
 		}
-		parsedVars[varsDecl.Name.Name] = parsed
 
+		parsed, err := parseVar(type_, rawValue)
+		if err != nil {
+			return nil, err
+		}
+
+		return parsed, nil
+
+	default:
+		panic("TODO handle fn call: " + fnCall.Caller.Name)
 	}
-	return parsedVars, nil
+
+}
+
+func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) error {
+	for _, varsDecl := range varDeclrs {
+		if varsDecl.Origin == nil {
+			raw, ok := rawVars[varsDecl.Name.Name]
+			if !ok {
+				panic("TODO handle var not found: " + varsDecl.Name.Name)
+			}
+			parsed, err := parseVar(varsDecl.Type.Name, raw)
+			if err != nil {
+				return err
+			}
+			s.Vars[varsDecl.Name.Name] = parsed
+		} else {
+			value, err := s.handleOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			if err != nil {
+				return err
+			}
+			s.Vars[varsDecl.Name.Name] = value
+		}
+	}
+	return nil
 }
 
 func RunProgram(
 	program parser.Program,
 	vars map[string]string,
 	store StaticStore,
+	meta map[string]Metadata,
 ) (*ExecutionResult, error) {
-	parsedVars, err := parseVars(program.Vars, vars)
-	if err != nil {
-		return nil, err
-	}
-
 	st := programState{
-		Vars:   parsedVars,
+		Vars:   make(map[string]Value),
 		TxMeta: make(map[string]Value),
 		Store:  store,
+		Meta:   meta,
+	}
+
+	err := st.parseVars(program.Vars, vars)
+	if err != nil {
+		return nil, err
 	}
 
 	var postings []Posting
@@ -116,6 +173,7 @@ type programState struct {
 	Store     StaticStore
 	Senders   []Sender
 	Receivers []Receiver
+	Meta      map[string]Metadata
 }
 
 func (st *programState) runStatement(statement parser.Statement) ([]Posting, error) {
@@ -296,7 +354,10 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		totalAllotment := big.NewRat(0, 1)
 		receivedTotal := big.NewInt(0)
 		var allotments []big.Rat
-		for _, item := range destination.Items {
+
+		remainingAllotmentIndex := -1
+
+		for i, item := range destination.Items {
 			switch allotment := item.Allotment.(type) {
 			case *parser.RatioLiteral:
 				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
@@ -313,11 +374,17 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				allotments = append(allotments, rat)
 
 			case *parser.RemainingAllotment:
+				remainingAllotmentIndex = i
 				var rat big.Rat
-				rat.Sub(big.NewRat(1, 1), totalAllotment)
-				totalAllotment.Add(totalAllotment, &rat)
 				allotments = append(allotments, rat)
+				// TODO check there are not duplicate remaining clause
 			}
+		}
+
+		if remainingAllotmentIndex != -1 {
+			var rat big.Rat
+			rat.Sub(big.NewRat(1, 1), totalAllotment)
+			allotments[remainingAllotmentIndex] = rat
 		}
 
 		allot := makeAllotment(monetaryAmount.Int64(), allotments)
@@ -373,7 +440,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 }
 
-func makeAllotment(monetary int64, allotments []big.Rat) []int64 {
+func makeAllotment(monetary int64, allotments []big.Rat) [](int64) {
 	parts := make([]int64, len(allotments))
 
 	var totalAllocated int64
