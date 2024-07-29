@@ -503,3 +503,37 @@ func TestEmptyPostings(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestAllocateDontTakeTooMuch(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [CREDIT 200] (
+		source = {
+			@users:001
+			@users:002
+		}
+		destination = {
+			1/2 to @foo
+			1/2 to @bar
+		}
+	)`)
+	tc.setBalance("users:001", "CREDIT", 100)
+	tc.setBalance("users:002", "CREDIT", 110)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "CREDIT",
+				Amount:      big.NewInt(100),
+				Source:      "users:001",
+				Destination: "foo",
+			},
+			{
+				Asset:       "CREDIT",
+				Amount:      big.NewInt(100),
+				Source:      "users:002",
+				Destination: "bar",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
