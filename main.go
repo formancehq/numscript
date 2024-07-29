@@ -1,46 +1,41 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	lsp "numscript/lsp"
-	"numscript/parser"
+	"numscript/cmd"
 	"os"
+	"runtime/debug"
+	"time"
+
+	"github.com/getsentry/sentry-go"
 )
 
-var pathFlag = flag.String("path", "", "path to execute")
+// This has to be set dynamically via the following flag:
+// -ldflags "-X main.Version=0.0.1"
+var Version string = "develop"
+
+func recoverPanic() {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	errMsg := fmt.Sprintf("[uncaught panic]@%s: %s\n%s\n", Version, r, string(debug.Stack()))
+	os.Stderr.Write([]byte(errMsg))
+	sentry.CaptureMessage(errMsg)
+	sentry.Flush(2 * time.Second)
+}
 
 func main() {
-	flag.Parse()
-	firstArg := flag.Arg(0)
+	sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://b8b6cfd5dab95e1258d80963c3db73bf@o4504394442539008.ingest.us.sentry.io/4507623538884608",
+		AttachStacktrace: true,
+	})
 
-	switch firstArg {
-	case "lsp":
-		lsp.RunServer(lsp.ServerArgs[lsp.State]{
-			InitialState: lsp.InitialState(),
-			Handler:      lsp.Handle,
-		})
-		return
+	defer recoverPanic()
+	defer sentry.Flush(2 * time.Second)
 
-	case "parse":
-		if *pathFlag == "" {
-			fmt.Println("Err: Path argument is required")
-			return
-		}
-
-		dat, err := os.ReadFile(*pathFlag)
-		if err != nil {
-			panic(err)
-		}
-
-		parsed := parser.Parse(string(dat))
-
-		fmt.Printf("Parser errors: %d\n\n", len(parsed.Errors))
-		for _, err := range parsed.Errors {
-			fmt.Printf("%v,  (line=%d, char=%d) ", err.Msg, err.Range.Start.Line, err.Range.Start.Character)
-		}
-		return
-	default:
-		fmt.Printf("Invalid argument: '%s'", firstArg)
-	}
+	cmd.Execute(cmd.CliOptions{
+		Version: Version,
+	})
 }

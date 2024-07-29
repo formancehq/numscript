@@ -21,6 +21,24 @@ func (s *BaseNumscriptListener) EnterEveryRule(ctx antlr.ParserRuleContext) {}
 // ExitEveryRule is called when any rule is exited.
 func (s *BaseNumscriptListener) ExitEveryRule(ctx antlr.ParserRuleContext) {}
 
+// EnterMonetaryLit is called when production monetaryLit is entered.
+func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
+
+// ExitMonetaryLit is called when production monetaryLit is exited.
+func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
+
+// EnterRatio is called when production ratio is entered.
+func (s *BaseNumscriptListener) EnterRatio(ctx *RatioContext) {}
+
+// ExitRatio is called when production ratio is exited.
+func (s *BaseNumscriptListener) ExitRatio(ctx *RatioContext) {}
+
+// EnterPercentage is called when production percentage is entered.
+func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
+
+// ExitPercentage is called when production percentage is exited.
+func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
+
 // EnterAssetLiteral is called when production assetLiteral is entered.
 func (s *BaseNumscriptListener) EnterAssetLiteral(ctx *AssetLiteralContext) {}
 
@@ -32,12 +50,6 @@ func (s *BaseNumscriptListener) EnterStringLiteral(ctx *StringLiteralContext) {}
 
 // ExitStringLiteral is called when production stringLiteral is exited.
 func (s *BaseNumscriptListener) ExitStringLiteral(ctx *StringLiteralContext) {}
-
-// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
-func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
-
-// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
-func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
 
 // EnterAccountLiteral is called when production accountLiteral is entered.
 func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
@@ -51,29 +63,23 @@ func (s *BaseNumscriptListener) EnterVariableLiteral(ctx *VariableLiteralContext
 // ExitVariableLiteral is called when production variableLiteral is exited.
 func (s *BaseNumscriptListener) ExitVariableLiteral(ctx *VariableLiteralContext) {}
 
-// EnterPortionLiteral is called when production portionLiteral is entered.
-func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
-
-// ExitPortionLiteral is called when production portionLiteral is exited.
-func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
-
 // EnterNumberLiteral is called when production numberLiteral is entered.
 func (s *BaseNumscriptListener) EnterNumberLiteral(ctx *NumberLiteralContext) {}
 
 // ExitNumberLiteral is called when production numberLiteral is exited.
 func (s *BaseNumscriptListener) ExitNumberLiteral(ctx *NumberLiteralContext) {}
 
-// EnterRatio is called when production ratio is entered.
-func (s *BaseNumscriptListener) EnterRatio(ctx *RatioContext) {}
+// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
+func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
 
-// ExitRatio is called when production ratio is exited.
-func (s *BaseNumscriptListener) ExitRatio(ctx *RatioContext) {}
+// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
+func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
 
-// EnterPercentage is called when production percentage is entered.
-func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
+// EnterPortionLiteral is called when production portionLiteral is entered.
+func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
 
-// ExitPercentage is called when production percentage is exited.
-func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
+// ExitPortionLiteral is called when production portionLiteral is exited.
+func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
 
 // EnterFunctionCallArgs is called when production functionCallArgs is entered.
 func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
@@ -110,60 +116,6 @@ func (s *BaseNumscriptListener) EnterProgram(ctx *ProgramContext) {}
 
 // ExitProgram is called when production program is exited.
 func (s *BaseNumscriptListener) ExitProgram(ctx *ProgramContext) {}
-
-// EnterNumber is called when production number is entered.
-func (s *BaseNumscriptListener) EnterNumber(ctx *NumberContext) {}
-
-// ExitNumber is called when production number is exited.
-func (s *BaseNumscriptListener) ExitNumber(ctx *NumberContext) {}
-
-// EnterNumberVariable is called when production numberVariable is entered.
-func (s *BaseNumscriptListener) EnterNumberVariable(ctx *NumberVariableContext) {}
-
-// ExitNumberVariable is called when production numberVariable is exited.
-func (s *BaseNumscriptListener) ExitNumberVariable(ctx *NumberVariableContext) {}
-
-// EnterAsset is called when production asset is entered.
-func (s *BaseNumscriptListener) EnterAsset(ctx *AssetContext) {}
-
-// ExitAsset is called when production asset is exited.
-func (s *BaseNumscriptListener) ExitAsset(ctx *AssetContext) {}
-
-// EnterAssetVariable is called when production assetVariable is entered.
-func (s *BaseNumscriptListener) EnterAssetVariable(ctx *AssetVariableContext) {}
-
-// ExitAssetVariable is called when production assetVariable is exited.
-func (s *BaseNumscriptListener) ExitAssetVariable(ctx *AssetVariableContext) {}
-
-// EnterAccountName is called when production accountName is entered.
-func (s *BaseNumscriptListener) EnterAccountName(ctx *AccountNameContext) {}
-
-// ExitAccountName is called when production accountName is exited.
-func (s *BaseNumscriptListener) ExitAccountName(ctx *AccountNameContext) {}
-
-// EnterAccountVariable is called when production accountVariable is entered.
-func (s *BaseNumscriptListener) EnterAccountVariable(ctx *AccountVariableContext) {}
-
-// ExitAccountVariable is called when production accountVariable is exited.
-func (s *BaseNumscriptListener) ExitAccountVariable(ctx *AccountVariableContext) {}
-
-// EnterMonetary is called when production monetary is entered.
-func (s *BaseNumscriptListener) EnterMonetary(ctx *MonetaryContext) {}
-
-// ExitMonetary is called when production monetary is exited.
-func (s *BaseNumscriptListener) ExitMonetary(ctx *MonetaryContext) {}
-
-// EnterMonetaryVariable is called when production monetaryVariable is entered.
-func (s *BaseNumscriptListener) EnterMonetaryVariable(ctx *MonetaryVariableContext) {}
-
-// ExitMonetaryVariable is called when production monetaryVariable is exited.
-func (s *BaseNumscriptListener) ExitMonetaryVariable(ctx *MonetaryVariableContext) {}
-
-// EnterMonetaryLit is called when production monetaryLit is entered.
-func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
-
-// ExitMonetaryLit is called when production monetaryLit is exited.
-func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
 // EnterSentAllLit is called when production sentAllLit is entered.
 func (s *BaseNumscriptListener) EnterSentAllLit(ctx *SentAllLitContext) {}

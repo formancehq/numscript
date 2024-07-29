@@ -40,19 +40,21 @@ VARIABLE_NAME: '$' [a-z_]+ [a-z0-9_]*;
 ACCOUNT: '@' [a-zA-Z0-9_-]+ (':' [a-zA-Z0-9_-]+)*;
 ASSET: [A-Z/0-9]+;
 
-literal:
-	ASSET			# assetLiteral
-	| STRING		# stringLiteral
-	| monetaryLit	# monetaryLiteral
-	| ACCOUNT		# accountLiteral
-	| VARIABLE_NAME	# variableLiteral
-	| portion		# portionLiteral
-	| NUMBER		# numberLiteral
-	| VARIABLE_NAME	# variableLiteral;
+monetaryLit:
+	LBRACKET (asset = literal) (amt = literal) RBRACKET;
 
 portion:
 	RATIO_PORTION_LITERAL			# ratio
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
+
+literal:
+	ASSET			# assetLiteral
+	| STRING		# stringLiteral
+	| ACCOUNT		# accountLiteral
+	| VARIABLE_NAME	# variableLiteral
+	| NUMBER		# numberLiteral
+	| monetaryLit	# monetaryLiteral
+	| portion		# portionLiteral;
 
 functionCallArgs: literal ( COMMA literal)*;
 functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
@@ -64,24 +66,7 @@ varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
 program: varsDeclaration? statement* EOF;
 
-variableNumber:
-	NUMBER			# number
-	| VARIABLE_NAME	# numberVariable;
-
-variableAsset: ASSET # asset | VARIABLE_NAME # assetVariable;
-
-variableAccount:
-	ACCOUNT			# accountName
-	| VARIABLE_NAME	# accountVariable;
-
-variableMonetary:
-	monetaryLit		# monetary
-	| VARIABLE_NAME	# monetaryVariable;
-
-monetaryLit:
-	LBRACKET (asset = variableAsset) (amt = variableNumber) RBRACKET;
-
-sentAllLit: LBRACKET (asset = variableAsset) STAR RBRACKET;
+sentAllLit: LBRACKET (asset = literal) STAR RBRACKET;
 
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
@@ -91,13 +76,13 @@ allotment:
 	| REMAINING		# remainingAllotment;
 
 source:
-	variableAccount ALLOWING UNBOUNDED OVERDRAFT				# srcAccountUnboundedOverdraft
-	| variableAccount ALLOWING OVERDRAFT UP TO variableMonetary	# srcAccountBoundedOverdraft
-	| ACCOUNT													# srcAccount
-	| VARIABLE_NAME												# srcVariable
-	| LBRACE allotmentClauseSrc+ RBRACE							# srcAllotment
-	| LBRACE source* RBRACE										# srcInorder
-	| MAX cap FROM source										# srcCapped;
+	address = literal ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| address = literal ALLOWING OVERDRAFT UP TO maxOvedraft = literal	# srcAccountBoundedOverdraft
+	| ACCOUNT															# srcAccount
+	| VARIABLE_NAME														# srcVariable
+	| LBRACE allotmentClauseSrc+ RBRACE									# srcAllotment
+	| LBRACE source* RBRACE												# srcInorder
+	| MAX cap FROM source												# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 keptOrDestination:

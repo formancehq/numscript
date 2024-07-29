@@ -3,6 +3,7 @@ package analysis
 import (
 	"fmt"
 	"math/big"
+	"numscript/utils"
 )
 
 type Severity = byte
@@ -17,12 +18,39 @@ const (
 	Hint
 )
 
+func SeverityToAnsiString(s Severity) string {
+	switch s {
+	case ErrorSeverity:
+		return "\033[31mError\033[0m"
+	case WarningSeverity:
+		return "\033[33mWarning\033[0m"
+	case Information:
+		return "Info"
+	case Hint:
+		return "Hint"
+	default:
+		return utils.NonExhaustiveMatchPanic[string](s)
+	}
+}
+
 type DiagnosticKind interface {
 	Message() string
 	Severity() Severity
 }
 
 // ###### Diagnostics
+
+type Parsing struct {
+	Description string
+}
+
+func (e *Parsing) Message() string {
+	return e.Description
+}
+
+func (*Parsing) Severity() Severity {
+	return ErrorSeverity
+}
 
 type InvalidType struct {
 	Name string
@@ -121,7 +149,7 @@ func (e *BadAllotmentSum) Message() string {
 		return fmt.Sprintf("Allotment portions are lesser than one (Got %s). Maybe try adding a 'remaining' clause?", e.Sum.String())
 	}
 
-	panic("Invalid diagnostic")
+	panic(fmt.Sprintf("unreachable state: allotment=%s", e.Sum.String()))
 }
 func (*BadAllotmentSum) Severity() Severity {
 	return ErrorSeverity
@@ -152,6 +180,10 @@ type UnknownFunction struct {
 }
 
 func (e *UnknownFunction) Message() string {
+	res, exists := Builtins[e.Name]
+	if exists {
+		return fmt.Sprintf("You cannot use this function here (try to use it in a %s context)", res.ContextName())
+	}
 	// TODO suggest alternatives using Levenshtein distance
 	return fmt.Sprintf("The function '%s' does not exist", e.Name)
 }

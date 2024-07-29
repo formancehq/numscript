@@ -3,6 +3,7 @@ package parser
 import (
 	"math"
 	parser "numscript/parser/antlr"
+	"numscript/utils"
 	"strconv"
 	"strings"
 
@@ -146,7 +147,7 @@ func parseCapLit(capCtx parser.ICapContext) Literal {
 		return nil
 
 	default:
-		panic("Invalid ctx")
+		return utils.NonExhaustiveMatchPanic[Literal](capCtx.GetText())
 	}
 }
 
@@ -199,15 +200,15 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	case *parser.SrcAccountUnboundedOverdraftContext:
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+			Address: parseLiteral(sourceCtx.GetAddress()),
 		}
 
 	case *parser.SrcAccountBoundedOverdraftContext:
-		varMon := parseVariableMonetary(sourceCtx.VariableMonetary())
+		varMon := parseLiteral(sourceCtx.GetMaxOvedraft())
 
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseVariableAccount(sourceCtx.VariableAccount()),
+			Address: parseLiteral(sourceCtx.GetAddress()),
 			Bounded: &varMon,
 		}
 
@@ -215,36 +216,19 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		return nil
 
 	default:
-		panic("unhandled context: " + sourceCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[Source](sourceCtx.GetText())
 	}
-}
-
-func parseVariableAccount(variableAccountCtx parser.IVariableAccountContext) Literal {
-	switch variableAccountCtx := variableAccountCtx.(type) {
-	case *parser.AccountNameContext:
-		return accountLiteralFromCtx(variableAccountCtx)
-
-	case *parser.AccountVariableContext:
-		return variableLiteralFromCtx(variableAccountCtx)
-
-	case *parser.VariableAccountContext:
-		return nil
-
-	default:
-		panic("Unhandled clause")
-	}
-
 }
 
 func parseRatio(source string, range_ Range) *RatioLiteral {
 	split := strings.Split(source, "/")
 
-	num, err := strconv.ParseUint(split[0], 0, 64)
+	num, err := strconv.ParseUint(strings.TrimSpace(split[0]), 0, 64)
 	if err != nil {
 		panic(err)
 	}
 
-	den, err := strconv.ParseUint(split[1], 0, 64)
+	den, err := strconv.ParseUint(strings.TrimSpace(split[1]), 0, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -297,7 +281,7 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 		return nil
 
 	default:
-		panic("Invalid allotment")
+		return utils.NonExhaustiveMatchPanic[SourceAllotmentValue](allotmentCtx.GetText())
 	}
 }
 
@@ -341,7 +325,7 @@ func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 		return nil
 
 	default:
-		panic("unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Literal](literalCtx.GetText())
 	}
 }
 
@@ -377,7 +361,7 @@ func parsePortionSource(portionCtx parser.IPortionContext) *RatioLiteral {
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[*RatioLiteral](portionCtx.GetText())
 	}
 }
 
@@ -426,8 +410,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return nil
 
 	default:
-		panic("Unhandled dest" + destCtx.GetText())
-
+		return utils.NonExhaustiveMatchPanic[Destination](destCtx.GetText())
 	}
 
 }
@@ -458,7 +441,7 @@ func parseKeptOrDestination(clauseCtx parser.IKeptOrDestinationContext) KeptOrDe
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[KeptOrDestination](clauseCtx.GetText())
 	}
 
 }
@@ -480,7 +463,7 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) Destinatio
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](allotmentCtx.GetText())
 	}
 }
 
@@ -496,7 +479,7 @@ func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllot
 		return nil
 
 	default:
-		panic("unhandled portion ctx")
+		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](portionCtx.GetText())
 	}
 }
 
@@ -547,7 +530,7 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 		return nil
 
 	default:
-		panic("unhandled clause")
+		return utils.NonExhaustiveMatchPanic[Statement](statementCtx.GetText())
 	}
 }
 
@@ -560,14 +543,14 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	case *parser.SentAllContext:
 		return &SentValueAll{
 			Range: ctxToRange(statementCtx),
-			Asset: parseVariableAsset(statementCtx.SentAllLit().VariableAsset()),
+			Asset: parseLiteral(statementCtx.SentAllLit().GetAsset()),
 		}
 
 	case *parser.SentValueContext:
 		return nil
 
 	default:
-		panic("Unhandled clause")
+		return utils.NonExhaustiveMatchPanic[SentValue](statementCtx.GetText())
 	}
 
 }
@@ -581,68 +564,17 @@ func parseSendStatement(statementCtx *parser.SendStatementContext) *SendStatemen
 	}
 }
 
-func parseVariableMonetary(sendExpr parser.IVariableMonetaryContext) Literal {
-	switch sendExpr := sendExpr.(type) {
-	case *parser.MonetaryVariableContext:
-		return parseVarLiteral(sendExpr.VARIABLE_NAME().GetSymbol())
-
-	case *parser.MonetaryContext:
-		return parseMonetaryLit(sendExpr.MonetaryLit())
-
-	case *parser.VariableMonetaryContext:
-		return nil
-
-	default:
-		panic("Unhandled clause")
-	}
-}
-
 func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 	amtStr := numNode.GetText()
 
 	amt, err := strconv.Atoi(amtStr)
 	if err != nil {
-		panic("Invalid amt: " + amtStr)
+		panic("Invalid number: " + amtStr)
 	}
 
 	return &NumberLiteral{
 		Range:  tokenToRange(numNode.GetSymbol()),
 		Number: amt,
-	}
-}
-
-func parseVariableNumber(numCtx parser.IVariableNumberContext) Literal {
-	switch numCtx := numCtx.(type) {
-	case *parser.NumberContext:
-		return parseNumberLiteral(numCtx.NUMBER())
-
-	case *parser.NumberVariableContext:
-		return parseVarLiteral(numCtx.VARIABLE_NAME().GetSymbol())
-
-	case *parser.VariableNumberContext:
-		return nil
-
-	default:
-		panic("Unhandled clause")
-	}
-}
-
-func parseVariableAsset(assetCtx parser.IVariableAssetContext) Literal {
-	switch assetCtx := assetCtx.(type) {
-	case *parser.AssetContext:
-		return &AssetLiteral{
-			Range: ctxToRange(assetCtx),
-			Asset: assetCtx.GetText(),
-		}
-
-	case *parser.AssetVariableContext:
-		return parseVarLiteral(assetCtx.VARIABLE_NAME().GetSymbol())
-
-	case *parser.VariableAssetContext:
-		return nil
-
-	default:
-		panic("Unhandled clause")
 	}
 }
 
@@ -653,8 +585,8 @@ func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLitera
 
 	return &MonetaryLiteral{
 		Range:  ctxToRange(monetaryLitCtx),
-		Asset:  parseVariableAsset(monetaryLitCtx.GetAsset()),
-		Amount: parseVariableNumber(monetaryLitCtx.GetAmt()),
+		Asset:  parseLiteral(monetaryLitCtx.GetAsset()),
+		Amount: parseLiteral(monetaryLitCtx.GetAmt()),
 	}
 }
 

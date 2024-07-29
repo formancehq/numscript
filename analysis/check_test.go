@@ -15,12 +15,11 @@ send [C 10] (
 	source = $my_var
 	destination = $my_var
 )`
-	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "xs: %#v", diagnostics)
+	res := analysis.CheckSource(input)
+	assert.Lenf(t, res.Diagnostics, 1, "xs: %#v", res.Diagnostics)
 
-	d1 := diagnostics[0]
+	d1 := res.Diagnostics[0]
 	assert.Equal(t,
 		parser.Range{
 			Start: parser.Position{Character: 7},
@@ -43,7 +42,7 @@ send [C 10] (
 )`
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 0)
 }
 
@@ -60,7 +59,7 @@ func TestDuplicateVariable(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -86,7 +85,7 @@ func TestUnboundVarInSource(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -115,7 +114,7 @@ func TestUnboundVarInDest(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "expected len to be 1")
 
 	d1 := diagnostics[0]
@@ -140,7 +139,7 @@ func TestUnboundMany(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 2)
 }
 
@@ -154,7 +153,7 @@ func TestUnboundCurrenciesVars(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 2)
 }
 
@@ -165,7 +164,7 @@ func TestUnusedVarInSource(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -193,7 +192,7 @@ send [$a 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -221,7 +220,7 @@ send [EUR/2 $n] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -249,7 +248,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -277,7 +276,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -305,7 +304,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -333,7 +332,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -361,7 +360,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -392,7 +391,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -423,7 +422,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -453,7 +452,7 @@ func TestBadRemainingInSource(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -484,7 +483,7 @@ func TestBadRemainingInDest(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -514,7 +513,7 @@ func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
@@ -545,7 +544,7 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
@@ -577,7 +576,7 @@ func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
@@ -607,7 +606,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 0)
 }
 
@@ -629,7 +628,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	assert.IsType(t, diagnostics[0].Kind, &analysis.BadAllotmentSum{})
@@ -648,7 +647,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
@@ -677,7 +676,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 2)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
@@ -707,7 +706,7 @@ func TestNoBadAllotmentWhenRemaining(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }
 
@@ -723,7 +722,7 @@ func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
@@ -747,7 +746,7 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
@@ -775,7 +774,7 @@ send [COIN 100] (
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }
 
@@ -784,7 +783,7 @@ func TestCheckNoUnboundFunctionCall(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -804,7 +803,7 @@ func TestAllowedFnCall(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 0)
 }
 
@@ -813,7 +812,7 @@ func TestCheckFnCallTypesWrongType(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -836,7 +835,7 @@ func TestTooFewFnArgs(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -859,7 +858,7 @@ func TestTooManyFnArgs(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -882,7 +881,7 @@ func TestCheckTrailingCommaFnCall(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 }
 
@@ -900,7 +899,7 @@ func TestCheckTypesOriginFn(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
@@ -927,7 +926,7 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 
 	program := parser.Parse(input).Value
 
-	diagnostics := analysis.Check(program).Diagnostics
+	diagnostics := analysis.CheckProgram(program).Diagnostics
 	assert.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
