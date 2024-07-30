@@ -314,3 +314,50 @@ func TestHoverOnFnOriginDocs(t *testing.T) {
 	}
 
 }
+
+func TestHoverFaultTolerance(t *testing.T) {
+	t.Run("missing lit", func(t *testing.T) {
+		input := `
+			send [COIN 10] (
+				source = max <invalidtk> from @a
+				destination = @a
+			)
+		`
+
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+
+	t.Run("missing source", func(t *testing.T) {
+		input := `
+			send [COIN 10] (
+				source = <invalidtk>
+				destination = @a
+			)
+		`
+
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+
+	t.Run("missing source in inorder", func(t *testing.T) {
+		input := `
+			send [COIN 10] (
+				source = {
+				 	@a
+					<invalidtk>
+				}
+				destination = @a
+			)
+		`
+
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+}

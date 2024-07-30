@@ -113,6 +113,10 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 }
 
 func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
+	if lit == nil {
+		return nil
+	}
+
 	if !lit.GetRange().Contains(position) {
 		return nil
 	}
@@ -140,6 +144,10 @@ func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
 }
 
 func hoverOnSource(source parser.Source, position parser.Position) Hover {
+	if source == nil {
+		return nil
+	}
+
 	if !source.GetRange().Contains(position) {
 		return nil
 	}
@@ -174,7 +182,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 	case *parser.SourceInorder:
 		for _, source := range source.Sources {
 			// TODO binary search
-			if !source.GetRange().Contains(position) {
+			if source == nil || !source.GetRange().Contains(position) {
 				continue
 			}
 
