@@ -1,10 +1,8 @@
 package interpreter
 
 import (
-	"fmt"
 	"math/big"
 	"numscript/analysis"
-	"numscript/parser"
 )
 
 type Value interface {
@@ -86,45 +84,13 @@ func expectAccount(v Value) (*AccountAddress, error) {
 	}
 }
 
-// TODO delete the following:
-
-func expectAccountLit(literal parser.Literal, vars map[string]Value) (AccountAddress, error) {
-	switch literal := literal.(type) {
-	case *parser.AccountLiteral:
-		return AccountAddress(literal.Name), nil
-
-	case *parser.VariableLiteral:
-		value, found := vars[literal.Name]
-		if !found {
-			panic("var not found")
-		}
-
-		account, ok := value.(AccountAddress)
-		if !ok {
-			fmt.Printf("VALUE =%#v\n", value)
-			panic("TODO wrong type for var: " + literal.Name)
-		}
-		return account, nil
+func expectPortion(v Value) (*Portion, error) {
+	switch v := v.(type) {
+	case Portion:
+		return &v, nil
 
 	default:
-		panic("TODO invalid type (expected asset)")
-	}
-}
-
-func expectPortionLit(literal parser.Literal, vars map[string]Value) (Portion, error) {
-	switch literal := literal.(type) {
-	case *parser.RatioLiteral:
-		return Portion(*literal.ToRatio()), nil
-
-	case *parser.VariableLiteral:
-		portion, ok := vars[literal.Name].(Portion)
-		if !ok {
-			panic("TODO ret err")
-		}
-		return portion, nil
-
-	default:
-		panic("TODO invalid type (expected asset)")
+		return nil, TypeError{Expected: analysis.TypePortion, Value: v}
 	}
 }
 

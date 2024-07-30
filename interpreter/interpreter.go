@@ -400,12 +400,17 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 func (s *programState) trySending(source parser.Source, monetary Monetary) big.Int {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
-		account, err := expectAccountLit(source, s.Vars)
+		accountValue, err := s.evaluateLit(source)
 		if err != nil {
-			// TODO return err
+			// TODO proper error handling
 			panic(err)
 		}
-		return s.trySendingAccount(string(account), monetary)
+		account, err := expectAccount(accountValue)
+		if err != nil {
+			// TODO proper error handling
+			panic(err)
+		}
+		return s.trySendingAccount(string(*account), monetary)
 
 	case *parser.AccountLiteral:
 		return s.trySendingAccount(source.Name, monetary)
@@ -470,12 +475,17 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		return s.receiveFromAccount(destination.Name, monetary)
 
 	case *parser.VariableLiteral:
-		account, err := expectAccountLit(destination, s.Vars)
+		accountValue, err := s.evaluateLit(destination)
 		if err != nil {
-			// TODO return err
+			// TODO proper error handling
 			panic(err)
 		}
-		return s.receiveFromAccount(string(account), monetary)
+		account, err := expectAccount(accountValue)
+		if err != nil {
+			// TODO proper error handling
+			panic(err)
+		}
+		return s.receiveFromAccount(string(*account), monetary)
 
 	case *parser.DestinationAllotment:
 		monetaryAmount := big.Int(monetary.Amount)
@@ -551,12 +561,19 @@ func (s programState) makeAllotment(monetary int64, items []parser.AllotmentValu
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, *rat)
 		case *parser.VariableLiteral:
-			p, err := expectPortionLit(allotment, s.Vars)
+			allotmentValue, err := s.evaluateLit(allotment)
 			if err != nil {
-				// TODO return err
+				// TODO proper error handling
 				panic(err)
 			}
-			rat := big.Rat(p)
+
+			portion, err := expectPortion(allotmentValue)
+			if err != nil {
+				// TODO proper error handling
+				panic(err)
+			}
+
+			rat := big.Rat(*portion)
 			totalAllotment.Add(totalAllotment, &rat)
 			allotments = append(allotments, rat)
 
