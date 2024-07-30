@@ -6,6 +6,7 @@ import (
 	"numscript/analysis"
 	"numscript/parser"
 	"strconv"
+	"strings"
 )
 
 type Metadata map[string]string
@@ -41,11 +42,32 @@ func parsePercentage(p string) big.Rat {
 	return *big.NewRat(int64(num), int64(den))
 }
 
+func parseMonetary(source string) (Monetary, error) {
+	stripBrackets := source[1 : len(source)-1]
+	parts := strings.Split(stripBrackets, " ")
+	if len(parts) != 2 {
+		// TODO proper error handling
+		panic("Invalid mon literal")
+	}
+
+	// TODO check original numscript impl
+	rawAmount := parts[1]
+	parsedAmount, err := strconv.ParseInt(rawAmount, 0, 64)
+	if err != nil {
+		return Monetary{}, err
+	}
+	mon := Monetary{
+		Asset:  Asset(rawAmount),
+		Amount: NewMonetaryInt(parsedAmount),
+	}
+	return mon, nil
+}
+
 func parseVar(type_ string, rawValue string) (Value, error) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
 	case analysis.TypeMonetary:
-		panic("TODO handle parsing of: " + type_)
+		return parseMonetary(rawValue)
 	case analysis.TypeAccount:
 		return AccountAddress(rawValue), nil
 	case analysis.TypePortion:
@@ -401,10 +423,60 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 		}
 		return *sentTotal
 
-	// case *parser.SourceAllotment:
+	case *parser.SourceAllotment:
+		monetaryAmount := big.Int(monetary.Amount)
+
+		// TODO runtime error when totalAllotment != 1?
+		totalAllotment := big.NewRat(0, 1)
+		receivedTotal := big.NewInt(0)
+		var allotments []big.Rat
+
+		remainingAllotmentIndex := -1
+
+		for i, item := range source.Items {
+			switch allotment := item.Allotment.(type) {
+			case *parser.RatioLiteral:
+				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
+				totalAllotment.Add(totalAllotment, rat)
+				allotments = append(allotments, *rat)
+			case *parser.VariableLiteral:
+				p, err := expectPortionLit(allotment, s.Vars)
+				if err != nil {
+					// TODO return err
+					panic(err)
+				}
+				rat := big.Rat(p)
+				totalAllotment.Add(totalAllotment, &rat)
+				allotments = append(allotments, rat)
+
+			case *parser.RemainingAllotment:
+				remainingAllotmentIndex = i
+				var rat big.Rat
+				allotments = append(allotments, rat)
+				// TODO check there are not duplicate remaining clause
+			}
+		}
+
+		if remainingAllotmentIndex != -1 {
+			var rat big.Rat
+			rat.Sub(big.NewRat(1, 1), totalAllotment)
+			allotments[remainingAllotmentIndex] = rat
+		}
+
+		allot := makeAllotment(monetaryAmount.Int64(), allotments)
+		for i, allotmentItem := range source.Items {
+			allot_ := allot[i]
+			source := allotmentItem.From
+			receivedMon := monetary
+			receivedMon.Amount = NewMonetaryInt(allot_)
+			received := s.trySending(source, receivedMon)
+			receivedTotal.Add(receivedTotal, &received)
+		}
+		return *receivedTotal
+
 	// case *parser.SourceCapped:
 	// case *parser.SourceOverdraft:
-	// case *parser.VariableLiteral:
+
 	default:
 		panic("TODO handle clause")
 

@@ -676,3 +676,77 @@ func TestTrackBalances3(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestSourceAllotment(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = {
+			60% from @a
+			35.5% from @b
+			4.5% from @c
+		}
+		destination = @d
+	)`)
+	tc.setBalance("a", "COIN", 100)
+	tc.setBalance("b", "COIN", 100)
+	tc.setBalance("c", "COIN", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(61),
+				Source:      "a",
+				Destination: "d",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(35),
+				Source:      "b",
+				Destination: "d",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(4),
+				Source:      "c",
+				Destination: "d",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSourceOverlapping(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 99] (
+		source = {
+			15% from {
+				@b
+				@a
+			}
+			30% from @a
+			remaining from @a
+		}
+		destination = @world
+	)`)
+	tc.setBalance("a", "COIN", 99)
+	tc.setBalance("b", "COIN", 3)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(3),
+				Source:      "b",
+				Destination: "world",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(96),
+				Source:      "a",
+				Destination: "world",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
