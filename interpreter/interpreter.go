@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"numscript/analysis"
 	"numscript/parser"
+	"numscript/utils"
 	"strconv"
 	"strings"
 )
@@ -110,6 +111,13 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 		}
 
 		return parsed, nil
+
+	case "balance":
+		monetary, err := balance(s, args)
+		if err != nil {
+			return nil, err
+		}
+		return *monetary, nil
 
 	default:
 		panic("TODO handle fn call: " + fnCall.Caller.Name)
@@ -481,37 +489,54 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 		return *receivedTotal
 
-	// case *parser.DestinationInorder:
-	// sentTotal := big.NewInt(0)
-	// for _, source := range source.Sources {
-	// 	var sendingMonetary big.Int
-	// 	sendingMonetary.Sub((*big.Int)(&monetary.Amount), sentTotal)
-	// 	sentAmt := s.trySending(source, Monetary{
-	// 		Amount: MonetaryInt(sendingMonetary),
-	// 		Asset:  monetary.Asset,
-	// 	})
-	// 	sentTotal.Add(sentTotal, &sentAmt)
-	// }
-	// return *sentTotal
+	case *parser.DestinationInorder:
+		receivedTotal := big.NewInt(0)
 
-	// receivedTotal := big.NewInt(0)
-	// for _, destination := range d.Destinations {
-	// 	receivedTotal += destination.receive(monetary-receivedTotal, ctx)
-	// 	// if receivedTotal >= monetary {
-	// 	// 	break
-	// 	// }
-	// }
+		// TODO make this prettier
+		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) {
+			switch destinationTarget := keptOrDest.(type) {
+			case *parser.DestinationKept:
+				panic("TODO handle destination kept")
+			case *parser.DestinationTo:
+				var amountToReceive *big.Int
+				if capLit == nil {
+					amountToReceive = (*big.Int)(&monetary.Amount)
+				} else {
+					cap, err := evaluateLitExpecting(s, capLit, expectMonetary)
+					if err != nil {
+						// TODo properly handle err
+						panic(err)
+					}
 
-	// return receivedTotal
+					amountToReceive = utils.MinBigInt((*big.Int)(&cap.Amount), (*big.Int)(&monetary.Amount))
+				}
 
-	// case *parser.SourceCapped:
-	// case *parser.SourceOverdraft:
-	// case *parser.VariableLiteral:
+				var remainingAmount big.Int
+				remainingAmount.Sub(amountToReceive, receivedTotal)
+				remainingMonetary := Monetary{
+					Amount: MonetaryInt(remainingAmount),
+					Asset:  monetary.Asset,
+				}
+				// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
+				received := s.receiveFrom(destinationTarget.Destination, remainingMonetary)
+				receivedTotal.Add(receivedTotal, &received)
+
+			default:
+				panic("TODO handle")
+			}
+		}
+
+		for _, destinationClause := range destination.Clauses {
+			handler(destinationClause.To, destinationClause.Cap)
+			// TODO should I break if all the amount has been received?
+		}
+		handler(destination.Remaining, nil)
+		return *receivedTotal
+
 	default:
 		panic("TODO handle clause")
 
 	}
-
 }
 
 func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) []int64 {
@@ -607,6 +632,33 @@ func meta(
 	}
 
 	return value, nil
+}
+
+func balance(
+	s *programState,
+	args []Value,
+) (*Monetary, error) {
+	if len(args) < 2 {
+		panic("TODO handle type error in balance")
+	}
+
+	account, err := expectAccount(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := expectAsset(args[1])
+	if err != nil {
+		return nil, err
+	}
+
+	// body
+	balance := s.getBalance(string(*account), string(*asset))
+	m := Monetary{
+		Asset:  Asset(*asset),
+		Amount: MonetaryInt(*balance),
+	}
+	return &m, nil
 }
 
 func setTxMeta(st *programState, args []Value) error {

@@ -864,3 +864,302 @@ func TestSourceComplex(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestDestinationComplex(t *testing.T) {
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @world
+		destination = {
+			20% to @a
+			20% kept
+			60% to {
+				max [COIN 10] to @b
+				remaining to @c
+			}
+		}
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(20),
+				Source:      "world",
+				Destination: "a",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "b",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "world",
+				Destination: "c",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+// TODO TestNeededBalances, TestSetTxMeta, TestSetAccountMeta
+
+func TestBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $balance = balance(@a, EUR/2)
+	}
+
+	send $balance (
+		source = @world
+		destination = @dest
+	)`)
+	tc.setBalance("a", "EUR/2", 123)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(123),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestInoderDestination(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @world
+		destination = {
+			max [COIN 20] to @dest1
+			remaining to @dest2
+		}
+	)`)
+	tc.setBalance("a", "COIN", 123)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(20),
+				Source:      "world",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(80),
+				Source:      "world",
+				Destination: "dest2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestVariableBalance(t *testing.T) {
+	// TODO unskip
+	t.Skip()
+
+	script := `
+		vars {
+		  monetary $initial = balance(@A, USD/2)
+		}
+		send [USD/2 100] (
+		  source = {
+			@A
+			@C
+		  }
+		  destination = {
+			max $initial to @B
+			remaining to @D
+		  }
+		)`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("A", "USD/2", 40)
+		tc.setBalance("C", "USD/2", 90)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(40),
+					Source:      "A",
+					Destination: "B",
+				},
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(60),
+					Source:      "C",
+					Destination: "D",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("A", "USD/2", 400)
+		tc.setBalance("C", "USD/2", 90)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(100),
+					Source:      "A",
+					Destination: "B",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	script = `
+		vars {
+		  account $acc
+		  monetary $initial = balance($acc, USD/2)
+		}
+		send [USD/2 100] (
+		  source = {
+			$acc
+			@C
+		  }
+		  destination = {
+			max $initial to @B
+			remaining to @D
+		  }
+		)`
+
+	t.Run("3", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("A", "USD/2", 40)
+		tc.setBalance("C", "USD/2", 90)
+		tc.setVarsFromJSON(t, `{"acc": "A"}`)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(40),
+					Source:      "A",
+					Destination: "B",
+				},
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(60),
+					Source:      "C",
+					Destination: "D",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("4", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("A", "USD/2", 400)
+		tc.setBalance("C", "USD/2", 90)
+		tc.setVarsFromJSON(t, `{"acc": "A"}`)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(100),
+					Source:      "A",
+					Destination: "B",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("5", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+		vars {
+			monetary $max = balance(@maxAcc, COIN)
+		}
+		send [COIN 200] (
+			source = {
+				50% from {
+					max [COIN 4] from @a
+					@b
+					@c
+				}
+				remaining from max $max from @d
+			}
+			destination = @platform
+		)`)
+		tc.setBalance("maxAcc", "COIN", 120)
+		tc.setBalance("a", "COIN", 1000)
+		tc.setBalance("b", "COIN", 40)
+		tc.setBalance("c", "COIN", 1000)
+		tc.setBalance("d", "COIN", 1000)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(4),
+					Source:      "a",
+					Destination: "platform",
+				},
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(40),
+					Source:      "b",
+					Destination: "platform",
+				},
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(56),
+					Source:      "c",
+					Destination: "platform",
+				},
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(100),
+					Source:      "d",
+					Destination: "platform",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	// TODO
+	// t.Run("send negative monetary", func(t *testing.T) {
+	// 	tc := NewTestCase()
+	// 	script = `
+	// 	vars {
+	// 	  monetary $amount = balance(@world, USD/2)
+	// 	}
+	// 	send $amount (
+	// 	  source = @A
+	// 	  destination = @B
+	// 	)`
+	// 	tc.compile(t, script)
+	// 	tc.setBalance("world", "USD/2", -40)
+	// 	tc.expected = CaseResult{
+	// 		Error:         &machine.ErrNegativeAmount{},
+	// 		ErrorContains: "must be non-negative",
+	// 	}
+	// 	test(t, tc)
+	// })
+}
