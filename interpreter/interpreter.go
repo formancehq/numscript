@@ -43,12 +43,13 @@ func parsePercentage(p string) big.Rat {
 }
 
 func parseMonetary(source string) (Monetary, error) {
-	stripBrackets := source[1 : len(source)-1]
-	parts := strings.Split(stripBrackets, " ")
+	parts := strings.Split(source, " ")
 	if len(parts) != 2 {
 		// TODO proper error handling
 		panic("Invalid mon literal")
 	}
+
+	asset := parts[0]
 
 	// TODO check original numscript impl
 	rawAmount := parts[1]
@@ -57,7 +58,7 @@ func parseMonetary(source string) (Monetary, error) {
 		return Monetary{}, err
 	}
 	mon := Monetary{
-		Asset:  Asset(rawAmount),
+		Asset:  Asset(asset),
 		Amount: NewMonetaryInt(parsedAmount),
 	}
 	return mon, nil
@@ -440,7 +441,29 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 		}
 		return *receivedTotal
 
-	// case *parser.SourceCapped:
+	case *parser.SourceCapped:
+		monetaryAmount := big.Int(monetary.Amount)
+
+		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetary)
+		if err != nil {
+			// TODO proper error handling
+			panic(err)
+		}
+		// TODO check monetary asset
+		capInt := big.Int(cap.Amount)
+
+		var cappedAmount big.Int
+		if monetaryAmount.Cmp(&capInt) == -1 /* monetary < cap */ {
+			cappedAmount.Set(&monetaryAmount)
+		} else {
+			cappedAmount.Set(&capInt)
+		}
+
+		return s.trySending(source.From, Monetary{
+			Amount: MonetaryInt(cappedAmount),
+			Asset:  cap.Asset,
+		})
+
 	// case *parser.SourceOverdraft:
 
 	default:

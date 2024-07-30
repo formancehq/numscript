@@ -750,3 +750,117 @@ func TestSourceOverlapping(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestCappedWhenMoreThanBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 100] (
+		source = {
+			max [COIN 200] from @world
+			@src
+		}
+		destination = @platform
+	)
+	`)
+	tc.setBalance("src", "COIN", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestCappedWhenLessThanNeeded(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 100] (
+		source = {
+			max [COIN 40] from @src1
+			@src2
+		}
+		destination = @platform
+	)
+	`)
+	tc.setBalance("src1", "COIN", 1000)
+	tc.setBalance("src2", "COIN", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(40),
+				Source:      "src1",
+				Destination: "platform",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(60),
+				Source:      "src2",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSourceComplex(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		monetary $max
+	}
+	send [COIN 200] (
+		source = {
+			50% from {
+				max [COIN 4] from @a
+				@b
+				@c
+			}
+			remaining from max $max from @d
+		}
+		destination = @platform
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"max": "COIN 120"
+	}`)
+	tc.setBalance("a", "COIN", 1000)
+	tc.setBalance("b", "COIN", 40)
+	tc.setBalance("c", "COIN", 1000)
+	tc.setBalance("d", "COIN", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(4),
+				Source:      "a",
+				Destination: "platform",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(40),
+				Source:      "b",
+				Destination: "platform",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(56),
+				Source:      "c",
+				Destination: "platform",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "d",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
