@@ -225,22 +225,12 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 	case *parser.NumberLiteral:
 		return MonetaryInt(*big.NewInt(int64(literal.Number))), nil
 	case *parser.MonetaryLiteral:
-		assetValue, err := st.evaluateLit(literal.Asset)
-		if err != nil {
-			return Monetary{}, err
-		}
-
-		asset, err := expectAsset(assetValue)
+		asset, err := evaluateLitExpecting(st, literal.Asset, expectAsset)
 		if err != nil {
 			return nil, err
 		}
 
-		amountValue, err := st.evaluateLit(literal.Amount)
-		if err != nil {
-			return Monetary{}, err
-		}
-
-		amount, err := expectNumber(amountValue)
+		amount, err := evaluateLitExpecting(st, literal.Amount, expectNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -256,6 +246,20 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 	default:
 		panic("TODO handle literal evaluation")
 	}
+}
+
+func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value) (*T, error)) (*T, error) {
+	value, err := st.evaluateLit(literal)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := expect(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, error) {
@@ -320,11 +324,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 	case *parser.SentValueAll:
 		panic("TODO handle send*")
 	case *parser.SentValueLiteral:
-		sentValue_, err := st.evaluateLit(sentValue.Monetary)
-		if err != nil {
-			return nil, err
-		}
-		monetary, err := expectMonetary(sentValue_)
+		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return nil, err
 		}
@@ -400,12 +400,7 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 func (s *programState) trySending(source parser.Source, monetary Monetary) big.Int {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
-		accountValue, err := s.evaluateLit(source)
-		if err != nil {
-			// TODO proper error handling
-			panic(err)
-		}
-		account, err := expectAccount(accountValue)
+		account, err := evaluateLitExpecting(s, source, expectAccount)
 		if err != nil {
 			// TODO proper error handling
 			panic(err)
@@ -475,12 +470,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		return s.receiveFromAccount(destination.Name, monetary)
 
 	case *parser.VariableLiteral:
-		accountValue, err := s.evaluateLit(destination)
-		if err != nil {
-			// TODO proper error handling
-			panic(err)
-		}
-		account, err := expectAccount(accountValue)
+		account, err := evaluateLitExpecting(s, destination, expectAccount)
 		if err != nil {
 			// TODO proper error handling
 			panic(err)
@@ -547,7 +537,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 }
 
-func (s programState) makeAllotment(monetary int64, items []parser.AllotmentValue) []int64 {
+func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) []int64 {
 	// TODO runtime error when totalAllotment != 1?
 	totalAllotment := big.NewRat(0, 1)
 	var allotments []big.Rat
@@ -561,13 +551,7 @@ func (s programState) makeAllotment(monetary int64, items []parser.AllotmentValu
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, *rat)
 		case *parser.VariableLiteral:
-			allotmentValue, err := s.evaluateLit(allotment)
-			if err != nil {
-				// TODO proper error handling
-				panic(err)
-			}
-
-			portion, err := expectPortion(allotmentValue)
+			portion, err := evaluateLitExpecting(s, allotment, expectPortion)
 			if err != nil {
 				// TODO proper error handling
 				panic(err)
