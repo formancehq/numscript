@@ -264,7 +264,7 @@ func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
 	}
 }
 
-func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue {
+func parseAllotment(allotmentCtx parser.IAllotmentContext) AllotmentValue {
 	switch allotmentCtx := allotmentCtx.(type) {
 	case *parser.PortionedAllotmentContext:
 		return parsePortionSource(allotmentCtx.Portion())
@@ -281,7 +281,7 @@ func parseAllotment(allotmentCtx parser.IAllotmentContext) SourceAllotmentValue 
 		return nil
 
 	default:
-		return utils.NonExhaustiveMatchPanic[SourceAllotmentValue](allotmentCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[AllotmentValue](allotmentCtx.GetText())
 	}
 }
 
@@ -446,7 +446,7 @@ func parseKeptOrDestination(clauseCtx parser.IKeptOrDestinationContext) KeptOrDe
 
 }
 
-func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) DestinationAllotmentValue {
+func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) AllotmentValue {
 	switch allotmentCtx := allotmentCtx.(type) {
 	case *parser.RemainingAllotmentContext:
 		return &RemainingAllotment{
@@ -463,11 +463,11 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) Destinatio
 		return nil
 
 	default:
-		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](allotmentCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[AllotmentValue](allotmentCtx.GetText())
 	}
 }
 
-func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllotmentValue {
+func parseDestinationPortion(portionCtx parser.IPortionContext) AllotmentValue {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
 		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
@@ -479,7 +479,7 @@ func parseDestinationPortion(portionCtx parser.IPortionContext) DestinationAllot
 		return nil
 
 	default:
-		return utils.NonExhaustiveMatchPanic[DestinationAllotmentValue](portionCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[AllotmentValue](portionCtx.GetText())
 	}
 }
 
