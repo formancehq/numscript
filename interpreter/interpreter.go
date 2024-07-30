@@ -312,8 +312,9 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		// sentTotal < monetary.Amount
 		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
 			var missing big.Int
+			missing.Sub((*big.Int)(&monetary.Amount), &sentTotal)
 			return nil, MissingFundsErr{
-				Missing: *missing.Sub((*big.Int)(&monetary.Amount), &sentTotal),
+				Missing: missing,
 				Sent:    sentTotal,
 			}
 		}
@@ -334,18 +335,24 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 func (s *programState) getBalance(account string, asset string) *big.Int {
 	balance, ok := s.Store[account]
 	if !ok {
-		panic(fmt.Sprintf("balance for '%s' not found (given: %v)", account, s.Store))
+		m := &AccountWithBalances{Balances: make(map[string]*big.Int)}
+		s.Store[account] = m
+		balance = m
 	}
 
 	assetBalance, ok := balance.Balances[asset]
 	if !ok {
-		panic("balance not found for the given currency")
+		zero := big.NewInt(0)
+		balance.Balances[asset] = zero
+		assetBalance = zero
 	}
 	return assetBalance
 }
 
 func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int {
-	monetaryAmount := big.Int(monetary.Amount)
+	var monetaryAmount big.Int
+	amtRef := big.Int(monetary.Amount)
+	monetaryAmount.Set(&amtRef)
 
 	if name != "world" {
 		balance := s.getBalance(name, string(monetary.Asset))
@@ -407,6 +414,10 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 
 func (s *programState) receiveFromAccount(name string, monetary Monetary) big.Int {
 	mon := big.Int(monetary.Amount)
+
+	balance := s.getBalance(name, string(monetary.Asset))
+	balance.Add(balance, &mon)
+
 	s.Receivers = append(s.Receivers, Receiver{
 		Name:     name,
 		Monetary: &mon,

@@ -583,3 +583,96 @@ func TestMetadata(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestTrackBalances(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 50] (
+		source = @world
+		destination = @a
+	)
+	send [COIN 100] (
+		source = @a
+		destination = @b
+	)`)
+	tc.setBalance("a", "COIN", 50)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "world",
+				Destination: "a",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "a",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestTrackBalances2(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 50] (
+		source = @a
+		destination = @z
+	)
+	send [COIN 50] (
+		source = @a
+		destination = @z
+	)`)
+	tc.setBalance("a", "COIN", 60)
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MissingFundsErr{
+			Missing: *big.NewInt(40),
+			Sent:    *big.NewInt(10),
+		},
+	}
+	test(t, tc)
+}
+
+func TestTrackBalances3(t *testing.T) {
+	// TODO unskip this
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @foo
+		destination = {
+			max [COIN 1000] to @bar
+			remaining kept
+		}
+	)
+	send [COIN *] (
+		source = @foo
+		destination = @bar
+	)`)
+	tc.setBalance("foo", "COIN", 2000)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1000),
+				Source:      "foo",
+				Destination: "bar",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1000),
+				Source:      "foo",
+				Destination: "bar",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

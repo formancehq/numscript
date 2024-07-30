@@ -31,7 +31,7 @@ func (Asset) value()          {}
 
 func (v String) String() string         { return string(v) }
 func (v AccountAddress) String() string { return string(v) }
-func (MonetaryInt) String() string      { panic("TODO impl") }
+func (v MonetaryInt) String() string    { i := big.Int(v); return i.String() }
 func (Monetary) String() string         { panic("TODO impl") }
 func (Portion) String() string          { panic("TODO impl") }
 func (Asset) String() string            { panic("TODO impl") }
