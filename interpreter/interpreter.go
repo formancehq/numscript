@@ -91,36 +91,6 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 
 }
 
-func meta(
-	s *programState,
-	args []Value,
-) (string, error) {
-	if len(args) < 2 {
-		panic("TODO handle type error in meta")
-	}
-
-	account, err := expectAccount(args[0])
-	if err != nil {
-		return "", err
-	}
-
-	key, err := expectString(args[1])
-	if err != nil {
-		return "", err
-	}
-
-	// body
-	accountMeta := s.Meta[account.String()]
-	value, ok := accountMeta[string(*key)]
-
-	if !ok {
-		// TODO err
-		panic("META NOT FOUND")
-	}
-
-	return value, nil
-}
-
 func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, error) {
 	args, err := s.evaluateLiterals(fnCall.Args)
 	if err != nil {
@@ -302,22 +272,6 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 	default:
 		panic("TODO unhandled clause")
 	}
-}
-
-func setTxMeta(st *programState, args []Value) error {
-	if len(args) != 2 {
-		// TODO err
-		panic("invalid args number")
-	}
-
-	k, err := expectString(args[0])
-	if err != nil {
-		return err
-	}
-
-	meta := args[1]
-	st.TxMeta[string(*k)] = meta
-	return nil
 }
 
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
@@ -622,4 +576,51 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 	}
 
 	return parts
+}
+
+// Builtins
+func meta(
+	s *programState,
+	args []Value,
+) (string, error) {
+	if len(args) < 2 {
+		panic("TODO handle type error in meta")
+	}
+
+	account, err := expectAccount(args[0])
+	if err != nil {
+		return "", err
+	}
+
+	key, err := expectString(args[1])
+	if err != nil {
+		return "", err
+	}
+
+	// body
+	accountMeta := s.Meta[account.String()]
+	value, ok := accountMeta[string(*key)]
+
+	if !ok {
+		// TODO err
+		panic("META NOT FOUND")
+	}
+
+	return value, nil
+}
+
+func setTxMeta(st *programState, args []Value) error {
+	if len(args) != 2 {
+		// TODO err
+		panic("invalid args number")
+	}
+
+	k, err := expectString(args[0])
+	if err != nil {
+		return err
+	}
+
+	meta := args[1]
+	st.TxMeta[string(*k)] = meta
+	return nil
 }
