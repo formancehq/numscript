@@ -425,50 +425,16 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 
 	case *parser.SourceAllotment:
 		monetaryAmount := big.Int(monetary.Amount)
-
-		// TODO runtime error when totalAllotment != 1?
-		totalAllotment := big.NewRat(0, 1)
 		receivedTotal := big.NewInt(0)
-		var allotments []big.Rat
-
-		remainingAllotmentIndex := -1
-
-		for i, item := range source.Items {
-			switch allotment := item.Allotment.(type) {
-			case *parser.RatioLiteral:
-				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
-				totalAllotment.Add(totalAllotment, rat)
-				allotments = append(allotments, *rat)
-			case *parser.VariableLiteral:
-				p, err := expectPortionLit(allotment, s.Vars)
-				if err != nil {
-					// TODO return err
-					panic(err)
-				}
-				rat := big.Rat(p)
-				totalAllotment.Add(totalAllotment, &rat)
-				allotments = append(allotments, rat)
-
-			case *parser.RemainingAllotment:
-				remainingAllotmentIndex = i
-				var rat big.Rat
-				allotments = append(allotments, rat)
-				// TODO check there are not duplicate remaining clause
-			}
+		var items []parser.AllotmentValue
+		for _, i := range source.Items {
+			items = append(items, i.Allotment)
 		}
-
-		if remainingAllotmentIndex != -1 {
-			var rat big.Rat
-			rat.Sub(big.NewRat(1, 1), totalAllotment)
-			allotments[remainingAllotmentIndex] = rat
-		}
-
-		allot := makeAllotment(monetaryAmount.Int64(), allotments)
+		allot := s.makeAllotment(monetaryAmount.Int64(), items)
 		for i, allotmentItem := range source.Items {
-			allot_ := allot[i]
 			source := allotmentItem.From
 			receivedMon := monetary
-			receivedMon.Amount = NewMonetaryInt(allot_)
+			receivedMon.Amount = NewMonetaryInt(allot[i])
 			received := s.trySending(source, receivedMon)
 			receivedTotal.Add(receivedTotal, &received)
 		}
@@ -499,67 +465,34 @@ func (s *programState) receiveFromAccount(name string, monetary Monetary) big.In
 }
 
 func (s *programState) receiveFrom(destination parser.Destination, monetary Monetary) big.Int {
-	monetaryAmount := big.Int(monetary.Amount)
-
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
 		return s.receiveFromAccount(destination.Name, monetary)
+
 	case *parser.VariableLiteral:
 		account, err := expectAccountLit(destination, s.Vars)
 		if err != nil {
 			// TODO return err
 			panic(err)
 		}
-
 		return s.receiveFromAccount(string(account), monetary)
 
 	case *parser.DestinationAllotment:
-		// TODO runtime error when totalAllotment != 1?
-		totalAllotment := big.NewRat(0, 1)
+		monetaryAmount := big.Int(monetary.Amount)
+		var items []parser.AllotmentValue
+		for _, i := range destination.Items {
+			items = append(items, i.Allotment)
+		}
+
+		allot := s.makeAllotment(monetaryAmount.Int64(), items)
+
 		receivedTotal := big.NewInt(0)
-		var allotments []big.Rat
-
-		remainingAllotmentIndex := -1
-
-		for i, item := range destination.Items {
-			switch allotment := item.Allotment.(type) {
-			case *parser.RatioLiteral:
-				rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
-				totalAllotment.Add(totalAllotment, rat)
-				allotments = append(allotments, *rat)
-			case *parser.VariableLiteral:
-				p, err := expectPortionLit(allotment, s.Vars)
-				if err != nil {
-					// TODO return err
-					panic(err)
-				}
-				rat := big.Rat(p)
-				totalAllotment.Add(totalAllotment, &rat)
-				allotments = append(allotments, rat)
-
-			case *parser.RemainingAllotment:
-				remainingAllotmentIndex = i
-				var rat big.Rat
-				allotments = append(allotments, rat)
-				// TODO check there are not duplicate remaining clause
-			}
-		}
-
-		if remainingAllotmentIndex != -1 {
-			var rat big.Rat
-			rat.Sub(big.NewRat(1, 1), totalAllotment)
-			allotments[remainingAllotmentIndex] = rat
-		}
-
-		allot := makeAllotment(monetaryAmount.Int64(), allotments)
 		for i, allotmentItem := range destination.Items {
-			allot_ := allot[i]
-
 			switch allotmentItem := allotmentItem.To.(type) {
 			case *parser.DestinationTo:
 				dest := allotmentItem.Destination
 				receivedMon := monetary
-				receivedMon.Amount = NewMonetaryInt(allot_)
+				receivedMon.Amount = NewMonetaryInt(allot[i])
 				received := s.receiveFrom(dest, receivedMon)
 				receivedTotal.Add(receivedTotal, &received)
 
@@ -604,7 +537,43 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 }
 
-func makeAllotment(monetary int64, allotments []big.Rat) [](int64) {
+func (s programState) makeAllotment(monetary int64, items []parser.AllotmentValue) []int64 {
+	// TODO runtime error when totalAllotment != 1?
+	totalAllotment := big.NewRat(0, 1)
+	var allotments []big.Rat
+
+	remainingAllotmentIndex := -1
+
+	for i, item := range items {
+		switch allotment := item.(type) {
+		case *parser.RatioLiteral:
+			rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
+			totalAllotment.Add(totalAllotment, rat)
+			allotments = append(allotments, *rat)
+		case *parser.VariableLiteral:
+			p, err := expectPortionLit(allotment, s.Vars)
+			if err != nil {
+				// TODO return err
+				panic(err)
+			}
+			rat := big.Rat(p)
+			totalAllotment.Add(totalAllotment, &rat)
+			allotments = append(allotments, rat)
+
+		case *parser.RemainingAllotment:
+			remainingAllotmentIndex = i
+			var rat big.Rat
+			allotments = append(allotments, rat)
+			// TODO check there are not duplicate remaining clause
+		}
+	}
+
+	if remainingAllotmentIndex != -1 {
+		var rat big.Rat
+		rat.Sub(big.NewRat(1, 1), totalAllotment)
+		allotments[remainingAllotmentIndex] = rat
+	}
+
 	parts := make([]int64, len(allotments))
 
 	var totalAllocated int64
