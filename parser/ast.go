@@ -138,15 +138,15 @@ type SourceOverdraft struct {
 	Bounded *Literal
 }
 
-type SourceAllotmentValue interface{ sourceAllotmentValue() }
+type AllotmentValue interface{ allotmentValue() }
 
-func (*RemainingAllotment) sourceAllotmentValue() {}
-func (*RatioLiteral) sourceAllotmentValue()       {}
-func (*VariableLiteral) sourceAllotmentValue()    {}
+func (*RemainingAllotment) allotmentValue() {}
+func (*RatioLiteral) allotmentValue()       {}
+func (*VariableLiteral) allotmentValue()    {}
 
 type SourceAllotmentItem struct {
 	Range     Range
-	Allotment SourceAllotmentValue
+	Allotment AllotmentValue
 	From      Source
 }
 
@@ -163,12 +163,6 @@ func (*DestinationAllotment) destination() {}
 
 func (d *DestinationInorder) GetRange() Range   { return d.Range }
 func (d *DestinationAllotment) GetRange() Range { return d.Range }
-
-type DestinationAllotmentValue interface{ destinationAllotmentValue() }
-
-func (*RemainingAllotment) destinationAllotmentValue() {}
-func (*RatioLiteral) destinationAllotmentValue()       {}
-func (*VariableLiteral) destinationAllotmentValue()    {}
 
 type DestinationInorder struct {
 	Range     Range
@@ -202,7 +196,7 @@ type DestinationAllotment struct {
 
 type DestinationAllotmentItem struct {
 	Range     Range
-	Allotment DestinationAllotmentValue
+	Allotment AllotmentValue
 	To        KeptOrDestination
 }
 
