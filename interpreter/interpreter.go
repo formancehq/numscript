@@ -214,7 +214,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 			return nil, err
 		}
 
-		return Monetary{Asset: *asset, Amount: *amount}, nil
+		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
 
 	case *parser.VariableLiteral:
 		value, ok := st.Vars[literal.Name]
@@ -573,15 +573,14 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, *rat)
 		case *parser.VariableLiteral:
-			portion, err := evaluateLitExpecting(s, allotment, expectPortion)
+			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
 			if err != nil {
 				// TODO proper error handling
 				panic(err)
 			}
 
-			rat := big.Rat(*portion)
-			totalAllotment.Add(totalAllotment, &rat)
-			allotments = append(allotments, rat)
+			totalAllotment.Add(totalAllotment, rat)
+			allotments = append(allotments, *rat)
 
 		case *parser.RemainingAllotment:
 			remainingAllotmentIndex = i
@@ -643,8 +642,8 @@ func meta(
 	}
 
 	// body
-	accountMeta := s.Meta[account.String()]
-	value, ok := accountMeta[string(*key)]
+	accountMeta := s.Meta[*account]
+	value, ok := accountMeta[*key]
 
 	if !ok {
 		// TODO err
@@ -673,7 +672,7 @@ func balance(
 	}
 
 	// body
-	balance := s.getBalance(string(*account), string(*asset))
+	balance := s.getBalance(*account, *asset)
 	var balanceCopy big.Int
 	balanceCopy.Set(balance)
 
@@ -696,6 +695,6 @@ func setTxMeta(st *programState, args []Value) error {
 	}
 
 	meta := args[1]
-	st.TxMeta[string(*k)] = meta
+	st.TxMeta[*k] = meta
 	return nil
 }

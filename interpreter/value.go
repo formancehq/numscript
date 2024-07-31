@@ -45,50 +45,50 @@ func expectMonetary(v Value) (*Monetary, error) {
 	}
 }
 
-func expectNumber(v Value) (*MonetaryInt, error) {
+func expectNumber(v Value) (*big.Int, error) {
 	switch v := v.(type) {
 	case MonetaryInt:
-		return &v, nil
+		return (*big.Int)(&v), nil
 
 	default:
 		return nil, TypeError{Expected: analysis.TypeNumber, Value: v}
 	}
 }
 
-func expectString(v Value) (*String, error) {
+func expectString(v Value) (*string, error) {
 	switch v := v.(type) {
 	case String:
-		return &v, nil
+		return (*string)(&v), nil
 
 	default:
 		return nil, TypeError{Expected: analysis.TypeString, Value: v}
 	}
 }
 
-func expectAsset(v Value) (*Asset, error) {
+func expectAsset(v Value) (*string, error) {
 	switch v := v.(type) {
 	case Asset:
-		return &v, nil
+		return (*string)(&v), nil
 
 	default:
 		return nil, TypeError{Expected: analysis.TypeAsset, Value: v}
 	}
 }
 
-func expectAccount(v Value) (*AccountAddress, error) {
+func expectAccount(v Value) (*string, error) {
 	switch v := v.(type) {
 	case AccountAddress:
-		return &v, nil
+		return (*string)(&v), nil
 
 	default:
 		return nil, TypeError{Expected: analysis.TypeAccount, Value: v}
 	}
 }
 
-func expectPortion(v Value) (*Portion, error) {
+func expectPortion(v Value) (*big.Rat, error) {
 	switch v := v.(type) {
 	case Portion:
-		return &v, nil
+		return (*big.Rat)(&v), nil
 
 	default:
 		return nil, TypeError{Expected: analysis.TypePortion, Value: v}
