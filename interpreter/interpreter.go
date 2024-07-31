@@ -654,9 +654,12 @@ func balance(
 
 	// body
 	balance := s.getBalance(string(*account), string(*asset))
+	var balanceCopy big.Int
+	balanceCopy.Set(balance)
+
 	m := Monetary{
 		Asset:  Asset(*asset),
-		Amount: MonetaryInt(*balance),
+		Amount: MonetaryInt(balanceCopy),
 	}
 	return &m, nil
 }

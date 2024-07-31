@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"slices"
 )
@@ -13,7 +14,12 @@ type Posting struct {
 }
 
 type ReconcileError struct {
-	error
+	Receiver  Receiver
+	Receivers []Receiver
+}
+
+func (e ReconcileError) Error() string {
+	return fmt.Sprintf("Error reconciling senders and getters (receiver = %#v ; receivers = %v)", e.Receiver, e.Receivers)
 }
 
 type Sender struct {
@@ -28,6 +34,10 @@ type Receiver struct {
 	Asset    string
 }
 
+func (r *Receiver) String() string {
+	return fmt.Sprintf("<[%s %s] from  %s>", r.Asset, r.Monetary.String(), r.Name)
+}
+
 func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 	var postings []Posting
 
@@ -39,7 +49,10 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 
 		sender, empty := popStack(&senders)
 		if empty {
-			return nil, ReconcileError{}
+			return nil, ReconcileError{
+				Receiver:  receiver,
+				Receivers: receivers,
+			}
 		}
 
 		var postingAmount big.Int

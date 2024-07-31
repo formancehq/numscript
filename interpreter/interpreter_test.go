@@ -965,9 +965,6 @@ func TestInoderDestination(t *testing.T) {
 }
 
 func TestVariableBalance(t *testing.T) {
-	// TODO unskip
-	t.Skip()
-
 	script := `
 		vars {
 		  monetary $initial = balance(@A, USD/2)

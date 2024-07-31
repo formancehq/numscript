@@ -44,8 +44,11 @@ func TestNoReceiversLeft(t *testing.T) {
 
 func TestNoSendersLeft(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
-		Receivers:   []Receiver{{"dest", big.NewInt(10), "EUR"}},
-		ExpectedErr: ReconcileError{},
+		Receivers: []Receiver{{"dest", big.NewInt(10), "EUR"}},
+		ExpectedErr: ReconcileError{
+			Receiver:  Receiver{"dest", big.NewInt(10), "EUR"},
+			Receivers: make([]Receiver, 0),
+		},
 	})
 }
 
