@@ -111,7 +111,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 		if varsDecl.Origin == nil {
 			raw, ok := rawVars[varsDecl.Name.Name]
 			if !ok {
-				panic("TODO handle var not found: " + varsDecl.Name.Name)
+				return MissingVariableErr{Name: varsDecl.Name.Name}
 			}
 			parsed, err := parseVar(varsDecl.Type.Name, raw)
 			if err != nil {
@@ -200,7 +200,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 	case *parser.VariableLiteral:
 		value, ok := st.Vars[literal.Name]
 		if !ok {
-			panic("TODO err for unbound variable")
+			return nil, UnboundVariableErr{Name: literal.Name}
 		}
 		return value, nil
 	default:

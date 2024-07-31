@@ -1383,4 +1383,39 @@ func TestErrors(t *testing.T) {
 		test(t, tc)
 	})
 
+	t.Run("unbound variable", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+	send $unbound_var (
+		source = @a
+		destination = @b
+	)`)
+
+		tc.expected = CaseResult{
+			Error: machine.UnboundVariableErr{
+				Name: "unbound_var",
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("missing variable from json", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+	vars {
+		monetary $x
+	}
+
+	send $x (
+		source = @a
+		destination = @b
+	)`)
+
+		tc.expected = CaseResult{
+			Error: machine.MissingVariableErr{
+				Name: "x",
+			},
+		}
+		test(t, tc)
+	})
 }
