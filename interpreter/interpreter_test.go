@@ -1160,3 +1160,158 @@ func TestVariableBalance(t *testing.T) {
 	// 	test(t, tc)
 	// })
 }
+
+// TODO TestVariablesParsing, TestSetVarsFromJSON, TestResolveResources, TestResolveBalances, TestMachine
+
+// TODO
+// func TestVariablesErrors(t *testing.T) {
+// 	tc := NewTestCase()
+// 	tc.compile(t, `vars {
+// 		monetary $mon
+// 	}
+// 	send $mon (
+// 		source = @alice
+// 		destination = @bob
+// 	)`)
+// 	tc.setBalance("alice", "COIN", 10)
+// 	tc.vars = map[string]string{
+// 		"mon": "COIN -1",
+// 	}
+// 	tc.expected = CaseResult{
+// 		Postings:      []Posting{},
+// 		Error:         &machine.ErrInvalidVars{},
+// 		ErrorContains: "negative amount",
+// 	}
+// 	test(t, tc)
+// }
+
+func TestVariableAsset(t *testing.T) {
+	// TODO unskip
+	t.Skip()
+
+	script := `
+ 		vars {
+ 			asset $ass
+ 			monetary $bal = balance(@alice, $ass)
+ 		}
+
+ 		send [$ass 15] (
+ 			source = {
+ 				@alice
+ 				@bob
+ 			}
+ 			destination = @swap
+ 		)
+
+ 		send [$ass *] (
+ 			source = @swap
+ 			destination = {
+ 				max $bal to @alice_2
+ 				remaining to @bob_2
+ 			}
+ 		)`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.vars = map[string]string{
+		"ass": "USD",
+	}
+	tc.setBalance("alice", "USD", 10)
+	tc.setBalance("bob", "USD", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(10),
+				Source:      "alice",
+				Destination: "swap",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(5),
+				Source:      "bob",
+				Destination: "swap",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(10),
+				Source:      "swap",
+				Destination: "alice_2",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(5),
+				Source:      "swap",
+				Destination: "bob_2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+// TODO TestSaveFromAccount
+
+func TestUseDifferentAssetsWithSameSourceAccount(t *testing.T) {
+	// TODO unskip
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+	account $a_account
+}
+send [A 100] (
+	source = $a_account allowing unbounded overdraft
+	destination = @account1
+)
+send [B 100] (
+	source = @world
+	destination = @account2
+)`)
+	tc.setBalance("account1", "A", 100)
+	tc.setBalance("account2", "B", 100)
+	tc.setVarsFromJSON(t, `{"a_account": "world"}`)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{{
+			Source:      "world",
+			Destination: "account1",
+			Amount:      big.NewInt(100),
+			Asset:       "A",
+		}, {
+			Source:      "world",
+			Destination: "account2",
+			Amount:      big.NewInt(100),
+			Asset:       "B",
+		}},
+	}
+	test(t, tc)
+}
+
+func TestMaxWithUnboundedOverdraft(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+send [COIN 100] (
+	source = {
+		max [COIN 10] from @account1 allowing unbounded overdraft
+		@account2
+	}
+	destination = @world
+)`)
+	tc.setBalance("account1", "COIN", 10000)
+	tc.setBalance("account2", "COIN", 10000)
+	tc.expected = CaseResult{
+		Postings: []Posting{{
+			Source:      "account1",
+			Destination: "world",
+			Amount:      big.NewInt(10),
+			Asset:       "COIN",
+		}, {
+			Source:      "account2",
+			Destination: "world",
+			Amount:      big.NewInt(90),
+			Asset:       "COIN",
+		}},
+	}
+	test(t, tc)
+}

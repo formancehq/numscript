@@ -373,6 +373,28 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 	case *parser.AccountLiteral:
 		return s.trySendingAccount(source.Name, monetary)
 
+	case *parser.SourceOverdraft:
+		var monetaryAmount big.Int
+		amtRef := big.Int(monetary.Amount)
+		monetaryAmount.Set(&amtRef)
+
+		name, err := evaluateLitExpecting(s, source.Address, expectAccount)
+		if err != nil {
+			panic(err)
+		}
+
+		balance := s.getBalance(string(*name), string(monetary.Asset))
+		// TODO impl bounded overdraft
+		balance.Sub(balance, &monetaryAmount)
+
+		s.Senders = append(s.Senders, Sender{
+			Name:     string(*name),
+			Monetary: &monetaryAmount,
+			Asset:    string(monetary.Asset),
+		})
+
+		return monetaryAmount
+
 	case *parser.SourceInorder:
 		sentTotal := big.NewInt(0)
 		for _, source := range source.Sources {
@@ -425,8 +447,6 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 			Amount: MonetaryInt(cappedAmount),
 			Asset:  cap.Asset,
 		})
-
-	// case *parser.SourceOverdraft:
 
 	default:
 		panic("TODO handle clause")
