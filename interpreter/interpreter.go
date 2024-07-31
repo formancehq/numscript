@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"math/big"
 	"numscript/analysis"
 	"numscript/parser"
@@ -15,24 +14,6 @@ type Metadata map[string]string
 type ExecutionResult struct {
 	Postings []Posting
 	TxMeta   map[string]Value
-}
-
-type MissingFundsErr struct {
-	Missing big.Int
-	Sent    big.Int
-}
-
-func (e MissingFundsErr) Error() string {
-	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", e.Missing.String(), e.Sent.String())
-}
-
-type TypeError struct {
-	Expected string
-	Value    Value
-}
-
-func (e TypeError) Error() string {
-	return fmt.Sprintf("Invalid value received. Expecting value of type %s (got %#v instead)", e.Expected, e.Value)
 }
 
 func parsePercentage(p string) big.Rat {
@@ -292,15 +273,18 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			return nil, err
 		}
 
-		sentTotal := st.trySending(statement.Source, *monetary)
+		sentTotal, err := st.trySending(statement.Source, *monetary)
+		if err != nil {
+			return nil, err
+		}
 
 		// sentTotal < monetary.Amount
 		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
 			var missing big.Int
-			missing.Sub((*big.Int)(&monetary.Amount), &sentTotal)
+			missing.Sub((*big.Int)(&monetary.Amount), sentTotal)
 			return nil, MissingFundsErr{
 				Missing: missing,
-				Sent:    sentTotal,
+				Sent:    *sentTotal,
 			}
 		}
 
@@ -334,7 +318,7 @@ func (s *programState) getBalance(account string, asset string) *big.Int {
 	return assetBalance
 }
 
-func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int {
+func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.Int, error) {
 	var monetaryAmount big.Int
 	amtRef := big.Int(monetary.Amount)
 	monetaryAmount.Set(&amtRef)
@@ -357,16 +341,15 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) big.Int
 		Asset:    string(monetary.Asset),
 	})
 
-	return monetaryAmount
+	return &monetaryAmount, nil
 }
 
-func (s *programState) trySending(source parser.Source, monetary Monetary) big.Int {
+func (s *programState) trySending(source parser.Source, monetary Monetary) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.VariableLiteral:
 		account, err := evaluateLitExpecting(s, source, expectAccount)
 		if err != nil {
-			// TODO proper error handling
-			panic(err)
+			return nil, err
 		}
 		return s.trySendingAccount(string(*account), monetary)
 
@@ -393,20 +376,23 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 			Asset:    string(monetary.Asset),
 		})
 
-		return monetaryAmount
+		return &monetaryAmount, nil
 
 	case *parser.SourceInorder:
 		sentTotal := big.NewInt(0)
 		for _, source := range source.Sources {
 			var sendingMonetary big.Int
 			sendingMonetary.Sub((*big.Int)(&monetary.Amount), sentTotal)
-			sentAmt := s.trySending(source, Monetary{
+			sentAmt, err := s.trySending(source, Monetary{
 				Amount: MonetaryInt(sendingMonetary),
 				Asset:  monetary.Asset,
 			})
-			sentTotal.Add(sentTotal, &sentAmt)
+			if err != nil {
+				return nil, err
+			}
+			sentTotal.Add(sentTotal, sentAmt)
 		}
-		return *sentTotal
+		return sentTotal, nil
 
 	case *parser.SourceAllotment:
 		monetaryAmount := big.Int(monetary.Amount)
@@ -420,18 +406,20 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 			source := allotmentItem.From
 			receivedMon := monetary
 			receivedMon.Amount = NewMonetaryInt(allot[i])
-			received := s.trySending(source, receivedMon)
-			receivedTotal.Add(receivedTotal, &received)
+			received, err := s.trySending(source, receivedMon)
+			if err != nil {
+				return nil, err
+			}
+			receivedTotal.Add(receivedTotal, received)
 		}
-		return *receivedTotal
+		return receivedTotal, nil
 
 	case *parser.SourceCapped:
 		monetaryAmount := big.Int(monetary.Amount)
 
 		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetary)
 		if err != nil {
-			// TODO proper error handling
-			panic(err)
+			return nil, err
 		}
 		// TODO check monetary asset
 		capInt := big.Int(cap.Amount)

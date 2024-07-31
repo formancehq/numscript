@@ -1315,3 +1315,72 @@ send [COIN 100] (
 	}
 	test(t, tc)
 }
+
+func TestErrors(t *testing.T) {
+	t.Run("wrong type for send literal", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+	send @bad:type (
+		source = @a
+		destination = @b
+	)`)
+		tc.expected = CaseResult{
+			Error: machine.TypeError{
+				Expected: "monetary",
+				Value:    machine.AccountAddress("bad:type"),
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("wrong type for account literal", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+	vars {
+		number $var_src
+	}
+
+	send [COIN 10] (
+		source = {
+			1/2 from @world
+			remaining from {
+				@empty
+				max [COIN 100] from $var_src
+			}
+		}
+		destination = @b
+	)`)
+		tc.setVarsFromJSON(t, `{"var_src": "42"}`)
+
+		tc.expected = CaseResult{
+			Error: machine.TypeError{
+				Expected: "account",
+				Value:    machine.NewMonetaryInt(42),
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("wrong type for account cap", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+	vars {
+		string $v
+	}
+
+	send [COIN 10] (
+		source = max $v from @src
+		destination = @b
+	)`)
+		tc.setVarsFromJSON(t, `{"v": "abc"}`)
+
+		tc.expected = CaseResult{
+			Error: machine.TypeError{
+				Expected: "monetary",
+				Value:    machine.String("abc"),
+			},
+		}
+		test(t, tc)
+	})
+
+}

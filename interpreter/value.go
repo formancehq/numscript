@@ -28,12 +28,30 @@ func (Monetary) value()       {}
 func (Portion) value()        {}
 func (Asset) value()          {}
 
-func (v String) String() string         { return string(v) }
-func (v AccountAddress) String() string { return string(v) }
-func (v MonetaryInt) String() string    { i := big.Int(v); return i.String() }
-func (v Monetary) String() string       { return fmt.Sprintf("%s %s", v.Asset, v.Amount) }
-func (Portion) String() string          { panic("TODO impl") }
-func (v Asset) String() string          { return string(v) }
+func (v String) String() string {
+	return fmt.Sprintf(`"%s"`, string(v))
+}
+
+func (v AccountAddress) String() string {
+	return fmt.Sprintf("@%s", string(v))
+}
+
+func (v MonetaryInt) String() string {
+	i := big.Int(v)
+	return i.String()
+}
+
+func (v Monetary) String() string {
+	return fmt.Sprintf("[%s %s]", v.Asset, v.Amount)
+}
+
+func (Portion) String() string {
+	panic("TODO impl")
+}
+
+func (v Asset) String() string {
+	return string(v)
+}
 
 func expectMonetary(v Value) (*Monetary, error) {
 	switch v := v.(type) {
