@@ -296,7 +296,8 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		}
 		return postings, nil
 	default:
-		panic("TODO handle")
+		utils.NonExhaustiveMatchPanic[any](sentValue)
+		return nil, nil
 	}
 
 }
@@ -363,7 +364,7 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) (*big
 
 		name, err := evaluateLitExpecting(s, source.Address, expectAccount)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		balance := s.getBalance(*name, string(monetary.Asset))
@@ -401,7 +402,10 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) (*big
 		for _, i := range source.Items {
 			items = append(items, i.Allotment)
 		}
-		allot := s.makeAllotment(monetaryAmount.Int64(), items)
+		allot, err := s.makeAllotment(monetaryAmount.Int64(), items)
+		if err != nil {
+			return nil, err
+		}
 		for i, allotmentItem := range source.Items {
 			source := allotmentItem.From
 			receivedMon := monetary
@@ -477,7 +481,10 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 			items = append(items, i.Allotment)
 		}
 
-		allot := s.makeAllotment(monetaryAmount.Int64(), items)
+		allot, err := s.makeAllotment(monetaryAmount.Int64(), items)
+		if err != nil {
+			return nil, err
+		}
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
@@ -515,8 +522,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				} else {
 					cap, err := evaluateLitExpecting(s, capLit, expectMonetary)
 					if err != nil {
-						// TODo properly handle err
-						panic(err)
+						return err
 					}
 
 					amountToReceive = utils.MinBigInt((*big.Int)(&cap.Amount), (*big.Int)(&monetary.Amount))
@@ -555,7 +561,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 	}
 }
 
-func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) []int64 {
+func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, error) {
 	// TODO runtime error when totalAllotment != 1?
 	totalAllotment := big.NewRat(0, 1)
 	var allotments []big.Rat
@@ -571,8 +577,7 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 		case *parser.VariableLiteral:
 			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
 			if err != nil {
-				// TODO proper error handling
-				panic(err)
+				return nil, err
 			}
 
 			totalAllotment.Add(totalAllotment, rat)
@@ -615,7 +620,7 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 		totalAllocated++
 	}
 
-	return parts
+	return parts, nil
 }
 
 // Builtins
