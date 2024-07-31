@@ -383,12 +383,12 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) big.I
 			panic(err)
 		}
 
-		balance := s.getBalance(string(*name), string(monetary.Asset))
+		balance := s.getBalance(*name, string(monetary.Asset))
 		// TODO impl bounded overdraft
 		balance.Sub(balance, &monetaryAmount)
 
 		s.Senders = append(s.Senders, Sender{
-			Name:     string(*name),
+			Name:     *name,
 			Monetary: &monetaryAmount,
 			Asset:    string(monetary.Asset),
 		})
