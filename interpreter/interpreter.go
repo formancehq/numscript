@@ -437,13 +437,14 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) (*big
 		})
 
 	default:
-		panic("TODO handle clause")
+		utils.NonExhaustiveMatchPanic[any](source)
+		return nil, nil
 
 	}
 
 }
 
-func (s *programState) receiveFromAccount(name string, monetary Monetary) big.Int {
+func (s *programState) receiveFromAccount(name string, monetary Monetary) *big.Int {
 	mon := big.Int(monetary.Amount)
 
 	balance := s.getBalance(name, string(monetary.Asset))
@@ -454,21 +455,20 @@ func (s *programState) receiveFromAccount(name string, monetary Monetary) big.In
 		Monetary: &mon,
 		Asset:    string(monetary.Asset),
 	})
-	return mon
+	return &mon
 }
 
-func (s *programState) receiveFrom(destination parser.Destination, monetary Monetary) big.Int {
+func (s *programState) receiveFrom(destination parser.Destination, monetary Monetary) (*big.Int, error) {
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
-		return s.receiveFromAccount(destination.Name, monetary)
+		return s.receiveFromAccount(destination.Name, monetary), nil
 
 	case *parser.VariableLiteral:
 		account, err := evaluateLitExpecting(s, destination, expectAccount)
 		if err != nil {
-			// TODO proper error handling
-			panic(err)
+			return nil, err
 		}
-		return s.receiveFromAccount(string(*account), monetary)
+		return s.receiveFromAccount(string(*account), monetary), nil
 
 	case *parser.DestinationAllotment:
 		monetaryAmount := big.Int(monetary.Amount)
@@ -486,8 +486,11 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				dest := allotmentItem.Destination
 				receivedMon := monetary
 				receivedMon.Amount = NewMonetaryInt(allot[i])
-				received := s.receiveFrom(dest, receivedMon)
-				receivedTotal.Add(receivedTotal, &received)
+				received, err := s.receiveFrom(dest, receivedMon)
+				if err != nil {
+					return nil, err
+				}
+				receivedTotal.Add(receivedTotal, received)
 
 			case *parser.DestinationKept:
 				panic("TODO handle kept destination")
@@ -495,13 +498,13 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 		}
 
-		return *receivedTotal
+		return receivedTotal, nil
 
 	case *parser.DestinationInorder:
 		receivedTotal := big.NewInt(0)
 
 		// TODO make this prettier
-		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) {
+		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) error {
 			switch destinationTarget := keptOrDest.(type) {
 			case *parser.DestinationKept:
 				panic("TODO handle destination kept")
@@ -526,11 +529,16 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 					Asset:  monetary.Asset,
 				}
 				// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
-				received := s.receiveFrom(destinationTarget.Destination, remainingMonetary)
-				receivedTotal.Add(receivedTotal, &received)
+				received, err := s.receiveFrom(destinationTarget.Destination, remainingMonetary)
+				if err != nil {
+					return err
+				}
+				receivedTotal.Add(receivedTotal, received)
+				return nil
 
 			default:
-				panic("TODO handle")
+				utils.NonExhaustiveMatchPanic[any](destinationTarget)
+				return nil
 			}
 		}
 
@@ -539,11 +547,11 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 			// TODO should I break if all the amount has been received?
 		}
 		handler(destination.Remaining, nil)
-		return *receivedTotal
+		return receivedTotal, nil
 
 	default:
-		panic("TODO handle clause")
-
+		utils.NonExhaustiveMatchPanic[any](destination)
+		return nil, nil
 	}
 }
 
