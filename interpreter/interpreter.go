@@ -267,7 +267,7 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		panic("TODO handle send*")
+		panic("[not implemented] send* statements aren't implemented yet")
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
@@ -501,7 +501,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				receivedTotal.Add(receivedTotal, received)
 
 			case *parser.DestinationKept:
-				panic("TODO handle kept destination")
+				panic("[not implemented] kept destination isn't implemented yet")
 			}
 
 		}
@@ -515,7 +515,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) error {
 			switch destinationTarget := keptOrDest.(type) {
 			case *parser.DestinationKept:
-				panic("TODO handle destination kept")
+				panic("[not implemented] kept destination isn't implemented yet")
 			case *parser.DestinationTo:
 				var amountToReceive *big.Int
 				if capLit == nil {
