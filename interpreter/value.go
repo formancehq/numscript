@@ -28,6 +28,23 @@ func (Monetary) value()       {}
 func (Portion) value()        {}
 func (Asset) value()          {}
 
+func (v MonetaryInt) MarshalJSON() ([]byte, error) {
+	bigInt := big.Int(v)
+	s := fmt.Sprintf(`"%s"`, bigInt.String())
+	return []byte(s), nil
+}
+
+func (v Portion) MarshalJSON() ([]byte, error) {
+	r := big.Rat(v)
+	s := fmt.Sprintf(`"%s"`, r.String())
+	return []byte(s), nil
+}
+
+func (v Monetary) MarshalJSON() ([]byte, error) {
+	m := fmt.Sprintf("\"%s %s\"", v.Asset, v.Amount.String())
+	return []byte(m), nil
+}
+
 func (v String) String() string {
 	return fmt.Sprintf(`"%s"`, string(v))
 }

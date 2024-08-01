@@ -3,6 +3,7 @@ package analysis
 import (
 	"fmt"
 	"math/big"
+	"numscript/ansi"
 	"numscript/utils"
 )
 
@@ -21,9 +22,9 @@ const (
 func SeverityToAnsiString(s Severity) string {
 	switch s {
 	case ErrorSeverity:
-		return "\033[31mError\033[0m"
+		return ansi.ColorRed("Error")
 	case WarningSeverity:
-		return "\033[33mWarning\033[0m"
+		return ansi.ColorYellow("Warning")
 	case Information:
 		return "Info"
 	case Hint:

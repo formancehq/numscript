@@ -15,6 +15,10 @@ import (
 var Version string = "develop"
 
 func recoverPanic() {
+	if Version != "develop" {
+		return
+	}
+
 	r := recover()
 	if r == nil {
 		return

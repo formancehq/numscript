@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"numscript/ansi"
 	"numscript/interpreter"
 	"numscript/parser"
 	"os"
@@ -64,10 +65,21 @@ func run(path string) {
 		return
 	}
 
-	fmt.Println("Postings:")
-	for _, posting := range result.Postings {
-		fmt.Printf("{ from = @%s, amount = [%s %s], to = %s}\n", posting.Source, posting.Asset, posting.Amount.String(), posting.Destination)
+	fmt.Println(ansi.ColorCyan("Postings:"))
+	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
+	if err != nil {
+		panic(err)
 	}
+	fmt.Println(string(postingsJson))
+
+	fmt.Println()
+
+	fmt.Println(ansi.ColorCyan("Meta:"))
+	txMetaJson, err := json.MarshalIndent(result.TxMeta, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(txMetaJson))
 }
 
 func getRunCmd() *cobra.Command {
