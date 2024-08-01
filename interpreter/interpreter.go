@@ -629,16 +629,10 @@ func meta(
 	s *programState,
 	args []Value,
 ) (string, error) {
-	if len(args) < 2 {
-		panic("TODO handle type error in meta")
-	}
-
-	account, err := expectAccount(args[0])
-	if err != nil {
-		return "", err
-	}
-
-	key, err := expectString(args[1])
+	p := NewArgsParser(args)
+	account := parseArg(p, expectAccount)
+	key := parseArg(p, expectString)
+	err := p.parse()
 	if err != nil {
 		return "", err
 	}
@@ -659,16 +653,10 @@ func balance(
 	s *programState,
 	args []Value,
 ) (*Monetary, error) {
-	if len(args) < 2 {
-		panic("TODO handle type error in balance")
-	}
-
-	account, err := expectAccount(args[0])
-	if err != nil {
-		return nil, err
-	}
-
-	asset, err := expectAsset(args[1])
+	p := NewArgsParser(args)
+	account := parseArg(p, expectAccount)
+	asset := parseArg(p, expectAsset)
+	err := p.parse()
 	if err != nil {
 		return nil, err
 	}
@@ -686,27 +674,14 @@ func balance(
 }
 
 func setTxMeta(st *programState, args []Value) error {
-	err := checkArity(2, args)
+	p := NewArgsParser(args)
+	key := parseArg(p, expectString)
+	meta := parseArg(p, expectAnything)
+	err := p.parse()
 	if err != nil {
 		return err
 	}
 
-	k, err := expectString(args[0])
-	if err != nil {
-		return err
-	}
-
-	meta := args[1]
-	st.TxMeta[*k] = meta
-	return nil
-}
-
-func checkArity(expected int, args []Value) error {
-	if len(args) != expected {
-		return BadArityErr{
-			ExpectedArity:  expected,
-			GivenArguments: len(args),
-		}
-	}
+	st.TxMeta[*key] = *meta
 	return nil
 }

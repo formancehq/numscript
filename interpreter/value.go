@@ -113,6 +113,10 @@ func expectPortion(v Value) (*big.Rat, error) {
 	}
 }
 
+func expectAnything(v Value) (*Value, error) {
+	return &v, nil
+}
+
 func NewMonetaryInt(n int64) MonetaryInt {
 	bi := big.NewInt(n)
 	return MonetaryInt(*bi)
