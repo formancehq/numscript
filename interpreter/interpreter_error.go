@@ -38,3 +38,28 @@ type MissingVariableErr struct {
 func (e MissingVariableErr) Error() string {
 	return fmt.Sprintf("Variable is missing in json: %s", e.Name)
 }
+
+type UnboundFunctionErr struct {
+	Name string
+}
+
+func (e UnboundFunctionErr) Error() string {
+	return fmt.Sprintf("Invalid function: %s", e.Name)
+}
+
+type BadArityErr struct {
+	ExpectedArity  int
+	GivenArguments int
+}
+
+func (e BadArityErr) Error() string {
+	return fmt.Sprintf("Bad arity: expected %d arguments (got %d instead)", e.ExpectedArity, e.GivenArguments)
+}
+
+type InvalidTypeErr struct {
+	Name string
+}
+
+func (e InvalidTypeErr) Error() string {
+	return fmt.Sprintf("This type does not exist: %s", e.Name)
+}

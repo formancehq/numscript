@@ -1418,4 +1418,73 @@ func TestErrors(t *testing.T) {
 		}
 		test(t, tc)
 	})
+
+	t.Run("unbound fn", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `unbound_fn(1, 2)`)
+
+		tc.expected = CaseResult{
+			Error: machine.UnboundFunctionErr{
+				Name: "unbound_fn",
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("unbound fn (origin)", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				number $x = unbound_fn(1, 2)
+			}
+		`)
+
+		tc.expected = CaseResult{
+			Error: machine.UnboundFunctionErr{
+				Name: "unbound_fn",
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("wrong fn arity", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `set_tx_meta()`)
+
+		tc.expected = CaseResult{
+			Error: machine.BadArityErr{
+				ExpectedArity:  2,
+				GivenArguments: 0,
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("wrong fn type", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `set_tx_meta(@key_wrong_type, "value")`)
+		tc.expected = CaseResult{
+			Error: machine.TypeError{
+				Expected: "string",
+				Value:    machine.AccountAddress("key_wrong_type"),
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("invalid variable type", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				invalidt $x
+			}
+		`)
+		tc.setVarsFromJSON(t, `{"x": "42"}`)
+		tc.expected = CaseResult{
+			Error: machine.InvalidTypeErr{
+				Name: "invalidt",
+			},
+		}
+		test(t, tc)
+	})
 }

@@ -64,11 +64,10 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 			return nil, err
 		}
 		return NewMonetaryInt(i), nil
-
 	case analysis.TypeString:
 		return String(rawValue), nil
 	default:
-		panic("TODO invalid type: " + type_)
+		return nil, InvalidTypeErr{Name: type_}
 	}
 
 }
@@ -101,7 +100,7 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 		return *monetary, nil
 
 	default:
-		panic("TODO handle fn call: " + fnCall.Caller.Name)
+		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
 	}
 
 }
@@ -204,7 +203,8 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 		}
 		return value, nil
 	default:
-		panic("TODO handle literal evaluation")
+		utils.NonExhaustiveMatchPanic[any](literal)
+		return nil, nil
 	}
 }
 
@@ -246,20 +246,21 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 		}
 
 		switch statement.Caller.Name {
-		case "set_tx_meta":
+		case analysis.FnSetTxMeta:
 			err := setTxMeta(st, args)
 			if err != nil {
 				return nil, err
 			}
 		default:
-			panic("Invalid fn")
+			return nil, UnboundFunctionErr{Name: statement.Caller.Name}
 		}
 		return nil, nil
 
 	case *parser.SendStatement:
 		return st.runSendStatement(*statement)
 	default:
-		panic("TODO unhandled clause")
+		utils.NonExhaustiveMatchPanic[any](statement)
+		return nil, nil
 	}
 }
 
@@ -685,9 +686,9 @@ func balance(
 }
 
 func setTxMeta(st *programState, args []Value) error {
-	if len(args) != 2 {
-		// TODO err
-		panic("invalid args number")
+	err := checkArity(2, args)
+	if err != nil {
+		return err
 	}
 
 	k, err := expectString(args[0])
@@ -697,5 +698,15 @@ func setTxMeta(st *programState, args []Value) error {
 
 	meta := args[1]
 	st.TxMeta[*k] = meta
+	return nil
+}
+
+func checkArity(expected int, args []Value) error {
+	if len(args) != expected {
+		return BadArityErr{
+			ExpectedArity:  expected,
+			GivenArguments: len(args),
+		}
+	}
 	return nil
 }
