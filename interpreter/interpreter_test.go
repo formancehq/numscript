@@ -60,20 +60,7 @@ func test(t *testing.T, testCase TestCase) {
 
 	require.NotNil(t, prog)
 
-	store := machine.StaticStore{}
-	for account, balances := range testCase.balances {
-		store[account] = &machine.AccountWithBalances{
-			Balances: func() map[string]*big.Int {
-				ret := make(map[string]*big.Int)
-				for asset, balance := range balances {
-					ret[asset] = (*big.Int)(balance)
-				}
-				return ret
-			}(),
-		}
-	}
-
-	execResult, err := machine.RunProgram(*prog, testCase.vars, store, testCase.meta)
+	execResult, err := machine.RunProgram(*prog, testCase.vars, testCase.balances, testCase.meta)
 	expected := testCase.expected
 	if expected.Error != nil {
 		assert.Equal(t, err, expected.Error)

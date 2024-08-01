@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+type StaticStore map[string]map[string]*big.Int
 type Metadata map[string]string
 
 type ExecutionResult struct {
@@ -306,15 +307,15 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 func (s *programState) getBalance(account string, asset string) *big.Int {
 	balance, ok := s.Store[account]
 	if !ok {
-		m := &AccountWithBalances{Balances: make(map[string]*big.Int)}
+		m := make(map[string]*big.Int)
 		s.Store[account] = m
 		balance = m
 	}
 
-	assetBalance, ok := balance.Balances[asset]
+	assetBalance, ok := balance[asset]
 	if !ok {
 		zero := big.NewInt(0)
-		balance.Balances[asset] = zero
+		balance[asset] = zero
 		assetBalance = zero
 	}
 	return assetBalance

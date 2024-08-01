@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"numscript/interpreter"
 	"numscript/parser"
@@ -14,26 +15,53 @@ var runBalancesPath string
 var runMetaPath string
 
 func run(path string) {
-	content, err := os.ReadFile(path)
+	numscriptContent, err := os.ReadFile(path)
 	if err != nil {
 		os.Stderr.Write([]byte(err.Error()))
 		return
 	}
 
-	parseResult := parser.Parse(string(content))
+	parseResult := parser.Parse(string(numscriptContent))
 	if len(parseResult.Errors) != 0 {
 		// TODO better output
 		fmt.Printf("Got errors while parsing\n")
 		return
 	}
 
-	program := parseResult.Value
+	store := make(interpreter.StaticStore)
+	if runBalancesPath != "" {
+		content, err := os.ReadFile(runBalancesPath)
+		if err != nil {
+			os.Stderr.Write([]byte(err.Error()))
+			return
+		}
+		json.Unmarshal(content, &store)
+	}
 
-	store := interpreter.StaticStore{}
-	// TODO vars, store, meta
-	result, err := interpreter.RunProgram(program, nil, store, nil)
+	meta := make(map[string]interpreter.Metadata)
+	if runMetaPath != "" {
+		content, err := os.ReadFile(runMetaPath)
+		if err != nil {
+			os.Stderr.Write([]byte(err.Error()))
+			return
+		}
+		json.Unmarshal(content, &meta)
+	}
+
+	vars := make(map[string]string)
+	if runVariablesPath != "" {
+		content, err := os.ReadFile(runVariablesPath)
+		if err != nil {
+			os.Stderr.Write([]byte(err.Error()))
+			return
+		}
+		json.Unmarshal(content, &vars)
+	}
+
+	result, err := interpreter.RunProgram(parseResult.Value, vars, store, meta)
 	if err != nil {
-		panic(err)
+		fmt.Printf("%s", err)
+		return
 	}
 
 	fmt.Println("Postings:")
