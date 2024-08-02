@@ -15,7 +15,7 @@ import (
 var Version string = "develop"
 
 func recoverPanic() {
-	if Version != "develop" {
+	if Version == "develop" {
 		return
 	}
 
