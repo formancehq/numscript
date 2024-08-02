@@ -13,8 +13,8 @@ type StaticStore map[string]map[string]*big.Int
 type Metadata map[string]string
 
 type ExecutionResult struct {
-	Postings []Posting
-	TxMeta   map[string]Value
+	Postings []Posting        `json:"postings"`
+	TxMeta   map[string]Value `json:"txMeta"`
 }
 
 func parsePercentage(p string) big.Rat {
@@ -147,7 +147,7 @@ func RunProgram(
 		return nil, err
 	}
 
-	var postings []Posting
+	postings := make([]Posting, 0)
 	for _, statement := range program.Statements {
 		statementPostings, err := st.runStatement(statement)
 		if err != nil {

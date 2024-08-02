@@ -12,20 +12,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	OutputFormatPretty = "pretty"
+	OutputFormatJson   = "json"
+)
+
 var runVariablesOpt string
 var runBalancesOpt string
 var runMetaOpt string
 var runRawOpt string
 var runStdinFlag bool
+var runOutFormatOpt string
 
-type rawOptions struct {
+type inputOpts struct {
 	Script    string                          `json:"script"`
 	Variables map[string]string               `json:"variables"`
 	Meta      map[string]interpreter.Metadata `json:"meta"`
 	Balances  interpreter.StaticStore         `json:"balances"`
 }
 
-func (o *rawOptions) fromRaw() {
+func (o *inputOpts) fromRaw() {
 	if runRawOpt == "" {
 		return
 	}
@@ -36,7 +42,7 @@ func (o *rawOptions) fromRaw() {
 	}
 }
 
-func (o *rawOptions) fromStdin() {
+func (o *inputOpts) fromStdin() {
 	if !runStdinFlag {
 		return
 	}
@@ -52,7 +58,7 @@ func (o *rawOptions) fromStdin() {
 	}
 }
 
-func (o *rawOptions) fromOptions(path string) {
+func (o *inputOpts) fromOptions(path string) {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
@@ -94,7 +100,7 @@ func (o *rawOptions) fromOptions(path string) {
 }
 
 func run(path string) {
-	opt := rawOptions{
+	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(map[string]interpreter.Metadata),
 		Balances:  make(interpreter.StaticStore),
@@ -112,15 +118,35 @@ func run(path string) {
 	}
 
 	result, err := interpreter.RunProgram(parseResult.Value, opt.Variables, opt.Balances, opt.Meta)
-	showResult(result, err)
-}
-
-func showResult(result *interpreter.ExecutionResult, err error) {
 	if err != nil {
-		fmt.Printf("%s", err)
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
 		return
 	}
 
+	switch runOutFormatOpt {
+	case OutputFormatJson:
+		showJson(result)
+	case OutputFormatPretty:
+		showPretty(result)
+	default:
+		// TODO handle err
+		panic("Invalid option: " + runBalancesOpt)
+	}
+
+}
+
+func showJson(result *interpreter.ExecutionResult) {
+	out, err := json.Marshal(result)
+	if err != nil {
+		// TODO handle err
+		panic(err)
+	}
+
+	os.Stdout.Write(out)
+}
+
+func showPretty(result *interpreter.ExecutionResult) {
 	fmt.Println(ansi.ColorCyan("Postings:"))
 	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
 	if err != nil {
@@ -156,13 +182,15 @@ func getRunCmd() *cobra.Command {
 		},
 	}
 
+	// Input args
 	cmd.Flags().StringVarP(&runVariablesOpt, "variables", "v", "", "Path of a json file containing the variables")
 	cmd.Flags().StringVarP(&runBalancesOpt, "balances", "b", "", "Path of a json file containing the balances")
 	cmd.Flags().StringVarP(&runMetaOpt, "meta", "m", "", "Path of a json file containing the accounts metadata")
-
 	cmd.Flags().StringVarP(&runRawOpt, "raw", "r", "", "Raw json input containing script, variables, balances, metadata")
+	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
 
-	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "example")
+	// Output options
+	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Take input from stdin (same format as the --raw option)")
 
 	return &cmd
 }
