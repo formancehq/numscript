@@ -113,11 +113,7 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 }
 
 func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
-	if lit == nil {
-		return nil
-	}
-
-	if !lit.GetRange().Contains(position) {
+	if lit == nil || !lit.GetRange().Contains(position) {
 		return nil
 	}
 
@@ -144,11 +140,7 @@ func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
 }
 
 func hoverOnSource(source parser.Source, position parser.Position) Hover {
-	if source == nil {
-		return nil
-	}
-
-	if !source.GetRange().Contains(position) {
+	if source == nil || !source.GetRange().Contains(position) {
 		return nil
 	}
 
@@ -237,7 +229,7 @@ func hoverOnKeptOrDestination(inorderClause parser.KeptOrDestination, position p
 }
 
 func hoverOnDestination(destination parser.Destination, position parser.Position) Hover {
-	if !destination.GetRange().Contains(position) {
+	if destination == nil || !destination.GetRange().Contains(position) {
 		return nil
 	}
 

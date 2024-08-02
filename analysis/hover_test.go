@@ -360,4 +360,43 @@ func TestHoverFaultTolerance(t *testing.T) {
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
 	})
+
+	t.Run("missing dest", func(t *testing.T) {
+		input := `
+			send [COIN 10] (
+				source = @a
+				destination = <invalidtk>
+			)
+		`
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+
+	t.Run("invalid call arg", func(t *testing.T) {
+		input := `
+			set_tx_meta(<invalidtk>)
+		`
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+
+	t.Run("missing inorder clause", func(t *testing.T) {
+		input := `
+			send [COIN 10] (
+				source = @a
+				destination = {
+					<invalidtk-0>
+					remaining to <invalidtk>
+				}
+			)
+		`
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
 }
