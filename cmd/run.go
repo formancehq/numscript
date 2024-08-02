@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"numscript/ansi"
 	"numscript/interpreter"
 	"numscript/parser"
@@ -13,63 +12,59 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var runVariablesPath string
-var runBalancesPath string
-var runMetaPath string
+var runVariablesOpt string
+var runBalancesOpt string
+var runMetaOpt string
+var runRawOpt string
 var runStdinFlag bool
 
 type rawOptions struct {
 	Script    string                          `json:"script"`
 	Variables map[string]string               `json:"variables"`
 	Meta      map[string]interpreter.Metadata `json:"meta"`
-	Balances  map[string]map[string]*big.Int  `json:"balances"`
+	Balances  interpreter.StaticStore         `json:"balances"`
 }
 
-func newRawOptions() rawOptions {
-	return rawOptions{
-		Variables: make(map[string]string),
-		Meta:      make(map[string]interpreter.Metadata),
-		Balances:  make(map[string]map[string]*big.Int),
+func (o *rawOptions) fromRaw() {
+	if runRawOpt == "" {
+		return
+	}
+
+	err := json.Unmarshal([]byte(runRawOpt), o)
+	if err != nil {
+		panic(err)
 	}
 }
 
-func parseScript(script string) parser.Program {
-	parseResult := parser.Parse(script)
-	if len(parseResult.Errors) != 0 {
-		// TODO better output
-		fmt.Printf("Got errors while parsing\n")
-		os.Exit(1)
+func (o *rawOptions) fromStdin() {
+	if !runStdinFlag {
+		return
 	}
-	return parseResult.Value
-}
 
-func runStdin() {
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		panic(err)
 	}
 
-	stdin := newRawOptions()
-	err = json.Unmarshal(bytes, &stdin)
+	err = json.Unmarshal(bytes, o)
 	if err != nil {
 		panic(err)
 	}
-
-	program := parseScript(stdin.Script)
-	result, err := interpreter.RunProgram(program, stdin.Variables, stdin.Balances, stdin.Meta)
-	showResult(result, err)
 }
 
-func runFs(path string) {
-	numscriptContent, err := os.ReadFile(path)
-	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		return
+func (o *rawOptions) fromOptions(path string) {
+	if path != "" {
+		numscriptContent, err := os.ReadFile(path)
+		if err != nil {
+			os.Stderr.Write([]byte(err.Error()))
+			return
+		}
+		o.Script = string(numscriptContent)
 	}
-	program := parseScript(string(numscriptContent))
+
 	store := make(interpreter.StaticStore)
-	if runBalancesPath != "" {
-		content, err := os.ReadFile(runBalancesPath)
+	if runBalancesOpt != "" {
+		content, err := os.ReadFile(runBalancesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
@@ -78,8 +73,8 @@ func runFs(path string) {
 	}
 
 	meta := make(map[string]interpreter.Metadata)
-	if runMetaPath != "" {
-		content, err := os.ReadFile(runMetaPath)
+	if runMetaOpt != "" {
+		content, err := os.ReadFile(runMetaOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
@@ -88,16 +83,35 @@ func runFs(path string) {
 	}
 
 	vars := make(map[string]string)
-	if runVariablesPath != "" {
-		content, err := os.ReadFile(runVariablesPath)
+	if runVariablesOpt != "" {
+		content, err := os.ReadFile(runVariablesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
 		}
 		json.Unmarshal(content, &vars)
 	}
+}
 
-	result, err := interpreter.RunProgram(program, vars, store, meta)
+func run(path string) {
+	opt := rawOptions{
+		Variables: make(map[string]string),
+		Meta:      make(map[string]interpreter.Metadata),
+		Balances:  make(interpreter.StaticStore),
+	}
+
+	opt.fromRaw()
+	opt.fromOptions(path)
+	opt.fromStdin()
+
+	parseResult := parser.Parse(opt.Script)
+	if len(parseResult.Errors) != 0 {
+		// TODO better output
+		fmt.Printf("Got errors while parsing\n")
+		os.Exit(1)
+	}
+
+	result, err := interpreter.RunProgram(parseResult.Value, opt.Variables, opt.Balances, opt.Meta)
 	showResult(result, err)
 }
 
@@ -133,27 +147,20 @@ func getRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Evaluate a numscript file",
 		Long:  "Evaluate a numscript file. This command is unstable and still being developed",
-		// Args:  cobra.ExactArgs(1),
-		Args: func(cmd *cobra.Command, args []string) error {
-			if runStdinFlag {
-				return nil
-			} else {
-				return cobra.ExactArgs(1)(cmd, args)
-			}
-		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if runStdinFlag {
-				runStdin()
-			} else {
-				// path := args[0]
-				runFs("")
+			var path string
+			if len(args) > 0 {
+				path = args[0]
 			}
+			run(path)
 		},
 	}
 
-	cmd.Flags().StringVarP(&runVariablesPath, "variables", "v", "", "Path of a json file containing the variables")
-	cmd.Flags().StringVarP(&runBalancesPath, "balances", "b", "", "Path of a json file containing the balances")
-	cmd.Flags().StringVarP(&runMetaPath, "meta", "m", "", "Path of a json file containing the accounts metadata")
+	cmd.Flags().StringVarP(&runVariablesOpt, "variables", "v", "", "Path of a json file containing the variables")
+	cmd.Flags().StringVarP(&runBalancesOpt, "balances", "b", "", "Path of a json file containing the balances")
+	cmd.Flags().StringVarP(&runMetaOpt, "meta", "m", "", "Path of a json file containing the accounts metadata")
+
+	cmd.Flags().StringVarP(&runRawOpt, "raw", "r", "", "Raw json input containing script, variables, balances, metadata")
 
 	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "example")
 
