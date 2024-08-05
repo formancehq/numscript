@@ -52,42 +52,44 @@ func (l *RatioLiteral) GetRange() Range    { return l.Range }
 func (l *NumberLiteral) GetRange() Range   { return l.Range }
 func (l *StringLiteral) GetRange() Range   { return l.Range }
 
-type AssetLiteral struct {
-	Range Range
-	Asset string
-}
+type (
+	AssetLiteral struct {
+		Range Range
+		Asset string
+	}
 
-type NumberLiteral struct {
-	Range  Range
-	Number int
-}
+	NumberLiteral struct {
+		Range  Range
+		Number int
+	}
 
-type StringLiteral struct {
-	Range  Range
-	String string
-}
+	StringLiteral struct {
+		Range  Range
+		String string
+	}
 
-type MonetaryLiteral struct {
-	Range  Range
-	Asset  Literal
-	Amount Literal
-}
+	MonetaryLiteral struct {
+		Range  Range
+		Asset  Literal
+		Amount Literal
+	}
 
-type AccountLiteral struct {
-	Range Range
-	Name  string
-}
+	AccountLiteral struct {
+		Range Range
+		Name  string
+	}
 
-type VariableLiteral struct {
-	Range Range
-	Name  string
-}
+	RatioLiteral struct {
+		Range       Range
+		Numerator   uint64
+		Denominator uint64
+	}
 
-type RatioLiteral struct {
-	Range       Range
-	Numerator   uint64
-	Denominator uint64
-}
+	VariableLiteral struct {
+		Range Range
+		Name  string
+	}
+)
 
 func (r RatioLiteral) ToRatio() *big.Rat {
 	return big.NewRat(int64(r.Numerator), int64(r.Denominator))
@@ -116,27 +118,28 @@ func (s *SourceAllotment) GetRange() Range { return s.Range }
 func (s *SourceCapped) GetRange() Range    { return s.Range }
 func (s *SourceOverdraft) GetRange() Range { return s.Range }
 
-type SourceInorder struct {
-	Range   Range
-	Sources []Source
-}
+type (
+	SourceInorder struct {
+		Range   Range
+		Sources []Source
+	}
+	SourceAllotment struct {
+		Range Range
+		Items []SourceAllotmentItem
+	}
 
-type SourceAllotment struct {
-	Range Range
-	Items []SourceAllotmentItem
-}
+	SourceCapped struct {
+		Range Range
+		From  Source
+		Cap   Literal
+	}
 
-type SourceCapped struct {
-	Range Range
-	From  Source
-	Cap   Literal
-}
-
-type SourceOverdraft struct {
-	Range   Range
-	Address Literal
-	Bounded *Literal
-}
+	SourceOverdraft struct {
+		Range   Range
+		Address Literal
+		Bounded *Literal
+	}
+)
 
 type AllotmentValue interface{ allotmentValue() }
 
@@ -164,17 +167,19 @@ func (*DestinationAllotment) destination() {}
 func (d *DestinationInorder) GetRange() Range   { return d.Range }
 func (d *DestinationAllotment) GetRange() Range { return d.Range }
 
-type DestinationInorder struct {
-	Range     Range
-	Clauses   []DestinationInorderClause
-	Remaining KeptOrDestination
-}
+type (
+	DestinationInorder struct {
+		Range     Range
+		Clauses   []DestinationInorderClause
+		Remaining KeptOrDestination
+	}
 
-type DestinationInorderClause struct {
-	Range Range
-	Cap   Literal
-	To    KeptOrDestination
-}
+	DestinationInorderClause struct {
+		Range Range
+		Cap   Literal
+		To    KeptOrDestination
+	}
+)
 
 type KeptOrDestination interface {
 	keptOrDestination()
