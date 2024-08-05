@@ -384,6 +384,17 @@ func TestHoverFaultTolerance(t *testing.T) {
 		assert.Nil(t, hover)
 	})
 
+	t.Run("missing sent value", func(t *testing.T) {
+		input := `
+			send <invalidtk> (
+			)
+		`
+		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		program := parser.Parse(input).Value
+		hover := analysis.HoverOn(program, rng.Start)
+		assert.Nil(t, hover)
+	})
+
 	t.Run("missing inorder clause", func(t *testing.T) {
 		input := `
 			send [COIN 10] (

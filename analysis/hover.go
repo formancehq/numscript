@@ -78,6 +78,9 @@ func hoverOnVar(varDecl parser.VarDeclaration, position parser.Position) Hover {
 
 func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hover {
 	switch sentValue := sentValue.(type) {
+	case nil:
+		return nil
+
 	case *parser.SentValueAll:
 		return hoverOnLiteral(sentValue.Asset, position)
 
@@ -216,7 +219,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 func hoverOnKeptOrDestination(inorderClause parser.KeptOrDestination, position parser.Position) Hover {
 	switch inorderClause := inorderClause.(type) {
-	case *parser.DestinationKept:
+	case nil, *parser.DestinationKept:
 		return nil
 
 	case *parser.DestinationTo:
