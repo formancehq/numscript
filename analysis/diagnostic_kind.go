@@ -205,3 +205,13 @@ func (e *BadArity) Message() string {
 func (*BadArity) Severity() Severity {
 	return ErrorSeverity
 }
+
+type InvalidWorldOverdraft struct{}
+
+func (e *InvalidWorldOverdraft) Message() string {
+	return "@world is already set to be ovedraft"
+}
+
+func (*InvalidWorldOverdraft) Severity() Severity {
+	return WarningSeverity
+}

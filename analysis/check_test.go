@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInvalidType(t *testing.T) {
@@ -17,7 +18,7 @@ send [C 10] (
 )`
 
 	res := analysis.CheckSource(input)
-	assert.Lenf(t, res.Diagnostics, 1, "xs: %#v", res.Diagnostics)
+	require.Lenf(t, res.Diagnostics, 1, "xs: %#v", res.Diagnostics)
 
 	d1 := res.Diagnostics[0]
 	assert.Equal(t,
@@ -43,7 +44,7 @@ send [C 10] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 0)
+	require.Len(t, diagnostics, 0)
 }
 
 func TestDuplicateVariable(t *testing.T) {
@@ -60,7 +61,7 @@ func TestDuplicateVariable(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -86,7 +87,7 @@ func TestUnboundVarInSource(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -115,7 +116,7 @@ func TestUnboundVarInDest(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "expected len to be 1")
+	require.Lenf(t, diagnostics, 1, "expected len to be 1")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -140,7 +141,7 @@ func TestUnboundMany(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 2)
+	require.Len(t, diagnostics, 2)
 }
 
 func TestUnboundCurrenciesVars(t *testing.T) {
@@ -154,7 +155,7 @@ func TestUnboundCurrenciesVars(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 2)
+	require.Len(t, diagnostics, 2)
 }
 
 // TODO unbound vars in declr
@@ -165,7 +166,7 @@ func TestUnusedVarInSource(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -193,7 +194,7 @@ send [$a 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -221,7 +222,7 @@ send [EUR/2 $n] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -249,7 +250,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -277,7 +278,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -305,7 +306,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -333,7 +334,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -361,7 +362,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -392,7 +393,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -423,7 +424,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -453,7 +454,7 @@ func TestBadRemainingInSource(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -484,7 +485,7 @@ func TestBadRemainingInDest(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -514,7 +515,7 @@ func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -545,7 +546,7 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -577,7 +578,7 @@ func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -607,7 +608,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 0)
+	require.Len(t, diagnostics, 0)
 }
 
 func TestAllotmentGt1ErrIfVariable(t *testing.T) {
@@ -629,7 +630,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	assert.IsType(t, diagnostics[0].Kind, &analysis.BadAllotmentSum{})
 }
@@ -648,7 +649,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
 		Kind: &analysis.FixedPortionVariable{
@@ -677,7 +678,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 2)
+	require.Len(t, diagnostics, 2)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
 		Kind: &analysis.FixedPortionVariable{
@@ -707,7 +708,7 @@ func TestNoBadAllotmentWhenRemaining(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }
 
 func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
@@ -723,7 +724,7 @@ func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -747,7 +748,7 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 1, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -775,7 +776,7 @@ send [COIN 100] (
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Lenf(t, diagnostics, 0, "wrong diagnostics len")
+	require.Lenf(t, diagnostics, 0, "wrong diagnostics len")
 }
 
 func TestCheckNoUnboundFunctionCall(t *testing.T) {
@@ -784,7 +785,7 @@ func TestCheckNoUnboundFunctionCall(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -804,7 +805,7 @@ func TestAllowedFnCall(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 0)
+	require.Len(t, diagnostics, 0)
 }
 
 func TestCheckFnCallTypesWrongType(t *testing.T) {
@@ -813,7 +814,7 @@ func TestCheckFnCallTypesWrongType(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -836,7 +837,7 @@ func TestTooFewFnArgs(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -859,7 +860,7 @@ func TestTooManyFnArgs(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -882,7 +883,7 @@ func TestCheckTrailingCommaFnCall(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 }
 
 func TestCheckTypesOriginFn(t *testing.T) {
@@ -900,7 +901,7 @@ func TestCheckTypesOriginFn(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -927,7 +928,7 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	assert.Len(t, diagnostics, 1)
+	require.Len(t, diagnostics, 1)
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
@@ -937,4 +938,27 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 		},
 		d1.Kind,
 	)
+}
+
+func TestWorldOverdraft(t *testing.T) {
+	input := `
+	send [EUR/2 100] (
+		source = {
+			@a
+			@world allowing unbounded overdraft
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.InvalidWorldOverdraft{},
+		d1.Kind,
+	)
+
+	assert.Equal(t, d1.Range, RangeOfIndexed(input, "@world", 0))
 }

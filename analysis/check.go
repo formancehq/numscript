@@ -382,6 +382,13 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkLiteral(source, TypeAccount)
 
 	case *parser.SourceOverdraft:
+		if accountLiteral, ok := source.Address.(*parser.AccountLiteral); ok && accountLiteral.Name == "world" {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: accountLiteral.Range,
+				Kind:  &InvalidWorldOverdraft{},
+			})
+		}
+
 		res.checkLiteral(source.Address, TypeAccount)
 		if source.Bounded != nil {
 			res.checkLiteral(*source.Bounded, TypeMonetary)
