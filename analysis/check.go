@@ -82,6 +82,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
+	isSendAll        bool
 	declaredVars     map[string]parser.VarDeclaration
 	unusedVars       map[string]parser.Range
 	varResolution    map[*parser.VariableLiteral]parser.VarDeclaration
@@ -151,22 +152,7 @@ func (res *CheckResult) check() {
 		}
 	}
 	for _, statement := range res.Program.Statements {
-		switch statement := statement.(type) {
-		case *parser.SendStatement:
-			res.checkSentValue(statement.SentValue)
-			res.checkSource(statement.Source)
-			res.checkDestination(statement.Destination)
-		case *parser.FnCall:
-			resolution, ok := Builtins[statement.Caller.Name]
-			if ok {
-				if varOrigin, ok := resolution.(StatementFnCallResolution); ok {
-					res.fnCallResolution[statement.Caller] = varOrigin
-				}
-			}
-
-			// This must come after resolution
-			res.checkFnCallArity(statement)
-		}
+		res.checkStatement(statement)
 	}
 
 	// after static AST traversal is complete, check for unused vars
@@ -175,6 +161,28 @@ func (res *CheckResult) check() {
 			Range: rng,
 			Kind:  &UnusedVar{Name: name},
 		})
+	}
+}
+
+func (res *CheckResult) checkStatement(statement parser.Statement) {
+	switch statement := statement.(type) {
+	case *parser.SendStatement:
+		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
+		res.isSendAll = isSendAll
+
+		res.checkSentValue(statement.SentValue)
+		res.checkSource(statement.Source)
+		res.checkDestination(statement.Destination)
+	case *parser.FnCall:
+		resolution, ok := Builtins[statement.Caller.Name]
+		if ok {
+			if varOrigin, ok := resolution.(StatementFnCallResolution); ok {
+				res.fnCallResolution[statement.Caller] = varOrigin
+			}
+		}
+
+		// This must come after resolution
+		res.checkFnCallArity(statement)
 	}
 }
 
@@ -404,6 +412,13 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkSource(source.From)
 
 	case *parser.SourceAllotment:
+		if res.isSendAll {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Kind:  &NoAllotmentInSendAll{},
+				Range: source.Range,
+			})
+		}
+
 		var remainingAllotment *parser.RemainingAllotment = nil
 		var variableLiterals []parser.VariableLiteral
 

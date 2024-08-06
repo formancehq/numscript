@@ -962,3 +962,45 @@ func TestWorldOverdraft(t *testing.T) {
 
 	assert.Equal(t, d1.Range, RangeOfIndexed(input, "@world", 0))
 }
+
+func TestForbidAllotmentInSendAll(t *testing.T) {
+	input := `
+	send [EUR/2 *] (
+		source = {
+			1/2 from @s1
+			remaining from @s2
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.NoAllotmentInSendAll{},
+		d1.Kind,
+	)
+}
+
+func TestNoForbidAllotmentInSendAll(t *testing.T) {
+	input := `
+	send [EUR/2 *] (
+		source = @a
+		destination = @dest
+	)
+
+
+	send [EUR/2 100] (
+		source = {
+			1/2 from @s1
+			remaining from @s2
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}

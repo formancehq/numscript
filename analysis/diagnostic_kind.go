@@ -215,3 +215,13 @@ func (e *InvalidWorldOverdraft) Message() string {
 func (*InvalidWorldOverdraft) Severity() Severity {
 	return WarningSeverity
 }
+
+type NoAllotmentInSendAll struct{}
+
+func (e *NoAllotmentInSendAll) Message() string {
+	return "Cannot take all balance of an allotment source"
+}
+
+func (*NoAllotmentInSendAll) Severity() Severity {
+	return WarningSeverity
+}
