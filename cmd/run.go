@@ -68,34 +68,31 @@ func (o *inputOpts) fromOptions(path string) {
 		o.Script = string(numscriptContent)
 	}
 
-	store := make(interpreter.StaticStore)
 	if runBalancesOpt != "" {
 		content, err := os.ReadFile(runBalancesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
 		}
-		json.Unmarshal(content, &store)
+		json.Unmarshal(content, &o.Balances)
 	}
 
-	meta := make(map[string]interpreter.Metadata)
 	if runMetaOpt != "" {
 		content, err := os.ReadFile(runMetaOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
 		}
-		json.Unmarshal(content, &meta)
+		json.Unmarshal(content, &o.Meta)
 	}
 
-	vars := make(map[string]string)
 	if runVariablesOpt != "" {
 		content, err := os.ReadFile(runVariablesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
 		}
-		json.Unmarshal(content, &vars)
+		json.Unmarshal(content, &o.Variables)
 	}
 }
 
