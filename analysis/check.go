@@ -82,7 +82,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	isSendAll        bool
+	unboundedSend    bool
 	declaredVars     map[string]parser.VarDeclaration
 	unusedVars       map[string]parser.Range
 	varResolution    map[*parser.VariableLiteral]parser.VarDeclaration
@@ -168,7 +168,7 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 	switch statement := statement.(type) {
 	case *parser.SendStatement:
 		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
-		res.isSendAll = isSendAll
+		res.unboundedSend = isSendAll
 
 		res.checkSentValue(statement.SentValue)
 		res.checkSource(statement.Source)
@@ -385,6 +385,12 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	switch source := source.(type) {
 	case *parser.AccountLiteral:
+		if source.Name == "world" && res.unboundedSend {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: source.GetRange(),
+				Kind:  &InvalidUnboundedAccount{},
+			})
+		}
 
 	case *parser.VariableLiteral:
 		res.checkLiteral(source, TypeAccount)
@@ -394,6 +400,13 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: accountLiteral.Range,
 				Kind:  &InvalidWorldOverdraft{},
+			})
+		}
+
+		if res.unboundedSend {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: source.Address.GetRange(),
+				Kind:  &InvalidUnboundedAccount{},
 			})
 		}
 
@@ -408,11 +421,14 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceCapped:
+		bkSendAll := res.unboundedSend
+		res.unboundedSend = false
 		res.checkLiteral(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
+		res.unboundedSend = bkSendAll
 
 	case *parser.SourceAllotment:
-		if res.isSendAll {
+		if res.unboundedSend {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Kind:  &NoAllotmentInSendAll{},
 				Range: source.Range,

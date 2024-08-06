@@ -984,6 +984,47 @@ func TestForbidAllotmentInSendAll(t *testing.T) {
 	)
 }
 
+func TestAllowAllotmentInCappedSendAll(t *testing.T) {
+	input := `
+	send [EUR/2 *] (
+		source = {
+			max [EUR/2 10] from {
+				1/2 from @s1
+				remaining from @s2
+			}
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
+
+func TestDisallowAllotmentInCappedSendAllOutsideMax(t *testing.T) {
+	input := `
+	send [EUR/2 *] (
+		source = {
+			max [EUR/2 10] from @a
+			{
+				1/2 from @s1
+				remaining from @s2
+			}
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.NoAllotmentInSendAll{},
+		d1.Kind,
+	)
+}
+
 func TestNoForbidAllotmentInSendAll(t *testing.T) {
 	input := `
 	send [EUR/2 *] (
@@ -1003,4 +1044,56 @@ func TestNoForbidAllotmentInSendAll(t *testing.T) {
 
 	diagnostics := analysis.CheckSource(input).Diagnostics
 	require.Empty(t, diagnostics)
+}
+
+func TestForbidUnboundedSrcInSendAll(t *testing.T) {
+	input := `
+	send [GEM *] (
+		source = {
+			@ok
+			@illegal allowing unbounded overdraft // <- err
+		}
+		destination = @b
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.InvalidUnboundedAccount{},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@illegal", 0),
+	)
+}
+
+func TestAllowUnboundedSrcInSendAllWhenCapped(t *testing.T) {
+	input := `
+	send [GEM *] (
+		source = max [GEM 100] from {
+			@ok
+			@illegal allowing unbounded overdraft
+		}
+		destination = @b
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
+
+func TestForbidWorldSrcInSendAll(t *testing.T) {
+	input := `
+	send [EUR/2 *] (
+		source = @world
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
 }

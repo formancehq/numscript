@@ -225,3 +225,13 @@ func (e *NoAllotmentInSendAll) Message() string {
 func (*NoAllotmentInSendAll) Severity() Severity {
 	return WarningSeverity
 }
+
+type InvalidUnboundedAccount struct{}
+
+func (e *InvalidUnboundedAccount) Message() string {
+	return "Cannot take all balance of an unbounded source"
+}
+
+func (*InvalidUnboundedAccount) Severity() Severity {
+	return ErrorSeverity
+}
