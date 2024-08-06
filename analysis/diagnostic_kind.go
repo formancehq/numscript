@@ -235,3 +235,15 @@ func (e *InvalidUnboundedAccount) Message() string {
 func (*InvalidUnboundedAccount) Severity() Severity {
 	return ErrorSeverity
 }
+
+type EmptiedAccount struct {
+	Name string
+}
+
+func (e *EmptiedAccount) Message() string {
+	return fmt.Sprintf("@%s is already empty at this point", e.Name)
+}
+
+func (*EmptiedAccount) Severity() Severity {
+	return WarningSeverity
+}

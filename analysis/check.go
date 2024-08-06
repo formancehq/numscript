@@ -82,6 +82,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
+	emptiedAccount   map[string]struct{}
 	unboundedSend    bool
 	declaredVars     map[string]parser.VarDeclaration
 	unusedVars       map[string]parser.Range
@@ -129,6 +130,7 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 
 func newCheckResult(program parser.Program) CheckResult {
 	return CheckResult{
+		emptiedAccount:   make(map[string]struct{}),
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.VariableLiteral]parser.VarDeclaration),
@@ -165,6 +167,8 @@ func (res *CheckResult) check() {
 }
 
 func (res *CheckResult) checkStatement(statement parser.Statement) {
+	res.emptiedAccount = make(map[string]struct{})
+
 	switch statement := statement.(type) {
 	case *parser.SendStatement:
 		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
@@ -378,6 +382,17 @@ func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 	}
 }
 
+func (res *CheckResult) withCloneEmptyAccount() func() {
+	bkEmptiedAccount := res.emptiedAccount
+	res.emptiedAccount = make(map[string]struct{})
+	for k, v := range bkEmptiedAccount {
+		res.emptiedAccount[k] = v
+	}
+	return func() {
+		res.emptiedAccount = bkEmptiedAccount
+	}
+}
+
 func (res *CheckResult) checkSource(source parser.Source) {
 	if source == nil {
 		return
@@ -391,6 +406,15 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				Kind:  &InvalidUnboundedAccount{},
 			})
 		}
+
+		if _, emptied := res.emptiedAccount[source.Name]; emptied {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Kind:  &EmptiedAccount{Name: source.Name},
+				Range: source.Range,
+			})
+		}
+
+		res.emptiedAccount[source.Name] = struct{}{}
 
 	case *parser.VariableLiteral:
 		res.checkLiteral(source, TypeAccount)
@@ -423,9 +447,15 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.SourceCapped:
 		bkSendAll := res.unboundedSend
 		res.unboundedSend = false
+		defer func() {
+			res.unboundedSend = bkSendAll
+		}()
+
+		handler := res.withCloneEmptyAccount()
+		defer handler()
+
 		res.checkLiteral(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
-		res.unboundedSend = bkSendAll
 
 	case *parser.SourceAllotment:
 		if res.unboundedSend {
@@ -459,7 +489,9 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				}
 			}
 
+			handler := res.withCloneEmptyAccount()
 			res.checkSource(allottedItem.From)
+			handler()
 		}
 
 		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment, variableLiterals)

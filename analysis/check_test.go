@@ -1097,3 +1097,138 @@ func TestForbidWorldSrcInSendAll(t *testing.T) {
 	diagnostics := analysis.CheckSource(input).Diagnostics
 	require.Len(t, diagnostics, 1)
 }
+
+func TestForbidEmptiedAccount(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@a
+			@b
+			@a // <- err
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.EmptiedAccount{Name: "a"},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@a", 1),
+	)
+}
+
+func TestResetEmptiedAccount(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = @a
+		destination = @dest
+	)
+
+	send [COIN 100] (
+		source = @a
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
+
+func TestEmptiedAccountInMax(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@emptied
+			max [COIN 10] from {
+				@a
+				@emptied // <- err
+				@b
+			}
+			@c
+		}
+		destination = @b
+	)
+
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.EmptiedAccount{Name: "emptied"},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@emptied", 1),
+	)
+}
+
+func TestEmptiedAccountDoNotLeakMaxed(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			max [COIN 10] from @emptied
+			@emptied
+		}
+		destination = @b
+	)
+
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
+
+func TestDoNotEmptyAccountInMax(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@a
+			max [COIN 10] from {
+				@a1
+				@emptied
+				@b1
+				@emptied  // <- err
+			}
+		}
+		destination = @b
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.EmptiedAccount{Name: "emptied"},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@emptied", 1),
+	)
+}
+
+func TestDoNotEmitEmptiedAccountOnAllotment(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			1/2 from @emptied
+			1/2 from @emptied
+		}
+		destination = @b
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
