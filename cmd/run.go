@@ -187,7 +187,7 @@ func getRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
 
 	// Output options
-	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Take input from stdin (same format as the --raw option)")
+	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
 
 	return &cmd
 }
