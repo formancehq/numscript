@@ -247,3 +247,13 @@ func (e *EmptiedAccount) Message() string {
 func (*EmptiedAccount) Severity() Severity {
 	return WarningSeverity
 }
+
+type UnboundedAccountIsNotLast struct{}
+
+func (e *UnboundedAccountIsNotLast) Message() string {
+	return "Inorder sources after an unbounded overdraft are never reached"
+}
+
+func (*UnboundedAccountIsNotLast) Severity() Severity {
+	return WarningSeverity
+}

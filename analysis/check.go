@@ -82,14 +82,15 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	emptiedAccount   map[string]struct{}
-	unboundedSend    bool
-	declaredVars     map[string]parser.VarDeclaration
-	unusedVars       map[string]parser.Range
-	varResolution    map[*parser.VariableLiteral]parser.VarDeclaration
-	fnCallResolution map[*parser.FnCallIdentifier]FnCallResolution
-	Diagnostics      []Diagnostic
-	Program          parser.Program
+	unboundedAccountInSend parser.Literal
+	emptiedAccount         map[string]struct{}
+	unboundedSend          bool
+	declaredVars           map[string]parser.VarDeclaration
+	unusedVars             map[string]parser.Range
+	varResolution          map[*parser.VariableLiteral]parser.VarDeclaration
+	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
+	Diagnostics            []Diagnostic
+	Program                parser.Program
 }
 
 func (r CheckResult) GetErrorsCount() int {
@@ -154,6 +155,7 @@ func (res *CheckResult) check() {
 		}
 	}
 	for _, statement := range res.Program.Statements {
+		res.unboundedAccountInSend = nil
 		res.checkStatement(statement)
 	}
 
@@ -382,32 +384,30 @@ func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 	}
 }
 
-func (res *CheckResult) withCloneEmptyAccount() func() {
-	bkEmptiedAccount := res.emptiedAccount
-	res.emptiedAccount = make(map[string]struct{})
-	for k, v := range bkEmptiedAccount {
-		res.emptiedAccount[k] = v
-	}
-	return func() {
-		res.emptiedAccount = bkEmptiedAccount
-	}
-}
-
 func (res *CheckResult) checkSource(source parser.Source) {
 	if source == nil {
 		return
 	}
 
+	if res.unboundedAccountInSend != nil {
+		res.Diagnostics = append(res.Diagnostics, Diagnostic{
+			Range: source.GetRange(),
+			Kind:  &UnboundedAccountIsNotLast{},
+		})
+	}
+
 	switch source := source.(type) {
 	case *parser.AccountLiteral:
-		if source.Name == "world" && res.unboundedSend {
+		if source.IsWorld() && res.unboundedSend {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: source.GetRange(),
 				Kind:  &InvalidUnboundedAccount{},
 			})
+		} else if source.IsWorld() {
+			res.unboundedAccountInSend = source
 		}
 
-		if _, emptied := res.emptiedAccount[source.Name]; emptied && source.Name != "world" {
+		if _, emptied := res.emptiedAccount[source.Name]; emptied && !source.IsWorld() {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Kind:  &EmptiedAccount{Name: source.Name},
 				Range: source.Range,
@@ -420,11 +420,15 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkLiteral(source, TypeAccount)
 
 	case *parser.SourceOverdraft:
-		if accountLiteral, ok := source.Address.(*parser.AccountLiteral); ok && accountLiteral.Name == "world" {
+		if accountLiteral, ok := source.Address.(*parser.AccountLiteral); ok && accountLiteral.IsWorld() {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: accountLiteral.Range,
 				Kind:  &InvalidWorldOverdraft{},
 			})
+		}
+
+		if source.Bounded == nil {
+			res.unboundedAccountInSend = source.Address
 		}
 
 		if res.unboundedSend {
@@ -445,17 +449,12 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceCapped:
-		bkSendAll := res.unboundedSend
-		res.unboundedSend = false
-		defer func() {
-			res.unboundedSend = bkSendAll
-		}()
-
-		handler := res.withCloneEmptyAccount()
-		defer handler()
+		onExit := res.enterCappedSource()
 
 		res.checkLiteral(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
+
+		onExit()
 
 	case *parser.SourceAllotment:
 		if res.unboundedSend {
@@ -489,9 +488,9 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				}
 			}
 
-			handler := res.withCloneEmptyAccount()
+			onExit := res.enterCappedSource()
 			res.checkSource(allottedItem.From)
-			handler()
+			onExit()
 		}
 
 		res.checkHasBadAllotmentSum(*sum, source.Range, remainingAllotment, variableLiterals)
@@ -604,5 +603,46 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 				Kind:  &RedundantRemaining{},
 			})
 		}
+	}
+}
+
+func (res *CheckResult) withCloneEmptyAccount() func() {
+	initial := res.emptiedAccount
+	res.emptiedAccount = make(map[string]struct{})
+	for k, v := range initial {
+		res.emptiedAccount[k] = v
+	}
+	return func() {
+		res.emptiedAccount = initial
+	}
+}
+
+func (res *CheckResult) withCloneUnboundedAccountInSend() func() {
+	initial := res.unboundedAccountInSend
+	res.unboundedAccountInSend = nil
+
+	return func() {
+		res.unboundedAccountInSend = initial
+	}
+}
+
+func (res *CheckResult) withCloneUnboundedSend() func() {
+	initial := res.unboundedSend
+	res.unboundedSend = false
+
+	return func() {
+		res.unboundedSend = initial
+	}
+}
+
+func (res *CheckResult) enterCappedSource() func() {
+	exitCloneEmptyAccount := res.withCloneEmptyAccount()
+	exitCloneUnboundeAccountInSend := res.withCloneUnboundedAccountInSend()
+	exitCloneUnboundedSend := res.withCloneUnboundedSend()
+
+	return func() {
+		exitCloneEmptyAccount()
+		exitCloneUnboundeAccountInSend()
+		exitCloneUnboundedSend()
 	}
 }

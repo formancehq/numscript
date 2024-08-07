@@ -99,6 +99,10 @@ type RemainingAllotment struct {
 	Range Range
 }
 
+func (a *AccountLiteral) IsWorld() bool {
+	return a.Name == "world"
+}
+
 // Source exprs
 
 type Source interface {

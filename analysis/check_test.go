@@ -1232,3 +1232,127 @@ func TestDoNotEmitEmptiedAccountOnAllotment(t *testing.T) {
 	diagnostics := analysis.CheckSource(input).Diagnostics
 	require.Empty(t, diagnostics)
 }
+
+func TestDoNotAllowExprAfterWorld(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@world
+			@another
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.UnboundedAccountIsNotLast{},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@another", 0),
+	)
+}
+
+func TestAllowWorldInNextExpr(t *testing.T) {
+	input := `
+	send [COIN 1] (
+		source = @world
+		destination = @dest
+	)
+
+	send [COIN 1] (
+		source = @world
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+
+}
+
+func TestAllowWorldInMaxedExpr(t *testing.T) {
+	input := `
+	send [COIN 10] (
+		source = {
+			max [COIN 1] from @world
+			@x
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+
+}
+
+func TestDoNotAllowExprAfterWorldInsideMaxed(t *testing.T) {
+	input := `
+	send [COIN 10] (
+		source = max [COIN 1] from {
+			@world
+			@x
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.UnboundedAccountIsNotLast{},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@x", 0),
+	)
+}
+
+func TestDoNotAllowExprAfterUnbounded(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@unbounded allowing unbounded overdraft
+			@another
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	require.Equal(t,
+		diagnostics[0].Kind,
+		&analysis.UnboundedAccountIsNotLast{},
+	)
+
+	require.Equal(t,
+		diagnostics[0].Range,
+		RangeOfIndexed(input, "@another", 0),
+	)
+}
+
+func TestAllowExprAfterBoundedOverdraft(t *testing.T) {
+	input := `
+	send [COIN 100] (
+		source = {
+			@unbounded allowing overdraft up to [COIN 10]
+			@another
+		}
+		destination = @dest
+	)
+	`
+
+	diagnostics := analysis.CheckSource(input).Diagnostics
+	require.Empty(t, diagnostics)
+}
