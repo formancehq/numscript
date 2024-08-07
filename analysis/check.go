@@ -407,7 +407,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			})
 		}
 
-		if _, emptied := res.emptiedAccount[source.Name]; emptied {
+		if _, emptied := res.emptiedAccount[source.Name]; emptied && source.Name != "world" {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Kind:  &EmptiedAccount{Name: source.Name},
 				Range: source.Range,
