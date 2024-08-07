@@ -64,9 +64,6 @@ func test(t *testing.T, testCase TestCase) {
 	expected := testCase.expected
 	if expected.Error != nil {
 		assert.Equal(t, err, expected.Error)
-		if expected.ErrorContains != "" {
-			require.ErrorContains(t, err, expected.ErrorContains)
-		}
 	} else {
 		require.NoError(t, err)
 	}
@@ -87,10 +84,9 @@ func test(t *testing.T, testCase TestCase) {
 }
 
 type CaseResult struct {
-	Postings      []machine.Posting
-	Metadata      map[string]machine.Value
-	Error         error
-	ErrorContains string
+	Postings []machine.Posting
+	Metadata map[string]machine.Value
+	Error    error
 }
 
 type Posting = machine.Posting
@@ -1127,25 +1123,23 @@ func TestVariableBalance(t *testing.T) {
 		test(t, tc)
 	})
 
-	// TODO
-	// t.Run("send negative monetary", func(t *testing.T) {
-	// 	tc := NewTestCase()
-	// 	script = `
-	// 	vars {
-	// 	  monetary $amount = balance(@world, USD/2)
-	// 	}
-	// 	send $amount (
-	// 	  source = @A
-	// 	  destination = @B
-	// 	)`
-	// 	tc.compile(t, script)
-	// 	tc.setBalance("world", "USD/2", -40)
-	// 	tc.expected = CaseResult{
-	// 		Error:         &machine.ErrNegativeAmount{},
-	// 		ErrorContains: "must be non-negative",
-	// 	}
-	// 	test(t, tc)
-	// })
+	t.Run("send negative monetary", func(t *testing.T) {
+		tc := NewTestCase()
+		script = `
+		vars {
+		  monetary $amount = balance(@world, USD/2)
+		}
+		send $amount (
+		  source = @A
+		  destination = @B
+		)`
+		tc.compile(t, script)
+		tc.setBalance("world", "USD/2", -40)
+		tc.expected = CaseResult{
+			Error: machine.NegativeAmountErr{Amount: machine.NewMonetaryInt(-40)},
+		}
+		test(t, tc)
+	})
 }
 
 // TODO TestVariablesParsing, TestSetVarsFromJSON, TestResolveResources, TestResolveBalances, TestMachine

@@ -63,3 +63,9 @@ type InvalidTypeErr struct {
 func (e InvalidTypeErr) Error() string {
 	return fmt.Sprintf("This type does not exist: %s", e.Name)
 }
+
+type NegativeAmountErr struct{ Amount MonetaryInt }
+
+func (e NegativeAmountErr) Error() string {
+	return fmt.Sprintf("Cannot send negative amount: %s", e.Amount.String())
+}

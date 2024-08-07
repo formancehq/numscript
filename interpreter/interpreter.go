@@ -275,6 +275,11 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			return nil, err
 		}
 
+		monetaryAmt := big.Int(monetary.Amount)
+		if monetaryAmt.Cmp(big.NewInt(0)) == -1 {
+			return nil, NegativeAmountErr{Amount: monetary.Amount}
+		}
+
 		sentTotal, err := st.trySending(statement.Source, *monetary)
 		if err != nil {
 			return nil, err
