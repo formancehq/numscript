@@ -849,8 +849,6 @@ func TestSourceComplex(t *testing.T) {
 }
 
 func TestDestinationComplex(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (
 		source = @world
@@ -1234,9 +1232,6 @@ func TestVariableAsset(t *testing.T) {
 // TODO TestSaveFromAccount
 
 func TestUseDifferentAssetsWithSameSourceAccount(t *testing.T) {
-	// TODO unskip
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `vars {
 	account $a_account

@@ -47,6 +47,11 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			break
 		}
 
+		// Ugly workaround
+		if receiver.Name == "<kept>" {
+			continue
+		}
+
 		sender, empty := popStack(&senders)
 		if empty {
 			return nil, ReconcileError{

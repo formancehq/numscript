@@ -101,3 +101,17 @@ func TestReconcileOverlapping(t *testing.T) {
 		},
 	})
 }
+
+func TestReconcileKept(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"src", big.NewInt(100), "GEM"},
+		},
+		Receivers: []Receiver{
+			{"dest", big.NewInt(50), "EUR"},
+			{"<kept>", big.NewInt(50), "EUR"}},
+		Expected: []Posting{
+			{"src", "dest", big.NewInt(50), "GEM"},
+		},
+	})
+}

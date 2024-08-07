@@ -497,17 +497,23 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		for i, allotmentItem := range destination.Items {
 			switch allotmentItem := allotmentItem.To.(type) {
 			case *parser.DestinationTo:
-				dest := allotmentItem.Destination
 				receivedMon := monetary
 				receivedMon.Amount = NewMonetaryInt(allot[i])
-				received, err := s.receiveFrom(dest, receivedMon)
+				received, err := s.receiveFrom(allotmentItem.Destination, receivedMon)
 				if err != nil {
 					return nil, err
 				}
 				receivedTotal.Add(receivedTotal, received)
 
 			case *parser.DestinationKept:
-				panic("[not implemented] kept destination isn't implemented yet")
+				mon := big.Int(monetary.Amount)
+				s.Receivers = append(s.Receivers, Receiver{
+					Name:     "<kept>",
+					Monetary: &mon,
+					Asset:    string(monetary.Asset),
+				})
+				// TODO Should I add this line?
+				// receivedTotal.Add(receivedTotal, (*big.Int)(&monetary.Amount))
 			}
 
 		}
@@ -521,7 +527,7 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) error {
 			switch destinationTarget := keptOrDest.(type) {
 			case *parser.DestinationKept:
-				panic("[not implemented] kept destination isn't implemented yet")
+				panic("[not implemented] kept destination isn't implemented yet (2)")
 			case *parser.DestinationTo:
 				var amountToReceive *big.Int
 				if capLit == nil {
