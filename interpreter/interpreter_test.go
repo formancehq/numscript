@@ -848,6 +848,31 @@ func TestSourceComplex(t *testing.T) {
 	test(t, tc)
 }
 
+func TestKeptInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @world
+		destination = {
+			max [COIN 10] kept
+			remaining to @dest
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(90),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestDestinationComplex(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (

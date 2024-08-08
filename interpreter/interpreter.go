@@ -525,22 +525,29 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 		// TODO make this prettier
 		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) error {
-			switch destinationTarget := keptOrDest.(type) {
-			case *parser.DestinationKept:
-				panic("[not implemented] kept destination isn't implemented yet (2)")
-			case *parser.DestinationTo:
-				var amountToReceive *big.Int
-				if capLit == nil {
-					amountToReceive = (*big.Int)(&monetary.Amount)
-				} else {
-					cap, err := evaluateLitExpecting(s, capLit, expectMonetary)
-					if err != nil {
-						return err
-					}
-
-					amountToReceive = utils.MinBigInt((*big.Int)(&cap.Amount), (*big.Int)(&monetary.Amount))
+			var amountToReceive *big.Int
+			if capLit == nil {
+				amountToReceive = (*big.Int)(&monetary.Amount)
+			} else {
+				cap, err := evaluateLitExpecting(s, capLit, expectMonetary)
+				if err != nil {
+					return err
 				}
 
+				amountToReceive = utils.MinBigInt((*big.Int)(&cap.Amount), (*big.Int)(&monetary.Amount))
+			}
+
+			switch destinationTarget := keptOrDest.(type) {
+			case *parser.DestinationKept:
+				s.Receivers = append(s.Receivers, Receiver{
+					Name:     "<kept>",
+					Monetary: amountToReceive,
+					Asset:    string(monetary.Asset),
+				})
+				receivedTotal.Add(receivedTotal, amountToReceive)
+				return nil
+
+			case *parser.DestinationTo:
 				var remainingAmount big.Int
 				remainingAmount.Sub(amountToReceive, receivedTotal)
 				remainingMonetary := Monetary{
