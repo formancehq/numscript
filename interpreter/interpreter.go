@@ -395,6 +395,21 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 		}
 		return nil
 
+	case *parser.SourceCapped:
+		monetary, err := evaluateLitExpecting(s, source.Cap, expectMonetary)
+		if err != nil {
+			return err
+		}
+
+		// We switch to the default sending evaluation for this subsource
+		// We ignore the sent value, as it's ok for the source not to have enough funds
+		_, err = s.trySending(source.From, *monetary)
+		if err != nil {
+			return err
+		}
+
+		return nil
+
 	default:
 		panic("TODO handle branch")
 	}
