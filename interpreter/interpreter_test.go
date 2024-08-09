@@ -318,10 +318,7 @@ func TestDynamicAllocation(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestSendAll(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = @users:001
@@ -342,10 +339,64 @@ func TestSendAll(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
-func TestSendAllMulti(t *testing.T) {
+func TestSendAlltMaxWhenNoAmount(t *testing.T) {
+	// False negative: BigInt(0) comparation is failing
 	t.Skip()
 
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = max [USD/2 5] from @src
+		destination = @dest
+	)
+	`)
+	tc.setBalance("src1", "USD/2", 0)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Source:      "src",
+				Destination: "dest",
+				Amount:      big.NewInt(0),
+				Asset:       "USD/2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAlltMaxInSrc(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+		  max [USD/2 5] from @src1
+		  @src2
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("src1", "USD/2", 100)
+	tc.setBalance("src2", "USD/2", 200)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "src1",
+				Destination: "dest",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(200),
+				Source:      "src2",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllMulti(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = {
@@ -462,10 +513,7 @@ func TestNoEmptyPostings(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestEmptyPostings(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [GEM *] (
 		source = @foo

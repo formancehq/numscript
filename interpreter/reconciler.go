@@ -47,8 +47,24 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			break
 		}
 
+		if receiver.Monetary == nil {
+			slices.Reverse(senders)
+			for _, sender := range senders {
+				// empty all the senders
+				postings = append(postings, Posting{
+					Source:      sender.Name,
+					Destination: receiver.Name,
+					Amount:      sender.Monetary,
+					Asset:       sender.Asset,
+				})
+			}
+			break
+
+		}
+
 		// Ugly workaround
 		if receiver.Name == "<kept>" {
+			// TODO test kept + send*
 			continue
 		}
 
@@ -60,10 +76,11 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			}
 		}
 
-		var postingAmount big.Int
 		snd := (*big.Int)(sender.Monetary)
+
 		rcv := (*big.Int)(receiver.Monetary)
 
+		var postingAmount big.Int
 		switch snd.Cmp(rcv) {
 		case 0: /* sender.Monetary == receiver.Monetary */
 			postingAmount = *sender.Monetary
