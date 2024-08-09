@@ -456,10 +456,7 @@ func TestNoEmptyPostings(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestEmptyPostings(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [GEM *] (
 		source = @foo
