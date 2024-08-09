@@ -318,10 +318,7 @@ func TestDynamicAllocation(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestSendAll(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = @users:001
@@ -342,10 +339,7 @@ func TestSendAll(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestSendAllMulti(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = {

@@ -151,3 +151,19 @@ func TestReconcileSendAllMixed(t *testing.T) {
 		},
 	})
 }
+
+func TestReconcileSendMultiSrc(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"src1", big.NewInt(10), "GEM"},
+			{"src2", big.NewInt(20), "GEM"},
+		},
+		Receivers: []Receiver{
+			{"dest", nil, "GEM"},
+		},
+		Expected: []Posting{
+			{"src1", "dest", big.NewInt(10), "GEM"},
+			{"src2", "dest", big.NewInt(20), "GEM"},
+		},
+	})
+}

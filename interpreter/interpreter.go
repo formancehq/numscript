@@ -268,7 +268,24 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		panic("[not implemented] send* statements aren't implemented yet")
+		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		if err != nil {
+			return nil, err
+		}
+		err = st.trySendingAll(statement.Source, *asset)
+		if err != nil {
+			return nil, err
+		}
+		err = st.receiveAll(statement.Destination, *asset)
+		if err != nil {
+			return nil, err
+		}
+		postings, err := Reconcile(st.Senders, st.Receivers)
+		if err != nil {
+			return nil, err
+		}
+		return postings, nil
+
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
@@ -350,6 +367,55 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.I
 	})
 
 	return &monetaryAmount, nil
+}
+
+func (s *programState) trySendingAll(source parser.Source, asset string) error {
+	switch source := source.(type) {
+	case *parser.AccountLiteral:
+		// TODO error when unbounded
+		// TODO err empty balance?
+
+		balance := s.getBalance(source.Name, asset)
+		s.Senders = append(s.Senders, Sender{
+			Name:     source.Name,
+			Monetary: balance,
+			Asset:    asset,
+		})
+		return nil
+
+	case *parser.VariableLiteral:
+		panic("SEND ALL FROM VAR LIT")
+
+	case *parser.SourceInorder:
+		for _, subSource := range source.Sources {
+			err := s.trySendingAll(subSource, asset)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		panic("TODO handle branch")
+	}
+}
+
+func (s *programState) receiveAll(destination parser.Destination, asset string) error {
+	switch destination := destination.(type) {
+	case *parser.AccountLiteral:
+		s.Receivers = append(s.Receivers, Receiver{
+			Name:     destination.Name,
+			Monetary: nil,
+			Asset:    asset,
+		})
+		return nil
+
+	case *parser.VariableLiteral:
+		return nil
+	default:
+		panic("TODO handle dest branch")
+	}
+
 }
 
 func (s *programState) trySending(source parser.Source, monetary Monetary) (*big.Int, error) {
