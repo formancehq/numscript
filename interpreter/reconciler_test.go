@@ -2,9 +2,11 @@ package interpreter
 
 import (
 	"math/big"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type ReconcileTestCase struct {
@@ -15,9 +17,13 @@ type ReconcileTestCase struct {
 }
 
 func runReconcileTestCase(t *testing.T, tc ReconcileTestCase) {
+	slices.Reverse(tc.Senders)
+	slices.Reverse(tc.Receivers)
 	got, err := Reconcile(tc.Senders, tc.Receivers)
-	assert.Equal(t, got, tc.Expected)
-	assert.Equal(t, err, tc.ExpectedErr)
+	slices.Reverse(got)
+
+	require.Equal(t, tc.ExpectedErr, err)
+	assert.Equal(t, tc.Expected, got)
 }
 
 func TestReconcileEmpty(t *testing.T) {
@@ -112,6 +118,36 @@ func TestReconcileKept(t *testing.T) {
 			{"<kept>", big.NewInt(50), "EUR"}},
 		Expected: []Posting{
 			{"src", "dest", big.NewInt(50), "GEM"},
+		},
+	})
+}
+
+func TestReconcileEmptyMonetaryForDest(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"src", big.NewInt(100), "GEM"},
+		},
+		Receivers: []Receiver{
+			{"dest", nil, "EUR"},
+		},
+		Expected: []Posting{
+			{"src", "dest", big.NewInt(100), "GEM"},
+		},
+	})
+}
+
+func TestReconcileSendAllMixed(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"src", big.NewInt(100), "GEM"},
+		},
+		Receivers: []Receiver{
+			{"d1", big.NewInt(20), "GEM"},
+			{"d2", nil, "GEM"},
+		},
+		Expected: []Posting{
+			{"src", "d1", big.NewInt(20), "GEM"},
+			{"src", "d2", big.NewInt(80), "GEM"},
 		},
 	})
 }

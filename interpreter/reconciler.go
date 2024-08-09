@@ -60,10 +60,20 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			}
 		}
 
-		var postingAmount big.Int
 		snd := (*big.Int)(sender.Monetary)
+		if receiver.Monetary == nil {
+			postings = append(postings, Posting{
+				Source:      sender.Name,
+				Destination: receiver.Name,
+				Amount:      snd,
+				Asset:       sender.Asset,
+			})
+			continue
+		}
+
 		rcv := (*big.Int)(receiver.Monetary)
 
+		var postingAmount big.Int
 		switch snd.Cmp(rcv) {
 		case 0: /* sender.Monetary == receiver.Monetary */
 			postingAmount = *sender.Monetary
