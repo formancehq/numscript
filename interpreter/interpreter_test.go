@@ -339,6 +339,37 @@ func TestSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSendAllVariable(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		account $src 
+		account $dest 
+	}
+
+	send [USD/2 *] (
+		source = $src
+		destination = $dest
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"src": "users:001",
+		"dest": "platform"
+	}`)
+	tc.setBalance("users:001", "USD/2", 17)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(17),
+				Source:      "users:001",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAlltMaxWhenNoAmount(t *testing.T) {
 	// False negative: BigInt(0) comparation is failing
 	t.Skip()
@@ -1620,3 +1651,6 @@ func TestErrors(t *testing.T) {
 		test(t, tc)
 	})
 }
+
+// TODO test send* from world
+// TODO test invalid currencies

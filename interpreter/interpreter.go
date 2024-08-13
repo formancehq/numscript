@@ -374,25 +374,32 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.I
 	return &monetaryAmount, nil
 }
 
+func (s *programState) trySendingAllFromAccount(name string, asset string) error {
+	var balanceClone big.Int
+
+	// TODO error when unbounded
+	// TODO err empty balance?
+
+	balance := s.getBalance(name, asset)
+	s.Senders = append(s.Senders, Sender{
+		Name:     name,
+		Monetary: balanceClone.Set(balance),
+		Asset:    asset,
+	})
+	return nil
+}
+
 func (s *programState) trySendingAll(source parser.Source, asset string) error {
 	switch source := source.(type) {
 	case *parser.AccountLiteral:
-		// TODO error when unbounded
-		// TODO err empty balance?
-
-		balance := s.getBalance(source.Name, asset)
-		var sendMonetary big.Int
-		sendMonetary.Set(balance)
-
-		s.Senders = append(s.Senders, Sender{
-			Name:     source.Name,
-			Monetary: sendMonetary.Set(balance),
-			Asset:    asset,
-		})
-		return nil
+		return s.trySendingAllFromAccount(source.Name, asset)
 
 	case *parser.VariableLiteral:
-		panic("TODO SEND ALL FROM VAR LIT")
+		account, err := evaluateLitExpecting(s, source, expectAccount)
+		if err != nil {
+			return err
+		}
+		return s.trySendingAllFromAccount(string(*account), asset)
 
 	case *parser.SourceInorder:
 		for _, subSource := range source.Sources {
@@ -419,22 +426,30 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 		return nil
 
 	default:
-		panic("TODO handle branch")
+		return utils.NonExhaustiveMatchPanic[error](source)
 	}
+}
+
+func (s *programState) receiveAllFromAccount(name string, asset string) error {
+	s.Receivers = append(s.Receivers, Receiver{
+		Name:     name,
+		Monetary: nil,
+		Asset:    asset,
+	})
+	return nil
 }
 
 func (s *programState) receiveAllFrom(destination parser.Destination, asset string) error {
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
-		s.Receivers = append(s.Receivers, Receiver{
-			Name:     destination.Name,
-			Monetary: nil,
-			Asset:    asset,
-		})
-		return nil
+		return s.receiveAllFromAccount(destination.Name, asset)
 
 	case *parser.VariableLiteral:
-		panic("TODO variable lit in rcv")
+		account, err := evaluateLitExpecting(s, destination, expectAccount)
+		if err != nil {
+			return err
+		}
+		return s.receiveAllFromAccount(*account, asset)
 
 	case *parser.DestinationInorder:
 		for _, subDestination := range destination.Clauses {
