@@ -632,9 +632,10 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 		for i, allotmentItem := range destination.Items {
 			switch allotmentItem := allotmentItem.To.(type) {
 			case *parser.DestinationTo:
-				receivedMon := monetary
-				receivedMon.Amount = NewMonetaryInt(allot[i])
-				received, err := s.receiveFrom(allotmentItem.Destination, receivedMon)
+				received, err := s.receiveFrom(allotmentItem.Destination, Monetary{
+					Amount: NewMonetaryInt(allot[i]),
+					Asset:  monetary.Asset,
+				})
 				if err != nil {
 					return nil, err
 				}
