@@ -1324,9 +1324,6 @@ func TestVariableBalance(t *testing.T) {
 // }
 
 func TestVariableAsset(t *testing.T) {
-	// TODO unskip
-	t.Skip()
-
 	script := `
  		vars {
  			asset $ass
