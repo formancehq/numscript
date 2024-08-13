@@ -265,6 +265,22 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 	}
 }
 
+func (st *programState) getPostings() ([]Posting, error) {
+	postings, err := Reconcile(st.Senders, st.Receivers)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, posting := range postings {
+		srcBalance := st.getBalance(posting.Source, posting.Asset)
+		srcBalance.Sub(srcBalance, posting.Amount)
+
+		destBalance := st.getBalance(posting.Destination, posting.Asset)
+		destBalance.Add(destBalance, posting.Amount)
+	}
+	return postings, nil
+}
+
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
@@ -280,11 +296,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		if err != nil {
 			return nil, err
 		}
-		postings, err := Reconcile(st.Senders, st.Receivers)
-		if err != nil {
-			return nil, err
-		}
-		return postings, nil
+		return st.getPostings()
 
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
@@ -314,11 +326,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 		st.receiveFrom(statement.Destination, *monetary)
 
-		postings, err := Reconcile(st.Senders, st.Receivers)
-		if err != nil {
-			return nil, err
-		}
-		return postings, nil
+		return st.getPostings()
 	default:
 		utils.NonExhaustiveMatchPanic[any](sentValue)
 		return nil, nil
@@ -355,9 +363,6 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.I
 		if balance.Cmp(&monetaryAmount) == -1 /* balance < monetary */ {
 			monetaryAmount.Set(balance)
 		}
-
-		assetBalance := s.getBalance(name, string(monetary.Asset))
-		assetBalance.Sub(assetBalance, &monetaryAmount)
 	}
 
 	s.Senders = append(s.Senders, Sender{
@@ -376,9 +381,12 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 		// TODO err empty balance?
 
 		balance := s.getBalance(source.Name, asset)
+		var sendMonetary big.Int
+		sendMonetary.Set(balance)
+
 		s.Senders = append(s.Senders, Sender{
 			Name:     source.Name,
-			Monetary: balance,
+			Monetary: sendMonetary.Set(balance),
 			Asset:    asset,
 		})
 		return nil
@@ -451,7 +459,7 @@ func (s *programState) receiveAllFrom(destination parser.Destination, asset stri
 
 		switch remaining := destination.Remaining.(type) {
 		case *parser.DestinationKept:
-			panic("TODO destination kept in send* remaining")
+			return nil
 
 		case *parser.DestinationTo:
 			err := s.receiveAllFrom(remaining.Destination, asset)
@@ -492,10 +500,6 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) (*big
 		if err != nil {
 			return nil, err
 		}
-
-		balance := s.getBalance(*name, string(monetary.Asset))
-		// TODO impl bounded overdraft
-		balance.Sub(balance, &monetaryAmount)
 
 		s.Senders = append(s.Senders, Sender{
 			Name:     *name,
@@ -576,9 +580,6 @@ func (s *programState) trySending(source parser.Source, monetary Monetary) (*big
 
 func (s *programState) receiveFromAccount(name string, monetary Monetary) *big.Int {
 	mon := big.Int(monetary.Amount)
-
-	balance := s.getBalance(name, string(monetary.Asset))
-	balance.Add(balance, &mon)
 
 	s.Receivers = append(s.Receivers, Receiver{
 		Name:     name,

@@ -701,10 +701,65 @@ func TestTrackBalances2(t *testing.T) {
 	test(t, tc)
 }
 
-func TestTrackBalances3(t *testing.T) {
-	// TODO unskip this
-	t.Skip()
+func TestRemainingKeptInSendAllInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 1] to @dest
+			remaining kept
+		}
+	)`)
 
+	tc.setBalance("src", "COIN", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestTrackBalancesSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN *] (
+		source = @src
+		destination = @dest1
+	)
+	send [COIN *] (
+		source = @src
+		destination = @dest2
+	)`)
+	tc.setBalance("src", "COIN", 42)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(42),
+				Source:      "src",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(0),
+				Source:      "src",
+				Destination: "dest2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestTrackBalances3(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN *] (
 		source = @foo
