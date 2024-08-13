@@ -276,7 +276,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		if err != nil {
 			return nil, err
 		}
-		err = st.receiveAll(statement.Destination, *asset)
+		err = st.receiveAllFrom(statement.Destination, *asset)
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +384,7 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 		return nil
 
 	case *parser.VariableLiteral:
-		panic("SEND ALL FROM VAR LIT")
+		panic("TODO SEND ALL FROM VAR LIT")
 
 	case *parser.SourceInorder:
 		for _, subSource := range source.Sources {
@@ -415,7 +415,7 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 	}
 }
 
-func (s *programState) receiveAll(destination parser.Destination, asset string) error {
+func (s *programState) receiveAllFrom(destination parser.Destination, asset string) error {
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
 		s.Receivers = append(s.Receivers, Receiver{
@@ -426,7 +426,45 @@ func (s *programState) receiveAll(destination parser.Destination, asset string) 
 		return nil
 
 	case *parser.VariableLiteral:
-		return nil
+		panic("TODO variable lit in rcv")
+
+	case *parser.DestinationInorder:
+		for _, subDestination := range destination.Clauses {
+			cap, err := evaluateLitExpecting(s, subDestination.Cap, expectMonetary)
+			if err != nil {
+				return err
+			}
+
+			switch to := subDestination.To.(type) {
+			case *parser.DestinationKept:
+				panic("TODO destination kept in send*")
+
+			case *parser.DestinationTo:
+				_, err = s.receiveFrom(to.Destination, *cap)
+				if err != nil {
+					return err
+				}
+			default:
+				utils.NonExhaustiveMatchPanic[any](to)
+			}
+		}
+
+		switch remaining := destination.Remaining.(type) {
+		case *parser.DestinationKept:
+			panic("TODO destination kept in send* remaining")
+
+		case *parser.DestinationTo:
+			err := s.receiveAllFrom(remaining.Destination, asset)
+			if err != nil {
+				return err
+			}
+			return nil
+
+		default:
+			utils.NonExhaustiveMatchPanic[any](remaining)
+			return nil
+		}
+
 	default:
 		panic("TODO handle dest branch")
 	}

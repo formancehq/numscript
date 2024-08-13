@@ -396,6 +396,37 @@ func TestSendAlltMaxInSrc(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSendAlltMaxInDest(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src
+		destination = {
+			max [USD/2 10] to @d1
+			remaining to @d2
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(90),
+				Source:      "src",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAllMulti(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

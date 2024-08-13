@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"math/big"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,10 +16,7 @@ type ReconcileTestCase struct {
 }
 
 func runReconcileTestCase(t *testing.T, tc ReconcileTestCase) {
-	slices.Reverse(tc.Senders)
-	slices.Reverse(tc.Receivers)
 	got, err := Reconcile(tc.Senders, tc.Receivers)
-	slices.Reverse(got)
 
 	require.Equal(t, tc.ExpectedErr, err)
 	assert.Equal(t, tc.Expected, got)
@@ -89,6 +85,42 @@ func TestReconcileWhenSendersAreSplit(t *testing.T) {
 		Expected: []Posting{
 			{"s1", "d", big.NewInt(20), "EUR"},
 			{"s2", "d", big.NewInt(30), "EUR"},
+		},
+	})
+}
+
+func TestMany(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"s1", big.NewInt(80 + 20), "EUR"},
+			{"s2", big.NewInt(1000), "EUR"},
+		},
+		Receivers: []Receiver{
+			{"d1", big.NewInt(80), "EUR"},
+			{"d2", big.NewInt(20 + 123), "EUR"},
+		},
+		Expected: []Posting{
+			{"s1", "d1", big.NewInt(80), "EUR"},
+			{"s1", "d2", big.NewInt(20), "EUR"},
+			{"s2", "d2", big.NewInt(123), "EUR"},
+		},
+	})
+}
+
+func TestReconcileManySendersManyReceivers(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Senders: []Sender{
+			{"s1", big.NewInt(80 + 20), "EUR"},
+			{"s2", big.NewInt(1000), "EUR"},
+		},
+		Receivers: []Receiver{
+			{"d1", big.NewInt(80), "EUR"},
+			{"d2", big.NewInt(20 + 123), "EUR"},
+		},
+		Expected: []Posting{
+			{"s1", "d1", big.NewInt(80), "EUR"},
+			{"s1", "d2", big.NewInt(20), "EUR"},
+			{"s2", "d2", big.NewInt(123), "EUR"},
 		},
 	})
 }
