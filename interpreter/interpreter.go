@@ -425,6 +425,11 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 
 		return nil
 
+	case *parser.SourceAllotment:
+		panic("TODO source allotmnet in send*")
+	case *parser.SourceOverdraft:
+		panic("TODO source overdraft in send*")
+
 	default:
 		return utils.NonExhaustiveMatchPanic[error](source)
 	}
@@ -487,9 +492,11 @@ func (s *programState) receiveAllFrom(destination parser.Destination, asset stri
 			utils.NonExhaustiveMatchPanic[any](remaining)
 			return nil
 		}
+	case *parser.DestinationAllotment:
+		panic("TODO destination allotment")
 
 	default:
-		panic("TODO handle dest branch")
+		return utils.NonExhaustiveMatchPanic[error](destination)
 	}
 
 }
