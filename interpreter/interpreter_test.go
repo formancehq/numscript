@@ -458,6 +458,47 @@ func TestSendAlltMaxInDest(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSendAllManyMaxInDest(t *testing.T) {
+	// BROKEN
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src
+		destination = {
+			max [USD/2 10] to @d1
+			max [USD/2 20] to @d2
+			remaining to @d3
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "src",
+				Destination: "d2",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(0),
+				Source:      "src",
+				Destination: "d3",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAllMulti(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
@@ -728,6 +769,31 @@ func TestTrackBalances2(t *testing.T) {
 			Missing: *big.NewInt(40),
 			Sent:    *big.NewInt(10),
 		},
+	}
+	test(t, tc)
+}
+
+func TestKeptInSendAllInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 1] kept
+			remaining to @dest
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(9),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
 	}
 	test(t, tc)
 }
