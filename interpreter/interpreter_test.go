@@ -459,9 +459,6 @@ func TestSendAlltMaxInDest(t *testing.T) {
 }
 
 func TestSendAllManyMaxInDest(t *testing.T) {
-	// BROKEN
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = @src
@@ -486,12 +483,6 @@ func TestSendAllManyMaxInDest(t *testing.T) {
 				Amount:      big.NewInt(5),
 				Source:      "src",
 				Destination: "d2",
-			},
-			{
-				Asset:       "USD/2",
-				Amount:      big.NewInt(0),
-				Source:      "src",
-				Destination: "d3",
 			},
 		},
 		Error: nil,
@@ -1102,6 +1093,35 @@ func TestKeptInorder(t *testing.T) {
 		Error: nil,
 	}
 	test(t, tc)
+
+}
+
+func TestKeptWithBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @src
+		destination = {
+			max [COIN 10] kept
+			remaining to @dest
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 1000)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(90),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
 }
 
 func TestDestinationComplex(t *testing.T) {

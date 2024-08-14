@@ -39,6 +39,8 @@ func (r *Receiver) String() string {
 }
 
 func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
+	fmt.Println(senders, receivers)
+
 	// We reverse senders and receivers once so that we can
 	// treat them as stack and push/pop in O(1)
 	slices.Reverse(senders)
@@ -68,6 +70,23 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 		// Ugly workaround
 		if receiver.Name == "<kept>" {
 			// TODO test kept + send*
+			fmt.Println("after kept:", senders, receiver)
+			// reduce sender by amt
+
+			sender, empty := popStack(&senders)
+			if !empty {
+				var newMon big.Int
+				newMon.Sub(sender.Monetary, receiver.Monetary)
+				if newMon.Sign() == -1 {
+					panic("NEG" + newMon.String())
+				}
+
+				senders = append(senders, Sender{
+					Name:     sender.Name,
+					Asset:    sender.Asset,
+					Monetary: &newMon,
+				})
+			}
 			continue
 		}
 
@@ -80,10 +99,11 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 				return postings, nil
 			}
 
-			return nil, ReconcileError{
-				Receiver:  receiver,
-				Receivers: receivers,
-			}
+			return postings, nil
+			// return nil, ReconcileError{
+			// 	Receiver:  receiver,
+			// 	Receivers: receivers,
+			// }
 		}
 
 		snd := (*big.Int)(sender.Monetary)

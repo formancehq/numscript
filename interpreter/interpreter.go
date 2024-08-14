@@ -465,7 +465,11 @@ func (s *programState) receiveAllFrom(destination parser.Destination, asset stri
 
 			switch to := subDestination.To.(type) {
 			case *parser.DestinationKept:
-				panic("TODO destination kept in send*")
+				s.Receivers = append(s.Receivers, Receiver{
+					Name:     "<kept>",
+					Monetary: (*big.Int)(&cap.Amount),
+					Asset:    asset,
+				})
 
 			case *parser.DestinationTo:
 				_, err = s.receiveFrom(to.Destination, *cap)
@@ -637,10 +641,12 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
+			amtToReceive := big.NewInt(allot[i])
+
 			switch allotmentItem := allotmentItem.To.(type) {
 			case *parser.DestinationTo:
 				received, err := s.receiveFrom(allotmentItem.Destination, Monetary{
-					Amount: NewMonetaryInt(allot[i]),
+					Amount: MonetaryInt(*amtToReceive),
 					Asset:  monetary.Asset,
 				})
 				if err != nil {
@@ -649,10 +655,9 @@ func (s *programState) receiveFrom(destination parser.Destination, monetary Mone
 				receivedTotal.Add(receivedTotal, received)
 
 			case *parser.DestinationKept:
-				mon := big.Int(monetary.Amount)
 				s.Receivers = append(s.Receivers, Receiver{
 					Name:     "<kept>",
-					Monetary: &mon,
+					Monetary: amtToReceive,
 					Asset:    string(monetary.Asset),
 				})
 				// TODO Should I add this line?
