@@ -465,6 +465,21 @@ func TestSendAllDestinatioAllotComplex(t *testing.T) {
 	test(t, tc)
 }
 
+func TestInvalidAllotInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+			1/2 from @a
+			2/3 from @b
+		}
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidAllotmentInSendAll{},
+	}
+	test(t, tc)
+}
+
 func TestSendAlltMaxInSrc(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

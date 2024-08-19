@@ -423,7 +423,8 @@ func (s *programState) trySendingAll(source parser.Source, asset string) (*big.I
 		return s.trySending(source.From, *monetary)
 
 	case *parser.SourceAllotment:
-		panic("TODO source allotmnet in send*")
+		return nil, InvalidAllotmentInSendAll{}
+
 	case *parser.SourceOverdraft:
 		panic("TODO source overdraft in send*")
 
