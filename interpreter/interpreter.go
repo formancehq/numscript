@@ -288,11 +288,11 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		if err != nil {
 			return nil, err
 		}
-		err = st.trySendingAll(statement.Source, *asset)
+		sentAmt, err := st.trySendingAll(statement.Source, *asset)
 		if err != nil {
 			return nil, err
 		}
-		err = st.receiveAllFrom(statement.Destination, *asset)
+		err = st.receiveAllFrom(statement.Destination, *asset, *sentAmt)
 		if err != nil {
 			return nil, err
 		}
@@ -374,7 +374,7 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.I
 	return &monetaryAmount, nil
 }
 
-func (s *programState) trySendingAllFromAccount(name string, asset string) error {
+func (s *programState) trySendingAllFromAccount(name string, asset string) (*big.Int, error) {
 	var balanceClone big.Int
 
 	// TODO error when unbounded
@@ -386,10 +386,11 @@ func (s *programState) trySendingAllFromAccount(name string, asset string) error
 		Monetary: balanceClone.Set(balance),
 		Asset:    asset,
 	})
-	return nil
+
+	return &balanceClone, nil
 }
 
-func (s *programState) trySendingAll(source parser.Source, asset string) error {
+func (s *programState) trySendingAll(source parser.Source, asset string) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.AccountLiteral:
 		return s.trySendingAllFromAccount(source.Name, asset)
@@ -397,33 +398,29 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 	case *parser.VariableLiteral:
 		account, err := evaluateLitExpecting(s, source, expectAccount)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		return s.trySendingAllFromAccount(string(*account), asset)
 
 	case *parser.SourceInorder:
+		totalSent := big.NewInt(0)
 		for _, subSource := range source.Sources {
-			err := s.trySendingAll(subSource, asset)
+			sent, err := s.trySendingAll(subSource, asset)
 			if err != nil {
-				return err
+				return nil, err
 			}
+			totalSent.Add(totalSent, sent)
 		}
-		return nil
+		return totalSent, nil
 
 	case *parser.SourceCapped:
 		monetary, err := evaluateLitExpecting(s, source.Cap, expectMonetary)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// We switch to the default sending evaluation for this subsource
-		// We ignore the sent value, as it's ok for the source not to have enough funds
-		_, err = s.trySending(source.From, *monetary)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return s.trySending(source.From, *monetary)
 
 	case *parser.SourceAllotment:
 		panic("TODO source allotmnet in send*")
@@ -431,7 +428,8 @@ func (s *programState) trySendingAll(source parser.Source, asset string) error {
 		panic("TODO source overdraft in send*")
 
 	default:
-		return utils.NonExhaustiveMatchPanic[error](source)
+		utils.NonExhaustiveMatchPanic[error](source)
+		return nil, nil
 	}
 }
 
@@ -444,7 +442,7 @@ func (s *programState) receiveAllFromAccount(name string, asset string) error {
 	return nil
 }
 
-func (s *programState) receiveAllFrom(destination parser.Destination, asset string) error {
+func (s *programState) receiveAllFrom(destination parser.Destination, asset string, monetary big.Int) error {
 	switch destination := destination.(type) {
 	case *parser.AccountLiteral:
 		return s.receiveAllFromAccount(destination.Name, asset)
@@ -486,7 +484,7 @@ func (s *programState) receiveAllFrom(destination parser.Destination, asset stri
 			return nil
 
 		case *parser.DestinationTo:
-			err := s.receiveAllFrom(remaining.Destination, asset)
+			err := s.receiveAllFrom(remaining.Destination, asset, monetary)
 			if err != nil {
 				return err
 			}
@@ -497,7 +495,11 @@ func (s *programState) receiveAllFrom(destination parser.Destination, asset stri
 			return nil
 		}
 	case *parser.DestinationAllotment:
-		panic("TODO destination allotment")
+		_, err := s.receiveFrom(destination, Monetary{
+			Asset:  Asset(asset),
+			Amount: MonetaryInt(monetary),
+		})
+		return err
 
 	default:
 		return utils.NonExhaustiveMatchPanic[error](destination)

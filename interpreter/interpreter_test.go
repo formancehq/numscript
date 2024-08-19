@@ -395,6 +395,76 @@ func TestSendAlltMaxWhenNoAmount(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSendAllDestinatioAllot(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @users:001
+		destination = {
+			1/3 to @d1
+			2/3 to @d2
+		}
+	)`)
+	tc.setBalance("users:001", "USD/2", 30)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "users:001",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(20),
+				Source:      "users:001",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllDestinatioAllotComplex(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+			@users:001
+			@users:002
+		}
+		destination = {
+			1/3 to @d1
+			2/3 to @d2
+		}
+	)`)
+	tc.setBalance("users:001", "USD/2", 15)
+	tc.setBalance("users:002", "USD/2", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "users:001",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "users:001",
+				Destination: "d2",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(15),
+				Source:      "users:002",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAlltMaxInSrc(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
