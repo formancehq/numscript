@@ -480,6 +480,70 @@ func TestInvalidAllotInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @world
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedInSendAll{Name: "world"},
+	}
+	test(t, tc)
+}
+
+func TestInvalidUnboundedInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @a allowing unbounded overdraft
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedInSendAll{Name: "a"},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src allowing overdraft up to [USD/2 10]
+		destination = @dest
+	)`)
+	tc.setBalance("src", "USD/2", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftInSendAllWhenNoop(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src allowing overdraft up to [USD/2 10]
+		destination = @dest
+	)`)
+	tc.setBalance("src", "USD/2", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(1),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
 func TestSendAlltMaxInSrc(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

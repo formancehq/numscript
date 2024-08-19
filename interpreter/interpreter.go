@@ -375,6 +375,12 @@ func (s *programState) trySendingAccount(name string, monetary Monetary) (*big.I
 }
 
 func (s *programState) trySendingAllFromAccount(name string, asset string) (*big.Int, error) {
+	if name == "world" {
+		return nil, InvalidUnboundedInSendAll{
+			Name: name,
+		}
+	}
+
 	var balanceClone big.Int
 
 	// TODO error when unbounded
@@ -426,7 +432,23 @@ func (s *programState) trySendingAll(source parser.Source, asset string) (*big.I
 		return nil, InvalidAllotmentInSendAll{}
 
 	case *parser.SourceOverdraft:
-		panic("TODO source overdraft in send*")
+		account, err := evaluateLitExpecting(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		if source.Bounded == nil {
+			return nil, InvalidUnboundedInSendAll{
+				Name: *account,
+			}
+		}
+
+		monetary, err := evaluateLitExpecting(s, *source.Bounded, expectMonetary)
+		if err != nil {
+			return nil, err
+		}
+
+		return s.trySendingAccount(*account, *monetary)
 
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
