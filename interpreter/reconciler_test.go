@@ -9,6 +9,8 @@ import (
 )
 
 type ReconcileTestCase struct {
+	Currency string
+
 	Senders     []Sender
 	Receivers   []Receiver
 	Expected    []Posting
@@ -16,7 +18,11 @@ type ReconcileTestCase struct {
 }
 
 func runReconcileTestCase(t *testing.T, tc ReconcileTestCase) {
-	got, err := Reconcile(tc.Senders, tc.Receivers)
+	if tc.Currency == "" {
+		tc.Currency = "COIN"
+	}
+
+	got, err := Reconcile(tc.Currency, tc.Senders, tc.Receivers)
 
 	require.Equal(t, tc.ExpectedErr, err)
 	assert.Equal(t, tc.Expected, got)
@@ -28,8 +34,9 @@ func TestReconcileEmpty(t *testing.T) {
 
 func TestReconcileSingletonExactMatch(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
-		Senders:   []Sender{{"src", big.NewInt(10), "COIN"}},
-		Receivers: []Receiver{{"dest", big.NewInt(10), "COIN"}},
+		Currency:  "COIN",
+		Senders:   []Sender{{"src", big.NewInt(10)}},
+		Receivers: []Receiver{{"dest", big.NewInt(10)}},
 		Expected:  []Posting{{"src", "dest", big.NewInt(10), "COIN"}},
 	})
 }
@@ -39,7 +46,6 @@ func TestNoReceiversLeft(t *testing.T) {
 		Senders: []Sender{{
 			"src",
 			big.NewInt(10),
-			"",
 		}},
 	})
 }
@@ -49,9 +55,10 @@ func TestNoSendersLeft(t *testing.T) {
 	t.Skip()
 
 	runReconcileTestCase(t, ReconcileTestCase{
-		Receivers: []Receiver{{"dest", big.NewInt(10), "EUR"}},
+		Currency:  "EUR",
+		Receivers: []Receiver{{"dest", big.NewInt(10)}},
 		ExpectedErr: ReconcileError{
-			Receiver:  Receiver{"dest", big.NewInt(10), "EUR"},
+			Receiver:  Receiver{"dest", big.NewInt(10)},
 			Receivers: make([]Receiver, 0),
 		},
 	})
@@ -59,17 +66,16 @@ func TestNoSendersLeft(t *testing.T) {
 
 func TestReconcileSendersRemainder(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
-		Senders: []Sender{{"src", big.NewInt(100), "EUR"}},
+		Currency: "EUR",
+		Senders:  []Sender{{"src", big.NewInt(100)}},
 		Receivers: []Receiver{
 			{
 				"d1",
 				big.NewInt(70),
-				"EUR",
 			},
 			{
 				"d2",
 				big.NewInt(30),
-				"EUR",
 			}},
 		Expected: []Posting{
 			{"src", "d1", big.NewInt(70), "EUR"},
@@ -80,11 +86,12 @@ func TestReconcileSendersRemainder(t *testing.T) {
 
 func TestReconcileWhenSendersAreSplit(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(20), "EUR"},
-			{"s2", big.NewInt(30), "EUR"},
+			{"s1", big.NewInt(20)},
+			{"s2", big.NewInt(30)},
 		},
-		Receivers: []Receiver{{"d", big.NewInt(50), "EUR"}},
+		Receivers: []Receiver{{"d", big.NewInt(50)}},
 		Expected: []Posting{
 			{"s1", "d", big.NewInt(20), "EUR"},
 			{"s2", "d", big.NewInt(30), "EUR"},
@@ -94,13 +101,14 @@ func TestReconcileWhenSendersAreSplit(t *testing.T) {
 
 func TestMany(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(80 + 20), "EUR"},
-			{"s2", big.NewInt(1000), "EUR"},
+			{"s1", big.NewInt(80 + 20)},
+			{"s2", big.NewInt(1000)},
 		},
 		Receivers: []Receiver{
-			{"d1", big.NewInt(80), "EUR"},
-			{"d2", big.NewInt(20 + 123), "EUR"},
+			{"d1", big.NewInt(80)},
+			{"d2", big.NewInt(20 + 123)},
 		},
 		Expected: []Posting{
 			{"s1", "d1", big.NewInt(80), "EUR"},
@@ -112,13 +120,14 @@ func TestMany(t *testing.T) {
 
 func TestReconcileManySendersManyReceivers(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(80 + 20), "EUR"},
-			{"s2", big.NewInt(1000), "EUR"},
+			{"s1", big.NewInt(80 + 20)},
+			{"s2", big.NewInt(1000)},
 		},
 		Receivers: []Receiver{
-			{"d1", big.NewInt(80), "EUR"},
-			{"d2", big.NewInt(20 + 123), "EUR"},
+			{"d1", big.NewInt(80)},
+			{"d2", big.NewInt(20 + 123)},
 		},
 		Expected: []Posting{
 			{"s1", "d1", big.NewInt(80), "EUR"},
@@ -130,12 +139,13 @@ func TestReconcileManySendersManyReceivers(t *testing.T) {
 
 func TestReconcileOverlapping(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "EUR",
 		Senders: []Sender{
-			{"src1", big.NewInt(1), "EUR"},
-			{"src2", big.NewInt(10), "EUR"},
-			{"src2", big.NewInt(20), "EUR"},
+			{"src1", big.NewInt(1)},
+			{"src2", big.NewInt(10)},
+			{"src2", big.NewInt(20)},
 		},
-		Receivers: []Receiver{{"d", big.NewInt(31), "EUR"}},
+		Receivers: []Receiver{{"d", big.NewInt(31)}},
 		Expected: []Posting{
 			{"src1", "d", big.NewInt(1), "EUR"},
 			{"src2", "d", big.NewInt(30), "EUR"},
@@ -145,12 +155,13 @@ func TestReconcileOverlapping(t *testing.T) {
 
 func TestReconcileKept(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "GEM",
 		Senders: []Sender{
-			{"src", big.NewInt(100), "GEM"},
+			{"src", big.NewInt(100)},
 		},
 		Receivers: []Receiver{
-			{"dest", big.NewInt(50), "EUR"},
-			{"<kept>", big.NewInt(50), "EUR"}},
+			{"dest", big.NewInt(50)},
+			{"<kept>", big.NewInt(50)}},
 		Expected: []Posting{
 			{"src", "dest", big.NewInt(50), "GEM"},
 		},
@@ -159,11 +170,12 @@ func TestReconcileKept(t *testing.T) {
 
 func TestReconcileEmptyMonetaryForDest(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "GEM",
 		Senders: []Sender{
-			{"src", big.NewInt(100), "GEM"},
+			{"src", big.NewInt(100)},
 		},
 		Receivers: []Receiver{
-			{"dest", nil, "EUR"},
+			{"dest", nil},
 		},
 		Expected: []Posting{
 			{"src", "dest", big.NewInt(100), "GEM"},
@@ -173,12 +185,13 @@ func TestReconcileEmptyMonetaryForDest(t *testing.T) {
 
 func TestReconcileSendAllMixed(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "GEM",
 		Senders: []Sender{
-			{"src", big.NewInt(100), "GEM"},
+			{"src", big.NewInt(100)},
 		},
 		Receivers: []Receiver{
-			{"d1", big.NewInt(20), "GEM"},
-			{"d2", nil, "GEM"},
+			{"d1", big.NewInt(20)},
+			{"d2", nil},
 		},
 		Expected: []Posting{
 			{"src", "d1", big.NewInt(20), "GEM"},
@@ -189,12 +202,13 @@ func TestReconcileSendAllMixed(t *testing.T) {
 
 func TestReconcileSendMultiSrc(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "GEM",
 		Senders: []Sender{
-			{"src1", big.NewInt(10), "GEM"},
-			{"src2", big.NewInt(20), "GEM"},
+			{"src1", big.NewInt(10)},
+			{"src2", big.NewInt(20)},
 		},
 		Receivers: []Receiver{
-			{"dest", nil, "GEM"},
+			{"dest", nil},
 		},
 		Expected: []Posting{
 			{"src1", "dest", big.NewInt(10), "GEM"},

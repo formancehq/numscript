@@ -80,5 +80,15 @@ func (e InvalidAllotmentInSendAll) Error() string {
 type InvalidUnboundedInSendAll struct{ Name string }
 
 func (e InvalidUnboundedInSendAll) Error() string {
+	// TODO
 	return "TODO descr"
+}
+
+type MismatchedCurrencyError struct {
+	Expected string
+	Got      string
+}
+
+func (e MismatchedCurrencyError) Error() string {
+	return fmt.Sprintf("Mismatched currency (expected '%s', got '%s' instead)", e.Expected, e.Got)
 }

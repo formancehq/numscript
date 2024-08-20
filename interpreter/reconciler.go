@@ -25,20 +25,14 @@ func (e ReconcileError) Error() string {
 type Sender struct {
 	Name     string
 	Monetary *big.Int
-	Asset    string
 }
 
 type Receiver struct {
 	Name     string
 	Monetary *big.Int
-	Asset    string
 }
 
-func (r *Receiver) String() string {
-	return fmt.Sprintf("<[%s %s] from  %s>", r.Asset, r.Monetary.String(), r.Name)
-}
-
-func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
+func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, error) {
 	// We reverse senders and receivers once so that we can
 	// treat them as stack and push/pop in O(1)
 	slices.Reverse(senders)
@@ -59,7 +53,7 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 					Source:      sender.Name,
 					Destination: receiver.Name,
 					Amount:      sender.Monetary,
-					Asset:       sender.Asset,
+					Asset:       asset,
 				})
 			}
 			break
@@ -81,7 +75,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 
 				senders = append(senders, Sender{
 					Name:     sender.Name,
-					Asset:    sender.Asset,
 					Monetary: &newMon,
 				})
 			}
@@ -115,7 +108,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			receivers = append(receivers, Receiver{
 				Name:     receiver.Name,
 				Monetary: monetary.Sub(receiver.Monetary, sender.Monetary),
-				Asset:    sender.Asset,
 			})
 			postingAmount = *sender.Monetary
 		case 1: /* sender.Monetary > receiver.Monetary */
@@ -123,7 +115,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			senders = append(senders, Sender{
 				Name:     sender.Name,
 				Monetary: monetary.Sub(sender.Monetary, receiver.Monetary),
-				Asset:    sender.Asset,
 			})
 			postingAmount = *receiver.Monetary
 		}
@@ -145,7 +136,7 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 				Source:      sender.Name,
 				Destination: receiver.Name,
 				Amount:      &postingAmount,
-				Asset:       sender.Asset,
+				Asset:       asset,
 			})
 		} else {
 			// postingToMerge.Amount += postingAmount

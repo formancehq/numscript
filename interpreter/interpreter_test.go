@@ -63,7 +63,7 @@ func test(t *testing.T, testCase TestCase) {
 	execResult, err := machine.RunProgram(*prog, testCase.vars, testCase.balances, testCase.meta)
 	expected := testCase.expected
 	if expected.Error != nil {
-		assert.Equal(t, err, expected.Error)
+		require.Equal(t, expected.Error, err)
 	} else {
 		require.NoError(t, err)
 	}
@@ -1885,7 +1885,21 @@ func TestErrors(t *testing.T) {
 		}
 		test(t, tc)
 	})
-}
 
-// TODO test send* from world
-// TODO test invalid currencies
+	t.Run("bad currency type in max (source)", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			send [EUR/2 1] (
+				source = max [USD/2 10] from @world
+				destination = @b
+			)
+		`)
+		tc.expected = CaseResult{
+			Error: machine.MismatchedCurrencyError{
+				Expected: "EUR/2",
+				Got:      "USD/2",
+			},
+		}
+		test(t, tc)
+	})
+}
