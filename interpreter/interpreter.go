@@ -406,11 +406,8 @@ func (s *programState) trySendingAllFromAccount(name string) (*big.Int, error) {
 
 func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 	switch source := source.(type) {
-	case *parser.AccountLiteral:
-		return s.trySendingAllFromAccount(source.Name)
-
-	case *parser.VariableLiteral:
-		account, err := evaluateLitExpecting(s, source, expectAccount)
+	case *parser.SourceAccount:
+		account, err := evaluateLitExpecting(s, source.Literal, expectAccount)
 		if err != nil {
 			return nil, err
 		}
@@ -464,25 +461,18 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 	}
 }
 
-func (s *programState) receiveAllFromAccount(name string) error {
-	s.Receivers = append(s.Receivers, Receiver{
-		Name:     name,
-		Monetary: nil,
-	})
-	return nil
-}
-
 func (s *programState) receiveAllFrom(destination parser.Destination, monetary big.Int) error {
 	switch destination := destination.(type) {
-	case *parser.AccountLiteral:
-		return s.receiveAllFromAccount(destination.Name)
-
-	case *parser.VariableLiteral:
-		account, err := evaluateLitExpecting(s, destination, expectAccount)
+	case *parser.DestinationAccount:
+		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
 		if err != nil {
 			return err
 		}
-		return s.receiveAllFromAccount(*account)
+		s.Receivers = append(s.Receivers, Receiver{
+			Name:     *account,
+			Monetary: nil,
+		})
+		return nil
 
 	case *parser.DestinationInorder:
 		for _, subDestination := range destination.Clauses {
@@ -536,15 +526,12 @@ func (s *programState) receiveAllFrom(destination parser.Destination, monetary b
 
 func (s *programState) trySending(source parser.Source, amount big.Int) (*big.Int, error) {
 	switch source := source.(type) {
-	case *parser.VariableLiteral:
-		account, err := evaluateLitExpecting(s, source, expectAccount)
+	case *parser.SourceAccount:
+		account, err := evaluateLitExpecting(s, source.Literal, expectAccount)
 		if err != nil {
 			return nil, err
 		}
 		return s.trySendingAccount(string(*account), amount)
-
-	case *parser.AccountLiteral:
-		return s.trySendingAccount(source.Name, amount)
 
 	case *parser.SourceOverdraft:
 		name, err := evaluateLitExpecting(s, source.Address, expectAccount)
@@ -615,25 +602,18 @@ func (s *programState) trySending(source parser.Source, amount big.Int) (*big.In
 
 }
 
-func (s *programState) receiveFromAccount(name string, amount *big.Int) *big.Int {
-	s.Receivers = append(s.Receivers, Receiver{
-		Name:     name,
-		Monetary: amount,
-	})
-	return amount
-}
-
 func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) (*big.Int, error) {
 	switch destination := destination.(type) {
-	case *parser.AccountLiteral:
-		return s.receiveFromAccount(destination.Name, amount), nil
-
-	case *parser.VariableLiteral:
-		account, err := evaluateLitExpecting(s, destination, expectAccount)
+	case *parser.DestinationAccount:
+		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
 		if err != nil {
 			return nil, err
 		}
-		return s.receiveFromAccount(string(*account), amount), nil
+		s.Receivers = append(s.Receivers, Receiver{
+			Name:     *account,
+			Monetary: amount,
+		})
+		return amount, nil
 
 	case *parser.DestinationAllotment:
 

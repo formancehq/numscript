@@ -108,10 +108,6 @@ func (v *BaseNumscriptVisitor) VisitSrcAccount(ctx *SrcAccountContext) interface
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseNumscriptVisitor) VisitSrcVariable(ctx *SrcVariableContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseNumscriptVisitor) VisitSrcAllotment(ctx *SrcAllotmentContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -141,10 +137,6 @@ func (v *BaseNumscriptVisitor) VisitDestinationInOrderClause(ctx *DestinationInO
 }
 
 func (v *BaseNumscriptVisitor) VisitDestAccount(ctx *DestAccountContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseNumscriptVisitor) VisitDestVariable(ctx *DestVariableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

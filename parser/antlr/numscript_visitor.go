@@ -83,9 +83,6 @@ type NumscriptVisitor interface {
 	// Visit a parse tree produced by NumscriptParser#srcAccount.
 	VisitSrcAccount(ctx *SrcAccountContext) interface{}
 
-	// Visit a parse tree produced by NumscriptParser#srcVariable.
-	VisitSrcVariable(ctx *SrcVariableContext) interface{}
-
 	// Visit a parse tree produced by NumscriptParser#srcAllotment.
 	VisitSrcAllotment(ctx *SrcAllotmentContext) interface{}
 
@@ -109,9 +106,6 @@ type NumscriptVisitor interface {
 
 	// Visit a parse tree produced by NumscriptParser#destAccount.
 	VisitDestAccount(ctx *DestAccountContext) interface{}
-
-	// Visit a parse tree produced by NumscriptParser#destVariable.
-	VisitDestVariable(ctx *DestVariableContext) interface{}
 
 	// Visit a parse tree produced by NumscriptParser#destAllotment.
 	VisitDestAllotment(ctx *DestAllotmentContext) interface{}

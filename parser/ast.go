@@ -112,17 +112,21 @@ type Source interface {
 
 func (*SourceInorder) source()   {}
 func (*SourceAllotment) source() {}
-func (*AccountLiteral) source()  {}
-func (*VariableLiteral) source() {}
+func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
 
+func (s *SourceAccount) GetRange() Range   { return s.Literal.GetRange() }
 func (s *SourceInorder) GetRange() Range   { return s.Range }
 func (s *SourceAllotment) GetRange() Range { return s.Range }
 func (s *SourceCapped) GetRange() Range    { return s.Range }
 func (s *SourceOverdraft) GetRange() Range { return s.Range }
 
 type (
+	SourceAccount struct {
+		Literal Literal
+	}
+
 	SourceInorder struct {
 		Range   Range
 		Sources []Source
@@ -164,14 +168,18 @@ type Destination interface {
 }
 
 func (*DestinationInorder) destination()   {}
-func (*AccountLiteral) destination()       {}
-func (*VariableLiteral) destination()      {}
+func (*DestinationAccount) destination()   {}
 func (*DestinationAllotment) destination() {}
 
+func (d *DestinationAccount) GetRange() Range   { return d.Literal.GetRange() }
 func (d *DestinationInorder) GetRange() Range   { return d.Range }
 func (d *DestinationAllotment) GetRange() Range { return d.Range }
 
 type (
+	DestinationAccount struct {
+		Literal Literal
+	}
+
 	DestinationInorder struct {
 		Range     Range
 		Clauses   []DestinationInorderClause

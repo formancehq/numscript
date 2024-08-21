@@ -175,12 +175,6 @@ func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 // ExitSrcAccount is called when production srcAccount is exited.
 func (s *BaseNumscriptListener) ExitSrcAccount(ctx *SrcAccountContext) {}
 
-// EnterSrcVariable is called when production srcVariable is entered.
-func (s *BaseNumscriptListener) EnterSrcVariable(ctx *SrcVariableContext) {}
-
-// ExitSrcVariable is called when production srcVariable is exited.
-func (s *BaseNumscriptListener) ExitSrcVariable(ctx *SrcVariableContext) {}
-
 // EnterSrcAllotment is called when production srcAllotment is entered.
 func (s *BaseNumscriptListener) EnterSrcAllotment(ctx *SrcAllotmentContext) {}
 
@@ -228,12 +222,6 @@ func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
 
 // ExitDestAccount is called when production destAccount is exited.
 func (s *BaseNumscriptListener) ExitDestAccount(ctx *DestAccountContext) {}
-
-// EnterDestVariable is called when production destVariable is entered.
-func (s *BaseNumscriptListener) EnterDestVariable(ctx *DestVariableContext) {}
-
-// ExitDestVariable is called when production destVariable is exited.
-func (s *BaseNumscriptListener) ExitDestVariable(ctx *DestVariableContext) {}
 
 // EnterDestAllotment is called when production destAllotment is entered.
 func (s *BaseNumscriptListener) EnterDestAllotment(ctx *DestAllotmentContext) {}
