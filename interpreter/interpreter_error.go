@@ -80,8 +80,7 @@ func (e InvalidAllotmentInSendAll) Error() string {
 type InvalidUnboundedInSendAll struct{ Name string }
 
 func (e InvalidUnboundedInSendAll) Error() string {
-	// TODO
-	return "TODO descr"
+	return "cannot take all balance from an unbounded source"
 }
 
 type MismatchedCurrencyError struct {
