@@ -61,10 +61,6 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 
 		// Ugly workaround
 		if receiver.Name == "<kept>" {
-			// TODO test kept + send*
-
-			// reduce sender by amt
-
 			sender, empty := popStack(&senders)
 			if !empty {
 				var newMon big.Int
@@ -81,11 +77,9 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			continue
 		}
 
-		rcv := (*big.Int)(receiver.Monetary)
-
 		sender, empty := popStack(&senders)
 		if empty {
-			isReceivedAmtZero := rcv.Cmp(big.NewInt(0)) == 0
+			isReceivedAmtZero := receiver.Monetary.Cmp(big.NewInt(0)) == 0
 			if isReceivedAmtZero {
 				return postings, nil
 			}
@@ -100,7 +94,7 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 		snd := (*big.Int)(sender.Monetary)
 
 		var postingAmount big.Int
-		switch snd.Cmp(rcv) {
+		switch snd.Cmp(receiver.Monetary) {
 		case 0: /* sender.Monetary == receiver.Monetary */
 			postingAmount = *sender.Monetary
 		case -1: /* sender.Monetary < receiver.Monetary */

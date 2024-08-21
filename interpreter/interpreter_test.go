@@ -1273,6 +1273,59 @@ func TestKeptWithBalance(t *testing.T) {
 
 }
 
+func TestRemainingNone(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 10] (
+		source = @world
+		destination = {
+			max [COIN 10] to @a
+			remaining to @b
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
+}
+
+func TestRemainingNoneInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 10] to @a
+			remaining to @b
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
+}
+
 func TestDestinationComplex(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (
