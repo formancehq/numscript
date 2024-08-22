@@ -69,3 +69,25 @@ type NegativeAmountErr struct{ Amount MonetaryInt }
 func (e NegativeAmountErr) Error() string {
 	return fmt.Sprintf("Cannot send negative amount: %s", e.Amount.String())
 }
+
+type InvalidAllotmentInSendAll struct {
+}
+
+func (e InvalidAllotmentInSendAll) Error() string {
+	return "cannot take all balance of an allotment source"
+}
+
+type InvalidUnboundedInSendAll struct{ Name string }
+
+func (e InvalidUnboundedInSendAll) Error() string {
+	return "cannot take all balance from an unbounded source"
+}
+
+type MismatchedCurrencyError struct {
+	Expected string
+	Got      string
+}
+
+func (e MismatchedCurrencyError) Error() string {
+	return fmt.Sprintf("Mismatched currency (expected '%s', got '%s' instead)", e.Expected, e.Got)
+}

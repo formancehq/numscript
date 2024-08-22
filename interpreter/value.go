@@ -80,6 +80,24 @@ func expectMonetary(v Value) (*Monetary, error) {
 	}
 }
 
+func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, error) {
+	return func(v Value) (*big.Int, error) {
+		m, err := expectMonetary(v)
+		if err != nil {
+			return nil, err
+		}
+
+		asset := string(m.Asset)
+
+		if asset != expectedAsset {
+			return nil, MismatchedCurrencyError{Expected: expectedAsset, Got: asset}
+		}
+
+		i := big.Int(m.Amount)
+		return &i, nil
+	}
+}
+
 func expectNumber(v Value) (*big.Int, error) {
 	switch v := v.(type) {
 	case MonetaryInt:

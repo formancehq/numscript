@@ -208,9 +208,8 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 			}
 		}
 
-	case *parser.VariableLiteral:
-		return hoverOnLiteral(source, position)
-
+	case *parser.SourceAccount:
+		return hoverOnLiteral(source.Literal, position)
 	}
 
 	return nil
@@ -281,8 +280,8 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 			}
 		}
 
-	case *parser.VariableLiteral:
-		return hoverOnLiteral(source, position)
+	case *parser.DestinationAccount:
+		return hoverOnLiteral(source.Literal, position)
 	}
 
 	return nil

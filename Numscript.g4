@@ -78,8 +78,7 @@ allotment:
 source:
 	address = literal ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
 	| address = literal ALLOWING OVERDRAFT UP TO maxOvedraft = literal	# srcAccountBoundedOverdraft
-	| ACCOUNT															# srcAccount
-	| VARIABLE_NAME														# srcVariable
+	| literal															# srcAccount
 	| LBRACE allotmentClauseSrc+ RBRACE									# srcAllotment
 	| LBRACE source* RBRACE												# srcInorder
 	| MAX cap FROM source												# srcCapped;
@@ -91,8 +90,7 @@ keptOrDestination:
 destinationInOrderClause: MAX literal keptOrDestination;
 
 destination:
-	ACCOUNT																	# destAccount
-	| VARIABLE_NAME															# destVariable
+	literal																	# destAccount
 	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
 	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
 allotmentClauseDest: allotment keptOrDestination;

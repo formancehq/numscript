@@ -397,27 +397,27 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	}
 
 	switch source := source.(type) {
-	case *parser.AccountLiteral:
-		if source.IsWorld() && res.unboundedSend {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: source.GetRange(),
-				Kind:  &InvalidUnboundedAccount{},
-			})
-		} else if source.IsWorld() {
-			res.unboundedAccountInSend = source
+	case *parser.SourceAccount:
+		res.checkLiteral(source.Literal, TypeAccount)
+		if account, ok := source.Literal.(*parser.AccountLiteral); ok {
+			if account.IsWorld() && res.unboundedSend {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Range: source.GetRange(),
+					Kind:  &InvalidUnboundedAccount{},
+				})
+			} else if account.IsWorld() {
+				res.unboundedAccountInSend = account
+			}
+
+			if _, emptied := res.emptiedAccount[account.Name]; emptied && !account.IsWorld() {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Kind:  &EmptiedAccount{Name: account.Name},
+					Range: account.Range,
+				})
+			}
+
+			res.emptiedAccount[account.Name] = struct{}{}
 		}
-
-		if _, emptied := res.emptiedAccount[source.Name]; emptied && !source.IsWorld() {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Kind:  &EmptiedAccount{Name: source.Name},
-				Range: source.Range,
-			})
-		}
-
-		res.emptiedAccount[source.Name] = struct{}{}
-
-	case *parser.VariableLiteral:
-		res.checkLiteral(source, TypeAccount)
 
 	case *parser.SourceOverdraft:
 		if accountLiteral, ok := source.Address.(*parser.AccountLiteral); ok && accountLiteral.IsWorld() {
@@ -506,8 +506,8 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 	}
 
 	switch destination := destination.(type) {
-	case *parser.VariableLiteral:
-		res.checkLiteral(destination, TypeAccount)
+	case *parser.DestinationAccount:
+		res.checkLiteral(destination.Literal, TypeAccount)
 
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {

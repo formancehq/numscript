@@ -83,9 +83,6 @@ type NumscriptListener interface {
 	// EnterSrcAccount is called when entering the srcAccount production.
 	EnterSrcAccount(c *SrcAccountContext)
 
-	// EnterSrcVariable is called when entering the srcVariable production.
-	EnterSrcVariable(c *SrcVariableContext)
-
 	// EnterSrcAllotment is called when entering the srcAllotment production.
 	EnterSrcAllotment(c *SrcAllotmentContext)
 
@@ -109,9 +106,6 @@ type NumscriptListener interface {
 
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
-
-	// EnterDestVariable is called when entering the destVariable production.
-	EnterDestVariable(c *DestVariableContext)
 
 	// EnterDestAllotment is called when entering the destAllotment production.
 	EnterDestAllotment(c *DestAllotmentContext)
@@ -209,9 +203,6 @@ type NumscriptListener interface {
 	// ExitSrcAccount is called when exiting the srcAccount production.
 	ExitSrcAccount(c *SrcAccountContext)
 
-	// ExitSrcVariable is called when exiting the srcVariable production.
-	ExitSrcVariable(c *SrcVariableContext)
-
 	// ExitSrcAllotment is called when exiting the srcAllotment production.
 	ExitSrcAllotment(c *SrcAllotmentContext)
 
@@ -235,9 +226,6 @@ type NumscriptListener interface {
 
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)
-
-	// ExitDestVariable is called when exiting the destVariable production.
-	ExitDestVariable(c *DestVariableContext)
 
 	// ExitDestAllotment is called when exiting the destAllotment production.
 	ExitDestAllotment(c *DestAllotmentContext)

@@ -55,7 +55,7 @@ func numscriptParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 34, 211, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 34, 209, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 1, 0, 1, 0, 1,
@@ -67,84 +67,83 @@ func numscriptParserInit() {
 		96, 8, 8, 10, 8, 12, 8, 99, 9, 8, 1, 8, 1, 8, 1, 9, 1, 9, 1, 9, 1, 9, 1,
 		9, 1, 10, 1, 10, 3, 10, 110, 8, 10, 1, 11, 1, 11, 1, 11, 3, 11, 115, 8,
 		11, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12,
-		1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 4, 12, 133, 8, 12, 11, 12, 12,
-		12, 134, 1, 12, 1, 12, 1, 12, 1, 12, 5, 12, 141, 8, 12, 10, 12, 12, 12,
-		144, 9, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 3, 12, 152, 8, 12,
-		1, 13, 1, 13, 1, 13, 1, 13, 1, 14, 1, 14, 1, 14, 3, 14, 161, 8, 14, 1,
-		15, 1, 15, 1, 15, 1, 15, 1, 16, 1, 16, 1, 16, 1, 16, 4, 16, 171, 8, 16,
-		11, 16, 12, 16, 172, 1, 16, 1, 16, 1, 16, 1, 16, 5, 16, 179, 8, 16, 10,
-		16, 12, 16, 182, 9, 16, 1, 16, 1, 16, 1, 16, 1, 16, 3, 16, 188, 8, 16,
-		1, 17, 1, 17, 1, 17, 1, 18, 1, 18, 3, 18, 195, 8, 18, 1, 19, 1, 19, 1,
-		19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 3, 19,
-		209, 8, 19, 1, 19, 0, 0, 20, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
-		24, 26, 28, 30, 32, 34, 36, 38, 0, 0, 222, 0, 40, 1, 0, 0, 0, 2, 47, 1,
-		0, 0, 0, 4, 56, 1, 0, 0, 0, 6, 58, 1, 0, 0, 0, 8, 66, 1, 0, 0, 0, 10, 73,
-		1, 0, 0, 0, 12, 76, 1, 0, 0, 0, 14, 81, 1, 0, 0, 0, 16, 92, 1, 0, 0, 0,
-		18, 102, 1, 0, 0, 0, 20, 109, 1, 0, 0, 0, 22, 114, 1, 0, 0, 0, 24, 151,
-		1, 0, 0, 0, 26, 153, 1, 0, 0, 0, 28, 160, 1, 0, 0, 0, 30, 162, 1, 0, 0,
-		0, 32, 187, 1, 0, 0, 0, 34, 189, 1, 0, 0, 0, 36, 194, 1, 0, 0, 0, 38, 208,
-		1, 0, 0, 0, 40, 41, 5, 20, 0, 0, 41, 42, 3, 4, 2, 0, 42, 43, 3, 4, 2, 0,
-		43, 44, 5, 21, 0, 0, 44, 1, 1, 0, 0, 0, 45, 48, 5, 27, 0, 0, 46, 48, 5,
-		28, 0, 0, 47, 45, 1, 0, 0, 0, 47, 46, 1, 0, 0, 0, 48, 3, 1, 0, 0, 0, 49,
-		57, 5, 34, 0, 0, 50, 57, 5, 29, 0, 0, 51, 57, 5, 33, 0, 0, 52, 57, 5, 32,
-		0, 0, 53, 57, 5, 31, 0, 0, 54, 57, 3, 0, 0, 0, 55, 57, 3, 2, 1, 0, 56,
-		49, 1, 0, 0, 0, 56, 50, 1, 0, 0, 0, 56, 51, 1, 0, 0, 0, 56, 52, 1, 0, 0,
-		0, 56, 53, 1, 0, 0, 0, 56, 54, 1, 0, 0, 0, 56, 55, 1, 0, 0, 0, 57, 5, 1,
-		0, 0, 0, 58, 63, 3, 4, 2, 0, 59, 60, 5, 24, 0, 0, 60, 62, 3, 4, 2, 0, 61,
-		59, 1, 0, 0, 0, 62, 65, 1, 0, 0, 0, 63, 61, 1, 0, 0, 0, 63, 64, 1, 0, 0,
-		0, 64, 7, 1, 0, 0, 0, 65, 63, 1, 0, 0, 0, 66, 67, 5, 30, 0, 0, 67, 69,
-		5, 18, 0, 0, 68, 70, 3, 6, 3, 0, 69, 68, 1, 0, 0, 0, 69, 70, 1, 0, 0, 0,
-		70, 71, 1, 0, 0, 0, 71, 72, 5, 19, 0, 0, 72, 9, 1, 0, 0, 0, 73, 74, 5,
-		25, 0, 0, 74, 75, 3, 8, 4, 0, 75, 11, 1, 0, 0, 0, 76, 77, 5, 30, 0, 0,
-		77, 79, 5, 32, 0, 0, 78, 80, 3, 10, 5, 0, 79, 78, 1, 0, 0, 0, 79, 80, 1,
-		0, 0, 0, 80, 13, 1, 0, 0, 0, 81, 82, 5, 5, 0, 0, 82, 86, 5, 22, 0, 0, 83,
-		85, 3, 12, 6, 0, 84, 83, 1, 0, 0, 0, 85, 88, 1, 0, 0, 0, 86, 84, 1, 0,
-		0, 0, 86, 87, 1, 0, 0, 0, 87, 89, 1, 0, 0, 0, 88, 86, 1, 0, 0, 0, 89, 90,
-		5, 23, 0, 0, 90, 15, 1, 0, 0, 0, 91, 93, 3, 14, 7, 0, 92, 91, 1, 0, 0,
-		0, 92, 93, 1, 0, 0, 0, 93, 97, 1, 0, 0, 0, 94, 96, 3, 38, 19, 0, 95, 94,
-		1, 0, 0, 0, 96, 99, 1, 0, 0, 0, 97, 95, 1, 0, 0, 0, 97, 98, 1, 0, 0, 0,
-		98, 100, 1, 0, 0, 0, 99, 97, 1, 0, 0, 0, 100, 101, 5, 0, 0, 1, 101, 17,
-		1, 0, 0, 0, 102, 103, 5, 20, 0, 0, 103, 104, 3, 4, 2, 0, 104, 105, 5, 26,
-		0, 0, 105, 106, 5, 21, 0, 0, 106, 19, 1, 0, 0, 0, 107, 110, 3, 0, 0, 0,
-		108, 110, 5, 32, 0, 0, 109, 107, 1, 0, 0, 0, 109, 108, 1, 0, 0, 0, 110,
-		21, 1, 0, 0, 0, 111, 115, 3, 2, 1, 0, 112, 115, 5, 32, 0, 0, 113, 115,
-		5, 13, 0, 0, 114, 111, 1, 0, 0, 0, 114, 112, 1, 0, 0, 0, 114, 113, 1, 0,
-		0, 0, 115, 23, 1, 0, 0, 0, 116, 117, 3, 4, 2, 0, 117, 118, 5, 14, 0, 0,
-		118, 119, 5, 15, 0, 0, 119, 120, 5, 16, 0, 0, 120, 152, 1, 0, 0, 0, 121,
-		122, 3, 4, 2, 0, 122, 123, 5, 14, 0, 0, 123, 124, 5, 16, 0, 0, 124, 125,
-		5, 11, 0, 0, 125, 126, 5, 12, 0, 0, 126, 127, 3, 4, 2, 0, 127, 152, 1,
-		0, 0, 0, 128, 152, 5, 33, 0, 0, 129, 152, 5, 32, 0, 0, 130, 132, 5, 22,
-		0, 0, 131, 133, 3, 26, 13, 0, 132, 131, 1, 0, 0, 0, 133, 134, 1, 0, 0,
-		0, 134, 132, 1, 0, 0, 0, 134, 135, 1, 0, 0, 0, 135, 136, 1, 0, 0, 0, 136,
-		137, 5, 23, 0, 0, 137, 152, 1, 0, 0, 0, 138, 142, 5, 22, 0, 0, 139, 141,
-		3, 24, 12, 0, 140, 139, 1, 0, 0, 0, 141, 144, 1, 0, 0, 0, 142, 140, 1,
-		0, 0, 0, 142, 143, 1, 0, 0, 0, 143, 145, 1, 0, 0, 0, 144, 142, 1, 0, 0,
-		0, 145, 152, 5, 23, 0, 0, 146, 147, 5, 6, 0, 0, 147, 148, 3, 20, 10, 0,
-		148, 149, 5, 10, 0, 0, 149, 150, 3, 24, 12, 0, 150, 152, 1, 0, 0, 0, 151,
-		116, 1, 0, 0, 0, 151, 121, 1, 0, 0, 0, 151, 128, 1, 0, 0, 0, 151, 129,
-		1, 0, 0, 0, 151, 130, 1, 0, 0, 0, 151, 138, 1, 0, 0, 0, 151, 146, 1, 0,
-		0, 0, 152, 25, 1, 0, 0, 0, 153, 154, 3, 22, 11, 0, 154, 155, 5, 10, 0,
-		0, 155, 156, 3, 24, 12, 0, 156, 27, 1, 0, 0, 0, 157, 158, 5, 12, 0, 0,
-		158, 161, 3, 32, 16, 0, 159, 161, 5, 17, 0, 0, 160, 157, 1, 0, 0, 0, 160,
-		159, 1, 0, 0, 0, 161, 29, 1, 0, 0, 0, 162, 163, 5, 6, 0, 0, 163, 164, 3,
-		4, 2, 0, 164, 165, 3, 28, 14, 0, 165, 31, 1, 0, 0, 0, 166, 188, 5, 33,
-		0, 0, 167, 188, 5, 32, 0, 0, 168, 170, 5, 22, 0, 0, 169, 171, 3, 34, 17,
-		0, 170, 169, 1, 0, 0, 0, 171, 172, 1, 0, 0, 0, 172, 170, 1, 0, 0, 0, 172,
-		173, 1, 0, 0, 0, 173, 174, 1, 0, 0, 0, 174, 175, 5, 23, 0, 0, 175, 188,
-		1, 0, 0, 0, 176, 180, 5, 22, 0, 0, 177, 179, 3, 30, 15, 0, 178, 177, 1,
-		0, 0, 0, 179, 182, 1, 0, 0, 0, 180, 178, 1, 0, 0, 0, 180, 181, 1, 0, 0,
-		0, 181, 183, 1, 0, 0, 0, 182, 180, 1, 0, 0, 0, 183, 184, 5, 13, 0, 0, 184,
-		185, 3, 28, 14, 0, 185, 186, 5, 23, 0, 0, 186, 188, 1, 0, 0, 0, 187, 166,
-		1, 0, 0, 0, 187, 167, 1, 0, 0, 0, 187, 168, 1, 0, 0, 0, 187, 176, 1, 0,
-		0, 0, 188, 33, 1, 0, 0, 0, 189, 190, 3, 22, 11, 0, 190, 191, 3, 28, 14,
-		0, 191, 35, 1, 0, 0, 0, 192, 195, 3, 4, 2, 0, 193, 195, 3, 18, 9, 0, 194,
-		192, 1, 0, 0, 0, 194, 193, 1, 0, 0, 0, 195, 37, 1, 0, 0, 0, 196, 197, 5,
-		9, 0, 0, 197, 198, 3, 36, 18, 0, 198, 199, 5, 18, 0, 0, 199, 200, 5, 7,
-		0, 0, 200, 201, 5, 25, 0, 0, 201, 202, 3, 24, 12, 0, 202, 203, 5, 8, 0,
-		0, 203, 204, 5, 25, 0, 0, 204, 205, 3, 32, 16, 0, 205, 206, 5, 19, 0, 0,
-		206, 209, 1, 0, 0, 0, 207, 209, 3, 8, 4, 0, 208, 196, 1, 0, 0, 0, 208,
-		207, 1, 0, 0, 0, 209, 39, 1, 0, 0, 0, 19, 47, 56, 63, 69, 79, 86, 92, 97,
-		109, 114, 134, 142, 151, 160, 172, 180, 187, 194, 208,
+		1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 4, 12, 132, 8, 12, 11, 12, 12, 12, 133,
+		1, 12, 1, 12, 1, 12, 1, 12, 5, 12, 140, 8, 12, 10, 12, 12, 12, 143, 9,
+		12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 3, 12, 151, 8, 12, 1, 13,
+		1, 13, 1, 13, 1, 13, 1, 14, 1, 14, 1, 14, 3, 14, 160, 8, 14, 1, 15, 1,
+		15, 1, 15, 1, 15, 1, 16, 1, 16, 1, 16, 4, 16, 169, 8, 16, 11, 16, 12, 16,
+		170, 1, 16, 1, 16, 1, 16, 1, 16, 5, 16, 177, 8, 16, 10, 16, 12, 16, 180,
+		9, 16, 1, 16, 1, 16, 1, 16, 1, 16, 3, 16, 186, 8, 16, 1, 17, 1, 17, 1,
+		17, 1, 18, 1, 18, 3, 18, 193, 8, 18, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19,
+		1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 3, 19, 207, 8, 19, 1,
+		19, 0, 0, 20, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+		32, 34, 36, 38, 0, 0, 218, 0, 40, 1, 0, 0, 0, 2, 47, 1, 0, 0, 0, 4, 56,
+		1, 0, 0, 0, 6, 58, 1, 0, 0, 0, 8, 66, 1, 0, 0, 0, 10, 73, 1, 0, 0, 0, 12,
+		76, 1, 0, 0, 0, 14, 81, 1, 0, 0, 0, 16, 92, 1, 0, 0, 0, 18, 102, 1, 0,
+		0, 0, 20, 109, 1, 0, 0, 0, 22, 114, 1, 0, 0, 0, 24, 150, 1, 0, 0, 0, 26,
+		152, 1, 0, 0, 0, 28, 159, 1, 0, 0, 0, 30, 161, 1, 0, 0, 0, 32, 185, 1,
+		0, 0, 0, 34, 187, 1, 0, 0, 0, 36, 192, 1, 0, 0, 0, 38, 206, 1, 0, 0, 0,
+		40, 41, 5, 20, 0, 0, 41, 42, 3, 4, 2, 0, 42, 43, 3, 4, 2, 0, 43, 44, 5,
+		21, 0, 0, 44, 1, 1, 0, 0, 0, 45, 48, 5, 27, 0, 0, 46, 48, 5, 28, 0, 0,
+		47, 45, 1, 0, 0, 0, 47, 46, 1, 0, 0, 0, 48, 3, 1, 0, 0, 0, 49, 57, 5, 34,
+		0, 0, 50, 57, 5, 29, 0, 0, 51, 57, 5, 33, 0, 0, 52, 57, 5, 32, 0, 0, 53,
+		57, 5, 31, 0, 0, 54, 57, 3, 0, 0, 0, 55, 57, 3, 2, 1, 0, 56, 49, 1, 0,
+		0, 0, 56, 50, 1, 0, 0, 0, 56, 51, 1, 0, 0, 0, 56, 52, 1, 0, 0, 0, 56, 53,
+		1, 0, 0, 0, 56, 54, 1, 0, 0, 0, 56, 55, 1, 0, 0, 0, 57, 5, 1, 0, 0, 0,
+		58, 63, 3, 4, 2, 0, 59, 60, 5, 24, 0, 0, 60, 62, 3, 4, 2, 0, 61, 59, 1,
+		0, 0, 0, 62, 65, 1, 0, 0, 0, 63, 61, 1, 0, 0, 0, 63, 64, 1, 0, 0, 0, 64,
+		7, 1, 0, 0, 0, 65, 63, 1, 0, 0, 0, 66, 67, 5, 30, 0, 0, 67, 69, 5, 18,
+		0, 0, 68, 70, 3, 6, 3, 0, 69, 68, 1, 0, 0, 0, 69, 70, 1, 0, 0, 0, 70, 71,
+		1, 0, 0, 0, 71, 72, 5, 19, 0, 0, 72, 9, 1, 0, 0, 0, 73, 74, 5, 25, 0, 0,
+		74, 75, 3, 8, 4, 0, 75, 11, 1, 0, 0, 0, 76, 77, 5, 30, 0, 0, 77, 79, 5,
+		32, 0, 0, 78, 80, 3, 10, 5, 0, 79, 78, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0,
+		80, 13, 1, 0, 0, 0, 81, 82, 5, 5, 0, 0, 82, 86, 5, 22, 0, 0, 83, 85, 3,
+		12, 6, 0, 84, 83, 1, 0, 0, 0, 85, 88, 1, 0, 0, 0, 86, 84, 1, 0, 0, 0, 86,
+		87, 1, 0, 0, 0, 87, 89, 1, 0, 0, 0, 88, 86, 1, 0, 0, 0, 89, 90, 5, 23,
+		0, 0, 90, 15, 1, 0, 0, 0, 91, 93, 3, 14, 7, 0, 92, 91, 1, 0, 0, 0, 92,
+		93, 1, 0, 0, 0, 93, 97, 1, 0, 0, 0, 94, 96, 3, 38, 19, 0, 95, 94, 1, 0,
+		0, 0, 96, 99, 1, 0, 0, 0, 97, 95, 1, 0, 0, 0, 97, 98, 1, 0, 0, 0, 98, 100,
+		1, 0, 0, 0, 99, 97, 1, 0, 0, 0, 100, 101, 5, 0, 0, 1, 101, 17, 1, 0, 0,
+		0, 102, 103, 5, 20, 0, 0, 103, 104, 3, 4, 2, 0, 104, 105, 5, 26, 0, 0,
+		105, 106, 5, 21, 0, 0, 106, 19, 1, 0, 0, 0, 107, 110, 3, 0, 0, 0, 108,
+		110, 5, 32, 0, 0, 109, 107, 1, 0, 0, 0, 109, 108, 1, 0, 0, 0, 110, 21,
+		1, 0, 0, 0, 111, 115, 3, 2, 1, 0, 112, 115, 5, 32, 0, 0, 113, 115, 5, 13,
+		0, 0, 114, 111, 1, 0, 0, 0, 114, 112, 1, 0, 0, 0, 114, 113, 1, 0, 0, 0,
+		115, 23, 1, 0, 0, 0, 116, 117, 3, 4, 2, 0, 117, 118, 5, 14, 0, 0, 118,
+		119, 5, 15, 0, 0, 119, 120, 5, 16, 0, 0, 120, 151, 1, 0, 0, 0, 121, 122,
+		3, 4, 2, 0, 122, 123, 5, 14, 0, 0, 123, 124, 5, 16, 0, 0, 124, 125, 5,
+		11, 0, 0, 125, 126, 5, 12, 0, 0, 126, 127, 3, 4, 2, 0, 127, 151, 1, 0,
+		0, 0, 128, 151, 3, 4, 2, 0, 129, 131, 5, 22, 0, 0, 130, 132, 3, 26, 13,
+		0, 131, 130, 1, 0, 0, 0, 132, 133, 1, 0, 0, 0, 133, 131, 1, 0, 0, 0, 133,
+		134, 1, 0, 0, 0, 134, 135, 1, 0, 0, 0, 135, 136, 5, 23, 0, 0, 136, 151,
+		1, 0, 0, 0, 137, 141, 5, 22, 0, 0, 138, 140, 3, 24, 12, 0, 139, 138, 1,
+		0, 0, 0, 140, 143, 1, 0, 0, 0, 141, 139, 1, 0, 0, 0, 141, 142, 1, 0, 0,
+		0, 142, 144, 1, 0, 0, 0, 143, 141, 1, 0, 0, 0, 144, 151, 5, 23, 0, 0, 145,
+		146, 5, 6, 0, 0, 146, 147, 3, 20, 10, 0, 147, 148, 5, 10, 0, 0, 148, 149,
+		3, 24, 12, 0, 149, 151, 1, 0, 0, 0, 150, 116, 1, 0, 0, 0, 150, 121, 1,
+		0, 0, 0, 150, 128, 1, 0, 0, 0, 150, 129, 1, 0, 0, 0, 150, 137, 1, 0, 0,
+		0, 150, 145, 1, 0, 0, 0, 151, 25, 1, 0, 0, 0, 152, 153, 3, 22, 11, 0, 153,
+		154, 5, 10, 0, 0, 154, 155, 3, 24, 12, 0, 155, 27, 1, 0, 0, 0, 156, 157,
+		5, 12, 0, 0, 157, 160, 3, 32, 16, 0, 158, 160, 5, 17, 0, 0, 159, 156, 1,
+		0, 0, 0, 159, 158, 1, 0, 0, 0, 160, 29, 1, 0, 0, 0, 161, 162, 5, 6, 0,
+		0, 162, 163, 3, 4, 2, 0, 163, 164, 3, 28, 14, 0, 164, 31, 1, 0, 0, 0, 165,
+		186, 3, 4, 2, 0, 166, 168, 5, 22, 0, 0, 167, 169, 3, 34, 17, 0, 168, 167,
+		1, 0, 0, 0, 169, 170, 1, 0, 0, 0, 170, 168, 1, 0, 0, 0, 170, 171, 1, 0,
+		0, 0, 171, 172, 1, 0, 0, 0, 172, 173, 5, 23, 0, 0, 173, 186, 1, 0, 0, 0,
+		174, 178, 5, 22, 0, 0, 175, 177, 3, 30, 15, 0, 176, 175, 1, 0, 0, 0, 177,
+		180, 1, 0, 0, 0, 178, 176, 1, 0, 0, 0, 178, 179, 1, 0, 0, 0, 179, 181,
+		1, 0, 0, 0, 180, 178, 1, 0, 0, 0, 181, 182, 5, 13, 0, 0, 182, 183, 3, 28,
+		14, 0, 183, 184, 5, 23, 0, 0, 184, 186, 1, 0, 0, 0, 185, 165, 1, 0, 0,
+		0, 185, 166, 1, 0, 0, 0, 185, 174, 1, 0, 0, 0, 186, 33, 1, 0, 0, 0, 187,
+		188, 3, 22, 11, 0, 188, 189, 3, 28, 14, 0, 189, 35, 1, 0, 0, 0, 190, 193,
+		3, 4, 2, 0, 191, 193, 3, 18, 9, 0, 192, 190, 1, 0, 0, 0, 192, 191, 1, 0,
+		0, 0, 193, 37, 1, 0, 0, 0, 194, 195, 5, 9, 0, 0, 195, 196, 3, 36, 18, 0,
+		196, 197, 5, 18, 0, 0, 197, 198, 5, 7, 0, 0, 198, 199, 5, 25, 0, 0, 199,
+		200, 3, 24, 12, 0, 200, 201, 5, 8, 0, 0, 201, 202, 5, 25, 0, 0, 202, 203,
+		3, 32, 16, 0, 203, 204, 5, 19, 0, 0, 204, 207, 1, 0, 0, 0, 205, 207, 3,
+		8, 4, 0, 206, 194, 1, 0, 0, 0, 206, 205, 1, 0, 0, 0, 207, 39, 1, 0, 0,
+		0, 19, 47, 56, 63, 69, 79, 86, 92, 97, 109, 114, 133, 141, 150, 159, 170,
+		178, 185, 192, 206,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -3042,50 +3041,6 @@ func (s *SrcAccountUnboundedOverdraftContext) Accept(visitor antlr.ParseTreeVisi
 	}
 }
 
-type SrcVariableContext struct {
-	SourceContext
-}
-
-func NewSrcVariableContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcVariableContext {
-	var p = new(SrcVariableContext)
-
-	InitEmptySourceContext(&p.SourceContext)
-	p.parser = parser
-	p.CopyAll(ctx.(*SourceContext))
-
-	return p
-}
-
-func (s *SrcVariableContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *SrcVariableContext) VARIABLE_NAME() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserVARIABLE_NAME, 0)
-}
-
-func (s *SrcVariableContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.EnterSrcVariable(s)
-	}
-}
-
-func (s *SrcVariableContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.ExitSrcVariable(s)
-	}
-}
-
-func (s *SrcVariableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcVariable(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcAllotmentContext struct {
 	SourceContext
 }
@@ -3362,8 +3317,20 @@ func (s *SrcAccountContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *SrcAccountContext) ACCOUNT() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserACCOUNT, 0)
+func (s *SrcAccountContext) Literal() ILiteralContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ILiteralContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ILiteralContext)
 }
 
 func (s *SrcAccountContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -3393,7 +3360,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 	p.EnterRule(localctx, 24, NumscriptParserRULE_source)
 	var _la int
 
-	p.SetState(151)
+	p.SetState(150)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -3490,37 +3457,21 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		p.EnterOuterAlt(localctx, 3)
 		{
 			p.SetState(128)
-			p.Match(NumscriptParserACCOUNT)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
+			p.Literal()
 		}
 
 	case 4:
-		localctx = NewSrcVariableContext(p, localctx)
+		localctx = NewSrcAllotmentContext(p, localctx)
 		p.EnterOuterAlt(localctx, 4)
 		{
 			p.SetState(129)
-			p.Match(NumscriptParserVARIABLE_NAME)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case 5:
-		localctx = NewSrcAllotmentContext(p, localctx)
-		p.EnterOuterAlt(localctx, 5)
-		{
-			p.SetState(130)
 			p.Match(NumscriptParserLBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(132)
+		p.SetState(131)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3529,11 +3480,11 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 
 		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4697628672) != 0) {
 			{
-				p.SetState(131)
+				p.SetState(130)
 				p.AllotmentClauseSrc()
 			}
 
-			p.SetState(134)
+			p.SetState(133)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3541,7 +3492,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			_la = p.GetTokenStream().LA(1)
 		}
 		{
-			p.SetState(136)
+			p.SetState(135)
 			p.Match(NumscriptParserRBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3549,18 +3500,18 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			}
 		}
 
-	case 6:
+	case 5:
 		localctx = NewSrcInorderContext(p, localctx)
-		p.EnterOuterAlt(localctx, 6)
+		p.EnterOuterAlt(localctx, 5)
 		{
-			p.SetState(138)
+			p.SetState(137)
 			p.Match(NumscriptParserLBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(142)
+		p.SetState(141)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3569,11 +3520,11 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 
 		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&33157021760) != 0 {
 			{
-				p.SetState(139)
+				p.SetState(138)
 				p.Source()
 			}
 
-			p.SetState(144)
+			p.SetState(143)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3581,7 +3532,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			_la = p.GetTokenStream().LA(1)
 		}
 		{
-			p.SetState(145)
+			p.SetState(144)
 			p.Match(NumscriptParserRBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3589,11 +3540,11 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			}
 		}
 
-	case 7:
+	case 6:
 		localctx = NewSrcCappedContext(p, localctx)
-		p.EnterOuterAlt(localctx, 7)
+		p.EnterOuterAlt(localctx, 6)
 		{
-			p.SetState(146)
+			p.SetState(145)
 			p.Match(NumscriptParserMAX)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3601,11 +3552,11 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			}
 		}
 		{
-			p.SetState(147)
+			p.SetState(146)
 			p.Cap_()
 		}
 		{
-			p.SetState(148)
+			p.SetState(147)
 			p.Match(NumscriptParserFROM)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3613,7 +3564,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 			}
 		}
 		{
-			p.SetState(149)
+			p.SetState(148)
 			p.Source()
 		}
 
@@ -3753,11 +3704,11 @@ func (p *NumscriptParser) AllotmentClauseSrc() (localctx IAllotmentClauseSrcCont
 	p.EnterRule(localctx, 26, NumscriptParserRULE_allotmentClauseSrc)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(153)
+		p.SetState(152)
 		p.Allotment()
 	}
 	{
-		p.SetState(154)
+		p.SetState(153)
 		p.Match(NumscriptParserFROM)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -3765,7 +3716,7 @@ func (p *NumscriptParser) AllotmentClauseSrc() (localctx IAllotmentClauseSrcCont
 		}
 	}
 	{
-		p.SetState(155)
+		p.SetState(154)
 		p.Source()
 	}
 
@@ -3943,7 +3894,7 @@ func (s *DestinationToContext) Accept(visitor antlr.ParseTreeVisitor) interface{
 func (p *NumscriptParser) KeptOrDestination() (localctx IKeptOrDestinationContext) {
 	localctx = NewKeptOrDestinationContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 28, NumscriptParserRULE_keptOrDestination)
-	p.SetState(160)
+	p.SetState(159)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -3954,7 +3905,7 @@ func (p *NumscriptParser) KeptOrDestination() (localctx IKeptOrDestinationContex
 		localctx = NewDestinationToContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(157)
+			p.SetState(156)
 			p.Match(NumscriptParserTO)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3962,7 +3913,7 @@ func (p *NumscriptParser) KeptOrDestination() (localctx IKeptOrDestinationContex
 			}
 		}
 		{
-			p.SetState(158)
+			p.SetState(157)
 			p.Destination()
 		}
 
@@ -3970,7 +3921,7 @@ func (p *NumscriptParser) KeptOrDestination() (localctx IKeptOrDestinationContex
 		localctx = NewDestinationKeptContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(159)
+			p.SetState(158)
 			p.Match(NumscriptParserKEPT)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4115,7 +4066,7 @@ func (p *NumscriptParser) DestinationInOrderClause() (localctx IDestinationInOrd
 	p.EnterRule(localctx, 30, NumscriptParserRULE_destinationInOrderClause)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(162)
+		p.SetState(161)
 		p.Match(NumscriptParserMAX)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -4123,11 +4074,11 @@ func (p *NumscriptParser) DestinationInOrderClause() (localctx IDestinationInOrd
 		}
 	}
 	{
-		p.SetState(163)
+		p.SetState(162)
 		p.Literal()
 	}
 	{
-		p.SetState(164)
+		p.SetState(163)
 		p.KeptOrDestination()
 	}
 
@@ -4196,50 +4147,6 @@ func (s *DestinationContext) GetRuleContext() antlr.RuleContext {
 
 func (s *DestinationContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
-}
-
-type DestVariableContext struct {
-	DestinationContext
-}
-
-func NewDestVariableContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *DestVariableContext {
-	var p = new(DestVariableContext)
-
-	InitEmptyDestinationContext(&p.DestinationContext)
-	p.parser = parser
-	p.CopyAll(ctx.(*DestinationContext))
-
-	return p
-}
-
-func (s *DestVariableContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *DestVariableContext) VARIABLE_NAME() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserVARIABLE_NAME, 0)
-}
-
-func (s *DestVariableContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.EnterDestVariable(s)
-	}
-}
-
-func (s *DestVariableContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(NumscriptListener); ok {
-		listenerT.ExitDestVariable(s)
-	}
-}
-
-func (s *DestVariableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestVariable(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
 }
 
 type DestInorderContext struct {
@@ -4369,8 +4276,20 @@ func (s *DestAccountContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *DestAccountContext) ACCOUNT() antlr.TerminalNode {
-	return s.GetToken(NumscriptParserACCOUNT, 0)
+func (s *DestAccountContext) Literal() ILiteralContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ILiteralContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ILiteralContext)
 }
 
 func (s *DestAccountContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -4489,7 +4408,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 	p.EnterRule(localctx, 32, NumscriptParserRULE_destination)
 	var _la int
 
-	p.SetState(187)
+	p.SetState(185)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -4500,38 +4419,22 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		localctx = NewDestAccountContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(166)
-			p.Match(NumscriptParserACCOUNT)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
+			p.SetState(165)
+			p.Literal()
 		}
 
 	case 2:
-		localctx = NewDestVariableContext(p, localctx)
+		localctx = NewDestAllotmentContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(167)
-			p.Match(NumscriptParserVARIABLE_NAME)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case 3:
-		localctx = NewDestAllotmentContext(p, localctx)
-		p.EnterOuterAlt(localctx, 3)
-		{
-			p.SetState(168)
+			p.SetState(166)
 			p.Match(NumscriptParserLBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(170)
+		p.SetState(168)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -4540,11 +4443,11 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 
 		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4697628672) != 0) {
 			{
-				p.SetState(169)
+				p.SetState(167)
 				p.AllotmentClauseDest()
 			}
 
-			p.SetState(172)
+			p.SetState(170)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -4552,7 +4455,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 			_la = p.GetTokenStream().LA(1)
 		}
 		{
-			p.SetState(174)
+			p.SetState(172)
 			p.Match(NumscriptParserRBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4560,18 +4463,18 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 			}
 		}
 
-	case 4:
+	case 3:
 		localctx = NewDestInorderContext(p, localctx)
-		p.EnterOuterAlt(localctx, 4)
+		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(176)
+			p.SetState(174)
 			p.Match(NumscriptParserLBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(180)
+		p.SetState(178)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -4580,11 +4483,11 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 
 		for _la == NumscriptParserMAX {
 			{
-				p.SetState(177)
+				p.SetState(175)
 				p.DestinationInOrderClause()
 			}
 
-			p.SetState(182)
+			p.SetState(180)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -4592,7 +4495,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 			_la = p.GetTokenStream().LA(1)
 		}
 		{
-			p.SetState(183)
+			p.SetState(181)
 			p.Match(NumscriptParserREMAINING)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4600,11 +4503,11 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 			}
 		}
 		{
-			p.SetState(184)
+			p.SetState(182)
 			p.KeptOrDestination()
 		}
 		{
-			p.SetState(185)
+			p.SetState(183)
 			p.Match(NumscriptParserRBRACE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4743,11 +4646,11 @@ func (p *NumscriptParser) AllotmentClauseDest() (localctx IAllotmentClauseDestCo
 	p.EnterRule(localctx, 34, NumscriptParserRULE_allotmentClauseDest)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(189)
+		p.SetState(187)
 		p.Allotment()
 	}
 	{
-		p.SetState(190)
+		p.SetState(188)
 		p.KeptOrDestination()
 	}
 
@@ -4933,7 +4836,7 @@ func (s *SentLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 func (p *NumscriptParser) SentValue() (localctx ISentValueContext) {
 	localctx = NewSentValueContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 36, NumscriptParserRULE_sentValue)
-	p.SetState(194)
+	p.SetState(192)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -4944,7 +4847,7 @@ func (p *NumscriptParser) SentValue() (localctx ISentValueContext) {
 		localctx = NewSentLiteralContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(192)
+			p.SetState(190)
 			p.Literal()
 		}
 
@@ -4952,7 +4855,7 @@ func (p *NumscriptParser) SentValue() (localctx ISentValueContext) {
 		localctx = NewSentAllContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(193)
+			p.SetState(191)
 			p.SentAllLit()
 		}
 
@@ -5202,7 +5105,7 @@ func (s *FnCallStatementContext) Accept(visitor antlr.ParseTreeVisitor) interfac
 func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 	localctx = NewStatementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 38, NumscriptParserRULE_statement)
-	p.SetState(208)
+	p.SetState(206)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -5213,7 +5116,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 		localctx = NewSendStatementContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(196)
+			p.SetState(194)
 			p.Match(NumscriptParserSEND)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5221,11 +5124,11 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(197)
+			p.SetState(195)
 			p.SentValue()
 		}
 		{
-			p.SetState(198)
+			p.SetState(196)
 			p.Match(NumscriptParserLPARENS)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5233,7 +5136,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(199)
+			p.SetState(197)
 			p.Match(NumscriptParserSOURCE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5241,7 +5144,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(200)
+			p.SetState(198)
 			p.Match(NumscriptParserEQ)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5249,11 +5152,11 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(201)
+			p.SetState(199)
 			p.Source()
 		}
 		{
-			p.SetState(202)
+			p.SetState(200)
 			p.Match(NumscriptParserDESTINATION)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5261,7 +5164,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(203)
+			p.SetState(201)
 			p.Match(NumscriptParserEQ)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5269,11 +5172,11 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 			}
 		}
 		{
-			p.SetState(204)
+			p.SetState(202)
 			p.Destination()
 		}
 		{
-			p.SetState(205)
+			p.SetState(203)
 			p.Match(NumscriptParserRPARENS)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -5285,7 +5188,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 		localctx = NewFnCallStatementContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(207)
+			p.SetState(205)
 			p.FunctionCall()
 		}
 

@@ -160,10 +160,9 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 
 	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
-		return accountLiteralFromCtx(sourceCtx)
-
-	case *parser.SrcVariableContext:
-		return variableLiteralFromCtx(sourceCtx)
+		return &SourceAccount{
+			Literal: parseLiteral(sourceCtx.Literal()),
+		}
 
 	case *parser.SrcInorderContext:
 		var sources []Source
@@ -307,7 +306,11 @@ func parseStringLiteralCtx(stringCtx *parser.StringLiteralContext) *StringLitera
 func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 	switch literalCtx := literalCtx.(type) {
 	case *parser.AccountLiteralContext:
-		return accountLiteralFromCtx(literalCtx)
+		return &AccountLiteral{
+			Range: ctxToRange(literalCtx),
+			// Discard the '@'
+			Name: literalCtx.GetText()[1:],
+		}
 
 	case *parser.MonetaryLiteralContext:
 		return parseMonetaryLit(literalCtx.MonetaryLit())
@@ -348,16 +351,6 @@ func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *VariableLiteral {
 	}
 }
 
-func accountLiteralFromCtx(ctx antlr.ParserRuleContext) *AccountLiteral {
-	// Discard the '@'
-	name := ctx.GetText()[1:]
-
-	return &AccountLiteral{
-		Range: ctxToRange(ctx),
-		Name:  name,
-	}
-}
-
 func parsePortionSource(portionCtx parser.IPortionContext) *RatioLiteral {
 	switch portionCtx.(type) {
 	case *parser.RatioContext:
@@ -383,10 +376,9 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 
 	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
-		return accountLiteralFromCtx(destCtx)
-
-	case *parser.DestVariableContext:
-		return variableLiteralFromCtx(destCtx)
+		return &DestinationAccount{
+			Literal: parseLiteral(destCtx.Literal()),
+		}
 
 	case *parser.DestInorderContext:
 		var inorderClauses []DestinationInorderClause

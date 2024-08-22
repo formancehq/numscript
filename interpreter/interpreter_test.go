@@ -63,7 +63,7 @@ func test(t *testing.T, testCase TestCase) {
 	execResult, err := machine.RunProgram(*prog, testCase.vars, testCase.balances, testCase.meta)
 	expected := testCase.expected
 	if expected.Error != nil {
-		assert.Equal(t, err, expected.Error)
+		require.Equal(t, expected.Error, err)
 	} else {
 		require.NoError(t, err)
 	}
@@ -106,6 +106,29 @@ func TestSend(t *testing.T) {
 				Source:      "alice",
 				Destination: "bob",
 			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSetTxMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	set_tx_meta("num", 42)
+	set_tx_meta("str", "abc")
+	set_tx_meta("asset", COIN)
+	set_tx_meta("account", @acc)
+	set_tx_meta("portion", 12%)
+	`)
+
+	tc.expected = CaseResult{
+		Metadata: map[string]machine.Value{
+			"num":     machine.NewMonetaryInt(42),
+			"str":     machine.String("abc"),
+			"asset":   machine.Asset("COIN"),
+			"account": machine.AccountAddress("acc"),
+			"portion": machine.Portion(*big.NewRat(12, 100)),
 		},
 		Error: nil,
 	}
@@ -161,14 +184,17 @@ func TestVariablesJSON(t *testing.T) {
 		string 	$description
 		number 	$nb
 		asset 	$ass
+		portion $por
 	}
 	send [$ass 999] (
 		source=$rider
 		destination=$driver
 	)
 	set_tx_meta("description", $description)
-	set_tx_meta("ride", $nb)`)
+	set_tx_meta("ride", $nb)
+	set_tx_meta("por", $por)`)
 	tc.setVarsFromJSON(t, `{
+		"por": "42%",
 		"rider": "users:001",
 		"driver": "users:002",
 		"description": "midnight ride",
@@ -189,6 +215,7 @@ func TestVariablesJSON(t *testing.T) {
 		Metadata: map[string]machine.Value{
 			"description": machine.String("midnight ride"),
 			"ride":        machine.NewMonetaryInt(1),
+			"por":         machine.Portion(*big.NewRat(42, 100)),
 		},
 		Error: nil,
 	}
@@ -318,10 +345,7 @@ func TestDynamicAllocation(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestSendAll(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = @users:001
@@ -342,10 +366,307 @@ func TestSendAll(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
-func TestSendAllMulti(t *testing.T) {
+func TestSendAllVariable(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		account $src 
+		account $dest 
+	}
+
+	send [USD/2 *] (
+		source = $src
+		destination = $dest
+	)`)
+	tc.setVarsFromJSON(t, `{
+		"src": "users:001",
+		"dest": "platform"
+	}`)
+	tc.setBalance("users:001", "USD/2", 17)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(17),
+				Source:      "users:001",
+				Destination: "platform",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAlltMaxWhenNoAmount(t *testing.T) {
+	// False negative: BigInt(0) comparation is failing
 	t.Skip()
 
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = max [USD/2 5] from @src
+		destination = @dest
+	)
+	`)
+	tc.setBalance("src1", "USD/2", 0)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Source:      "src",
+				Destination: "dest",
+				Amount:      big.NewInt(0),
+				Asset:       "USD/2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllDestinatioAllot(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @users:001
+		destination = {
+			1/3 to @d1
+			2/3 to @d2
+		}
+	)`)
+	tc.setBalance("users:001", "USD/2", 30)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "users:001",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(20),
+				Source:      "users:001",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllDestinatioAllotComplex(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+			@users:001
+			@users:002
+		}
+		destination = {
+			1/3 to @d1
+			2/3 to @d2
+		}
+	)`)
+	tc.setBalance("users:001", "USD/2", 15)
+	tc.setBalance("users:002", "USD/2", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "users:001",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "users:001",
+				Destination: "d2",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(15),
+				Source:      "users:002",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestInvalidAllotInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+			1/2 from @a
+			2/3 from @b
+		}
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidAllotmentInSendAll{},
+	}
+	test(t, tc)
+}
+
+func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @world
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedInSendAll{Name: "world"},
+	}
+	test(t, tc)
+}
+
+func TestInvalidUnboundedInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @a allowing unbounded overdraft
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedInSendAll{Name: "a"},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src allowing overdraft up to [USD/2 10]
+		destination = @dest
+	)`)
+	tc.setBalance("src", "USD/2", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftInSendAllWhenNoop(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src allowing overdraft up to [USD/2 10]
+		destination = @dest
+	)`)
+	tc.setBalance("src", "USD/2", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(1),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestSendAlltMaxInSrc(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = {
+		  max [USD/2 5] from @src1
+		  @src2
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("src1", "USD/2", 100)
+	tc.setBalance("src2", "USD/2", 200)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "src1",
+				Destination: "dest",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(200),
+				Source:      "src2",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAlltMaxInDest(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src
+		destination = {
+			max [USD/2 10] to @d1
+			remaining to @d2
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(90),
+				Source:      "src",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllManyMaxInDest(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 *] (
+		source = @src
+		destination = {
+			max [USD/2 10] to @d1
+			max [USD/2 20] to @d2
+			remaining to @d3
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 15)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+				Source:      "src",
+				Destination: "d2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllMulti(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = {
@@ -462,10 +783,7 @@ func TestNoEmptyPostings(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO impl
 func TestEmptyPostings(t *testing.T) {
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [GEM *] (
 		source = @foo
@@ -622,10 +940,90 @@ func TestTrackBalances2(t *testing.T) {
 	test(t, tc)
 }
 
-func TestTrackBalances3(t *testing.T) {
-	// TODO unskip this
-	t.Skip()
+func TestKeptInSendAllInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 1] kept
+			remaining to @dest
+		}
+	)`)
 
+	tc.setBalance("src", "COIN", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(9),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestRemainingKeptInSendAllInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 1] to @dest
+			remaining kept
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 1000)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestTrackBalancesSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN *] (
+		source = @src
+		destination = @dest1
+	)
+	send [COIN *] (
+		source = @src
+		destination = @dest2
+	)`)
+	tc.setBalance("src", "COIN", 42)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(42),
+				Source:      "src",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(0),
+				Source:      "src",
+				Destination: "dest2",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestTrackBalances3(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN *] (
 		source = @foo
@@ -871,6 +1269,88 @@ func TestKeptInorder(t *testing.T) {
 		Error: nil,
 	}
 	test(t, tc)
+
+}
+
+func TestKeptWithBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @src
+		destination = {
+			max [COIN 10] kept
+			remaining to @dest
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 1000)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(90),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
+}
+
+func TestRemainingNone(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 10] (
+		source = @world
+		destination = {
+			max [COIN 10] to @a
+			remaining to @b
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
+}
+
+func TestRemainingNoneInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN *] (
+		source = @src
+		destination = {
+			max [COIN 10] to @a
+			remaining to @b
+		}
+	)`)
+
+	tc.setBalance("src", "COIN", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// 10 COIN are kept
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
 }
 
 func TestDestinationComplex(t *testing.T) {
@@ -1190,9 +1670,6 @@ func TestVariableBalance(t *testing.T) {
 // }
 
 func TestVariableAsset(t *testing.T) {
-	// TODO unskip
-	t.Skip()
-
 	script := `
  		vars {
  			asset $ass
@@ -1484,6 +1961,23 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: machine.InvalidTypeErr{
 				Name: "invalidt",
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("bad currency type in max (source)", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			send [EUR/2 1] (
+				source = max [USD/2 10] from @world
+				destination = @b
+			)
+		`)
+		tc.expected = CaseResult{
+			Error: machine.MismatchedCurrencyError{
+				Expected: "EUR/2",
+				Got:      "USD/2",
 			},
 		}
 		test(t, tc)

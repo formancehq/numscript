@@ -110,12 +110,14 @@ parser.Program{
                     },
                 },
             },
-            Source: &parser.AccountLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:13, Line:1},
-                    End:   parser.Position{Character:15, Line:1},
+            Source: &parser.SourceAccount{
+                Literal: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:13, Line:1},
+                        End:   parser.Position{Character:15, Line:1},
+                    },
+                    Name: "a",
                 },
-                Name: "a",
             },
             Destination: nil,
         },
@@ -162,12 +164,14 @@ parser.Program{
                 From: nil,
                 Cap:  nil,
             },
-            Destination: &parser.AccountLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:18, Line:2},
-                    End:   parser.Position{Character:20, Line:2},
+            Destination: &parser.DestinationAccount{
+                Literal: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:2},
+                        End:   parser.Position{Character:20, Line:2},
+                    },
+                    Name: "d",
                 },
-                Name: "d",
             },
         },
     },
@@ -236,12 +240,14 @@ parser.Program{
                     },
                 },
             },
-            Source: &parser.AccountLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:11, Line:1},
-                    End:   parser.Position{Character:13, Line:1},
+            Source: &parser.SourceAccount{
+                Literal: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:1},
+                        End:   parser.Position{Character:13, Line:1},
+                    },
+                    Name: "a",
                 },
-                Name: "a",
             },
             Destination: &parser.DestinationInorder{
                 Range: parser.Range{

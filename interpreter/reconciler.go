@@ -25,20 +25,18 @@ func (e ReconcileError) Error() string {
 type Sender struct {
 	Name     string
 	Monetary *big.Int
-	Asset    string
 }
 
 type Receiver struct {
 	Name     string
 	Monetary *big.Int
-	Asset    string
 }
 
-func (r *Receiver) String() string {
-	return fmt.Sprintf("<[%s %s] from  %s>", r.Asset, r.Monetary.String(), r.Name)
-}
-
-func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
+func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, error) {
+	// We reverse senders and receivers once so that we can
+	// treat them as stack and push/pop in O(1)
+	slices.Reverse(senders)
+	slices.Reverse(receivers)
 	var postings []Posting
 
 	for {
@@ -47,24 +45,48 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			break
 		}
 
+		if receiver.Monetary == nil {
+			slices.Reverse(senders)
+			for _, sender := range senders {
+				// empty all the senders
+				postings = append(postings, Posting{
+					Source:      sender.Name,
+					Destination: receiver.Name,
+					Amount:      sender.Monetary,
+					Asset:       asset,
+				})
+			}
+			break
+		}
+
 		// Ugly workaround
 		if receiver.Name == "<kept>" {
+			sender, empty := popStack(&senders)
+			if !empty {
+				var newMon big.Int
+				newMon.Sub(sender.Monetary, receiver.Monetary)
+				senders = append(senders, Sender{
+					Name:     sender.Name,
+					Monetary: &newMon,
+				})
+			}
 			continue
 		}
 
 		sender, empty := popStack(&senders)
 		if empty {
-			return nil, ReconcileError{
-				Receiver:  receiver,
-				Receivers: receivers,
+			isReceivedAmtZero := receiver.Monetary.Cmp(big.NewInt(0)) == 0
+			if isReceivedAmtZero {
+				return postings, nil
 			}
+
+			return postings, nil
 		}
 
-		var postingAmount big.Int
 		snd := (*big.Int)(sender.Monetary)
-		rcv := (*big.Int)(receiver.Monetary)
 
-		switch snd.Cmp(rcv) {
+		var postingAmount big.Int
+		switch snd.Cmp(receiver.Monetary) {
 		case 0: /* sender.Monetary == receiver.Monetary */
 			postingAmount = *sender.Monetary
 		case -1: /* sender.Monetary < receiver.Monetary */
@@ -72,7 +94,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			receivers = append(receivers, Receiver{
 				Name:     receiver.Name,
 				Monetary: monetary.Sub(receiver.Monetary, sender.Monetary),
-				Asset:    sender.Asset,
 			})
 			postingAmount = *sender.Monetary
 		case 1: /* sender.Monetary > receiver.Monetary */
@@ -80,7 +101,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 			senders = append(senders, Sender{
 				Name:     sender.Name,
 				Monetary: monetary.Sub(sender.Monetary, receiver.Monetary),
-				Asset:    sender.Asset,
 			})
 			postingAmount = *receiver.Monetary
 		}
@@ -102,7 +122,7 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 				Source:      sender.Name,
 				Destination: receiver.Name,
 				Amount:      &postingAmount,
-				Asset:       sender.Asset,
+				Asset:       asset,
 			})
 		} else {
 			// postingToMerge.Amount += postingAmount
@@ -110,7 +130,6 @@ func Reconcile(senders []Sender, receivers []Receiver) ([]Posting, error) {
 		}
 	}
 
-	slices.Reverse(postings)
 	return postings, nil
 }
 
