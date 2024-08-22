@@ -112,6 +112,53 @@ func TestSend(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSetTxMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	set_tx_meta("num", 42)
+	set_tx_meta("str", "abc")
+	set_tx_meta("asset", COIN)
+	set_tx_meta("account", @acc)
+	set_tx_meta("portion", 12%)
+	`)
+
+	tc.expected = CaseResult{
+		Metadata: map[string]machine.Value{
+			"num":     machine.NewMonetaryInt(42),
+			"str":     machine.String("abc"),
+			"asset":   machine.Asset("COIN"),
+			"account": machine.AccountAddress("acc"),
+			"portion": machine.Portion(*big.NewRat(12, 100)),
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSetAccountMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	set_account_meta(@acc, "num", 42)
+	set_account_meta(@acc, "str", "abc")
+	set_account_meta(@acc, "asset", COIN)
+	set_account_meta(@acc, "account", @acc)
+	set_account_meta(@acc, "portion", 12%)
+	`)
+
+	tc.expected = CaseResult{
+
+		Metadata: map[string]machine.Value{
+			"num":     machine.NewMonetaryInt(42),
+			"str":     machine.String("abc"),
+			"asset":   machine.Asset("COIN"),
+			"account": machine.AccountAddress("acc"),
+			"portion": machine.Portion(*big.NewRat(12, 100)),
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestVariables(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `vars {
@@ -161,14 +208,17 @@ func TestVariablesJSON(t *testing.T) {
 		string 	$description
 		number 	$nb
 		asset 	$ass
+		portion $por
 	}
 	send [$ass 999] (
 		source=$rider
 		destination=$driver
 	)
 	set_tx_meta("description", $description)
-	set_tx_meta("ride", $nb)`)
+	set_tx_meta("ride", $nb)
+	set_tx_meta("por", $por)`)
 	tc.setVarsFromJSON(t, `{
+		"por": "42%",
 		"rider": "users:001",
 		"driver": "users:002",
 		"description": "midnight ride",
@@ -189,6 +239,7 @@ func TestVariablesJSON(t *testing.T) {
 		Metadata: map[string]machine.Value{
 			"description": machine.String("midnight ride"),
 			"ride":        machine.NewMonetaryInt(1),
+			"por":         machine.Portion(*big.NewRat(42, 100)),
 		},
 		Error: nil,
 	}

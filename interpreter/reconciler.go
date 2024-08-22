@@ -65,10 +65,6 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			if !empty {
 				var newMon big.Int
 				newMon.Sub(sender.Monetary, receiver.Monetary)
-				if newMon.Sign() == -1 {
-					panic("NEG" + newMon.String())
-				}
-
 				senders = append(senders, Sender{
 					Name:     sender.Name,
 					Monetary: &newMon,
@@ -85,10 +81,6 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			}
 
 			return postings, nil
-			// return nil, ReconcileError{
-			// 	Receiver:  receiver,
-			// 	Receivers: receivers,
-			// }
 		}
 
 		snd := (*big.Int)(sender.Monetary)
