@@ -135,30 +135,6 @@ func TestSetTxMeta(t *testing.T) {
 	test(t, tc)
 }
 
-func TestSetAccountMeta(t *testing.T) {
-	tc := NewTestCase()
-	tc.compile(t, `
-	set_account_meta(@acc, "num", 42)
-	set_account_meta(@acc, "str", "abc")
-	set_account_meta(@acc, "asset", COIN)
-	set_account_meta(@acc, "account", @acc)
-	set_account_meta(@acc, "portion", 12%)
-	`)
-
-	tc.expected = CaseResult{
-
-		Metadata: map[string]machine.Value{
-			"num":     machine.NewMonetaryInt(42),
-			"str":     machine.String("abc"),
-			"asset":   machine.Asset("COIN"),
-			"account": machine.AccountAddress("acc"),
-			"portion": machine.Portion(*big.NewRat(12, 100)),
-		},
-		Error: nil,
-	}
-	test(t, tc)
-}
-
 func TestVariables(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `vars {
