@@ -77,16 +77,20 @@ func test(t *testing.T, testCase TestCase) {
 	if expected.Metadata == nil {
 		expected.Metadata = make(map[string]machine.Value)
 	}
+	if expected.AccountMetadata == nil {
+		expected.AccountMetadata = make(map[string]machine.Metadata)
+	}
 
-	assert.Equalf(t, expected.Postings, execResult.Postings, "unexpected postings output: %v", execResult.Postings)
-	assert.Equalf(t, expected.Metadata, execResult.TxMeta, "unexpected metadata output: %v", execResult.TxMeta)
-
+	assert.Equal(t, expected.Postings, execResult.Postings)
+	assert.Equal(t, expected.Metadata, execResult.TxMeta)
+	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMeta)
 }
 
 type CaseResult struct {
-	Postings []machine.Posting
-	Metadata map[string]machine.Value
-	Error    error
+	Postings        []machine.Posting
+	Metadata        map[string]machine.Value
+	AccountMetadata map[string]machine.Metadata
+	Error           error
 }
 
 type Posting = machine.Posting
@@ -129,6 +133,58 @@ func TestSetTxMeta(t *testing.T) {
 			"asset":   machine.Asset("COIN"),
 			"account": machine.AccountAddress("acc"),
 			"portion": machine.Portion(*big.NewRat(12, 100)),
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSetAccountMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+		set_account_meta(@acc, "num", 42)
+		set_account_meta(@acc, "str", "abc")
+		set_account_meta(@acc, "asset", COIN)
+		set_account_meta(@acc, "account", @acc)
+		set_account_meta(@acc, "portion", 2/7)
+		set_account_meta(@acc, "portion-perc", 1%)
+	`)
+
+	tc.expected = CaseResult{
+		AccountMetadata: map[string]machine.Metadata{
+			"acc": {
+				"num":          "42",
+				"str":          "abc",
+				"asset":        "COIN",
+				"account":      "acc",
+				"portion":      "2/7",
+				"portion-perc": "1/100",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverrideAccountMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.meta = map[string]machine.Metadata{
+		"acc": {
+			"initial":    "0",
+			"overridden": "1",
+		},
+	}
+	tc.compile(t, `
+	set_account_meta(@acc, "overridden", 100)
+	set_account_meta(@acc, "new", 2)
+	`)
+	tc.expected = CaseResult{
+		AccountMetadata: map[string]machine.Metadata{
+			"acc": {
+				"initial":    "0",
+				"overridden": "100",
+				"new":        "2",
+			},
 		},
 		Error: nil,
 	}
@@ -878,6 +934,15 @@ func TestMetadata(t *testing.T) {
 				Amount:      big.NewInt(12),
 				Source:      "sales:042",
 				Destination: "platform",
+			},
+		},
+		// Keep the original metadata
+		AccountMetadata: map[string]machine.Metadata{
+			"sales:042": {
+				"seller": "users:053",
+			},
+			"users:053": {
+				"commission": "12.5%",
 			},
 		},
 		Error: nil,

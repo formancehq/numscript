@@ -46,11 +46,11 @@ func (v Monetary) MarshalJSON() ([]byte, error) {
 }
 
 func (v String) String() string {
-	return fmt.Sprintf(`"%s"`, string(v))
+	return string(v)
 }
 
 func (v AccountAddress) String() string {
-	return fmt.Sprintf("@%s", string(v))
+	return string(v)
 }
 
 func (v MonetaryInt) String() string {
@@ -59,11 +59,12 @@ func (v MonetaryInt) String() string {
 }
 
 func (v Monetary) String() string {
-	return fmt.Sprintf("[%s %s]", v.Asset, v.Amount)
+	return fmt.Sprintf("%s %s", v.Asset, v.Amount)
 }
 
-func (Portion) String() string {
-	panic("TODO impl")
+func (p Portion) String() string {
+	r := big.Rat(p)
+	return r.String()
 }
 
 func (v Asset) String() string {

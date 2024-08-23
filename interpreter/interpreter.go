@@ -13,8 +13,9 @@ type StaticStore map[string]map[string]*big.Int
 type Metadata map[string]string
 
 type ExecutionResult struct {
-	Postings []Posting        `json:"postings"`
-	TxMeta   map[string]Value `json:"txMeta"`
+	Postings     []Posting           `json:"postings"`
+	TxMeta       map[string]Value    `json:"txMeta"`
+	AccountsMeta map[string]Metadata `json:"accountsMeta"`
 }
 
 func parsePercentage(p string) big.Rat {
@@ -157,8 +158,9 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings: postings,
-		TxMeta:   st.TxMeta,
+		Postings:     postings,
+		TxMeta:       st.TxMeta,
+		AccountsMeta: st.Meta, // TODO clone the map
 	}
 	return res, nil
 }
@@ -254,6 +256,11 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 		switch statement.Caller.Name {
 		case analysis.FnSetTxMeta:
 			err := setTxMeta(st, args)
+			if err != nil {
+				return nil, err
+			}
+		case analysis.FnSetAccountMeta:
+			err := setAccountMeta(st, args)
 			if err != nil {
 				return nil, err
 			}
@@ -829,4 +836,33 @@ func setTxMeta(st *programState, args []Value) error {
 
 	st.TxMeta[*key] = *meta
 	return nil
+}
+
+func setAccountMeta(st *programState, args []Value) error {
+	p := NewArgsParser(args)
+	account := parseArg(p, expectAccount)
+	key := parseArg(p, expectString)
+	meta := parseArg(p, expectAnything)
+	err := p.parse()
+	if err != nil {
+		return err
+	}
+
+	accountMeta := defaultMapGet(st.Meta, *account, func() Metadata {
+		return make(Metadata)
+	})
+
+	accountMeta[*key] = (*meta).String()
+
+	return nil
+}
+
+func defaultMapGet[T any](m map[string]T, key string, getDefault func() T) T {
+	lookup, ok := m[key]
+	if !ok {
+		default_ := getDefault()
+		m[key] = default_
+		return default_
+	}
+	return lookup
 }
