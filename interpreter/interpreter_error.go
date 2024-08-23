@@ -64,6 +64,15 @@ func (e InvalidTypeErr) Error() string {
 	return fmt.Sprintf("This type does not exist: %s", e.Name)
 }
 
+type NegativeBalanceError struct {
+	Account string
+	Amount  big.Int
+}
+
+func (e NegativeBalanceError) Error() string {
+	return fmt.Sprintf("Cannot fetch negative balance from account @%s", e.Account)
+}
+
 type NegativeAmountErr struct{ Amount MonetaryInt }
 
 func (e NegativeAmountErr) Error() string {

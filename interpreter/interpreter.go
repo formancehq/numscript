@@ -687,12 +687,16 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 			case *parser.DestinationTo:
 				var remainingAmount big.Int
 				remainingAmount.Sub(&amountToReceive, receivedTotal)
-				// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
-				received, err := s.receiveFrom(destinationTarget.Destination, &remainingAmount)
-				if err != nil {
-					return err
+
+				if remainingAmount.Cmp(big.NewInt(0)) != 0 {
+					// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
+					received, err := s.receiveFrom(destinationTarget.Destination, &remainingAmount)
+					if err != nil {
+						return err
+					}
+					receivedTotal.Add(receivedTotal, received)
 				}
-				receivedTotal.Add(receivedTotal, received)
+
 				return nil
 
 			default:
@@ -815,6 +819,13 @@ func balance(
 
 	// body
 	balance := s.getBalance(*account, *asset)
+	if balance.Cmp(big.NewInt(0)) == -1 {
+		return nil, NegativeBalanceError{
+			Account: *account,
+			Amount:  *balance,
+		}
+	}
+
 	var balanceCopy big.Int
 	balanceCopy.Set(balance)
 

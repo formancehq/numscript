@@ -1459,6 +1459,27 @@ func TestDestinationComplex(t *testing.T) {
 
 // TODO TestNeededBalances, TestSetTxMeta, TestSetAccountMeta
 
+func TestSendZero(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 0] (
+		source = @src
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(0),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestBalance(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `
@@ -1476,6 +1497,52 @@ func TestBalance(t *testing.T) {
 			{
 				Asset:       "EUR/2",
 				Amount:      big.NewInt(123),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestNegativeBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $balance = balance(@a, EUR/2)
+	}
+
+	send $balance (
+		source = @world
+		destination = @dest
+	)`)
+	tc.setBalance("a", "EUR/2", -100)
+	tc.expected = CaseResult{
+		Error: machine.NegativeBalanceError{
+			Account: "a",
+			Amount:  *big.NewInt(-100),
+		},
+	}
+	test(t, tc)
+}
+
+func TestBalanceNotFound(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $balance = balance(@a, EUR/2)
+	}
+
+	send $balance (
+		source = @world
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(0),
 				Source:      "world",
 				Destination: "dest",
 			},
@@ -1695,16 +1762,19 @@ func TestVariableBalance(t *testing.T) {
 		tc := NewTestCase()
 		script = `
 		vars {
-		  monetary $amount = balance(@world, USD/2)
+		  monetary $amount = balance(@src, USD/2)
 		}
 		send $amount (
 		  source = @A
 		  destination = @B
 		)`
 		tc.compile(t, script)
-		tc.setBalance("world", "USD/2", -40)
+		tc.setBalance("src", "USD/2", -40)
 		tc.expected = CaseResult{
-			Error: machine.NegativeAmountErr{Amount: machine.NewMonetaryInt(-40)},
+			Error: machine.NegativeBalanceError{
+				Account: "src",
+				Amount:  *big.NewInt(-40),
+			},
 		}
 		test(t, tc)
 	})
