@@ -81,7 +81,7 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 	}
 
 	switch fnCall.Caller.Name {
-	case "meta":
+	case analysis.FnVarOriginMeta:
 		rawValue, err := meta(s, args)
 		if err != nil {
 			return nil, err
@@ -94,7 +94,7 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 		return parsed, nil
 
-	case "balance":
+	case analysis.FnVarOriginBalance:
 		monetary, err := balance(s, args)
 		if err != nil {
 			return nil, err
