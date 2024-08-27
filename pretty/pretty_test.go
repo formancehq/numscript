@@ -1,6 +1,7 @@
 package pretty_test
 
 import (
+	"math"
 	. "numscript/pretty"
 	"testing"
 
@@ -63,4 +64,27 @@ func TestNestingNoBreak(t *testing.T) {
 
 	out := PrintDefault(doc)
 	require.Equal(t, "abcd", out)
+}
+
+func TestNoBreakWhenEnoughSpace(t *testing.T) {
+	doc := Concat(
+		Text("ab"),
+		SpaceBreak(),
+		Text("cd"),
+	)
+
+	out := NewPrintBuilder().WithMaxWidth(math.MaxInt32).Print(doc)
+	require.Equal(t, "ab cd", out)
+}
+
+func TestBreakWhenNotEnoughSpace(t *testing.T) {
+
+	doc := Concat(
+		Text("ab"),
+		SpaceBreak(),
+		Text("cd"),
+	)
+
+	out := NewPrintBuilder().WithMaxWidth(1).Print(doc)
+	require.Equal(t, "ab\ncd", out)
 }
