@@ -21,3 +21,11 @@ func Lines(l uint) Document {
 func Nest(d Document) Document {
 	return nest{Document: d}
 }
+
+func SpaceBreak() Document {
+	return break_{Unbroken: " "}
+}
+
+func Group(d Document) Document {
+	return group{Document: d}
+}
