@@ -1,8 +1,9 @@
 package parser_test
 
 import (
-	"numscript/parser"
 	"testing"
+
+	"github.com/formancehq/numscript/parser"
 
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/assert"

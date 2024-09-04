@@ -2,9 +2,10 @@ package analysis_test
 
 import (
 	"math/big"
-	"numscript/analysis"
-	"numscript/parser"
 	"testing"
+
+	"github.com/formancehq/numscript/analysis"
+	"github.com/formancehq/numscript/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -3,7 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-	"numscript/analysis"
+
+	"github.com/formancehq/numscript/analysis"
 )
 
 type Value interface {

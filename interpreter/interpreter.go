@@ -2,11 +2,12 @@ package interpreter
 
 import (
 	"math/big"
-	"numscript/analysis"
-	"numscript/parser"
-	"numscript/utils"
 	"strconv"
 	"strings"
+
+	"github.com/formancehq/numscript/analysis"
+	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/utils"
 )
 
 type StaticStore map[string]map[string]*big.Int

@@ -1,7 +1,7 @@
 package analysis
 
 import (
-	"numscript/parser"
+	"github.com/formancehq/numscript/parser"
 )
 
 type DocumentSymbolKind = float64

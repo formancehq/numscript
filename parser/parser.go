@@ -2,10 +2,11 @@ package parser
 
 import (
 	"math"
-	parser "numscript/parser/antlr"
-	"numscript/utils"
 	"strconv"
 	"strings"
+
+	parser "github.com/formancehq/numscript/parser/antlr"
+	"github.com/formancehq/numscript/utils"
 
 	"github.com/antlr4-go/antlr/v4"
 )

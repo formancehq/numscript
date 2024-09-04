@@ -1,10 +1,11 @@
 package analysis_test
 
 import (
-	"numscript/analysis"
-	"numscript/parser"
 	"slices"
 	"testing"
+
+	"github.com/formancehq/numscript/analysis"
+	"github.com/formancehq/numscript/parser"
 
 	"github.com/stretchr/testify/assert"
 )

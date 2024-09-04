@@ -3,9 +3,10 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
-	"numscript/analysis"
-	"numscript/parser"
-	"numscript/utils"
+
+	"github.com/formancehq/numscript/analysis"
+	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/utils"
 
 	"github.com/sourcegraph/jsonrpc2"
 )

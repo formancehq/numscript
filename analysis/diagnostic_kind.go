@@ -3,8 +3,9 @@ package analysis
 import (
 	"fmt"
 	"math/big"
-	"numscript/ansi"
-	"numscript/utils"
+
+	"github.com/formancehq/numscript/ansi"
+	"github.com/formancehq/numscript/utils"
 )
 
 type Severity = byte
