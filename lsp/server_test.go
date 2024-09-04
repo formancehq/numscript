@@ -2,9 +2,10 @@ package lsp_test
 
 import (
 	"fmt"
-	lsp "numscript/lsp"
 	"strings"
 	"testing"
+
+	lsp "github.com/formancehq/numscript/lsp"
 )
 
 func encodePayload(payload string) *strings.Reader {

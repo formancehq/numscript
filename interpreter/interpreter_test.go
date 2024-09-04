@@ -3,10 +3,12 @@ package interpreter_test
 import (
 	"encoding/json"
 	"math/big"
-	machine "numscript/interpreter"
 
-	"numscript/parser"
+	machine "github.com/formancehq/numscript/interpreter"
+
 	"testing"
+
+	"github.com/formancehq/numscript/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -3,8 +3,9 @@ package interpreter_test
 import (
 	"encoding/json"
 	"math/big"
-	"numscript/interpreter"
 	"testing"
+
+	"github.com/formancehq/numscript/interpreter"
 
 	"github.com/stretchr/testify/require"
 )

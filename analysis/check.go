@@ -2,9 +2,10 @@ package analysis
 
 import (
 	"math/big"
-	"numscript/parser"
-	"numscript/utils"
 	"slices"
+
+	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/utils"
 )
 
 const TypeMonetary = "monetary"

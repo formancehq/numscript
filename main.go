@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"numscript/cmd"
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/formancehq/numscript/cmd"
 
 	"github.com/getsentry/sentry-go"
 )

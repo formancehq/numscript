@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"numscript/analysis"
 	"os"
 	"sort"
+
+	"github.com/formancehq/numscript/analysis"
 
 	"github.com/spf13/cobra"
 )

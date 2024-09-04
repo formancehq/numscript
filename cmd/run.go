@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"numscript/ansi"
-	"numscript/interpreter"
-	"numscript/parser"
 	"os"
+
+	"github.com/formancehq/numscript/ansi"
+	"github.com/formancehq/numscript/interpreter"
+	"github.com/formancehq/numscript/parser"
 
 	"github.com/spf13/cobra"
 )
