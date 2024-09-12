@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ func parseMonetary(source string) (Monetary, error) {
 	parts := strings.Split(source, " ")
 	if len(parts) != 2 {
 		// TODO proper error handling
-		panic("Invalid mon literal")
+		return Monetary{}, fmt.Errorf("invalid monetary literal: %s", source)
 	}
 
 	asset := parts[0]
@@ -799,8 +800,7 @@ func meta(
 	value, ok := accountMeta[*key]
 
 	if !ok {
-		// TODO err
-		panic("META NOT FOUND")
+		return "", fmt.Errorf("account '@%s' doesn't have metadata associated to the '%s' key", *account, *key)
 	}
 
 	return value, nil

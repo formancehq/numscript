@@ -28,7 +28,7 @@ var runOutFormatOpt string
 type inputOpts struct {
 	Script    string                          `json:"script"`
 	Variables map[string]string               `json:"variables"`
-	Meta      map[string]interpreter.Metadata `json:"meta"`
+	Meta      map[string]interpreter.Metadata `json:"metadata"`
 	Balances  interpreter.StaticStore         `json:"balances"`
 }
 
