@@ -335,6 +335,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			var missing big.Int
 			missing.Sub((*big.Int)(&monetary.Amount), sentTotal)
 			return nil, MissingFundsErr{
+				Asset:   string(monetary.Asset),
 				Missing: missing,
 				Sent:    *sentTotal,
 			}

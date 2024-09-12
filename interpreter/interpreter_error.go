@@ -6,12 +6,13 @@ import (
 )
 
 type MissingFundsErr struct {
+	Asset   string
 	Missing big.Int
 	Sent    big.Int
 }
 
 func (e MissingFundsErr) Error() string {
-	return fmt.Sprintf("Not enough funds. Missing %s (sent %s)", e.Missing.String(), e.Sent.String())
+	return fmt.Sprintf("Not enough funds. Missing [%s %s] (only [%s %s] available)", e.Asset, e.Missing.String(), e.Asset, e.Sent.String())
 }
 
 type TypeError struct {
