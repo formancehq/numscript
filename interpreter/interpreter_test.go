@@ -1341,6 +1341,31 @@ func TestKeptInorder(t *testing.T) {
 
 }
 
+func TestRemainingKeptInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @world
+		destination = {
+			max [COIN 1] to @a
+			remaining kept
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+
+}
+
 func TestKeptWithBalance(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (
@@ -2178,4 +2203,104 @@ func TestErrors(t *testing.T) {
 		}
 		test(t, tc)
 	})
+}
+
+func TestNestedRemaining(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 100] (
+		source = @world
+		destination = {
+			10% to {
+				remaining to {
+					100% to {
+						max [GEM 1] to @dest1
+						remaining kept
+					}
+				}
+			}
+			remaining to @dest2
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"world",
+				"dest1",
+				big.NewInt(1),
+				"GEM",
+			},
+			{
+				"world",
+				"dest2",
+				big.NewInt(90), // the 90% of 100GEM
+				"GEM",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestNestedRemainingComplex(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [EUR/2 10000] (
+		source = @orders:1234
+		destination = {
+			15% to {
+				20% to @platform:commission:sales_tax
+				remaining to {
+					5% to {
+						// users
+						max [EUR/2 1000] to @users:1234:cashback
+						remaining kept
+					}
+					remaining to @platform:commission:revenue
+				}
+			}
+			remaining to @merchants:6789
+		}
+	)
+	`)
+	tc.setBalance("orders:1234", "EUR/2", 10000)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			// 15% of 10000 == 1500
+
+			// inside the 20% branch:
+			{
+				"orders:1234",
+				"platform:commission:sales_tax",
+				big.NewInt(300),
+				"EUR/2",
+			},
+
+			// 5% of 1200 is 60
+			{
+				"orders:1234",
+				"users:1234:cashback",
+				big.NewInt(60), // cap doesn't apply here
+				"EUR/2",
+			},
+
+			// 95% of 1200 is 1140
+			{
+				"orders:1234",
+				"platform:commission:revenue",
+				big.NewInt(1140), // cap doesn't apply here
+				"EUR/2",
+			},
+
+			// we are left with 85% of 10000 == 8500
+			{
+				"orders:1234",
+				"merchants:6789",
+				big.NewInt(8500),
+				"EUR/2",
+			},
+		},
+	}
+	test(t, tc)
 }

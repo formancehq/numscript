@@ -708,28 +708,29 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 				amountToReceive.Set(utils.MinBigInt(cap, amount))
 			}
 
+			var remainingAmount big.Int
+			remainingAmount.Sub(&amountToReceive, receivedTotal)
+			// If the remaining amt is zero, let's ignore the posting
+			if remainingAmount.Cmp(big.NewInt(0)) == 0 {
+				return nil
+			}
+
 			switch destinationTarget := keptOrDest.(type) {
 			case *parser.DestinationKept:
 				s.Receivers = append(s.Receivers, Receiver{
 					Name:     "<kept>",
-					Monetary: &amountToReceive,
+					Monetary: &remainingAmount,
 				})
-				receivedTotal.Add(receivedTotal, &amountToReceive)
+				receivedTotal.Add(receivedTotal, &remainingAmount)
 				return nil
 
 			case *parser.DestinationTo:
-				var remainingAmount big.Int
-				remainingAmount.Sub(&amountToReceive, receivedTotal)
-
-				if remainingAmount.Cmp(big.NewInt(0)) != 0 {
-					// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
-					received, err := s.receiveFrom(destinationTarget.Destination, &remainingAmount)
-					if err != nil {
-						return err
-					}
-					receivedTotal.Add(receivedTotal, received)
+				// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
+				received, err := s.receiveFrom(destinationTarget.Destination, &remainingAmount)
+				if err != nil {
+					return err
 				}
-
+				receivedTotal.Add(receivedTotal, received)
 				return nil
 
 			default:
