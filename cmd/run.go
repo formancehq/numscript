@@ -110,8 +110,7 @@ func run(path string) {
 
 	parseResult := parser.Parse(opt.Script)
 	if len(parseResult.Errors) != 0 {
-		// TODO better output
-		os.Stderr.Write([]byte("Got errors while parsing\n"))
+		os.Stderr.Write([]byte(parser.ParseErrorsToString(parseResult.Errors)))
 		os.Exit(1)
 	}
 

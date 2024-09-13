@@ -65,6 +65,17 @@ func Parse(input string) ParseResult[Program] {
 	}
 }
 
+func ParseErrorsToString(errors []ParserError) string {
+	buf := "Got errors while parsing:\n"
+	for index, err := range errors {
+		if index != 0 {
+			buf += "; "
+		}
+		buf += err.Msg + "\n"
+	}
+	return buf
+}
+
 func parseVarsDeclaration(varsCtx parser.IVarsDeclarationContext) []VarDeclaration {
 	if varsCtx == nil {
 		return nil
