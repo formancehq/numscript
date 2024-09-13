@@ -781,6 +781,7 @@ func TestInsufficientFunds(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error: machine.MissingFundsErr{
+			Asset:   "GEM",
 			Missing: *big.NewInt(1),
 			Sent:    *big.NewInt(15),
 		},
@@ -1000,6 +1001,7 @@ func TestTrackBalances2(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error: machine.MissingFundsErr{
+			Asset:   "COIN",
 			Missing: *big.NewInt(40),
 			Sent:    *big.NewInt(10),
 		},
@@ -1927,6 +1929,63 @@ send [COIN 100] (
 			Amount:      big.NewInt(90),
 			Asset:       "COIN",
 		}},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftWhenEnoughFunds(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+send [COIN 100] (
+ source = @users:1234 allowing overdraft up to [COIN 100]
+ destination = @dest
+)
+`)
+	tc.expected = CaseResult{
+		Postings: []Posting{{
+			Source:      "users:1234",
+			Destination: "dest",
+			Amount:      big.NewInt(100),
+			Asset:       "COIN",
+		}},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftBadCurrency(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+send [COIN 100] (
+ source = @users:1234 allowing overdraft up to [WRONGCURR 100]
+ destination = @dest
+)
+`)
+	tc.expected = CaseResult{
+		Error: machine.MismatchedCurrencyError{
+			Expected: "COIN",
+			Got:      "WRONGCURR",
+		},
+	}
+	test(t, tc)
+}
+
+func TestOverdraftWhenNotEnoughFunds(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+send [COIN 100] (
+ source = @users:1234 allowing overdraft up to [COIN 10]
+ destination = @dest
+)
+`)
+
+	tc.setBalance("users:1234", "COIN", 1)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:   "COIN",
+			Missing: *big.NewInt( /* 100 - 11*/ 89),
+			Sent:    *big.NewInt(11),
+		},
 	}
 	test(t, tc)
 }
