@@ -549,6 +549,36 @@ func (s *programState) trySending(source parser.Source, amount big.Int) (*big.In
 			return nil, err
 		}
 
+		balance := s.getBalance(*name, s.CurrentAsset)
+		// "overdraft up to `source.Bounded`"
+		if source.Bounded != nil {
+			upTo, err := evaluateLitExpecting(s, *source.Bounded, expectMonetary)
+			if err != nil {
+				return nil, err
+			}
+
+			if string(upTo.Asset) != s.CurrentAsset {
+				return nil, MismatchedCurrencyError{
+					Expected: s.CurrentAsset,
+					Got:      string(upTo.Asset),
+				}
+			}
+
+			var balancePlusOverdraft big.Int
+			balancePlusOverdraft.Add(balance, (*big.Int)(&upTo.Amount))
+			// check that amount > balance + overdraft
+			if amount.Cmp(&balancePlusOverdraft) == 1 {
+				var missing big.Int
+
+				return nil, MissingFundsErr{
+					Asset:   s.CurrentAsset,
+					Missing: *missing.Sub(&amount, &balancePlusOverdraft),
+					Sent:    balancePlusOverdraft,
+				}
+			}
+
+		}
+
 		s.Senders = append(s.Senders, Sender{
 			Name:     *name,
 			Monetary: &amount,
