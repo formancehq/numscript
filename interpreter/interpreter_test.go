@@ -692,6 +692,82 @@ func TestSendAlltMaxInDest(t *testing.T) {
 	test(t, tc)
 }
 
+func TestManyMaxDest(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 100] (
+		source = @world
+		destination = {
+			max [USD/2 10] to @d1
+			max [USD/2 12] to @d2
+			remaining to @rem
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "d1",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(12),
+				Source:      "world",
+				Destination: "d2",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(100 - 10 - 12),
+				Source:      "world",
+				Destination: "rem",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestManyKeptDest(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [USD/2 100] (
+		source = @world
+		destination = {
+			max [USD/2 10] kept
+			max [USD/2 12] to @d2
+			remaining to @rem
+		}
+	)
+	`)
+	tc.setBalance("src", "USD/2", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// {
+			// 	Asset:       "USD/2",
+			// 	Amount:      big.NewInt(10),
+			// 	Source:      "world",
+			// 	Destination: "<kept>",
+			// },
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(12),
+				Source:      "world",
+				Destination: "d2",
+			},
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(100 - 10 - 12),
+				Source:      "world",
+				Destination: "rem",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAllManyMaxInDest(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

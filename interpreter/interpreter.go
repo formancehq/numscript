@@ -343,7 +343,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 		// TODO simplify pointers
 		amt := big.Int(monetary.Amount)
-		_, err = st.receiveFrom(statement.Destination, &amt)
+		err = st.receiveFrom(statement.Destination, &amt)
 		if err != nil {
 			return nil, err
 		}
@@ -500,7 +500,7 @@ func (s *programState) receiveAllFrom(destination parser.Destination, monetary b
 				})
 
 			case *parser.DestinationTo:
-				_, err = s.receiveFrom(to.Destination, cap)
+				err = s.receiveFrom(to.Destination, cap)
 				if err != nil {
 					return err
 				}
@@ -525,7 +525,7 @@ func (s *programState) receiveAllFrom(destination parser.Destination, monetary b
 			return nil
 		}
 	case *parser.DestinationAllotment:
-		_, err := s.receiveFrom(destination, &monetary)
+		err := s.receiveFrom(destination, &monetary)
 		return err
 
 	default:
@@ -642,21 +642,20 @@ func (s *programState) trySending(source parser.Source, amount big.Int) (*big.In
 
 }
 
-func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) (*big.Int, error) {
+func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) error {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
 		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		s.Receivers = append(s.Receivers, Receiver{
 			Name:     *account,
 			Monetary: amount,
 		})
-		return amount, nil
+		return nil
 
 	case *parser.DestinationAllotment:
-
 		var items []parser.AllotmentValue
 		for _, i := range destination.Items {
 			items = append(items, i.Allotment)
@@ -664,92 +663,80 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 
 		allot, err := s.makeAllotment(amount.Int64(), items)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
 			amtToReceive := big.NewInt(allot[i])
-
-			switch allotmentItem := allotmentItem.To.(type) {
-			case *parser.DestinationTo:
-				received, err := s.receiveFrom(allotmentItem.Destination, amtToReceive)
-				if err != nil {
-					return nil, err
-				}
-				receivedTotal.Add(receivedTotal, received)
-
-			case *parser.DestinationKept:
-				s.Receivers = append(s.Receivers, Receiver{
-					Name:     "<kept>",
-					Monetary: amtToReceive,
-				})
-				// TODO Should I add this line?
-				// receivedTotal.Add(receivedTotal, (*big.Int)(&monetary.Amount))
+			err := s.receiveFromKeptOrDest(allotmentItem.To, amtToReceive)
+			if err != nil {
+				return err
 			}
 
+			receivedTotal.Add(receivedTotal, amtToReceive)
 		}
-
-		return receivedTotal, nil
+		return nil
 
 	case *parser.DestinationInorder:
-		receivedTotal := big.NewInt(0)
+		var remainingAmount big.Int
+		remainingAmount.Set(amount)
 
-		// TODO make this prettier
-		handler := func(keptOrDest parser.KeptOrDestination, capLit parser.Literal) error {
-			var amountToReceive big.Int
-			if capLit == nil {
-				amountToReceive.Set(amount)
-			} else {
-				cap, err := evaluateLitExpecting(s, capLit, expectMonetaryOfAsset(s.CurrentAsset))
-				if err != nil {
-					return err
-				}
-				amountToReceive.Set(utils.MinBigInt(cap, amount))
+		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive big.Int) error {
+			err := s.receiveFromKeptOrDest(keptOrDest, &amountToReceive)
+			if err != nil {
+				return err
 			}
-
-			var remainingAmount big.Int
-			remainingAmount.Sub(&amountToReceive, receivedTotal)
-			// If the remaining amt is zero, let's ignore the posting
-			if remainingAmount.Cmp(big.NewInt(0)) == 0 {
-				return nil
-			}
-
-			switch destinationTarget := keptOrDest.(type) {
-			case *parser.DestinationKept:
-				s.Receivers = append(s.Receivers, Receiver{
-					Name:     "<kept>",
-					Monetary: &remainingAmount,
-				})
-				receivedTotal.Add(receivedTotal, &remainingAmount)
-				return nil
-
-			case *parser.DestinationTo:
-				// receivedTotal += destination.receive(monetary-receivedTotal, ctx)
-				received, err := s.receiveFrom(destinationTarget.Destination, &remainingAmount)
-				if err != nil {
-					return err
-				}
-				receivedTotal.Add(receivedTotal, received)
-				return nil
-
-			default:
-				utils.NonExhaustiveMatchPanic[any](destinationTarget)
-				return nil
-			}
+			remainingAmount.Sub(&remainingAmount, &amountToReceive)
+			return err
 		}
 
 		for _, destinationClause := range destination.Clauses {
-			handler(destinationClause.To, destinationClause.Cap)
-			// TODO should I break if all the amount has been received?
+
+			cap, err := evaluateLitExpecting(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			if err != nil {
+				return err
+			}
+
+			// If the remaining amt is zero, let's ignore the posting
+			if remainingAmount.Cmp(big.NewInt(0)) == 0 {
+				break
+			}
+
+			err = handler(destinationClause.To, *utils.MinBigInt(cap, &remainingAmount))
+			if err != nil {
+				return err
+			}
+
 		}
-		handler(destination.Remaining, nil)
-		return receivedTotal, nil
+
+		var cp big.Int // if remainingAmount bad things with pointers happen.. somehow
+		cp.Set(&remainingAmount)
+		return handler(destination.Remaining, cp)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
-		return nil, nil
+		return nil
 	}
+}
+
+func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) error {
+	switch destinationTarget := keptOrDest.(type) {
+	case *parser.DestinationKept:
+		s.Receivers = append(s.Receivers, Receiver{
+			Name:     "<kept>",
+			Monetary: amount,
+		})
+		return nil
+
+	case *parser.DestinationTo:
+		return s.receiveFrom(destinationTarget.Destination, amount)
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](destinationTarget)
+		return nil
+	}
+
 }
 
 func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, error) {
