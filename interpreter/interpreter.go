@@ -331,9 +331,9 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		}
 
 		// sentTotal < monetary.Amount
-		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
+		if sentTotal.Cmp(&monetaryAmt) == -1 {
 			var missing big.Int
-			missing.Sub((*big.Int)(&monetary.Amount), sentTotal)
+			missing.Sub(&monetaryAmt, sentTotal)
 			return nil, MissingFundsErr{
 				Asset:   string(monetary.Asset),
 				Missing: missing,
