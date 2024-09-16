@@ -850,15 +850,8 @@ func TestEmptyPostings(t *testing.T) {
 	)`)
 	tc.setBalance("foo", "GEM", 0)
 	tc.expected = CaseResult{
-		Postings: []Posting{
-			{
-				Source:      "foo",
-				Destination: "bar",
-				Amount:      big.NewInt(0),
-				Asset:       "GEM",
-			},
-		},
-		Error: nil,
+		Postings: []Posting{},
+		Error:    nil,
 	}
 	test(t, tc)
 }
@@ -1060,6 +1053,7 @@ func TestRemainingKeptInSendAllInorder(t *testing.T) {
 }
 
 func TestTrackBalancesSendAll(t *testing.T) {
+	// TODO double check
 	tc := NewTestCase()
 	tc.compile(t, `
 	send [COIN *] (
@@ -1080,12 +1074,12 @@ func TestTrackBalancesSendAll(t *testing.T) {
 				Source:      "src",
 				Destination: "dest1",
 			},
-			{
-				Asset:       "COIN",
-				Amount:      big.NewInt(0),
-				Source:      "src",
-				Destination: "dest2",
-			},
+			// {
+			// 	Asset:       "COIN",
+			// 	Amount:      big.NewInt(0),
+			// 	Source:      "src",
+			// 	Destination: "dest2",
+			// },
 		},
 		Error: nil,
 	}
@@ -1489,6 +1483,7 @@ func TestDestinationComplex(t *testing.T) {
 // TODO TestNeededBalances, TestSetTxMeta, TestSetAccountMeta
 
 func TestSendZero(t *testing.T) {
+	// TODO double check
 	tc := NewTestCase()
 	tc.compile(t, `
 	send [COIN 0] (
@@ -1497,12 +1492,12 @@ func TestSendZero(t *testing.T) {
 	)`)
 	tc.expected = CaseResult{
 		Postings: []Posting{
-			{
-				Asset:       "COIN",
-				Amount:      big.NewInt(0),
-				Source:      "src",
-				Destination: "dest",
-			},
+			// {
+			// 	Asset:       "COIN",
+			// 	Amount:      big.NewInt(0),
+			// 	Source:      "src",
+			// 	Destination: "dest",
+			// },
 		},
 		Error: nil,
 	}
@@ -1557,6 +1552,7 @@ func TestNegativeBalance(t *testing.T) {
 }
 
 func TestBalanceNotFound(t *testing.T) {
+	// TODO double check
 	tc := NewTestCase()
 	tc.compile(t, `
 	vars {
@@ -1569,12 +1565,12 @@ func TestBalanceNotFound(t *testing.T) {
 	)`)
 	tc.expected = CaseResult{
 		Postings: []Posting{
-			{
-				Asset:       "EUR/2",
-				Amount:      big.NewInt(0),
-				Source:      "world",
-				Destination: "dest",
-			},
+			// {
+			// 	Asset:       "EUR/2",
+			// 	Amount:      big.NewInt(0),
+			// 	Source:      "world",
+			// 	Destination: "dest",
+			// },
 		},
 		Error: nil,
 	}
@@ -2299,6 +2295,66 @@ func TestNestedRemainingComplex(t *testing.T) {
 				"merchants:6789",
 				big.NewInt(8500),
 				"EUR/2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestTrackBalancesTricky(t *testing.T) {
+	t.Skip()
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 5)
+	tc.compile(t, `
+	send [COIN 25] ( // send 10 + 15
+		source= {
+			max [COIN 10] from @world
+			@src // src only has 5 before the program starts
+		}
+		destination = {
+			max [COIN 10] to @src
+			remaining to @dest // but @src needs to send 15 here
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"world",
+				"src",
+				big.NewInt(10),
+				"GEM",
+			},
+			{
+				"src",
+				"dest",
+				big.NewInt(15),
+				"GEM",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestZeroPostings(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 100] (
+		source = {
+			@a
+			@world
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"world",
+				"dest",
+				big.NewInt(100),
+				"COIN",
 			},
 		},
 	}

@@ -33,6 +33,14 @@ type Receiver struct {
 }
 
 func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, error) {
+	var sendersFiltered []Sender
+	for _, e := range senders {
+		if e.Monetary.Cmp(big.NewInt(0)) != 0 {
+			sendersFiltered = append(sendersFiltered, e)
+		}
+	}
+	senders = sendersFiltered
+
 	// We reverse senders and receivers once so that we can
 	// treat them as stack and push/pop in O(1)
 	slices.Reverse(senders)
