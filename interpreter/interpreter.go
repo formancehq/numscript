@@ -394,26 +394,6 @@ func (s *programState) trySendingAccount(name string, amount big.Int) (*big.Int,
 	return &monetaryAmount, nil
 }
 
-func (s *programState) trySendingAllFromAccount(name string) (*big.Int, error) {
-	if name == "world" {
-		return nil, InvalidUnboundedInSendAll{
-			Name: name,
-		}
-	}
-
-	var balanceClone big.Int
-
-	// TODO err empty balance?
-
-	balance := s.getBalance(name, s.CurrentAsset)
-	s.Senders = append(s.Senders, Sender{
-		Name:     name,
-		Monetary: balanceClone.Set(balance),
-	})
-
-	return &balanceClone, nil
-}
-
 func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
@@ -421,7 +401,23 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 		if err != nil {
 			return nil, err
 		}
-		return s.trySendingAllFromAccount(string(*account))
+		name := string(*account)
+
+		if name == "world" {
+			return nil, InvalidUnboundedInSendAll{
+				Name: name,
+			}
+		}
+
+		var balanceClone big.Int
+		// TODO err empty balance?
+		balance := s.getBalance(name, s.CurrentAsset)
+		s.Senders = append(s.Senders, Sender{
+			Name:     name,
+			Monetary: balanceClone.Set(balance),
+		})
+
+		return &balanceClone, nil
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
