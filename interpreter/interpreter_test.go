@@ -456,9 +456,6 @@ func TestSendAllVariable(t *testing.T) {
 }
 
 func TestSendAlltMaxWhenNoAmount(t *testing.T) {
-	// False negative: BigInt(0) comparation is failing
-	t.Skip()
-
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
 		source = max [USD/2 5] from @src
@@ -467,15 +464,8 @@ func TestSendAlltMaxWhenNoAmount(t *testing.T) {
 	`)
 	tc.setBalance("src1", "USD/2", 0)
 	tc.expected = CaseResult{
-		Postings: []Posting{
-			{
-				Source:      "src",
-				Destination: "dest",
-				Amount:      big.NewInt(0),
-				Asset:       "USD/2",
-			},
-		},
-		Error: nil,
+		Postings: []Posting{},
+		Error:    nil,
 	}
 	test(t, tc)
 }
@@ -600,7 +590,7 @@ func TestOverdraftInSendAll(t *testing.T) {
 		Postings: []Posting{
 			{
 				Asset:       "USD/2",
-				Amount:      big.NewInt(10),
+				Amount:      big.NewInt(1010),
 				Source:      "src",
 				Destination: "dest",
 			},
@@ -620,7 +610,7 @@ func TestOverdraftInSendAllWhenNoop(t *testing.T) {
 		Postings: []Posting{
 			{
 				Asset:       "USD/2",
-				Amount:      big.NewInt(1),
+				Amount:      big.NewInt(11),
 				Source:      "src",
 				Destination: "dest",
 			},
@@ -857,9 +847,9 @@ func TestInsufficientFunds(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error: machine.MissingFundsErr{
-			Asset:   "GEM",
-			Missing: *big.NewInt(1),
-			Sent:    *big.NewInt(15),
+			Asset:     "GEM",
+			Needed:    *big.NewInt(16),
+			Available: *big.NewInt(15),
 		},
 	}
 	test(t, tc)
@@ -1070,9 +1060,9 @@ func TestTrackBalances2(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error: machine.MissingFundsErr{
-			Asset:   "COIN",
-			Missing: *big.NewInt(40),
-			Sent:    *big.NewInt(10),
+			Asset:     "COIN",
+			Needed:    *big.NewInt(50),
+			Available: *big.NewInt(10),
 		},
 	}
 	test(t, tc)
@@ -1232,6 +1222,29 @@ func TestSourceAllotment(t *testing.T) {
 			},
 		},
 		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSourceAllotmentInvalidAmt(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = {
+			// a doesn't have enough amount
+			10% from @a
+
+			// world has, but the computation has already failed
+			remaining from @world
+		}
+		destination = @d
+	)`)
+	tc.setBalance("a", "COIN", 1)
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:     "COIN",
+			Needed:    *big.NewInt(10),
+			Available: *big.NewInt(1),
+		},
 	}
 	test(t, tc)
 }
@@ -2049,6 +2062,40 @@ send [COIN 100] (
 	test(t, tc)
 }
 
+func TestOverdraftNotEnoughFunds(t *testing.T) {
+	tc := NewTestCase()
+	tc.setBalance("users:2345:main", "USD/2", 8000)
+	tc.compile(t, `
+	send [USD/2 2200] (
+		source = {
+		  // let the user pay with their credit account first,
+		  @users:2345:credit allowing overdraft up to [USD/2 1000]
+		  // then, use their main balance
+		  @users:2345:main
+		}
+		destination = @payments:4567
+	  )
+	`)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"users:2345:credit",
+				"payments:4567",
+				big.NewInt(1000),
+				"USD/2",
+			},
+			{
+				"users:2345:main",
+				"payments:4567",
+				big.NewInt(1200),
+				"USD/2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
 func TestOverdraftBadCurrency(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `
@@ -2079,9 +2126,9 @@ send [COIN 100] (
 
 	tc.expected = CaseResult{
 		Error: machine.MissingFundsErr{
-			Asset:   "COIN",
-			Missing: *big.NewInt( /* 100 - 11*/ 89),
-			Sent:    *big.NewInt(11),
+			Asset:     "COIN",
+			Needed:    *big.NewInt(100),
+			Available: *big.NewInt(11),
 		},
 	}
 	test(t, tc)
@@ -2431,6 +2478,129 @@ func TestZeroPostings(t *testing.T) {
 				"dest",
 				big.NewInt(100),
 				"COIN",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestUnboundedOverdraftWhenNotEnoughFunds(t *testing.T) {
+	tc := NewTestCase()
+	tc.setBalance("users:2345:main", "USD/2", 8000)
+	tc.compile(t, `
+	send [USD/2 100] (
+		source = @empty allowing unbounded overdraft
+		destination = @dest
+	)
+	`)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"empty",
+				"dest",
+				big.NewInt(100),
+				"USD/2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+// Numscript playground examples
+func TestOvedraftsPlaygroundExample(t *testing.T) {
+	tc := NewTestCase()
+	tc.setBalance("users:2345:main", "USD/2", 8000)
+	tc.compile(t, `
+	send [USD/2 100] (
+		source = @users:1234 allowing unbounded overdraft
+		destination = @payments:4567
+	)
+
+	send [USD/2 6000] (
+		source = {
+			// let the user pay with their credit account first,
+			@users:2345:credit allowing overdraft up to [USD/2 1000]
+			// then, use their main balance
+			@users:2345:main
+		}
+		destination = @payments:4567
+	)
+	`)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"users:1234",
+				"payments:4567",
+				big.NewInt(100),
+				"USD/2",
+			},
+
+			{
+				"users:2345:credit",
+				"payments:4567",
+				big.NewInt(1000),
+				"USD/2",
+			},
+			{
+				"users:2345:main",
+				"payments:4567",
+				big.NewInt(5000),
+				"USD/2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestCascadingSources(t *testing.T) {
+	tc := NewTestCase()
+	tc.setBalance("users:1234:main", "USD/2", 5000)
+	tc.setBalance("users:1234:vouchers:2024-01-31", "USD/2", 1000)
+	tc.setBalance("users:1234:vouchers:2024-02-17", "USD/2", 3000)
+	tc.setBalance("users:1234:vouchers:2024-03-22", "USD/2", 10000)
+
+	tc.compile(t, `
+	send [USD/2 10000] (
+		source = {
+			// first, pull from the user balance
+			@users:1234:main
+			// then, pull from the user's vouchers,
+			// fairly using the ones that expire first
+			@users:1234:vouchers:2024-01-31
+			@users:1234:vouchers:2024-02-17
+			@users:1234:vouchers:2024-03-22
+		}
+		destination = @orders:4567:payment
+		)
+	`)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"users:1234:main",
+				"orders:4567:payment",
+				big.NewInt(5000),
+				"USD/2",
+			},
+			{
+				"users:1234:vouchers:2024-01-31",
+				"orders:4567:payment",
+				big.NewInt(1000),
+				"USD/2",
+			},
+			{
+				"users:1234:vouchers:2024-02-17",
+				"orders:4567:payment",
+				big.NewInt(3000),
+				"USD/2",
+			},
+			{
+				"users:1234:vouchers:2024-03-22",
+				"orders:4567:payment",
+				big.NewInt(1000),
+				"USD/2",
 			},
 		},
 	}

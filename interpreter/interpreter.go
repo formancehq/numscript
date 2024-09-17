@@ -303,7 +303,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			return nil, err
 		}
 		st.CurrentAsset = *asset
-		sentAmt, err := st.trySendingAll(statement.Source)
+		sentAmt, err := st.sendAll(statement.Source)
 		if err != nil {
 			return nil, err
 		}
@@ -325,20 +325,9 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 			return nil, NegativeAmountErr{Amount: monetary.Amount}
 		}
 
-		sentTotal, err := st.trySending(statement.Source, monetaryAmt)
+		err = st.trySendingExact(statement.Source, monetaryAmt)
 		if err != nil {
 			return nil, err
-		}
-
-		// sentTotal < monetary.Amount
-		if sentTotal.Cmp(&monetaryAmt) == -1 {
-			var missing big.Int
-			missing.Sub(&monetaryAmt, sentTotal)
-			return nil, MissingFundsErr{
-				Asset:   string(monetary.Asset),
-				Missing: missing,
-				Sent:    *sentTotal,
-			}
 		}
 
 		// TODO simplify pointers
@@ -373,56 +362,52 @@ func (s *programState) getBalance(account string, asset string) *big.Int {
 	return assetBalance
 }
 
-func (s *programState) trySendingAccount(name string, amount big.Int) (*big.Int, error) {
-	var monetaryAmount big.Int
-	monetaryAmount.Set(&amount)
+func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft *big.Int) (*big.Int, error) {
+	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+	if err != nil {
+		return nil, err
+	}
 
-	if name != "world" {
-		balance := s.getBalance(name, s.CurrentAsset)
-
-		// monetary = min(balance, monetary)
-		if balance.Cmp(&monetaryAmount) == -1 /* balance < monetary */ {
-			monetaryAmount.Set(balance)
+	if *account == "world" || ovedraft == nil {
+		return nil, InvalidUnboundedInSendAll{
+			Name: *account,
 		}
 	}
 
-	s.Senders = append(s.Senders, Sender{
-		Name:     name,
-		Monetary: &monetaryAmount,
-	})
+	balance := s.getBalance(*account, s.CurrentAsset)
 
-	return &monetaryAmount, nil
+	// we sent balance+overdraft
+	var sentAmt big.Int
+	sentAmt.Add(balance, ovedraft)
+
+	s.Senders = append(s.Senders, Sender{
+		Name:     *account,
+		Monetary: &sentAmt,
+	})
+	return &sentAmt, nil
 }
 
-func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
+// Send as much as possible (and return the sent amt)
+func (s *programState) sendAll(source parser.Source) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateLitExpecting(s, source.Literal, expectAccount)
-		if err != nil {
-			return nil, err
-		}
-		name := string(*account)
+		return s.sendAllToAccount(source.Literal, big.NewInt(0))
 
-		if name == "world" {
-			return nil, InvalidUnboundedInSendAll{
-				Name: name,
+	case *parser.SourceOverdraft:
+		var cap *big.Int
+		if source.Bounded != nil {
+			bounded, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			if err != nil {
+				return nil, err
 			}
+			cap = bounded
 		}
-
-		var balanceClone big.Int
-		// TODO err empty balance?
-		balance := s.getBalance(name, s.CurrentAsset)
-		s.Senders = append(s.Senders, Sender{
-			Name:     name,
-			Monetary: balanceClone.Set(balance),
-		})
-
-		return &balanceClone, nil
+		return s.sendAllToAccount(source.Address, cap)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
 		for _, subSource := range source.Sources {
-			sent, err := s.trySendingAll(subSource)
+			sent, err := s.sendAll(subSource)
 			if err != nil {
 				return nil, err
 			}
@@ -437,29 +422,10 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 		}
 
 		// We switch to the default sending evaluation for this subsource
-		return s.trySending(source.From, *monetary)
+		return s.trySendingUpTo(source.From, *monetary)
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
-
-	case *parser.SourceOverdraft:
-		account, err := evaluateLitExpecting(s, source.Address, expectAccount)
-		if err != nil {
-			return nil, err
-		}
-
-		if source.Bounded == nil {
-			return nil, InvalidUnboundedInSendAll{
-				Name: *account,
-			}
-		}
-
-		amount, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
-		if err != nil {
-			return nil, err
-		}
-
-		return s.trySendingAccount(*account, *amount)
 
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
@@ -467,66 +433,86 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 	}
 }
 
-func (s *programState) trySending(source parser.Source, amount big.Int) (*big.Int, error) {
+// Fails if it doesn't manage to send exactly "amount"
+func (s *programState) trySendingExact(source parser.Source, amount big.Int) error {
+	sentAmt, err := s.trySendingUpTo(source, amount)
+	if err != nil {
+		return err
+	}
+	if sentAmt.Cmp(&amount) != 0 {
+		return MissingFundsErr{
+			Asset:     s.CurrentAsset,
+			Needed:    amount,
+			Available: *sentAmt,
+		}
+	}
+	return nil
+}
+
+func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount big.Int, overdraft *big.Int) (*big.Int, error) {
+	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+	if err != nil {
+		return nil, err
+	}
+	if *account == "world" {
+		overdraft = nil
+	}
+
+	var actuallySentAmt big.Int
+	if overdraft == nil {
+		// unbounded overdraft: we send the required amount
+		actuallySentAmt.Set(&amount)
+	} else {
+		balance := s.getBalance(*account, s.CurrentAsset)
+
+		// that's the amount we are allowed to send (balance + overdraft)
+		var safeSendAmt big.Int
+		safeSendAmt.Add(balance, overdraft)
+
+		actuallySentAmt = *utils.MinBigInt(&safeSendAmt, &amount)
+	}
+
+	s.Senders = append(s.Senders, Sender{
+		Name:     *account,
+		Monetary: &actuallySentAmt,
+	})
+	return &actuallySentAmt, nil
+}
+
+// Tries sending "amount" and returns the actually sent amt.
+// Doesn't fail (unless nested sources fail)
+func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateLitExpecting(s, source.Literal, expectAccount)
-		if err != nil {
-			return nil, err
-		}
-		return s.trySendingAccount(string(*account), amount)
+		return s.trySendingToAccount(source.Literal, amount, big.NewInt(0))
 
 	case *parser.SourceOverdraft:
-		name, err := evaluateLitExpecting(s, source.Address, expectAccount)
-		if err != nil {
-			return nil, err
-		}
-
-		balance := s.getBalance(*name, s.CurrentAsset)
-		// "overdraft up to `source.Bounded`"
+		var cap *big.Int
 		if source.Bounded != nil {
 			upTo, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
-
-			var balancePlusOverdraft big.Int
-			balancePlusOverdraft.Add(balance, upTo)
-			// check that amount > balance + overdraft
-			if amount.Cmp(&balancePlusOverdraft) == 1 {
-				var missing big.Int
-
-				return nil, MissingFundsErr{
-					Asset:   s.CurrentAsset,
-					Missing: *missing.Sub(&amount, &balancePlusOverdraft),
-					Sent:    balancePlusOverdraft,
-				}
-			}
-
+			cap = upTo
 		}
-
-		s.Senders = append(s.Senders, Sender{
-			Name:     *name,
-			Monetary: &amount,
-		})
-
-		return &amount, nil
+		return s.trySendingToAccount(source.Address, amount, cap)
 
 	case *parser.SourceInorder:
-		sentTotal := big.NewInt(0)
+		var totalLeft big.Int
+		totalLeft.Set(&amount)
 		for _, source := range source.Sources {
-			var sendingMonetary big.Int
-			sendingMonetary.Sub(&amount, sentTotal)
-			sentAmt, err := s.trySending(source, sendingMonetary)
+			sentAmt, err := s.trySendingUpTo(source, totalLeft)
 			if err != nil {
 				return nil, err
 			}
-			sentTotal.Add(sentTotal, sentAmt)
+			totalLeft.Sub(&totalLeft, sentAmt)
 		}
-		return sentTotal, nil
+
+		var sentAmt big.Int
+		sentAmt.Sub(&amount, &totalLeft)
+		return &sentAmt, nil
 
 	case *parser.SourceAllotment:
-		receivedTotal := big.NewInt(0)
 		var items []parser.AllotmentValue
 		for _, i := range source.Items {
 			items = append(items, i.Allotment)
@@ -536,29 +522,20 @@ func (s *programState) trySending(source parser.Source, amount big.Int) (*big.In
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			source := allotmentItem.From
-			received, err := s.trySending(source, *big.NewInt(allot[i]))
+			err := s.trySendingExact(allotmentItem.From, *big.NewInt(allot[i]))
 			if err != nil {
 				return nil, err
 			}
-			receivedTotal.Add(receivedTotal, received)
 		}
-		return receivedTotal, nil
+		return &amount, nil
 
 	case *parser.SourceCapped:
 		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
-
-		// TODO use utils.min
-		var cappedAmount big.Int
-		if amount.Cmp(cap) == -1 /* monetary < cap */ {
-			cappedAmount.Set(&amount)
-		} else {
-			cappedAmount.Set(cap)
-		}
-		return s.trySending(source.From, cappedAmount)
+		cappedAmount := utils.MinBigInt(&amount, cap)
+		return s.trySendingUpTo(source.From, *cappedAmount)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
