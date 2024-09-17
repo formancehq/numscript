@@ -53,20 +53,6 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			break
 		}
 
-		if receiver.Monetary == nil {
-			slices.Reverse(senders)
-			for _, sender := range senders {
-				// empty all the senders
-				postings = append(postings, Posting{
-					Source:      sender.Name,
-					Destination: receiver.Name,
-					Amount:      sender.Monetary,
-					Asset:       asset,
-				})
-			}
-			break
-		}
-
 		// Ugly workaround
 		if receiver.Name == "<kept>" {
 			sender, empty := popStack(&senders)

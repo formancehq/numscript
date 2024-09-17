@@ -307,7 +307,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		if err != nil {
 			return nil, err
 		}
-		err = st.receiveAllFrom(statement.Destination, *sentAmt)
+		err = st.receiveFrom(statement.Destination, sentAmt)
 		if err != nil {
 			return nil, err
 		}
@@ -331,9 +331,9 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		}
 
 		// sentTotal < monetary.Amount
-		if sentTotal.Cmp((*big.Int)(&monetary.Amount)) == -1 {
+		if sentTotal.Cmp(&monetaryAmt) == -1 {
 			var missing big.Int
-			missing.Sub((*big.Int)(&monetary.Amount), sentTotal)
+			missing.Sub(&monetaryAmt, sentTotal)
 			return nil, MissingFundsErr{
 				Asset:   string(monetary.Asset),
 				Missing: missing,
@@ -394,26 +394,6 @@ func (s *programState) trySendingAccount(name string, amount big.Int) (*big.Int,
 	return &monetaryAmount, nil
 }
 
-func (s *programState) trySendingAllFromAccount(name string) (*big.Int, error) {
-	if name == "world" {
-		return nil, InvalidUnboundedInSendAll{
-			Name: name,
-		}
-	}
-
-	var balanceClone big.Int
-
-	// TODO err empty balance?
-
-	balance := s.getBalance(name, s.CurrentAsset)
-	s.Senders = append(s.Senders, Sender{
-		Name:     name,
-		Monetary: balanceClone.Set(balance),
-	})
-
-	return &balanceClone, nil
-}
-
 func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
@@ -421,7 +401,23 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 		if err != nil {
 			return nil, err
 		}
-		return s.trySendingAllFromAccount(string(*account))
+		name := string(*account)
+
+		if name == "world" {
+			return nil, InvalidUnboundedInSendAll{
+				Name: name,
+			}
+		}
+
+		var balanceClone big.Int
+		// TODO err empty balance?
+		balance := s.getBalance(name, s.CurrentAsset)
+		s.Senders = append(s.Senders, Sender{
+			Name:     name,
+			Monetary: balanceClone.Set(balance),
+		})
+
+		return &balanceClone, nil
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
@@ -469,69 +465,6 @@ func (s *programState) trySendingAll(source parser.Source) (*big.Int, error) {
 		utils.NonExhaustiveMatchPanic[error](source)
 		return nil, nil
 	}
-}
-
-func (s *programState) receiveAllFrom(destination parser.Destination, monetary big.Int) error {
-	switch destination := destination.(type) {
-	case *parser.DestinationAccount:
-		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
-		if err != nil {
-			return err
-		}
-		s.Receivers = append(s.Receivers, Receiver{
-			Name:     *account,
-			Monetary: nil,
-		})
-		return nil
-
-	case *parser.DestinationInorder:
-		for _, subDestination := range destination.Clauses {
-			// TODO check asset
-			cap, err := evaluateLitExpecting(s, subDestination.Cap, expectMonetaryOfAsset(s.CurrentAsset))
-			if err != nil {
-				return err
-			}
-
-			switch to := subDestination.To.(type) {
-			case *parser.DestinationKept:
-				s.Receivers = append(s.Receivers, Receiver{
-					Name:     "<kept>",
-					Monetary: cap,
-				})
-
-			case *parser.DestinationTo:
-				err = s.receiveFrom(to.Destination, cap)
-				if err != nil {
-					return err
-				}
-			default:
-				utils.NonExhaustiveMatchPanic[any](to)
-			}
-		}
-
-		switch remaining := destination.Remaining.(type) {
-		case *parser.DestinationKept:
-			return nil
-
-		case *parser.DestinationTo:
-			err := s.receiveAllFrom(remaining.Destination, monetary)
-			if err != nil {
-				return err
-			}
-			return nil
-
-		default:
-			utils.NonExhaustiveMatchPanic[any](remaining)
-			return nil
-		}
-	case *parser.DestinationAllotment:
-		err := s.receiveFrom(destination, &monetary)
-		return err
-
-	default:
-		return utils.NonExhaustiveMatchPanic[error](destination)
-	}
-
 }
 
 func (s *programState) trySending(source parser.Source, amount big.Int) (*big.Int, error) {
