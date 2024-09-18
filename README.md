@@ -1,5 +1,7 @@
 # Numscript CLI
 
+[![Go](https://github.com/formancehq/numscript/actions/workflows/checks.yml/badge.svg)](https://github.com/formancehq/numscript/actions/workflows/checks.yml) [![codecov](https://codecov.io/gh/formancehq/numscript/graph/badge.svg?token=njjqGhFQ2p)](https://codecov.io/gh/formancehq/numscript)
+
 Numscript is the DSL used to express financial transaction within the [Formance](https://www.formance.com/) ledger
 
 The CLI in this repo allows you to play with numscript locally, check if there are parsing or logic errors in your numscript files, and run the numscript language server

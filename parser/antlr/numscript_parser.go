@@ -382,16 +382,6 @@ func (s *MonetaryLitContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *MonetaryLitContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitMonetaryLit(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) MonetaryLit() (localctx IMonetaryLitContext) {
 	localctx = NewMonetaryLitContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, NumscriptParserRULE_monetaryLit)
@@ -531,16 +521,6 @@ func (s *PercentageContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *PercentageContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitPercentage(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type RatioContext struct {
 	PortionContext
 }
@@ -572,16 +552,6 @@ func (s *RatioContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *RatioContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitRatio(s)
-	}
-}
-
-func (s *RatioContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitRatio(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -737,16 +707,6 @@ func (s *PortionLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *PortionLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitPortionLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type AssetLiteralContext struct {
 	LiteralContext
 }
@@ -778,16 +738,6 @@ func (s *AssetLiteralContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *AssetLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitAssetLiteral(s)
-	}
-}
-
-func (s *AssetLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitAssetLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -825,16 +775,6 @@ func (s *StringLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *StringLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitStringLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type VariableLiteralContext struct {
 	LiteralContext
 }
@@ -869,16 +809,6 @@ func (s *VariableLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *VariableLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitVariableLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type AccountLiteralContext struct {
 	LiteralContext
 }
@@ -910,16 +840,6 @@ func (s *AccountLiteralContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *AccountLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitAccountLiteral(s)
-	}
-}
-
-func (s *AccountLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitAccountLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -969,16 +889,6 @@ func (s *MonetaryLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *MonetaryLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitMonetaryLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type NumberLiteralContext struct {
 	LiteralContext
 }
@@ -1010,16 +920,6 @@ func (s *NumberLiteralContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *NumberLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitNumberLiteral(s)
-	}
-}
-
-func (s *NumberLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitNumberLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -1245,16 +1145,6 @@ func (s *FunctionCallArgsContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FunctionCallArgsContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitFunctionCallArgs(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) FunctionCallArgs() (localctx IFunctionCallArgsContext) {
 	localctx = NewFunctionCallArgsContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, NumscriptParserRULE_functionCallArgs)
@@ -1404,16 +1294,6 @@ func (s *FunctionCallContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FunctionCallContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitFunctionCall(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) FunctionCall() (localctx IFunctionCallContext) {
 	localctx = NewFunctionCallContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, NumscriptParserRULE_functionCall)
@@ -1559,16 +1439,6 @@ func (s *VarOriginContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *VarOriginContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitVarOrigin(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) VarOrigin() (localctx IVarOriginContext) {
 	localctx = NewVarOriginContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, NumscriptParserRULE_varOrigin)
@@ -1710,16 +1580,6 @@ func (s *VarDeclarationContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *VarDeclarationContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitVarDeclaration(s)
-	}
-}
-
-func (s *VarDeclarationContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitVarDeclaration(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -1899,16 +1759,6 @@ func (s *VarsDeclarationContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *VarsDeclarationContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitVarsDeclaration(s)
-	}
-}
-
-func (s *VarsDeclarationContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitVarsDeclaration(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -2106,16 +1956,6 @@ func (s *ProgramContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ProgramContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitProgram(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) Program() (localctx IProgramContext) {
 	localctx = NewProgramContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, NumscriptParserRULE_program)
@@ -2286,16 +2126,6 @@ func (s *SentAllLitContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SentAllLitContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSentAllLit(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) SentAllLit() (localctx ISentAllLitContext) {
 	localctx = NewSentAllLitContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, NumscriptParserRULE_sentAllLit)
@@ -2447,16 +2277,6 @@ func (s *LitCapContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *LitCapContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitLitCap(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type VarCapContext struct {
 	CapContext
 }
@@ -2488,16 +2308,6 @@ func (s *VarCapContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *VarCapContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitVarCap(s)
-	}
-}
-
-func (s *VarCapContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitVarCap(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -2637,16 +2447,6 @@ func (s *RemainingAllotmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *RemainingAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitRemainingAllotment(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type PortionedAllotmentContext struct {
 	AllotmentContext
 }
@@ -2693,16 +2493,6 @@ func (s *PortionedAllotmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *PortionedAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitPortionedAllotment(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type PortionVariableContext struct {
 	AllotmentContext
 }
@@ -2734,16 +2524,6 @@ func (s *PortionVariableContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *PortionVariableContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitPortionVariable(s)
-	}
-}
-
-func (s *PortionVariableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitPortionVariable(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -2958,16 +2738,6 @@ func (s *SrcAccountBoundedOverdraftContext) ExitRule(listener antlr.ParseTreeLis
 	}
 }
 
-func (s *SrcAccountBoundedOverdraftContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcAccountBoundedOverdraft(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcAccountUnboundedOverdraftContext struct {
 	SourceContext
 	address ILiteralContext
@@ -3028,16 +2798,6 @@ func (s *SrcAccountUnboundedOverdraftContext) EnterRule(listener antlr.ParseTree
 func (s *SrcAccountUnboundedOverdraftContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitSrcAccountUnboundedOverdraft(s)
-	}
-}
-
-func (s *SrcAccountUnboundedOverdraftContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcAccountUnboundedOverdraft(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -3120,16 +2880,6 @@ func (s *SrcAllotmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SrcAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcAllotment(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcInorderContext struct {
 	SourceContext
 }
@@ -3209,16 +2959,6 @@ func (s *SrcInorderContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SrcInorderContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcInorder(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcCappedContext struct {
 	SourceContext
 }
@@ -3289,16 +3029,6 @@ func (s *SrcCappedContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SrcCappedContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcCapped(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SrcAccountContext struct {
 	SourceContext
 }
@@ -3342,16 +3072,6 @@ func (s *SrcAccountContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *SrcAccountContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitSrcAccount(s)
-	}
-}
-
-func (s *SrcAccountContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSrcAccount(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -3689,16 +3409,6 @@ func (s *AllotmentClauseSrcContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *AllotmentClauseSrcContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitAllotmentClauseSrc(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) AllotmentClauseSrc() (localctx IAllotmentClauseSrcContext) {
 	localctx = NewAllotmentClauseSrcContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, NumscriptParserRULE_allotmentClauseSrc)
@@ -3821,16 +3531,6 @@ func (s *DestinationKeptContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DestinationKeptContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestinationKept(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type DestinationToContext struct {
 	KeptOrDestinationContext
 }
@@ -3878,16 +3578,6 @@ func (s *DestinationToContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *DestinationToContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitDestinationTo(s)
-	}
-}
-
-func (s *DestinationToContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestinationTo(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -4048,16 +3738,6 @@ func (s *DestinationInOrderClauseContext) EnterRule(listener antlr.ParseTreeList
 func (s *DestinationInOrderClauseContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitDestinationInOrderClause(s)
-	}
-}
-
-func (s *DestinationInOrderClauseContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestinationInOrderClause(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -4248,16 +3928,6 @@ func (s *DestInorderContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DestInorderContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestInorder(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type DestAccountContext struct {
 	DestinationContext
 }
@@ -4301,16 +3971,6 @@ func (s *DestAccountContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *DestAccountContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitDestAccount(s)
-	}
-}
-
-func (s *DestAccountContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestAccount(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -4390,16 +4050,6 @@ func (s *DestAllotmentContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *DestAllotmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitDestAllotment(s)
-	}
-}
-
-func (s *DestAllotmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitDestAllotment(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -4631,16 +4281,6 @@ func (s *AllotmentClauseDestContext) ExitRule(listener antlr.ParseTreeListener) 
 	}
 }
 
-func (s *AllotmentClauseDestContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitAllotmentClauseDest(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 func (p *NumscriptParser) AllotmentClauseDest() (localctx IAllotmentClauseDestContext) {
 	localctx = NewAllotmentClauseDestContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 34, NumscriptParserRULE_allotmentClauseDest)
@@ -4767,16 +4407,6 @@ func (s *SentAllContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SentAllContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSentAll(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type SentLiteralContext struct {
 	SentValueContext
 }
@@ -4820,16 +4450,6 @@ func (s *SentLiteralContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *SentLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitSentLiteral(s)
-	}
-}
-
-func (s *SentLiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSentLiteral(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
@@ -5036,16 +4656,6 @@ func (s *SendStatementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SendStatementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitSendStatement(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
 type FnCallStatementContext struct {
 	StatementContext
 }
@@ -5089,16 +4699,6 @@ func (s *FnCallStatementContext) EnterRule(listener antlr.ParseTreeListener) {
 func (s *FnCallStatementContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(NumscriptListener); ok {
 		listenerT.ExitFnCallStatement(s)
-	}
-}
-
-func (s *FnCallStatementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case NumscriptVisitor:
-		return t.VisitFnCallStatement(s)
-
-	default:
-		return t.VisitChildren(s)
 	}
 }
 
