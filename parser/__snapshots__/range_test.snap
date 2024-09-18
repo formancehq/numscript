@@ -1,0 +1,21 @@
+
+[TestShowRangeOnSourceSameLine - 1]
+  0 | example error end of line
+              ~~~~~
+---
+
+[TestShowRangeOnMultilineRanges - 1]
+  0 | example err
+              ~~~
+  1 | or spanning 2 lines
+      ~~
+---
+
+[TestShowRangeComplex - 1]
+  1 | example err
+         ~~~~~~~~
+  2 | or that spans more
+      ~~~~~~~~~~~~~~~~~~
+  3 | lines and then other
+      ~~~~~
+---

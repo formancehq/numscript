@@ -1,6 +1,9 @@
 package parser
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type Position struct {
 	Character int
@@ -28,6 +31,54 @@ func (p *Position) AsRange() Range {
 func (r Range) Contains(position Position) bool {
 	//  position >= r.Start && r.End >= position
 	return position.GtEq(r.Start) && r.End.GtEq(position)
+}
+
+// Pre: valid range (e.g. start <= end)
+func (r Range) ShowOnSource(source string) string {
+	errorLines := strings.Split(source, "\n")[r.Start.Line : r.End.Line+1]
+
+	separator := " | "
+
+	buf := ""
+	for lineOffset, line := range errorLines {
+		if lineOffset != 0 {
+			buf += "\n"
+		}
+		thisLineIndex := r.Start.Line + lineOffset
+
+		// %3d creates left (whitespace) padding so that the width is at least 3
+		digit := fmt.Sprintf("%3d", thisLineIndex)
+
+		// code line
+		buf += digit + separator + line + "\n"
+
+		// error line
+		separatorPadding := strings.Repeat(" ", len(separator))
+		digitPadding := strings.Repeat(" ", len(digit))
+
+		var errStartChar int
+		if r.Start.Line == thisLineIndex {
+			errStartChar = r.Start.Character
+		} else {
+			errStartChar = 0
+		}
+
+		var errEndChar int
+		if r.End.Line == thisLineIndex {
+			errEndChar = r.End.Character
+		} else {
+			errEndChar = len(line)
+		}
+
+		errorIndicator := strings.Repeat("~", errEndChar-errStartChar)
+
+		leftWs := strings.Repeat(" ", errStartChar)
+
+		buf += digitPadding + separatorPadding + leftWs + errorIndicator
+
+	}
+
+	return buf
 }
 
 // Those functions are mostly used as test utilities

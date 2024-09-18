@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/parser"
+	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -141,4 +142,51 @@ func TestPositionOfIndexed(t *testing.T) {
 		&parser.Position{Line: 2, Character: 1},
 		parser.PositionOfIndexed("a\nd\ncd", "d", 1),
 	)
+}
+
+func TestShowRangeOnSourceSameLine(t *testing.T) {
+	src := `example error end of line`
+
+	errorRange := parser.RangeOfIndexed(src, "error", 0)
+
+	snaps.MatchSnapshot(t, errorRange.ShowOnSource(src))
+}
+
+func TestShowRangeOnMultilineRanges(t *testing.T) {
+	src := `example err
+or spanning 2 lines`
+
+	pos1 := parser.PositionOfIndexed(src, "err", 0)
+
+	rng := parser.Range{
+		Start: *pos1,
+		End: parser.Position{
+			Line:      1,
+			Character: 2,
+		},
+	}
+
+	snaps.MatchSnapshot(t, rng.ShowOnSource(src))
+}
+
+func TestShowRangeComplex(t *testing.T) {
+	src := `
+example err
+or that spans more
+lines and then other
+words with no error
+at all`
+
+	rng := parser.Range{
+		Start: parser.Position{
+			Line:      1,
+			Character: 3,
+		},
+		End: parser.Position{
+			Line:      3,
+			Character: 5,
+		},
+	}
+
+	snaps.MatchSnapshot(t, rng.ShowOnSource(src))
 }
