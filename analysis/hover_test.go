@@ -17,7 +17,7 @@ send $amt (
 	destination = @b
 )`
 
-	rng := RangeOfIndexed(input, "$amt", 1)
+	rng := parser.RangeOfIndexed(input, "$amt", 1)
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
@@ -43,7 +43,7 @@ send [COIN $amt] (
 	destination = @b
 )`
 
-	rng := RangeOfIndexed(input, "$amt", 1)
+	rng := parser.RangeOfIndexed(input, "$amt", 1)
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
@@ -58,7 +58,7 @@ send [$asset 100] (
 	destination = @b
 )`
 
-	rng := RangeOfIndexed(input, "$asset", 1)
+	rng := parser.RangeOfIndexed(input, "$asset", 1)
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
@@ -79,7 +79,7 @@ send [C 10] (
 	destination = @dest
 )`
 
-	rng := RangeOfIndexed(input, "$src", 1)
+	rng := parser.RangeOfIndexed(input, "$src", 1)
 
 	program := parser.Parse(input).Value
 
@@ -113,7 +113,7 @@ send [C 10] (
 	}
 )`
 
-	rng := RangeOfIndexed(input, "$dest", 1)
+	rng := parser.RangeOfIndexed(input, "$dest", 1)
 
 	program := parser.Parse(input).Value
 
@@ -147,7 +147,7 @@ send [C 10] (
 	}
 )`
 
-	rng := RangeOfIndexed(input, "$dest", 1)
+	rng := parser.RangeOfIndexed(input, "$dest", 1)
 
 	program := parser.Parse(input).Value
 
@@ -175,7 +175,7 @@ send [C 10] (
 	destination = @dest
 )`
 
-	rng := RangeOfIndexed(input, "$portion", 1)
+	rng := parser.RangeOfIndexed(input, "$portion", 1)
 
 	program := parser.Parse(input).Value
 
@@ -192,7 +192,7 @@ send [C 10] (
 	destination = { $portion to @a }
 )`
 
-	rng := RangeOfIndexed(input, "$portion", 1)
+	rng := parser.RangeOfIndexed(input, "$portion", 1)
 
 	program := parser.Parse(input).Value
 
@@ -209,7 +209,7 @@ send [C 10] (
 	destination = @dest
 )`
 
-	rng := RangeOfIndexed(input, "$acc", 1)
+	rng := parser.RangeOfIndexed(input, "$acc", 1)
 
 	program := parser.Parse(input).Value
 
@@ -226,7 +226,7 @@ send [C 10] (
 	destination = @dest
 )`
 
-	rng := RangeOfIndexed(input, "$mon", 1)
+	rng := parser.RangeOfIndexed(input, "$mon", 1)
 
 	program := parser.Parse(input).Value
 
@@ -240,7 +240,7 @@ func TestHoverOnFnCall(t *testing.T) {
 set_tx_meta($str, 42)
 `
 
-	rng := RangeOfIndexed(input, "$str", 1)
+	rng := parser.RangeOfIndexed(input, "$str", 1)
 
 	program := parser.Parse(input).Value
 
@@ -255,7 +255,7 @@ func TestHoverOnOriginFnCall(t *testing.T) {
 		number $meta_variable = meta(@account, $arg)
 	}`
 
-	rng := RangeOfIndexed(input, "$arg", 1)
+	rng := parser.RangeOfIndexed(input, "$arg", 1)
 
 	program := parser.Parse(input).Value
 
@@ -267,7 +267,7 @@ func TestHoverOnOriginFnCall(t *testing.T) {
 func TestHoverOnFnCallDocs(t *testing.T) {
 	input := `set_tx_meta()`
 
-	rng := RangeOfIndexed(input, "set_tx_meta", 0)
+	rng := parser.RangeOfIndexed(input, "set_tx_meta", 0)
 
 	program := parser.Parse(input).Value
 
@@ -288,7 +288,7 @@ func TestHoverOnFnCallDocs(t *testing.T) {
 func TestHoverOnFnOriginDocs(t *testing.T) {
 	input := `vars { monetary $m = balance(@a, COIN) }`
 
-	rng := RangeOfIndexed(input, "balance", 0)
+	rng := parser.RangeOfIndexed(input, "balance", 0)
 
 	program := parser.Parse(input).Value
 
@@ -325,7 +325,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 			)
 		`
 
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -339,7 +339,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 			)
 		`
 
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -356,7 +356,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 			)
 		`
 
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -369,7 +369,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 				destination = <invalidtk>
 			)
 		`
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -379,7 +379,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		input := `
 			set_tx_meta(<invalidtk>)
 		`
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -390,7 +390,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 			send <invalidtk> (
 			)
 		`
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)
@@ -406,7 +406,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 				}
 			)
 		`
-		rng := RangeOfIndexed(input, "<invalidtk>", 0)
+		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
 		assert.Nil(t, hover)

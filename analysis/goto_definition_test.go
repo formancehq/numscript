@@ -17,7 +17,7 @@ send $amt (
 	destination = @b
 )`
 
-	rng := RangeOfIndexed(input, "$amt", 1)
+	rng := parser.RangeOfIndexed(input, "$amt", 1)
 
 	program := parser.Parse(input).Value
 	checkResult := analysis.CheckProgram(program)
@@ -26,7 +26,7 @@ send $amt (
 	assert.NotNil(t, res)
 
 	assert.Equal(t, &analysis.GotoDefinitionResult{
-		Range: RangeOfIndexed(input, "$amt", 0),
+		Range: parser.RangeOfIndexed(input, "$amt", 0),
 	}, res)
 
 }
@@ -37,7 +37,7 @@ func TestGotoDefinitionOnNotFound(t *testing.T) {
 	destination = @b
 )`
 
-	rng := RangeOfIndexed(input, "$amt", 0)
+	rng := parser.RangeOfIndexed(input, "$amt", 0)
 
 	program := parser.Parse(input).Value
 	checkResult := analysis.CheckProgram(program)

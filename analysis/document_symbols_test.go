@@ -39,8 +39,8 @@ func TestDocumentSymbols(t *testing.T) {
 	assert.Equal(t, symbols[indexMon], analysis.DocumentSymbol{
 		Name:           "mon",
 		Detail:         "monetary",
-		Range:          RangeOfIndexed(input, "$mon", 0),
-		SelectionRange: RangeOfIndexed(input, "$mon", 0),
+		Range:          parser.RangeOfIndexed(input, "$mon", 0),
+		SelectionRange: parser.RangeOfIndexed(input, "$mon", 0),
 		Kind:           analysis.DocumentSymbolVariable,
 	})
 
@@ -50,8 +50,8 @@ func TestDocumentSymbols(t *testing.T) {
 	assert.Equal(t, symbols[indexSrc], analysis.DocumentSymbol{
 		Name:           "acc",
 		Detail:         "account",
-		Range:          RangeOfIndexed(input, "$acc", 0),
-		SelectionRange: RangeOfIndexed(input, "$acc", 0),
+		Range:          parser.RangeOfIndexed(input, "$acc", 0),
+		SelectionRange: parser.RangeOfIndexed(input, "$acc", 0),
 		Kind:           analysis.DocumentSymbolVariable,
 	})
 

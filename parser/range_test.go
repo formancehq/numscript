@@ -108,3 +108,37 @@ func TestContainsManyLines(t *testing.T) {
 		Character: 99,
 	}), "contains position between the lines even if char is after end")
 }
+
+func TestPositionOf(t *testing.T) {
+	assert.Equal(t,
+		&parser.Position{Character: 0},
+		parser.PositionOf("abc", "a"),
+	)
+
+	assert.Equal(t,
+		&parser.Position{Character: 1},
+		parser.PositionOf("abc", "b"),
+	)
+
+	assert.Equal(t,
+		&parser.Position{Line: 1, Character: 0},
+		parser.PositionOf("a\nbc", "b"),
+	)
+
+	assert.Equal(t,
+		&parser.Position{Line: 2, Character: 1},
+		parser.PositionOf("a\nb\ncd", "d"),
+	)
+}
+
+func TestPositionOfIndexed(t *testing.T) {
+	assert.Equal(t,
+		&parser.Position{Character: 2},
+		parser.PositionOfIndexed("aba", "a", 1),
+	)
+
+	assert.Equal(t,
+		&parser.Position{Line: 2, Character: 1},
+		parser.PositionOfIndexed("a\nd\ncd", "d", 1),
+	)
+}

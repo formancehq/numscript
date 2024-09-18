@@ -121,7 +121,7 @@ func TestUnboundVarInDest(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		RangeOfIndexed(input, "$unbound_var", 0),
+		parser.RangeOfIndexed(input, "$unbound_var", 0),
 		d1.Range,
 	)
 	assert.Equal(t,
@@ -207,7 +207,7 @@ send [$a 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$a", 1),
+		parser.RangeOfIndexed(input, "$a", 1),
 		d1.Range,
 	)
 }
@@ -235,7 +235,7 @@ send [EUR/2 $n] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$n", 1),
+		parser.RangeOfIndexed(input, "$n", 1),
 		d1.Range,
 	)
 }
@@ -263,7 +263,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$account", 1),
+		parser.RangeOfIndexed(input, "$account", 1),
 		d1.Range,
 	)
 }
@@ -291,7 +291,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$x", 1),
+		parser.RangeOfIndexed(input, "$x", 1),
 		d1.Range,
 	)
 }
@@ -319,7 +319,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$x", 1),
+		parser.RangeOfIndexed(input, "$x", 1),
 		d1.Range,
 	)
 }
@@ -347,7 +347,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$x", 1),
+		parser.RangeOfIndexed(input, "$x", 1),
 		d1.Range,
 	)
 }
@@ -375,7 +375,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$x", 1),
+		parser.RangeOfIndexed(input, "$x", 1),
 		d1.Range,
 	)
 }
@@ -406,7 +406,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$p", 1),
+		parser.RangeOfIndexed(input, "$p", 1),
 		d1.Range,
 	)
 }
@@ -437,7 +437,7 @@ send [COIN 100] (
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "$p", 1),
+		parser.RangeOfIndexed(input, "$p", 1),
 		d1.Range,
 	)
 }
@@ -656,7 +656,7 @@ send [COIN 100] (
 		Kind: &analysis.FixedPortionVariable{
 			Value: *big.NewRat(1, 3),
 		},
-		Range: RangeOfIndexed(input, "$portion", 1),
+		Range: parser.RangeOfIndexed(input, "$portion", 1),
 	})
 }
 
@@ -685,14 +685,14 @@ send [COIN 100] (
 		Kind: &analysis.FixedPortionVariable{
 			Value: *big.NewRat(0, 1),
 		},
-		Range: RangeOfIndexed(input, "$portion1", 1),
+		Range: parser.RangeOfIndexed(input, "$portion1", 1),
 	})
 
 	assert.Equal(t, diagnostics[1], analysis.Diagnostic{
 		Kind: &analysis.FixedPortionVariable{
 			Value: *big.NewRat(0, 1),
 		},
-		Range: RangeOfIndexed(input, "$portion2", 1),
+		Range: parser.RangeOfIndexed(input, "$portion2", 1),
 	})
 }
 
@@ -758,7 +758,7 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "remaining", 0),
+		parser.RangeOfIndexed(input, "remaining", 0),
 		d1.Range,
 	)
 }
@@ -795,7 +795,7 @@ func TestCheckNoUnboundFunctionCall(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "invalid_fn_call", 0),
+		parser.RangeOfIndexed(input, "invalid_fn_call", 0),
 		d1.Range,
 	)
 }
@@ -827,7 +827,7 @@ func TestCheckFnCallTypesWrongType(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, "@addr", 0),
+		parser.RangeOfIndexed(input, "@addr", 0),
 		d1.Range,
 	)
 }
@@ -850,7 +850,7 @@ func TestTooFewFnArgs(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, `set_tx_meta("arg")`, 0),
+		parser.RangeOfIndexed(input, `set_tx_meta("arg")`, 0),
 		d1.Range,
 	)
 }
@@ -873,7 +873,7 @@ func TestTooManyFnArgs(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		RangeOfIndexed(input, `10, 20`, 0),
+		parser.RangeOfIndexed(input, `10, 20`, 0),
 		d1.Range,
 	)
 }
@@ -961,7 +961,7 @@ func TestWorldOverdraft(t *testing.T) {
 		d1.Kind,
 	)
 
-	assert.Equal(t, d1.Range, RangeOfIndexed(input, "@world", 0))
+	assert.Equal(t, d1.Range, parser.RangeOfIndexed(input, "@world", 0))
 }
 
 func TestForbidAllotmentInSendAll(t *testing.T) {
@@ -1068,7 +1068,7 @@ func TestForbidUnboundedSrcInSendAll(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@illegal", 0),
+		parser.RangeOfIndexed(input, "@illegal", 0),
 	)
 }
 
@@ -1121,7 +1121,7 @@ func TestForbidEmptiedAccount(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@a", 1),
+		parser.RangeOfIndexed(input, "@a", 1),
 	)
 }
 
@@ -1169,7 +1169,7 @@ func TestEmptiedAccountInMax(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@emptied", 1),
+		parser.RangeOfIndexed(input, "@emptied", 1),
 	)
 }
 
@@ -1215,7 +1215,7 @@ func TestDoNotEmptyAccountInMax(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@emptied", 1),
+		parser.RangeOfIndexed(input, "@emptied", 1),
 	)
 }
 
@@ -1255,7 +1255,7 @@ func TestDoNotAllowExprAfterWorld(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@another", 0),
+		parser.RangeOfIndexed(input, "@another", 0),
 	)
 }
 
@@ -1314,7 +1314,7 @@ func TestDoNotAllowExprAfterWorldInsideMaxed(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@x", 0),
+		parser.RangeOfIndexed(input, "@x", 0),
 	)
 }
 
@@ -1339,7 +1339,7 @@ func TestDoNotAllowExprAfterUnbounded(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Range,
-		RangeOfIndexed(input, "@another", 0),
+		parser.RangeOfIndexed(input, "@another", 0),
 	)
 }
 
