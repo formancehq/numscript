@@ -2,3 +2,5 @@
 .antlr
 
 dist/
+
+coverage.*
