@@ -121,6 +121,8 @@ func run(path string) {
 	})
 	if err != nil {
 		os.Stderr.Write([]byte(err.Error()))
+		os.Stderr.Write([]byte("\n"))
+		os.Stderr.Write([]byte(err.GetRange().ShowOnSource(parseResult.Source)))
 		os.Exit(1)
 		return
 	}
