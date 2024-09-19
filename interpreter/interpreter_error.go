@@ -62,7 +62,7 @@ type UnboundVariableErr struct {
 }
 
 func (e UnboundVariableErr) Error() string {
-	return fmt.Sprintf("Unbound variable: %s", e.Name)
+	return fmt.Sprintf("Unbound variable: $%s", e.Name)
 }
 
 type MissingVariableErr struct {
