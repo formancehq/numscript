@@ -101,3 +101,11 @@ type MismatchedCurrencyError struct {
 func (e MismatchedCurrencyError) Error() string {
 	return fmt.Sprintf("Mismatched currency (expected '%s', got '%s' instead)", e.Expected, e.Got)
 }
+
+type InvalidAllotmentSum struct {
+	ActualSum big.Rat
+}
+
+func (e InvalidAllotmentSum) Error() string {
+	return fmt.Sprintf("Invalid allotment: portions sum should be 1 (got %s instead)", e.ActualSum.String())
+}

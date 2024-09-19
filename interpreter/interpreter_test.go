@@ -1226,6 +1226,40 @@ func TestSourceAllotment(t *testing.T) {
 	test(t, tc)
 }
 
+func TestInvalidSourceAllotmentSum(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = {
+			42% from @world
+		}
+		destination = @dest
+	)`)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(42, 100),
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidDestinationAllotmentSum(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 100] (
+		source = @world
+		destination = {
+			1/4 to @x
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(1, 4),
+		},
+	}
+	test(t, tc)
+}
+
 func TestSourceAllotmentInvalidAmt(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (

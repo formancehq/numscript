@@ -643,7 +643,6 @@ func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination
 }
 
 func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, error) {
-	// TODO runtime error when totalAllotment != 1?
 	totalAllotment := big.NewRat(0, 1)
 	var allotments []big.Rat
 
@@ -676,6 +675,8 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 		var rat big.Rat
 		rat.Sub(big.NewRat(1, 1), totalAllotment)
 		allotments[remainingAllotmentIndex] = rat
+	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
+		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}
 
 	parts := make([]int64, len(allotments))
