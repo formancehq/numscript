@@ -15,6 +15,7 @@ import (
 )
 
 type TestCase struct {
+	source   string
 	program  *parser.Program
 	vars     map[string]string
 	meta     map[string]machine.Metadata
@@ -35,6 +36,19 @@ func NewTestCase() TestCase {
 	}
 }
 
+// returns a version of the error in which the range is normalized
+// to golang's default value
+func removeRange(e machine.InterpreterError) machine.InterpreterError {
+	switch e := e.(type) {
+	case machine.MissingFundsErr:
+		e.Range = parser.Range{}
+		return e
+
+	default:
+		return e
+	}
+}
+
 func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 	var jsonVars map[string]string
 	err := json.Unmarshal([]byte(str), &jsonVars)
@@ -43,6 +57,7 @@ func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 }
 
 func (tc *TestCase) compile(t *testing.T, src string) {
+	tc.source = src
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
 		t.Errorf("Got parsing errors: %v\n", parsed.Errors)
@@ -62,10 +77,15 @@ func test(t *testing.T, testCase TestCase) {
 
 	require.NotNil(t, prog)
 
-	execResult, err := machine.RunProgram(*prog, testCase.vars, testCase.balances, testCase.meta)
+	execResult, err := machine.RunProgram(*prog, machine.RunProgramOptions{
+		testCase.vars,
+		testCase.balances,
+		testCase.meta,
+	})
+
 	expected := testCase.expected
 	if expected.Error != nil {
-		require.Equal(t, expected.Error, err)
+		require.Equal(t, removeRange(expected.Error), removeRange(err))
 	} else {
 		require.NoError(t, err)
 	}
@@ -92,7 +112,7 @@ type CaseResult struct {
 	Postings        []machine.Posting
 	Metadata        map[string]machine.Value
 	AccountMetadata map[string]machine.Metadata
-	Error           error
+	Error           machine.InterpreterError
 }
 
 type Posting = machine.Posting
@@ -2245,7 +2265,8 @@ func TestErrors(t *testing.T) {
 
 		tc.expected = CaseResult{
 			Error: machine.UnboundVariableErr{
-				Name: "unbound_var",
+				Name:  "unbound_var",
+				Range: parser.RangeOfIndexed(tc.source, "$unbound_var", 0),
 			},
 		}
 		test(t, tc)

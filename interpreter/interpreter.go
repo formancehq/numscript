@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -13,6 +12,11 @@ import (
 
 type StaticStore map[string]map[string]*big.Int
 type Metadata map[string]string
+
+type InterpreterError interface {
+	error
+	parser.Ranged
+}
 
 type ExecutionResult struct {
 	Postings     []Posting           `json:"postings"`
@@ -28,11 +32,10 @@ func parsePercentage(p string) big.Rat {
 	return *big.NewRat(int64(num), int64(den))
 }
 
-func parseMonetary(source string) (Monetary, error) {
+func parseMonetary(source string) (Monetary, InterpreterError) {
 	parts := strings.Split(source, " ")
 	if len(parts) != 2 {
-		// TODO proper error handling
-		return Monetary{}, fmt.Errorf("invalid monetary literal: %s", source)
+		return Monetary{}, InvalidMonetaryLiteral{Source: source}
 	}
 
 	asset := parts[0]
@@ -41,7 +44,7 @@ func parseMonetary(source string) (Monetary, error) {
 	rawAmount := parts[1]
 	parsedAmount, err := strconv.ParseInt(rawAmount, 0, 64)
 	if err != nil {
-		return Monetary{}, err
+		return Monetary{}, InvalidMonetaryLiteral{Source: source}
 	}
 	mon := Monetary{
 		Asset:  Asset(asset),
@@ -50,7 +53,7 @@ func parseMonetary(source string) (Monetary, error) {
 	return mon, nil
 }
 
-func parseVar(type_ string, rawValue string) (Value, error) {
+func parseVar(type_ string, rawValue string) (Value, InterpreterError) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
 	case analysis.TypeMonetary:
@@ -65,7 +68,7 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 		// TODO check original numscript impl
 		i, err := strconv.ParseInt(rawValue, 0, 64)
 		if err != nil {
-			return nil, err
+			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
 		return NewMonetaryInt(i), nil
 	case analysis.TypeString:
@@ -76,7 +79,7 @@ func parseVar(type_ string, rawValue string) (Value, error) {
 
 }
 
-func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, error) {
+func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, InterpreterError) {
 	args, err := s.evaluateLiterals(fnCall.Args)
 	if err != nil {
 		return nil, err
@@ -109,7 +112,7 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 }
 
-func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) error {
+func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) InterpreterError {
 	for _, varsDecl := range varDeclrs {
 		if varsDecl.Origin == nil {
 			raw, ok := rawVars[varsDecl.Name.Name]
@@ -132,20 +135,34 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 	return nil
 }
 
+type RunProgramOptions struct {
+	Vars  map[string]string
+	Store StaticStore
+	Meta  map[string]Metadata
+}
+
 func RunProgram(
 	program parser.Program,
-	vars map[string]string,
-	store StaticStore,
-	meta map[string]Metadata,
-) (*ExecutionResult, error) {
+	options RunProgramOptions,
+) (*ExecutionResult, InterpreterError) {
+	if options.Vars == nil {
+		options.Vars = make(map[string]string)
+	}
+	if options.Store == nil {
+		options.Store = make(StaticStore)
+	}
+	if options.Meta == nil {
+		options.Meta = make(map[string]Metadata)
+	}
+
 	st := programState{
 		Vars:   make(map[string]Value),
 		TxMeta: make(map[string]Value),
-		Store:  store,
-		Meta:   meta,
+		Store:  options.Store,
+		Meta:   options.Meta,
 	}
 
-	err := st.parseVars(program.Vars, vars)
+	err := st.parseVars(program.Vars, options.Vars)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +198,7 @@ type programState struct {
 	Meta      map[string]Metadata
 }
 
-func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
+func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterError) {
 	switch literal := literal.(type) {
 	case *parser.AssetLiteral:
 		return Asset(literal.Asset), nil
@@ -209,7 +226,10 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 	case *parser.VariableLiteral:
 		value, ok := st.Vars[literal.Name]
 		if !ok {
-			return nil, UnboundVariableErr{Name: literal.Name}
+			return nil, UnboundVariableErr{
+				Name:  literal.Name,
+				Range: literal.Range,
+			}
 		}
 		return value, nil
 	default:
@@ -218,7 +238,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, error) {
 	}
 }
 
-func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value) (*T, error)) (*T, error) {
+func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value) (*T, InterpreterError)) (*T, InterpreterError) {
 	value, err := st.evaluateLit(literal)
 	if err != nil {
 		return nil, err
@@ -232,7 +252,7 @@ func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expec
 	return res, nil
 }
 
-func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, error) {
+func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, InterpreterError) {
 	var values []Value
 	for _, argLit := range literals {
 		value, err := st.evaluateLit(argLit)
@@ -244,7 +264,7 @@ func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, er
 	return values, nil
 }
 
-func (st *programState) runStatement(statement parser.Statement) ([]Posting, error) {
+func (st *programState) runStatement(statement parser.Statement) ([]Posting, InterpreterError) {
 	st.Senders = nil
 	st.Receivers = nil
 
@@ -279,7 +299,7 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, err
 	}
 }
 
-func (st *programState) getPostings() ([]Posting, error) {
+func (st *programState) getPostings() ([]Posting, InterpreterError) {
 	postings, err := Reconcile(st.CurrentAsset, st.Senders, st.Receivers)
 	if err != nil {
 		return nil, err
@@ -295,7 +315,7 @@ func (st *programState) getPostings() ([]Posting, error) {
 	return postings, nil
 }
 
-func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, error) {
+func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, InterpreterError) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
 		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
@@ -362,7 +382,7 @@ func (s *programState) getBalance(account string, asset string) *big.Int {
 	return assetBalance
 }
 
-func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft *big.Int) (*big.Int, error) {
+func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -388,7 +408,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft 
 }
 
 // Send as much as possible (and return the sent amt)
-func (s *programState) sendAll(source parser.Source) (*big.Int, error) {
+func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		return s.sendAllToAccount(source.Literal, big.NewInt(0))
@@ -434,7 +454,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, error) {
 }
 
 // Fails if it doesn't manage to send exactly "amount"
-func (s *programState) trySendingExact(source parser.Source, amount big.Int) error {
+func (s *programState) trySendingExact(source parser.Source, amount big.Int) InterpreterError {
 	sentAmt, err := s.trySendingUpTo(source, amount)
 	if err != nil {
 		return err
@@ -444,12 +464,13 @@ func (s *programState) trySendingExact(source parser.Source, amount big.Int) err
 			Asset:     s.CurrentAsset,
 			Needed:    amount,
 			Available: *sentAmt,
+			Range:     source.GetRange(),
 		}
 	}
 	return nil
 }
 
-func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount big.Int, overdraft *big.Int) (*big.Int, error) {
+func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -481,7 +502,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount
 
 // Tries sending "amount" and returns the actually sent amt.
 // Doesn't fail (unless nested sources fail)
-func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*big.Int, error) {
+func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		return s.trySendingToAccount(source.Literal, amount, big.NewInt(0))
@@ -545,7 +566,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*bi
 
 }
 
-func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) error {
+func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
 		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
@@ -585,7 +606,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		var remainingAmount big.Int
 		remainingAmount.Set(amount)
 
-		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive big.Int) error {
+		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive big.Int) InterpreterError {
 			err := s.receiveFromKeptOrDest(keptOrDest, &amountToReceive)
 			if err != nil {
 				return err
@@ -623,7 +644,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 	}
 }
 
-func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) error {
+func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
 		s.Receivers = append(s.Receivers, Receiver{
@@ -642,7 +663,8 @@ func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination
 
 }
 
-func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, error) {
+func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, InterpreterError) {
+	// TODO runtime error when totalAllotment != 1?
 	totalAllotment := big.NewRat(0, 1)
 	var allotments []big.Rat
 
@@ -709,7 +731,7 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 func meta(
 	s *programState,
 	args []Value,
-) (string, error) {
+) (string, InterpreterError) {
 	p := NewArgsParser(args)
 	account := parseArg(p, expectAccount)
 	key := parseArg(p, expectString)
@@ -723,7 +745,7 @@ func meta(
 	value, ok := accountMeta[*key]
 
 	if !ok {
-		return "", fmt.Errorf("account '@%s' doesn't have metadata associated to the '%s' key", *account, *key)
+		return "", BalanceNotFound{Account: *account, Key: *key}
 	}
 
 	return value, nil
@@ -732,7 +754,7 @@ func meta(
 func balance(
 	s *programState,
 	args []Value,
-) (*Monetary, error) {
+) (*Monetary, InterpreterError) {
 	p := NewArgsParser(args)
 	account := parseArg(p, expectAccount)
 	asset := parseArg(p, expectAsset)
@@ -760,7 +782,7 @@ func balance(
 	return &m, nil
 }
 
-func setTxMeta(st *programState, args []Value) error {
+func setTxMeta(st *programState, args []Value) InterpreterError {
 	p := NewArgsParser(args)
 	key := parseArg(p, expectString)
 	meta := parseArg(p, expectAnything)
@@ -773,7 +795,7 @@ func setTxMeta(st *programState, args []Value) error {
 	return nil
 }
 
-func setAccountMeta(st *programState, args []Value) error {
+func setAccountMeta(st *programState, args []Value) InterpreterError {
 	p := NewArgsParser(args)
 	account := parseArg(p, expectAccount)
 	key := parseArg(p, expectString)

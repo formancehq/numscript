@@ -1761,9 +1761,9 @@ parser.Program{
 Got errors while parsing:
 mismatched input 'err' expecting {'max', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
-                 ~~
+    |            ~~
 mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   2 |   destination = ee
-                      ~
+    |                 ~
 
 ---

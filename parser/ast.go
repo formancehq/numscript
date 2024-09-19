@@ -1,11 +1,13 @@
 package parser
 
-import "math/big"
+import (
+	"math/big"
+)
 
 // does it even make sense to have a literal supertype?
 type Literal interface {
+	Ranged
 	literal()
-	GetRange() Range
 }
 
 func (*AssetLiteral) literal()    {}

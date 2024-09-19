@@ -72,7 +72,7 @@ func (v Asset) String() string {
 	return string(v)
 }
 
-func expectMonetary(v Value) (*Monetary, error) {
+func expectMonetary(v Value) (*Monetary, InterpreterError) {
 	switch v := v.(type) {
 	case Monetary:
 		return &v, nil
@@ -82,8 +82,8 @@ func expectMonetary(v Value) (*Monetary, error) {
 	}
 }
 
-func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, error) {
-	return func(v Value) (*big.Int, error) {
+func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, InterpreterError) {
+	return func(v Value) (*big.Int, InterpreterError) {
 		m, err := expectMonetary(v)
 		if err != nil {
 			return nil, err
@@ -100,7 +100,7 @@ func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, error)
 	}
 }
 
-func expectNumber(v Value) (*big.Int, error) {
+func expectNumber(v Value) (*big.Int, InterpreterError) {
 	switch v := v.(type) {
 	case MonetaryInt:
 		return (*big.Int)(&v), nil
@@ -110,7 +110,7 @@ func expectNumber(v Value) (*big.Int, error) {
 	}
 }
 
-func expectString(v Value) (*string, error) {
+func expectString(v Value) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case String:
 		return (*string)(&v), nil
@@ -120,7 +120,7 @@ func expectString(v Value) (*string, error) {
 	}
 }
 
-func expectAsset(v Value) (*string, error) {
+func expectAsset(v Value) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case Asset:
 		return (*string)(&v), nil
@@ -130,7 +130,7 @@ func expectAsset(v Value) (*string, error) {
 	}
 }
 
-func expectAccount(v Value) (*string, error) {
+func expectAccount(v Value) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case AccountAddress:
 		return (*string)(&v), nil
@@ -140,7 +140,7 @@ func expectAccount(v Value) (*string, error) {
 	}
 }
 
-func expectPortion(v Value) (*big.Rat, error) {
+func expectPortion(v Value) (*big.Rat, InterpreterError) {
 	switch v := v.(type) {
 	case Portion:
 		return (*big.Rat)(&v), nil
@@ -150,7 +150,7 @@ func expectPortion(v Value) (*big.Rat, error) {
 	}
 }
 
-func expectAnything(v Value) (*Value, error) {
+func expectAnything(v Value) (*Value, InterpreterError) {
 	return &v, nil
 }
 

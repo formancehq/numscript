@@ -17,6 +17,7 @@ type ParserError struct {
 }
 
 type ParseResult[T any] struct {
+	Source string
 	Value  T
 	Errors []ParserError
 }
@@ -60,6 +61,7 @@ func Parse(input string) ParseResult[Program] {
 	parsed := parseProgram(parser.Program())
 
 	return ParseResult[Program]{
+		Source: input,
 		Value:  parsed,
 		Errors: listener.Errors,
 	}
