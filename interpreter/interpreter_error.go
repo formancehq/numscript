@@ -24,7 +24,7 @@ type InvalidMonetaryLiteral struct {
 }
 
 func (e InvalidMonetaryLiteral) Error() string {
-	return fmt.Sprintf("invalid monetary literal: %s", e.Source)
+	return fmt.Sprintf("invalid monetary literal: '%s'", e.Source)
 }
 
 type InvalidNumberLiteral struct {
@@ -33,7 +33,7 @@ type InvalidNumberLiteral struct {
 }
 
 func (e InvalidNumberLiteral) Error() string {
-	return fmt.Sprintf("invalid number literal: %s", e.Source)
+	return fmt.Sprintf("invalid number literal: '%s'", e.Source)
 }
 
 type BalanceNotFound struct {
