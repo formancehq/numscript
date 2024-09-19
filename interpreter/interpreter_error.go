@@ -149,6 +149,7 @@ func (e MismatchedCurrencyError) Error() string {
 }
 
 type InvalidAllotmentSum struct {
+	parser.Range
 	ActualSum big.Rat
 }
 
