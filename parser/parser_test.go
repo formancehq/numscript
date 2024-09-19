@@ -9,6 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestShowErrorLines(t *testing.T) {
+	script := `send [EUR/2 100] (
+  source = err
+  destination = ee
+)`
+	p := parser.Parse(script)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, script))
+}
+
 func TestPlainAddress(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = @src

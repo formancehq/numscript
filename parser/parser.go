@@ -65,13 +65,10 @@ func Parse(input string) ParseResult[Program] {
 	}
 }
 
-func ParseErrorsToString(errors []ParserError) string {
+func ParseErrorsToString(errors []ParserError, source string) string {
 	buf := "Got errors while parsing:\n"
-	for index, err := range errors {
-		if index != 0 {
-			buf += "; "
-		}
-		buf += err.Msg + "\n"
+	for _, err := range errors {
+		buf += err.Msg + "\n" + err.Range.ShowOnSource(source) + "\n"
 	}
 	return buf
 }
