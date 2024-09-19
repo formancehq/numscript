@@ -36,13 +36,13 @@ func (e InvalidNumberLiteral) Error() string {
 	return fmt.Sprintf("invalid number literal: '%s'", e.Source)
 }
 
-type BalanceNotFound struct {
+type MetadataNotFound struct {
 	parser.Range
 	Account string
 	Key     string
 }
 
-func (e BalanceNotFound) Error() string {
+func (e MetadataNotFound) Error() string {
 	return fmt.Sprintf("account '@%s' doesn't have metadata associated to the '%s' key", e.Account, e.Key)
 }
 

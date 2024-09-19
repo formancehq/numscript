@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/parser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,8 +16,8 @@ func TestParseEmptyArgsValidArity(t *testing.T) {
 
 func TestParseInvalidArity(t *testing.T) {
 	p := NewArgsParser([]Value{})
-	parseArg(p, expectAccount)
-	parseArg(p, expectAsset)
+	parseArg(p, parser.Range{}, expectAccount)
+	parseArg(p, parser.Range{}, expectAsset)
 
 	err := p.parse()
 
@@ -31,8 +32,8 @@ func TestParseValid(t *testing.T) {
 		NewMonetaryInt(42),
 		AccountAddress("user:001"),
 	})
-	a1 := parseArg(p, expectNumber)
-	a2 := parseArg(p, expectAccount)
+	a1 := parseArg(p, parser.Range{}, expectNumber)
+	a2 := parseArg(p, parser.Range{}, expectAccount)
 	err := p.parse()
 
 	require.Nil(t, err)
@@ -49,8 +50,8 @@ func TestParseBadType(t *testing.T) {
 		NewMonetaryInt(42),
 		AccountAddress("user:001"),
 	})
-	parseArg(p, expectMonetary)
-	parseArg(p, expectAccount)
+	parseArg(p, parser.Range{}, expectMonetary)
+	parseArg(p, parser.Range{}, expectAccount)
 	err := p.parse()
 
 	require.Equal(t, err, TypeError{

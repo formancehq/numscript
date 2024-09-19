@@ -1,5 +1,7 @@
 package interpreter
 
+import "github.com/formancehq/numscript/parser"
+
 type argsParser struct {
 	parsedArgsCount int
 	args            []Value
@@ -12,7 +14,7 @@ func NewArgsParser(args []Value) *argsParser {
 	}
 }
 
-func parseArg[T any](p *argsParser, expect func(Value) (*T, InterpreterError)) *T {
+func parseArg[T any](p *argsParser, r parser.Range, expect func(Value, parser.Range) (*T, InterpreterError)) *T {
 	index := p.parsedArgsCount
 	p.parsedArgsCount++
 
@@ -21,7 +23,7 @@ func parseArg[T any](p *argsParser, expect func(Value) (*T, InterpreterError)) *
 	}
 
 	arg := p.args[index]
-	parsed, err := expect(arg)
+	parsed, err := expect(arg, r)
 	if err != nil {
 		p.err = err
 		return nil

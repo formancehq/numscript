@@ -53,7 +53,7 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	return mon, nil
 }
 
-func parseVar(type_ string, rawValue string) (Value, InterpreterError) {
+func parseVar(type_ string, rawValue string, r parser.Range) (Value, InterpreterError) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
 	case analysis.TypeMonetary:
@@ -74,7 +74,7 @@ func parseVar(type_ string, rawValue string) (Value, InterpreterError) {
 	case analysis.TypeString:
 		return String(rawValue), nil
 	default:
-		return nil, InvalidTypeErr{Name: type_}
+		return nil, InvalidTypeErr{Name: type_, Range: r}
 	}
 
 }
@@ -87,12 +87,12 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 	switch fnCall.Caller.Name {
 	case analysis.FnVarOriginMeta:
-		rawValue, err := meta(s, args)
+		rawValue, err := meta(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
 
-		parsed, err := parseVar(type_, rawValue)
+		parsed, err := parseVar(type_, rawValue, fnCall.Range)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 		return parsed, nil
 
 	case analysis.FnVarOriginBalance:
-		monetary, err := balance(s, args)
+		monetary, err := balance(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +119,8 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			if !ok {
 				return MissingVariableErr{Name: varsDecl.Name.Name}
 			}
-			parsed, err := parseVar(varsDecl.Type.Name, raw)
+
+			parsed, err := parseVar(varsDecl.Type.Name, raw, varsDecl.Type.Range)
 			if err != nil {
 				return err
 			}
@@ -238,13 +239,13 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterE
 	}
 }
 
-func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value) (*T, InterpreterError)) (*T, InterpreterError) {
+func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
 	value, err := st.evaluateLit(literal)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := expect(value)
+	res, err := expect(value, literal.GetRange())
 	if err != nil {
 		return nil, err
 	}
@@ -277,12 +278,12 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 
 		switch statement.Caller.Name {
 		case analysis.FnSetTxMeta:
-			err := setTxMeta(st, args)
+			err := setTxMeta(st, statement.Caller.Range, args)
 			if err != nil {
 				return nil, err
 			}
 		case analysis.FnSetAccountMeta:
-			err := setAccountMeta(st, args)
+			err := setAccountMeta(st, statement.Caller.Range, args)
 			if err != nil {
 				return nil, err
 			}
@@ -730,11 +731,13 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 // Builtins
 func meta(
 	s *programState,
+	rng parser.Range,
 	args []Value,
 ) (string, InterpreterError) {
+	// TODO more precise location
 	p := NewArgsParser(args)
-	account := parseArg(p, expectAccount)
-	key := parseArg(p, expectString)
+	account := parseArg(p, rng, expectAccount)
+	key := parseArg(p, rng, expectString)
 	err := p.parse()
 	if err != nil {
 		return "", err
@@ -745,7 +748,7 @@ func meta(
 	value, ok := accountMeta[*key]
 
 	if !ok {
-		return "", BalanceNotFound{Account: *account, Key: *key}
+		return "", MetadataNotFound{Account: *account, Key: *key, Range: rng}
 	}
 
 	return value, nil
@@ -753,11 +756,13 @@ func meta(
 
 func balance(
 	s *programState,
+	r parser.Range,
 	args []Value,
 ) (*Monetary, InterpreterError) {
+	// TODO more precise args range location
 	p := NewArgsParser(args)
-	account := parseArg(p, expectAccount)
-	asset := parseArg(p, expectAsset)
+	account := parseArg(p, r, expectAccount)
+	asset := parseArg(p, r, expectAsset)
 	err := p.parse()
 	if err != nil {
 		return nil, err
@@ -782,10 +787,10 @@ func balance(
 	return &m, nil
 }
 
-func setTxMeta(st *programState, args []Value) InterpreterError {
+func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError {
 	p := NewArgsParser(args)
-	key := parseArg(p, expectString)
-	meta := parseArg(p, expectAnything)
+	key := parseArg(p, r, expectString)
+	meta := parseArg(p, r, expectAnything)
 	err := p.parse()
 	if err != nil {
 		return err
@@ -795,11 +800,11 @@ func setTxMeta(st *programState, args []Value) InterpreterError {
 	return nil
 }
 
-func setAccountMeta(st *programState, args []Value) InterpreterError {
+func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterError {
 	p := NewArgsParser(args)
-	account := parseArg(p, expectAccount)
-	key := parseArg(p, expectString)
-	meta := parseArg(p, expectAnything)
+	account := parseArg(p, r, expectAccount)
+	key := parseArg(p, r, expectString)
+	meta := parseArg(p, r, expectAnything)
 	err := p.parse()
 	if err != nil {
 		return err

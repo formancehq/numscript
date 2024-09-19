@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/analysis"
+	"github.com/formancehq/numscript/parser"
 )
 
 type Value interface {
@@ -72,19 +73,19 @@ func (v Asset) String() string {
 	return string(v)
 }
 
-func expectMonetary(v Value) (*Monetary, InterpreterError) {
+func expectMonetary(v Value, r parser.Range) (*Monetary, InterpreterError) {
 	switch v := v.(type) {
 	case Monetary:
 		return &v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeMonetary, Value: v}
+		return nil, TypeError{Expected: analysis.TypeMonetary, Value: v, Range: r}
 	}
 }
 
-func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, InterpreterError) {
-	return func(v Value) (*big.Int, InterpreterError) {
-		m, err := expectMonetary(v)
+func expectMonetaryOfAsset(expectedAsset string) func(Value, parser.Range) (*big.Int, InterpreterError) {
+	return func(v Value, r parser.Range) (*big.Int, InterpreterError) {
+		m, err := expectMonetary(v, r)
 		if err != nil {
 			return nil, err
 		}
@@ -100,57 +101,57 @@ func expectMonetaryOfAsset(expectedAsset string) func(v Value) (*big.Int, Interp
 	}
 }
 
-func expectNumber(v Value) (*big.Int, InterpreterError) {
+func expectNumber(v Value, r parser.Range) (*big.Int, InterpreterError) {
 	switch v := v.(type) {
 	case MonetaryInt:
 		return (*big.Int)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeNumber, Value: v}
+		return nil, TypeError{Expected: analysis.TypeNumber, Value: v, Range: r}
 	}
 }
 
-func expectString(v Value) (*string, InterpreterError) {
+func expectString(v Value, r parser.Range) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case String:
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeString, Value: v}
+		return nil, TypeError{Expected: analysis.TypeString, Value: v, Range: r}
 	}
 }
 
-func expectAsset(v Value) (*string, InterpreterError) {
+func expectAsset(v Value, r parser.Range) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case Asset:
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAsset, Value: v}
+		return nil, TypeError{Expected: analysis.TypeAsset, Value: v, Range: r}
 	}
 }
 
-func expectAccount(v Value) (*string, InterpreterError) {
+func expectAccount(v Value, r parser.Range) (*string, InterpreterError) {
 	switch v := v.(type) {
 	case AccountAddress:
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAccount, Value: v}
+		return nil, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
 	}
 }
 
-func expectPortion(v Value) (*big.Rat, InterpreterError) {
+func expectPortion(v Value, r parser.Range) (*big.Rat, InterpreterError) {
 	switch v := v.(type) {
 	case Portion:
 		return (*big.Rat)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypePortion, Value: v}
+		return nil, TypeError{Expected: analysis.TypePortion, Value: v, Range: r}
 	}
 }
 
-func expectAnything(v Value) (*Value, InterpreterError) {
+func expectAnything(v Value, _ parser.Range) (*Value, InterpreterError) {
 	return &v, nil
 }
 

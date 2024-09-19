@@ -35,3 +35,18 @@
   4 |   }
     | ~~~
 ---
+
+[TestShowMetadataNotFound - 1]
+  1 |   number $my_var = meta(@acc, "key")
+    |                    ~~~~~~~~~~~~~~~~~
+---
+
+[TestShowTypeError - 1]
+  0 | send 42 (
+    |      ~~
+---
+
+[TestShowInvalidTypeErr - 1]
+  1 |   invalid_t $x
+    |   ~~~~~~~~~
+---
