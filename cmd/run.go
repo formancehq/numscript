@@ -120,9 +120,12 @@ func run(path string) {
 		Meta:  opt.Meta,
 	})
 	if err != nil {
+		rng := err.GetRange()
 		os.Stderr.Write([]byte(err.Error()))
-		os.Stderr.Write([]byte("\n"))
-		os.Stderr.Write([]byte(err.GetRange().ShowOnSource(parseResult.Source)))
+		if rng.Start != rng.End {
+			os.Stderr.Write([]byte("\n"))
+			os.Stderr.Write([]byte(err.GetRange().ShowOnSource(parseResult.Source)))
+		}
 		os.Exit(1)
 		return
 	}
