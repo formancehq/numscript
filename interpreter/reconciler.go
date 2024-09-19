@@ -32,7 +32,7 @@ type Receiver struct {
 	Monetary *big.Int
 }
 
-func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, error) {
+func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, InterpreterError) {
 	var sendersFiltered []Sender
 	for _, e := range senders {
 		if e.Monetary.Cmp(big.NewInt(0)) != 0 {

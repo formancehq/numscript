@@ -15,6 +15,12 @@ type Range struct {
 	End   Position
 }
 
+type Ranged interface {
+	GetRange() Range
+}
+
+func (r Range) GetRange() Range { return r }
+
 func (p1 *Position) GtEq(p2 Position) bool {
 	if p1.Line == p2.Line {
 		return p1.Character >= p2.Character

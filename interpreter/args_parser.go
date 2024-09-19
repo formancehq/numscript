@@ -3,7 +3,7 @@ package interpreter
 type argsParser struct {
 	parsedArgsCount int
 	args            []Value
-	err             error
+	err             InterpreterError
 }
 
 func NewArgsParser(args []Value) *argsParser {
@@ -12,7 +12,7 @@ func NewArgsParser(args []Value) *argsParser {
 	}
 }
 
-func parseArg[T any](p *argsParser, expect func(Value) (*T, error)) *T {
+func parseArg[T any](p *argsParser, expect func(Value) (*T, InterpreterError)) *T {
 	index := p.parsedArgsCount
 	p.parsedArgsCount++
 
@@ -29,7 +29,7 @@ func parseArg[T any](p *argsParser, expect func(Value) (*T, error)) *T {
 	return parsed
 }
 
-func (p *argsParser) parse() error {
+func (p *argsParser) parse() InterpreterError {
 	if len(p.args) != p.parsedArgsCount {
 		p.err = BadArityErr{
 			ExpectedArity:  p.parsedArgsCount,

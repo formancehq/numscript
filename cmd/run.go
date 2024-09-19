@@ -114,7 +114,11 @@ func run(path string) {
 		os.Exit(1)
 	}
 
-	result, err := interpreter.RunProgram(parseResult.Value, opt.Variables, opt.Balances, opt.Meta)
+	result, err := interpreter.RunProgram(parseResult.Value, interpreter.RunProgramOptions{
+		Vars:  opt.Variables,
+		Store: opt.Balances,
+		Meta:  opt.Meta,
+	})
 	if err != nil {
 		os.Stderr.Write([]byte(err.Error()))
 		os.Exit(1)

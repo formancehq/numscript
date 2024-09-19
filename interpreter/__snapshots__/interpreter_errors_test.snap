@@ -1,0 +1,5 @@
+
+[TestShowUnboundVar - 1]
+  1 |   source = $unbound_var
+                 ~~~~~~~~~~~~
+---
