@@ -41,35 +41,32 @@ func (r Range) Contains(position Position) bool {
 
 // Pre: valid range (e.g. start <= end)
 func (r Range) ShowOnSource(source string) string {
-	errorLines := strings.Split(source, "\n")[r.Start.Line : r.End.Line+1]
+	lines := strings.Split(source, "\n")
+	errorLines := lines[r.Start.Line : r.End.Line+1]
 
 	separator := " | "
 
-	buf := ""
-	for lineOffset, line := range errorLines {
-		if lineOffset != 0 {
-			buf += "\n"
-		}
-		thisLineIndex := r.Start.Line + lineOffset
-
+	showLine := func(index int, line string) string {
 		// %3d creates left (whitespace) padding so that the width is at least 3
-		digit := fmt.Sprintf("%3d", thisLineIndex)
+		digit := fmt.Sprintf("%3d", index)
 
 		// code line
-		buf += digit + separator + line + "\n"
+		return digit + separator + line + "\n"
+	}
 
-		// error line
-		digitPadding := strings.Repeat(" ", len(digit))
+	showError := func(lineOffset int, line string) string {
+		digitPadding := strings.Repeat(" ", 3)
 
+		srcLine := r.Start.Line + lineOffset
 		var errStartChar int
-		if r.Start.Line == thisLineIndex {
+		if r.Start.Line == srcLine {
 			errStartChar = r.Start.Character
 		} else {
 			errStartChar = 0
 		}
 
 		var errEndChar int
-		if r.End.Line == thisLineIndex {
+		if r.End.Line == srcLine {
 			errEndChar = r.End.Character
 		} else {
 			errEndChar = len(line)
@@ -79,7 +76,27 @@ func (r Range) ShowOnSource(source string) string {
 
 		leftWs := strings.Repeat(" ", errStartChar)
 
-		buf += digitPadding + separator + leftWs + errorIndicator
+		return digitPadding + separator + leftWs + errorIndicator
+	}
+
+	buf := ""
+	for lineOffset, line := range errorLines {
+		// Separate previous result with a newline
+		if lineOffset != 0 {
+			buf += "\n"
+		}
+		srcLine := r.Start.Line + lineOffset
+
+		if srcLine != 0 && lineOffset == 0 {
+			buf += showLine(srcLine-1, lines[srcLine-1])
+		}
+
+		buf += showLine(srcLine, line)
+		buf += showError(lineOffset, line)
+
+		if srcLine != len(lines)-1 && lineOffset == len(errorLines)-1 {
+			buf += "\n" + showLine(srcLine+1, lines[srcLine+1])
+		}
 
 	}
 

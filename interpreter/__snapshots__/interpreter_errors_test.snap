@@ -1,15 +1,22 @@
 
 [TestShowUnboundVar - 1]
+  0 | send [COIN 10] (
   1 |   source = $unbound_var
     |            ~~~~~~~~~~~~
+  2 |   destination = @dest
+
 ---
 
 [TestShowMissingFundsSingleAccount - 1]
+  0 | send [COIN 10] (
   1 |   source = @a
     |            ~~
+  2 |   destination = @dest
+
 ---
 
 [TestShowMissingFundsInorder - 1]
+  0 | send [COIN 10] (
   1 |   source = {
     |            ~
   2 |     @a
@@ -18,14 +25,20 @@
     | ~~~~~~
   4 |  }
     | ~~
+  5 |   destination = @dest
+
 ---
 
 [TestShowMissingFundsAllotment - 1]
+  1 |   source = {
   2 |     1/2 from @a
     |              ~~
+  3 |      remaining from @world
+
 ---
 
 [TestShowMissingFundsMax - 1]
+  0 | send [COIN 10] (
   1 |   source = max [COIN 2] from {
     |            ~~~~~~~~~~~~~~~~~~~
   2 |     1/2 from @world
@@ -34,19 +47,29 @@
     | ~~~~~~~~~~~~~~~~~~~~~~~~~
   4 |   }
     | ~~~
+  5 |   destination = @dest
+
 ---
 
 [TestShowMetadataNotFound - 1]
+  0 | vars {
   1 |   number $my_var = meta(@acc, "key")
     |                    ~~~~~~~~~~~~~~~~~
+  2 | }
+
 ---
 
 [TestShowTypeError - 1]
   0 | send 42 (
     |      ~~
+  1 |  source = @a
+
 ---
 
 [TestShowInvalidTypeErr - 1]
+  0 | vars {
   1 |   invalid_t $x
     |   ~~~~~~~~~
+  2 | }
+
 ---

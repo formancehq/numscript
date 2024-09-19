@@ -12,10 +12,13 @@
 ---
 
 [TestShowRangeComplex - 1]
+  0 | 
   1 | example err
     |    ~~~~~~~~
   2 | or that spans more
     | ~~~~~~~~~~~~~~~~~~
   3 | lines and then other
     | ~~~~~
+  4 | words with no error
+
 ---
