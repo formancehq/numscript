@@ -464,6 +464,7 @@ func (s *programState) trySendingExact(source parser.Source, amount big.Int) Int
 			Asset:     s.CurrentAsset,
 			Needed:    amount,
 			Available: *sentAmt,
+			Range:     source.GetRange(),
 		}
 	}
 	return nil

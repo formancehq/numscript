@@ -36,6 +36,19 @@ func NewTestCase() TestCase {
 	}
 }
 
+// returns a version of the error in which the range is normalized
+// to golang's default value
+func removeRange(e machine.InterpreterError) machine.InterpreterError {
+	switch e := e.(type) {
+	case machine.MissingFundsErr:
+		e.Range = parser.Range{}
+		return e
+
+	default:
+		return e
+	}
+}
+
 func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 	var jsonVars map[string]string
 	err := json.Unmarshal([]byte(str), &jsonVars)
@@ -72,7 +85,7 @@ func test(t *testing.T, testCase TestCase) {
 
 	expected := testCase.expected
 	if expected.Error != nil {
-		require.Equal(t, expected.Error, err)
+		require.Equal(t, removeRange(expected.Error), removeRange(err))
 	} else {
 		require.NoError(t, err)
 	}

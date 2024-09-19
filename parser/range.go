@@ -59,7 +59,6 @@ func (r Range) ShowOnSource(source string) string {
 		buf += digit + separator + line + "\n"
 
 		// error line
-		separatorPadding := strings.Repeat(" ", len(separator))
 		digitPadding := strings.Repeat(" ", len(digit))
 
 		var errStartChar int
@@ -80,7 +79,7 @@ func (r Range) ShowOnSource(source string) string {
 
 		leftWs := strings.Repeat(" ", errStartChar)
 
-		buf += digitPadding + separatorPadding + leftWs + errorIndicator
+		buf += digitPadding + separator + leftWs + errorIndicator
 
 	}
 

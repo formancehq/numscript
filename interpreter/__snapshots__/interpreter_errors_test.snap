@@ -1,5 +1,37 @@
 
 [TestShowUnboundVar - 1]
   1 |   source = $unbound_var
-                 ~~~~~~~~~~~~
+    |            ~~~~~~~~~~~~
+---
+
+[TestShowMissingFundsSingleAccount - 1]
+  1 |   source = @a
+    |            ~~
+---
+
+[TestShowMissingFundsInorder - 1]
+  1 |   source = {
+    |            ~
+  2 |     @a
+    | ~~~~~~
+  3 |     @b
+    | ~~~~~~
+  4 |  }
+    | ~~
+---
+
+[TestShowMissingFundsAllotment - 1]
+  2 |     1/2 from @a
+    |              ~~
+---
+
+[TestShowMissingFundsMax - 1]
+  1 |   source = max [COIN 2] from {
+    |            ~~~~~~~~~~~~~~~~~~~
+  2 |     1/2 from @world
+    | ~~~~~~~~~~~~~~~~~~~
+  3 |     remaining from @world
+    | ~~~~~~~~~~~~~~~~~~~~~~~~~
+  4 |   }
+    | ~~~
 ---
