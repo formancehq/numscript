@@ -172,13 +172,9 @@ func showPretty(result *interpreter.ExecutionResult) {
 
 func getRunCmd() *cobra.Command {
 	cmd := cobra.Command{
-		// Keep the command as hidden as long as it's unstable
-		Hidden: true,
-
-		// Other ideas: simulate, eval, exec
 		Use:   "run",
 		Short: "Evaluate a numscript file",
-		Long:  "Evaluate a numscript file. This command is unstable and still being developed",
+		Long:  "Evaluate a numscript file, using the balances, the current metadata and the variables values as input.",
 		Run: func(cmd *cobra.Command, args []string) {
 			var path string
 			if len(args) > 0 {
