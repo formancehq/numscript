@@ -2,8 +2,9 @@ package pretty_test
 
 import (
 	"math"
-	. "numscript/pretty"
 	"testing"
+
+	. "github.com/formancehq/numscript/pretty"
 
 	"github.com/stretchr/testify/require"
 )
