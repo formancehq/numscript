@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/formancehq/numscript/analysis"
-	"github.com/formancehq/numscript/parser"
-	"github.com/formancehq/numscript/utils"
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/utils"
 )
 
 type StaticStore map[string]map[string]*big.Int

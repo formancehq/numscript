@@ -3,8 +3,8 @@ package interpreter_test
 import (
 	"testing"
 
-	"github.com/formancehq/numscript/interpreter"
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/interpreter"
+	"github.com/formancehq/numscript/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )

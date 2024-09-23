@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/formancehq/numscript/analysis"
-	"github.com/formancehq/numscript/parser"
-	"github.com/formancehq/numscript/utils"
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/utils"
 
 	"github.com/sourcegraph/jsonrpc2"
 )

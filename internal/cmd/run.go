@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/formancehq/numscript/ansi"
-	"github.com/formancehq/numscript/interpreter"
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/ansi"
+	"github.com/formancehq/numscript/internal/interpreter"
+	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/spf13/cobra"
 )

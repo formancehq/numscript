@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"math/big"
 
-	machine "github.com/formancehq/numscript/interpreter"
+	machine "github.com/formancehq/numscript/internal/interpreter"
 
 	"testing"
 
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

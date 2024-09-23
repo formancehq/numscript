@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/ansi"
-	"github.com/formancehq/numscript/utils"
+	"github.com/formancehq/numscript/internal/ansi"
+	"github.com/formancehq/numscript/internal/utils"
 )
 
 type Severity = byte

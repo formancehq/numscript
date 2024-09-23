@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/analysis"
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
 )
 
 type Value interface {

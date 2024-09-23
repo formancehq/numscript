@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/analysis"
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

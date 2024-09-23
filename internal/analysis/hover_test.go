@@ -3,8 +3,8 @@ package analysis_test
 import (
 	"testing"
 
-	"github.com/formancehq/numscript/analysis"
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 )

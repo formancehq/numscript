@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	parser "github.com/formancehq/numscript/parser/antlr"
-	"github.com/formancehq/numscript/utils"
+	parser "github.com/formancehq/numscript/internal/parser/antlr"
+	"github.com/formancehq/numscript/internal/utils"
 
 	"github.com/antlr4-go/antlr/v4"
 )

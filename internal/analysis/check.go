@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"slices"
 
-	"github.com/formancehq/numscript/parser"
-	"github.com/formancehq/numscript/utils"
+	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/utils"
 )
 
 const TypeMonetary = "monetary"

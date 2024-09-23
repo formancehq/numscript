@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/parser"
+	"github.com/formancehq/numscript/internal/parser"
 )
 
 type MissingFundsErr struct {
