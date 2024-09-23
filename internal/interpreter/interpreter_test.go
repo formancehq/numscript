@@ -2683,3 +2683,69 @@ func TestUseBalanceTwice(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestBigInt(t *testing.T) {
+	script := `
+ 		vars { number $amt }
+
+ 		send [USD/2 $amt] (
+ 			source = @world
+ 			destination = {
+				100% to @dest
+				remaining kept
+			}
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	// max safe int is    9223372036854775807
+	// this number is 99999223372036854775807
+
+	amt, ok := new(big.Int).SetString("99999223372036854775807", 10)
+	if !ok {
+		panic("Invalid number")
+	}
+	tc.vars = map[string]string{
+		"amt": amt.String(),
+	}
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      amt,
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestInvalidNumberLiteral(t *testing.T) {
+	script := `
+ 		vars { number $amt }
+
+ 		send [$amt USD/2] (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.vars = map[string]string{
+		"amt": "not a number",
+	}
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error:    machine.InvalidNumberLiteral{Range: parser.Range{}, Source: "not a number"},
+	}
+	test(t, tc)
+}

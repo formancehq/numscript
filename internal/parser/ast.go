@@ -55,8 +55,8 @@ type (
 
 	RatioLiteral struct {
 		Range       Range
-		Numerator   uint64
-		Denominator uint64
+		Numerator   *big.Int
+		Denominator *big.Int
 	}
 
 	VariableLiteral struct {
@@ -66,7 +66,7 @@ type (
 )
 
 func (r RatioLiteral) ToRatio() *big.Rat {
-	return big.NewRat(int64(r.Numerator), int64(r.Denominator))
+	return new(big.Rat).SetFrac(r.Numerator, r.Denominator)
 }
 
 type RemainingAllotment struct {

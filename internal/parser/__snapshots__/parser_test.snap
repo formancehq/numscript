@@ -153,8 +153,14 @@ parser.Program{
                                 Start: parser.Position{Character:13, Line:1},
                                 End:   parser.Position{Character:16, Line:1},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x3,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x3},
+                            },
                         },
                         From: &parser.SourceAccount{
                             Literal: &parser.AccountLiteral{
@@ -229,8 +235,14 @@ parser.Program{
                                 Start: parser.Position{Character:4, Line:2},
                                 End:   parser.Position{Character:7, Line:2},
                             },
-                            Numerator:   0x2a,
-                            Denominator: 0x64,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x2a},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x64},
+                            },
                         },
                         From: &parser.SourceAccount{
                             Literal: &parser.AccountLiteral{
@@ -252,8 +264,14 @@ parser.Program{
                                 Start: parser.Position{Character:1, Line:3},
                                 End:   parser.Position{Character:4, Line:3},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x2,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         From: &parser.SourceAccount{
                             Literal: &parser.AccountLiteral{
@@ -349,8 +367,14 @@ parser.Program{
                                 Start: parser.Position{Character:13, Line:1},
                                 End:   parser.Position{Character:18, Line:1},
                             },
-                            Numerator:   0xf2,
-                            Denominator: 0x2710,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0xf2},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x2710},
+                            },
                         },
                         From: &parser.SourceAccount{
                             Literal: &parser.AccountLiteral{
@@ -434,8 +458,14 @@ parser.Program{
                                 Start: parser.Position{Character:18, Line:2},
                                 End:   parser.Position{Character:21, Line:2},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x2,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
@@ -938,8 +968,14 @@ parser.Program{
                                 Start: parser.Position{Character:3, Line:3},
                                 End:   parser.Position{Character:6, Line:3},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x2,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
@@ -1316,8 +1352,14 @@ parser.Program{
                         Start: parser.Position{Character:1, Line:4},
                         End:   parser.Position{Character:4, Line:4},
                     },
-                    Numerator:   0x1,
-                    Denominator: 0x2,
+                    Numerator: &big.Int{
+                        neg: false,
+                        abs: {0x1},
+                    },
+                    Denominator: &big.Int{
+                        neg: false,
+                        abs: {0x2},
+                    },
                 },
                 &parser.VariableLiteral{
                     Range: parser.Range{
@@ -1675,8 +1717,14 @@ parser.Program{
                                 Start: parser.Position{Character:18, Line:2},
                                 End:   parser.Position{Character:21, Line:2},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x2,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         To: &parser.DestinationKept{
                             Range: parser.Range{
@@ -1735,8 +1783,14 @@ parser.Program{
                                 Start: parser.Position{Character:4, Line:4},
                                 End:   parser.Position{Character:9, Line:4},
                             },
-                            Numerator:   0x1,
-                            Denominator: 0x6,
+                            Numerator: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
+                            Denominator: &big.Int{
+                                neg: false,
+                                abs: {0x6},
+                            },
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
