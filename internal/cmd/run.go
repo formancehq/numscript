@@ -26,10 +26,10 @@ var runStdinFlag bool
 var runOutFormatOpt string
 
 type inputOpts struct {
-	Script    string                          `json:"script"`
-	Variables map[string]string               `json:"variables"`
-	Meta      map[string]interpreter.Metadata `json:"metadata"`
-	Balances  interpreter.StaticStore         `json:"balances"`
+	Script    string               `json:"script"`
+	Variables map[string]string    `json:"variables"`
+	Meta      interpreter.Metadata `json:"metadata"`
+	Balances  interpreter.Balances `json:"balances"`
 }
 
 func (o *inputOpts) fromRaw() {
@@ -100,8 +100,8 @@ func (o *inputOpts) fromOptions(path string) {
 func run(path string) {
 	opt := inputOpts{
 		Variables: make(map[string]string),
-		Meta:      make(map[string]interpreter.Metadata),
-		Balances:  make(interpreter.StaticStore),
+		Meta:      make(interpreter.Metadata),
+		Balances:  make(interpreter.Balances),
 	}
 
 	opt.fromRaw()
@@ -114,11 +114,12 @@ func run(path string) {
 		os.Exit(1)
 	}
 
-	result, err := interpreter.RunProgram(parseResult.Value, interpreter.RunProgramOptions{
-		Vars:  opt.Variables,
-		Store: opt.Balances,
-		Meta:  opt.Meta,
-	})
+	result, err := interpreter.RunProgram(parseResult.Value, interpreter.StaticStore{
+		Vars:     opt.Variables,
+		Balances: opt.Balances,
+		Meta:     opt.Meta,
+	}.ToStore())
+
 	if err != nil {
 		rng := err.GetRange()
 		os.Stderr.Write([]byte(err.Error()))

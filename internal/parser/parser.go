@@ -16,9 +16,9 @@ type ParserError struct {
 	Msg   string
 }
 
-type ParseResult[T any] struct {
+type ParseResult struct {
 	Source string
-	Value  T
+	Value  Program
 	Errors []ParserError
 }
 
@@ -43,7 +43,7 @@ func (l *ErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol
 	})
 }
 
-func Parse(input string) ParseResult[Program] {
+func Parse(input string) ParseResult {
 	// TODO handle lexer errors
 	listener := &ErrorListener{}
 
@@ -60,7 +60,7 @@ func Parse(input string) ParseResult[Program] {
 
 	parsed := parseProgram(parser.Program())
 
-	return ParseResult[Program]{
+	return ParseResult{
 		Source: input,
 		Value:  parsed,
 		Errors: listener.Errors,

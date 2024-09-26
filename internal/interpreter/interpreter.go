@@ -10,8 +10,54 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-type StaticStore map[string]map[string]*big.Int
-type Metadata map[string]string
+type VariablesMap map[string]string
+
+// For each account, list of the needed assets
+type BalanceQuery map[string][]string
+
+// For each account, list of the needed keys
+type MetadataQuery map[string][]string
+
+type AccountBalance = map[string]*big.Int
+type Balances map[string]AccountBalance
+
+type AccountMetadata = map[string]string
+type Metadata map[string]AccountMetadata
+
+type Store struct {
+	VariablesMap VariablesMap
+	// TODO add Context param
+	GetBalances         func(BalanceQuery) (Balances, error)
+	GetAccountsMetadata func(MetadataQuery) (Metadata, error)
+}
+
+type StaticStore struct {
+	Vars     map[string]string
+	Balances Balances
+	Meta     Metadata
+}
+
+func (staticStore StaticStore) ToStore() Store {
+	if staticStore.Vars == nil {
+		staticStore.Vars = make(map[string]string)
+	}
+	if staticStore.Balances == nil {
+		staticStore.Balances = Balances{}
+	}
+	if staticStore.Meta == nil {
+		staticStore.Meta = Metadata{}
+	}
+
+	return Store{
+		VariablesMap: staticStore.Vars,
+		GetBalances: func(bq BalanceQuery) (Balances, error) {
+			return staticStore.Balances, nil
+		},
+		GetAccountsMetadata: func(mq MetadataQuery) (Metadata, error) {
+			return staticStore.Meta, nil
+		},
+	}
+}
 
 type InterpreterError interface {
 	error
@@ -19,9 +65,9 @@ type InterpreterError interface {
 }
 
 type ExecutionResult struct {
-	Postings     []Posting           `json:"postings"`
-	TxMeta       map[string]Value    `json:"txMeta"`
-	AccountsMeta map[string]Metadata `json:"accountsMeta"`
+	Postings     []Posting        `json:"postings"`
+	TxMeta       map[string]Value `json:"txMeta"`
+	AccountsMeta Metadata         `json:"accountsMeta"`
 }
 
 func parsePercentage(p string) big.Rat {
@@ -124,46 +170,32 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			if err != nil {
 				return err
 			}
-			s.Vars[varsDecl.Name.Name] = parsed
+			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
 			value, err := s.handleOrigin(varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}
-			s.Vars[varsDecl.Name.Name] = value
+			s.ParsedVars[varsDecl.Name.Name] = value
 		}
 	}
 	return nil
 }
 
-type RunProgramOptions struct {
-	Vars  map[string]string
-	Store StaticStore
-	Meta  map[string]Metadata
-}
-
 func RunProgram(
 	program parser.Program,
-	options RunProgramOptions,
+	store Store,
 ) (*ExecutionResult, InterpreterError) {
-	if options.Vars == nil {
-		options.Vars = make(map[string]string)
-	}
-	if options.Store == nil {
-		options.Store = make(StaticStore)
-	}
-	if options.Meta == nil {
-		options.Meta = make(map[string]Metadata)
-	}
-
 	st := programState{
-		Vars:   make(map[string]Value),
-		TxMeta: make(map[string]Value),
-		Store:  options.Store,
-		Meta:   options.Meta,
+		ParsedVars:         make(map[string]Value),
+		TxMeta:             make(map[string]Value),
+		CachedAccountsMeta: Metadata{},
+		CachedBalances:     Balances{},
+		SetAccountsMeta:    Metadata{},
+		Store:              store,
 	}
 
-	err := st.parseVars(program.Vars, options.Vars)
+	err := st.parseVars(program.Vars, store.VariablesMap)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +212,7 @@ func RunProgram(
 	res := &ExecutionResult{
 		Postings:     postings,
 		TxMeta:       st.TxMeta,
-		AccountsMeta: st.Meta, // TODO clone the map
+		AccountsMeta: st.SetAccountsMeta,
 	}
 	return res, nil
 }
@@ -191,12 +223,17 @@ type programState struct {
 	// it's value is undefined outside of send statements execution
 	CurrentAsset string
 
-	Vars      map[string]Value
-	TxMeta    map[string]Value
-	Store     StaticStore
-	Senders   []Sender
-	Receivers []Receiver
-	Meta      map[string]Metadata
+	ParsedVars map[string]Value
+	TxMeta     map[string]Value
+	Senders    []Sender
+	Receivers  []Receiver
+
+	Store Store
+
+	SetAccountsMeta Metadata
+
+	CachedAccountsMeta Metadata
+	CachedBalances     Balances
 }
 
 func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterError) {
@@ -225,7 +262,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterE
 		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
 
 	case *parser.VariableLiteral:
-		value, ok := st.Vars[literal.Name]
+		value, ok := st.ParsedVars[literal.Name]
 		if !ok {
 			return nil, UnboundVariableErr{
 				Name:  literal.Name,
@@ -367,10 +404,20 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 }
 
 func (s *programState) getBalance(account string, asset string) *big.Int {
-	balance, ok := s.Store[account]
+	fetchedBalance, err := s.Store.GetBalances(BalanceQuery{
+		account: {asset},
+	})
+	// TODO properly handle err
+	if err != nil {
+		panic(err)
+	}
+
+	s.CachedBalances = fetchedBalance
+
+	balance, ok := s.CachedBalances[account]
 	if !ok {
 		m := make(map[string]*big.Int)
-		s.Store[account] = m
+		s.CachedBalances[account] = m
 		balance = m
 	}
 
@@ -743,8 +790,18 @@ func meta(
 		return "", err
 	}
 
+	meta, e := s.Store.GetAccountsMetadata(MetadataQuery{
+		// TODO batch queries
+		*account: []string{*key},
+	})
+	// TODO properly handle
+	if e != nil {
+		panic(e)
+	}
+	s.CachedAccountsMeta = meta
+
 	// body
-	accountMeta := s.Meta[*account]
+	accountMeta := s.CachedAccountsMeta[*account]
 	value, ok := accountMeta[*key]
 
 	if !ok {
@@ -810,8 +867,8 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 		return err
 	}
 
-	accountMeta := defaultMapGet(st.Meta, *account, func() Metadata {
-		return make(Metadata)
+	accountMeta := defaultMapGet(st.SetAccountsMeta, *account, func() AccountMetadata {
+		return AccountMetadata{}
 	})
 
 	accountMeta[*key] = (*meta).String()

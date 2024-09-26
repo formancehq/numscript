@@ -18,7 +18,7 @@ type TestCase struct {
 	source   string
 	program  *parser.Program
 	vars     map[string]string
-	meta     map[string]machine.Metadata
+	meta     machine.Metadata
 	balances map[string]map[string]*big.Int
 	expected CaseResult
 }
@@ -26,12 +26,12 @@ type TestCase struct {
 func NewTestCase() TestCase {
 	return TestCase{
 		vars:     make(map[string]string),
-		meta:     make(map[string]machine.Metadata),
+		meta:     machine.Metadata{},
 		balances: make(map[string]map[string]*big.Int),
 		expected: CaseResult{
-			Postings: []machine.Posting{},
-			Metadata: make(map[string]machine.Value),
-			Error:    nil,
+			Postings:   []machine.Posting{},
+			TxMetadata: make(map[string]machine.Value),
+			Error:      nil,
 		},
 	}
 }
@@ -83,11 +83,11 @@ func test(t *testing.T, testCase TestCase) {
 
 	require.NotNil(t, prog)
 
-	execResult, err := machine.RunProgram(*prog, machine.RunProgramOptions{
+	execResult, err := machine.RunProgram(*prog, machine.StaticStore{
 		testCase.vars,
 		testCase.balances,
 		testCase.meta,
-	})
+	}.ToStore())
 
 	expected := testCase.expected
 	if expected.Error != nil {
@@ -102,22 +102,22 @@ func test(t *testing.T, testCase TestCase) {
 	if expected.Postings == nil {
 		expected.Postings = make([]Posting, 0)
 	}
-	if expected.Metadata == nil {
-		expected.Metadata = make(map[string]machine.Value)
+	if expected.TxMetadata == nil {
+		expected.TxMetadata = make(map[string]machine.Value)
 	}
 	if expected.AccountMetadata == nil {
-		expected.AccountMetadata = make(map[string]machine.Metadata)
+		expected.AccountMetadata = machine.Metadata{}
 	}
 
 	assert.Equal(t, expected.Postings, execResult.Postings)
-	assert.Equal(t, expected.Metadata, execResult.TxMeta)
+	assert.Equal(t, expected.TxMetadata, execResult.TxMeta)
 	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMeta)
 }
 
 type CaseResult struct {
 	Postings        []machine.Posting
-	Metadata        map[string]machine.Value
-	AccountMetadata map[string]machine.Metadata
+	TxMetadata      map[string]machine.Value
+	AccountMetadata machine.Metadata
 	Error           machine.InterpreterError
 }
 
@@ -155,7 +155,7 @@ func TestSetTxMeta(t *testing.T) {
 	`)
 
 	tc.expected = CaseResult{
-		Metadata: map[string]machine.Value{
+		TxMetadata: map[string]machine.Value{
 			"num":     machine.NewMonetaryInt(42),
 			"str":     machine.String("abc"),
 			"asset":   machine.Asset("COIN"),
@@ -179,7 +179,7 @@ func TestSetAccountMeta(t *testing.T) {
 	`)
 
 	tc.expected = CaseResult{
-		AccountMetadata: map[string]machine.Metadata{
+		AccountMetadata: machine.Metadata{
 			"acc": {
 				"num":          "42",
 				"str":          "abc",
@@ -196,7 +196,7 @@ func TestSetAccountMeta(t *testing.T) {
 
 func TestOverrideAccountMeta(t *testing.T) {
 	tc := NewTestCase()
-	tc.meta = map[string]machine.Metadata{
+	tc.meta = machine.Metadata{
 		"acc": {
 			"initial":    "0",
 			"overridden": "1",
@@ -207,9 +207,8 @@ func TestOverrideAccountMeta(t *testing.T) {
 	set_account_meta(@acc, "new", 2)
 	`)
 	tc.expected = CaseResult{
-		AccountMetadata: map[string]machine.Metadata{
+		AccountMetadata: machine.Metadata{
 			"acc": {
-				"initial":    "0",
 				"overridden": "100",
 				"new":        "2",
 			},
@@ -251,7 +250,7 @@ func TestVariables(t *testing.T) {
 				Destination: "users:002",
 			},
 		},
-		Metadata: map[string]machine.Value{
+		TxMetadata: map[string]machine.Value{
 			"description": machine.String("midnight ride"),
 			"ride":        machine.NewMonetaryInt(1),
 		},
@@ -296,7 +295,7 @@ func TestVariablesJSON(t *testing.T) {
 				Destination: "users:002",
 			},
 		},
-		Metadata: map[string]machine.Value{
+		TxMetadata: map[string]machine.Value{
 			"description": machine.String("midnight ride"),
 			"ride":        machine.NewMonetaryInt(1),
 			"por":         machine.Portion(*big.NewRat(42, 100)),
@@ -999,7 +998,7 @@ func TestMetadata(t *testing.T) {
 	tc.setVarsFromJSON(t, `{
 		"sale": "sales:042"
 	}`)
-	tc.meta = map[string]machine.Metadata{
+	tc.meta = machine.Metadata{
 		"sales:042": {
 			"seller": "users:053",
 		},
@@ -1022,15 +1021,6 @@ func TestMetadata(t *testing.T) {
 				Amount:      big.NewInt(12),
 				Source:      "sales:042",
 				Destination: "platform",
-			},
-		},
-		// Keep the original metadata
-		AccountMetadata: map[string]machine.Metadata{
-			"sales:042": {
-				"seller": "users:053",
-			},
-			"users:053": {
-				"commission": "12.5%",
 			},
 		},
 		Error: nil,
