@@ -1,10 +1,12 @@
 package numscript_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
 	"github.com/formancehq/numscript"
+	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,30 +30,16 @@ send [COIN 100] (
 
 	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
 
-	var getBalancesCalls []numscript.BalanceQuery
-	var getMetaCalls []numscript.MetadataQuery
-
-	_, err := parseResult.Run(
-		numscript.Store{
-			VariablesMap: numscript.VariablesMap{
-				"s1": "source1",
-			},
-			GetBalances: func(bq numscript.BalanceQuery) (numscript.Balances, error) {
-				getBalancesCalls = append(getBalancesCalls, bq)
-				return numscript.Balances{
-					"source1":                    {"COIN": big.NewInt(10)},
-					"source2":                    {"COIN": big.NewInt(10)},
-					"source3":                    {"COIN": big.NewInt(10)},
-					"account_that_needs_balance": {"USD/2": big.NewInt(10)},
-				}, nil
-			},
-			GetAccountsMetadata: func(mq numscript.MetadataQuery) (numscript.Metadata, error) {
-				getMetaCalls = append(getMetaCalls, mq)
-				return numscript.Metadata{
-					"account_that_needs_meta": numscript.AccountMetadata{"k": "source2"},
-				}, nil
-			},
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+			Meta:     interpreter.Metadata{"account_that_needs_meta": {"k": "source2"}},
 		},
+	}
+	_, err := parseResult.Run(numscript.VariablesMap{
+		"s1": "source1",
+	},
+		&store,
 	)
 	require.Nil(t, err)
 
@@ -61,7 +49,7 @@ send [COIN 100] (
 				"account_that_needs_meta": {"k"},
 			},
 		},
-		getMetaCalls)
+		store.GetMetadataCalls)
 
 	require.Equal(t,
 		[]numscript.BalanceQuery{
@@ -81,7 +69,7 @@ send [COIN 100] (
 				"source3": {"COIN"},
 			},
 		},
-		getBalancesCalls)
+		store.GetBalancesCalls)
 }
 
 func TestGetBalancesAllotment(t *testing.T) {
@@ -96,17 +84,18 @@ func TestGetBalancesAllotment(t *testing.T) {
 
 	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
 
-	var getBalancesCalls []numscript.BalanceQuery
-	_, err := parseResult.Run(
-		numscript.Store{
-			GetBalances: func(bq numscript.BalanceQuery) (numscript.Balances, error) {
-				getBalancesCalls = append(getBalancesCalls, bq)
-				return numscript.Balances{
-					"a": {"COIN": big.NewInt(10000)},
-					"b": {"COIN": big.NewInt(10000)},
-				}, nil
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"a": {"COIN": big.NewInt(10000)},
+				"b": {"COIN": big.NewInt(10000)},
 			},
 		},
+	}
+
+	_, err := parseResult.Run(
+		numscript.VariablesMap{},
+		&store,
 	)
 	require.Nil(t, err)
 
@@ -117,7 +106,7 @@ func TestGetBalancesAllotment(t *testing.T) {
 				"b": {"COIN"},
 			},
 		},
-		getBalancesCalls)
+		store.GetBalancesCalls)
 }
 
 func TestGetBalancesOverdraft(t *testing.T) {
@@ -132,18 +121,9 @@ func TestGetBalancesOverdraft(t *testing.T) {
 
 	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
 
-	var getBalancesCalls []numscript.BalanceQuery
-	_, err := parseResult.Run(
-		numscript.Store{
-			GetBalances: func(bq numscript.BalanceQuery) (numscript.Balances, error) {
-				getBalancesCalls = append(getBalancesCalls, bq)
-				return numscript.Balances{
-					"a": {"COIN": big.NewInt(10000)},
-					"b": {"COIN": big.NewInt(10000)},
-				}, nil
-			},
-		},
-	)
+	store := ObservableStore{}
+
+	_, err := parseResult.Run(interpreter.VariablesMap{}, &store)
 	require.Nil(t, err)
 
 	require.Equal(t,
@@ -152,5 +132,22 @@ func TestGetBalancesOverdraft(t *testing.T) {
 				"a": {"COIN"},
 			},
 		},
-		getBalancesCalls)
+		store.GetBalancesCalls)
+}
+
+type ObservableStore struct {
+	StaticStore      interpreter.StaticStore
+	GetBalancesCalls []numscript.BalanceQuery
+	GetMetadataCalls []numscript.MetadataQuery
+}
+
+func (os *ObservableStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
+	os.GetBalancesCalls = append(os.GetBalancesCalls, q)
+	return os.StaticStore.GetBalances(ctx, q)
+
+}
+
+func (os *ObservableStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.Metadata, error) {
+	os.GetMetadataCalls = append(os.GetMetadataCalls, q)
+	return os.StaticStore.GetAccountsMetadata(ctx, q)
 }

@@ -83,11 +83,10 @@ func test(t *testing.T, testCase TestCase) {
 
 	require.NotNil(t, prog)
 
-	execResult, err := machine.RunProgram(*prog, machine.StaticStore{
-		testCase.vars,
+	execResult, err := machine.RunProgram(*prog, testCase.vars, machine.StaticStore{
 		testCase.balances,
 		testCase.meta,
-	}.ToStore())
+	})
 
 	expected := testCase.expected
 	if expected.Error != nil {

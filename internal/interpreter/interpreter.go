@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"context"
 	"math/big"
 	"strconv"
 	"strings"
@@ -24,39 +25,27 @@ type Balances map[string]AccountBalance
 type AccountMetadata = map[string]string
 type Metadata map[string]AccountMetadata
 
-type Store struct {
-	VariablesMap VariablesMap
-	// TODO add Context param
-	GetBalances         func(BalanceQuery) (Balances, error)
-	GetAccountsMetadata func(MetadataQuery) (Metadata, error)
+type Store interface {
+	GetBalances(context.Context, BalanceQuery) (Balances, error)
+	GetAccountsMetadata(context.Context, MetadataQuery) (Metadata, error)
 }
 
 type StaticStore struct {
-	Vars     map[string]string
 	Balances Balances
 	Meta     Metadata
 }
 
-func (staticStore StaticStore) ToStore() Store {
-	if staticStore.Vars == nil {
-		staticStore.Vars = make(map[string]string)
+func (s StaticStore) GetBalances(context.Context, BalanceQuery) (Balances, error) {
+	if s.Balances == nil {
+		s.Balances = Balances{}
 	}
-	if staticStore.Balances == nil {
-		staticStore.Balances = Balances{}
+	return s.Balances, nil
+}
+func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (Metadata, error) {
+	if s.Meta == nil {
+		s.Meta = Metadata{}
 	}
-	if staticStore.Meta == nil {
-		staticStore.Meta = Metadata{}
-	}
-
-	return Store{
-		VariablesMap: staticStore.Vars,
-		GetBalances: func(bq BalanceQuery) (Balances, error) {
-			return staticStore.Balances, nil
-		},
-		GetAccountsMetadata: func(mq MetadataQuery) (Metadata, error) {
-			return staticStore.Meta, nil
-		},
-	}
+	return s.Meta, nil
 }
 
 type InterpreterError interface {
@@ -184,6 +173,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 func RunProgram(
 	program parser.Program,
+	vars map[string]string,
 	store Store,
 ) (*ExecutionResult, InterpreterError) {
 	st := programState{
@@ -197,7 +187,7 @@ func RunProgram(
 		CurrentBalanceQuery: BalanceQuery{},
 	}
 
-	err := st.parseVars(program.Vars, store.VariablesMap)
+	err := st.parseVars(program.Vars, vars)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +224,8 @@ func RunProgram(
 }
 
 type programState struct {
+	ctx context.Context
+
 	// Asset of the send statement currently being executed.
 	//
 	// it's value is undefined outside of send statements execution
@@ -723,7 +715,7 @@ func meta(
 		return "", err
 	}
 
-	meta, e := s.Store.GetAccountsMetadata(MetadataQuery{
+	meta, e := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
 		// TODO batch queries
 		*account: []string{*key},
 	})

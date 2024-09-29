@@ -114,11 +114,10 @@ func run(path string) {
 		os.Exit(1)
 	}
 
-	result, err := interpreter.RunProgram(parseResult.Value, interpreter.StaticStore{
-		Vars:     opt.Variables,
+	result, err := interpreter.RunProgram(parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
 		Meta:     opt.Meta,
-	}.ToStore())
+	})
 
 	if err != nil {
 		rng := err.GetRange()

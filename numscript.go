@@ -35,11 +35,7 @@ type Posting struct {
 	Asset       string   `json:"asset"`
 }
 
-type ExecutionResult struct {
-	Postings     []Posting                    `json:"postings"`
-	TxMeta       map[string]string            `json:"txMeta"`
-	AccountsMeta map[string]map[string]string `json:"accountsMeta"`
-}
+type ExecutionResult = interpreter.ExecutionResult
 
 // For each account, list of the needed assets
 type BalanceQuery = interpreter.BalanceQuery
@@ -54,8 +50,10 @@ type Metadata = interpreter.Metadata
 
 type Store = interpreter.Store
 
-func (p ParseResult) Run(store Store) (ExecutionResult, error) {
-	interpreter.RunProgram(p.parseResult.Value, store)
-
-	return ExecutionResult{}, nil
+func (p ParseResult) Run(vars VariablesMap, store Store) (ExecutionResult, error) {
+	res, err := interpreter.RunProgram(p.parseResult.Value, vars, store)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+	return *res, nil
 }

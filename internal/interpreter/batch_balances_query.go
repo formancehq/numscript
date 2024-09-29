@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -49,7 +48,6 @@ func (st *programState) batchQuery(account string, asset string) {
 	if account == "world" {
 		return
 	}
-	fmt.Printf("query=> %s %s\n\n", account, asset)
 
 	previousValues := st.CurrentBalanceQuery[account]
 	if !slices.Contains[[]string, string](previousValues, account) {
@@ -58,7 +56,7 @@ func (st *programState) batchQuery(account string, asset string) {
 }
 
 func (st *programState) runBalancesQuery() error {
-	balances, err := st.Store.GetBalances(st.CurrentBalanceQuery)
+	balances, err := st.Store.GetBalances(st.ctx, st.CurrentBalanceQuery)
 	if err != nil {
 		return err
 	}
