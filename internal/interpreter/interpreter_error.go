@@ -156,3 +156,12 @@ type InvalidAllotmentSum struct {
 func (e InvalidAllotmentSum) Error() string {
 	return fmt.Sprintf("Invalid allotment: portions sum should be 1 (got %s instead)", e.ActualSum.String())
 }
+
+type QueryBalanceError struct {
+	parser.Range
+	WrappedError error
+}
+
+func (e QueryBalanceError) Error() string {
+	return e.WrappedError.Error()
+}

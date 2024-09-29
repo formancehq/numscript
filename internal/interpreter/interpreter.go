@@ -193,11 +193,27 @@ func RunProgram(
 		CachedBalances:     Balances{},
 		SetAccountsMeta:    Metadata{},
 		Store:              store,
+
+		CurrentBalanceQuery: BalanceQuery{},
 	}
 
 	err := st.parseVars(program.Vars, store.VariablesMap)
 	if err != nil {
 		return nil, err
+	}
+
+	// preload balances before executing the script
+	for _, statement := range program.Statements {
+		err := st.findBalancesQueriesInStatement(statement)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	genericErr := st.runBalancesQuery()
+	if genericErr != nil {
+		// TODO properly handle this err
+		panic(genericErr)
 	}
 
 	postings := make([]Posting, 0)
@@ -234,72 +250,8 @@ type programState struct {
 
 	CachedAccountsMeta Metadata
 	CachedBalances     Balances
-}
 
-func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterError) {
-	switch literal := literal.(type) {
-	case *parser.AssetLiteral:
-		return Asset(literal.Asset), nil
-	case *parser.AccountLiteral:
-		return AccountAddress(literal.Name), nil
-	case *parser.StringLiteral:
-		return String(literal.String), nil
-	case *parser.RatioLiteral:
-		return Portion(*literal.ToRatio()), nil
-	case *parser.NumberLiteral:
-		return MonetaryInt(*big.NewInt(int64(literal.Number))), nil
-	case *parser.MonetaryLiteral:
-		asset, err := evaluateLitExpecting(st, literal.Asset, expectAsset)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := evaluateLitExpecting(st, literal.Amount, expectNumber)
-		if err != nil {
-			return nil, err
-		}
-
-		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
-
-	case *parser.VariableLiteral:
-		value, ok := st.ParsedVars[literal.Name]
-		if !ok {
-			return nil, UnboundVariableErr{
-				Name:  literal.Name,
-				Range: literal.Range,
-			}
-		}
-		return value, nil
-	default:
-		utils.NonExhaustiveMatchPanic[any](literal)
-		return nil, nil
-	}
-}
-
-func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
-	value, err := st.evaluateLit(literal)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := expect(value, literal.GetRange())
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, InterpreterError) {
-	var values []Value
-	for _, argLit := range literals {
-		value, err := st.evaluateLit(argLit)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-	return values, nil
+	CurrentBalanceQuery BalanceQuery
 }
 
 func (st *programState) runStatement(statement parser.Statement) ([]Posting, InterpreterError) {
@@ -344,10 +296,10 @@ func (st *programState) getPostings() ([]Posting, InterpreterError) {
 	}
 
 	for _, posting := range postings {
-		srcBalance := st.getBalance(posting.Source, posting.Asset)
+		srcBalance := st.getCachedBalance(posting.Source, posting.Asset)
 		srcBalance.Sub(srcBalance, posting.Amount)
 
-		destBalance := st.getBalance(posting.Destination, posting.Asset)
+		destBalance := st.getCachedBalance(posting.Destination, posting.Asset)
 		destBalance.Add(destBalance, posting.Amount)
 	}
 	return postings, nil
@@ -403,30 +355,13 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 }
 
-func (s *programState) getBalance(account string, asset string) *big.Int {
-	fetchedBalance, err := s.Store.GetBalances(BalanceQuery{
-		account: {asset},
+func (s *programState) getCachedBalance(account string, asset string) *big.Int {
+	balance := defaultMapGet(s.CachedBalances, account, func() AccountBalance {
+		return AccountBalance{}
 	})
-	// TODO properly handle err
-	if err != nil {
-		panic(err)
-	}
-
-	s.CachedBalances = fetchedBalance
-
-	balance, ok := s.CachedBalances[account]
-	if !ok {
-		m := make(map[string]*big.Int)
-		s.CachedBalances[account] = m
-		balance = m
-	}
-
-	assetBalance, ok := balance[asset]
-	if !ok {
-		zero := big.NewInt(0)
-		balance[asset] = zero
-		assetBalance = zero
-	}
+	assetBalance := defaultMapGet(balance, asset, func() *big.Int {
+		return big.NewInt(0)
+	})
 	return assetBalance
 }
 
@@ -442,17 +377,15 @@ func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft 
 		}
 	}
 
-	balance := s.getBalance(*account, s.CurrentAsset)
+	balance := s.getCachedBalance(*account, s.CurrentAsset)
 
 	// we sent balance+overdraft
-	var sentAmt big.Int
-	sentAmt.Add(balance, ovedraft)
-
+	sentAmt := new(big.Int).Add(balance, ovedraft)
 	s.Senders = append(s.Senders, Sender{
 		Name:     *account,
-		Monetary: &sentAmt,
+		Monetary: sentAmt,
 	})
-	return &sentAmt, nil
+	return sentAmt, nil
 }
 
 // Send as much as possible (and return the sent amt)
@@ -532,7 +465,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt.Set(&amount)
 	} else {
-		balance := s.getBalance(*account, s.CurrentAsset)
+		balance := s.getCachedBalance(*account, s.CurrentAsset)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		var safeSendAmt big.Int
@@ -826,7 +759,14 @@ func balance(
 	}
 
 	// body
-	balance := s.getBalance(*account, *asset)
+	s.batchQuery(*account, *asset)
+	genericErr := s.runBalancesQuery()
+	if genericErr != nil {
+		// TODO properly handle this err
+		panic(genericErr)
+	}
+
+	balance := s.getCachedBalance(*account, *asset)
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, NegativeBalanceError{
 			Account: *account,
@@ -874,14 +814,4 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 	accountMeta[*key] = (*meta).String()
 
 	return nil
-}
-
-func defaultMapGet[T any](m map[string]T, key string, getDefault func() T) T {
-	lookup, ok := m[key]
-	if !ok {
-		default_ := getDefault()
-		m[key] = default_
-		return default_
-	}
-	return lookup
 }
