@@ -1,8 +1,6 @@
 package numscript
 
 import (
-	"math/big"
-
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -28,12 +26,7 @@ func (p ParseResult) GetParsingErrors() []ParserError {
 
 type VariablesMap = interpreter.VariablesMap
 
-type Posting struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Amount      *big.Int `json:"amount"`
-	Asset       string   `json:"asset"`
-}
+type Posting = interpreter.Posting
 
 type ExecutionResult = interpreter.ExecutionResult
 
