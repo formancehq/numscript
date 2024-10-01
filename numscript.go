@@ -1,6 +1,8 @@
 package numscript
 
 import (
+	"context"
+
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -43,8 +45,8 @@ type Metadata = interpreter.Metadata
 
 type Store = interpreter.Store
 
-func (p ParseResult) Run(vars VariablesMap, store Store) (ExecutionResult, error) {
-	res, err := interpreter.RunProgram(p.parseResult.Value, vars, store)
+func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, error) {
+	res, err := interpreter.RunProgram(ctx, p.parseResult.Value, vars, store)
 	if err != nil {
 		return ExecutionResult{}, err
 	}

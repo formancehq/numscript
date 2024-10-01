@@ -1,6 +1,7 @@
 package interpreter_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/interpreter"
@@ -11,7 +12,7 @@ import (
 
 func matchErrWithSnapshots(t *testing.T, src string, vars map[string]string, runOpt interpreter.StaticStore) {
 	parsed := parser.Parse(src)
-	_, err := interpreter.RunProgram(parsed.Value, vars, runOpt)
+	_, err := interpreter.RunProgram(context.Background(), parsed.Value, vars, runOpt)
 	require.NotNil(t, err)
 	snaps.MatchSnapshot(t, err.GetRange().ShowOnSource(parsed.Source))
 }

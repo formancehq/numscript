@@ -172,6 +172,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 }
 
 func RunProgram(
+	ctx context.Context,
 	program parser.Program,
 	vars map[string]string,
 	store Store,
@@ -185,6 +186,7 @@ func RunProgram(
 		Store:              store,
 
 		CurrentBalanceQuery: BalanceQuery{},
+		ctx:                 ctx,
 	}
 
 	err := st.parseVars(program.Vars, vars)

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -114,7 +115,7 @@ func run(path string) {
 		os.Exit(1)
 	}
 
-	result, err := interpreter.RunProgram(parseResult.Value, opt.Variables, interpreter.StaticStore{
+	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
 		Meta:     opt.Meta,
 	})

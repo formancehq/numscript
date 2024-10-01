@@ -36,7 +36,7 @@ send [COIN 100] (
 			Meta:     interpreter.Metadata{"account_that_needs_meta": {"k": "source2"}},
 		},
 	}
-	_, err := parseResult.Run(numscript.VariablesMap{
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{
 		"s1": "source1",
 	},
 		&store,
@@ -93,7 +93,7 @@ func TestGetBalancesAllotment(t *testing.T) {
 		},
 	}
 
-	_, err := parseResult.Run(
+	_, err := parseResult.Run(context.Background(),
 		numscript.VariablesMap{},
 		&store,
 	)
@@ -123,7 +123,7 @@ func TestGetBalancesOverdraft(t *testing.T) {
 
 	store := ObservableStore{}
 
-	_, err := parseResult.Run(interpreter.VariablesMap{}, &store)
+	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, &store)
 	require.Nil(t, err)
 
 	require.Equal(t,

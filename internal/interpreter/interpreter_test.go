@@ -1,6 +1,7 @@
 package interpreter_test
 
 import (
+	"context"
 	"encoding/json"
 	"math/big"
 
@@ -83,7 +84,7 @@ func test(t *testing.T, testCase TestCase) {
 
 	require.NotNil(t, prog)
 
-	execResult, err := machine.RunProgram(*prog, testCase.vars, machine.StaticStore{
+	execResult, err := machine.RunProgram(context.Background(), *prog, testCase.vars, machine.StaticStore{
 		testCase.balances,
 		testCase.meta,
 	})
