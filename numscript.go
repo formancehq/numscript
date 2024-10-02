@@ -28,24 +28,28 @@ func (p ParseResult) GetParsingErrors() []ParserError {
 	return p.parseResult.Errors
 }
 
-type VariablesMap = interpreter.VariablesMap
+type (
+	VariablesMap    = interpreter.VariablesMap
+	Posting         = interpreter.Posting
+	ExecutionResult = interpreter.ExecutionResult
+	// For each account, list of the needed assets
+	BalanceQuery   = interpreter.BalanceQuery
+	MetadataQuery  = interpreter.MetadataQuery
+	AccountBalance = interpreter.AccountBalance
+	Balances       = interpreter.Balances
 
-type Posting = interpreter.Posting
+	AccountMetadata = interpreter.AccountMetadata
 
-type ExecutionResult = interpreter.ExecutionResult
+	// The newly defined account metadata after the execution
+	AccountsMetadata = interpreter.AccountsMetadata
 
-// For each account, list of the needed assets
-type BalanceQuery = interpreter.BalanceQuery
+	// The transaction metadata, set by set_tx_meta()
+	Metadata = interpreter.Metadata
 
-type MetadataQuery = interpreter.MetadataQuery
+	Store = interpreter.Store
 
-type AccountBalance = interpreter.AccountBalance
-type Balances = interpreter.Balances
-
-type AccountMetadata = interpreter.AccountMetadata
-type Metadata = interpreter.Metadata
-
-type Store = interpreter.Store
+	Value = interpreter.Value
+)
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, error) {
 	res, err := interpreter.RunProgram(ctx, p.parseResult.Value, vars, store)

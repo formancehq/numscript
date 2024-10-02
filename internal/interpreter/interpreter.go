@@ -23,16 +23,16 @@ type AccountBalance = map[string]*big.Int
 type Balances map[string]AccountBalance
 
 type AccountMetadata = map[string]string
-type Metadata map[string]AccountMetadata
+type AccountsMetadata map[string]AccountMetadata
 
 type Store interface {
 	GetBalances(context.Context, BalanceQuery) (Balances, error)
-	GetAccountsMetadata(context.Context, MetadataQuery) (Metadata, error)
+	GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error)
 }
 
 type StaticStore struct {
 	Balances Balances
-	Meta     Metadata
+	Meta     AccountsMetadata
 }
 
 func (s StaticStore) GetBalances(context.Context, BalanceQuery) (Balances, error) {
@@ -41,9 +41,9 @@ func (s StaticStore) GetBalances(context.Context, BalanceQuery) (Balances, error
 	}
 	return s.Balances, nil
 }
-func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (Metadata, error) {
+func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error) {
 	if s.Meta == nil {
-		s.Meta = Metadata{}
+		s.Meta = AccountsMetadata{}
 	}
 	return s.Meta, nil
 }
@@ -53,10 +53,14 @@ type InterpreterError interface {
 	parser.Ranged
 }
 
+type Metadata = map[string]Value
+
 type ExecutionResult struct {
-	Postings     []Posting        `json:"postings"`
-	TxMeta       map[string]Value `json:"txMeta"`
-	AccountsMeta Metadata         `json:"accountsMeta"`
+	Postings []Posting `json:"postings"`
+
+	Metadata Metadata `json:"txMeta"`
+
+	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
 }
 
 func parsePercentage(p string) big.Rat {
@@ -180,9 +184,9 @@ func RunProgram(
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
-		CachedAccountsMeta: Metadata{},
+		CachedAccountsMeta: AccountsMetadata{},
 		CachedBalances:     Balances{},
-		SetAccountsMeta:    Metadata{},
+		SetAccountsMeta:    AccountsMetadata{},
 		Store:              store,
 
 		CurrentBalanceQuery: BalanceQuery{},
@@ -218,9 +222,9 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings:     postings,
-		TxMeta:       st.TxMeta,
-		AccountsMeta: st.SetAccountsMeta,
+		Postings:         postings,
+		Metadata:         st.TxMeta,
+		AccountsMetadata: st.SetAccountsMeta,
 	}
 	return res, nil
 }
@@ -240,9 +244,9 @@ type programState struct {
 
 	Store Store
 
-	SetAccountsMeta Metadata
+	SetAccountsMeta AccountsMetadata
 
-	CachedAccountsMeta Metadata
+	CachedAccountsMeta AccountsMetadata
 	CachedBalances     Balances
 
 	CurrentBalanceQuery BalanceQuery

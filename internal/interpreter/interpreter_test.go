@@ -19,7 +19,7 @@ type TestCase struct {
 	source   string
 	program  *parser.Program
 	vars     map[string]string
-	meta     machine.Metadata
+	meta     machine.AccountsMetadata
 	balances map[string]map[string]*big.Int
 	expected CaseResult
 }
@@ -27,7 +27,7 @@ type TestCase struct {
 func NewTestCase() TestCase {
 	return TestCase{
 		vars:     make(map[string]string),
-		meta:     machine.Metadata{},
+		meta:     machine.AccountsMetadata{},
 		balances: make(map[string]map[string]*big.Int),
 		expected: CaseResult{
 			Postings:   []machine.Posting{},
@@ -106,18 +106,18 @@ func test(t *testing.T, testCase TestCase) {
 		expected.TxMetadata = make(map[string]machine.Value)
 	}
 	if expected.AccountMetadata == nil {
-		expected.AccountMetadata = machine.Metadata{}
+		expected.AccountMetadata = machine.AccountsMetadata{}
 	}
 
 	assert.Equal(t, expected.Postings, execResult.Postings)
-	assert.Equal(t, expected.TxMetadata, execResult.TxMeta)
-	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMeta)
+	assert.Equal(t, expected.TxMetadata, execResult.Metadata)
+	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMetadata)
 }
 
 type CaseResult struct {
 	Postings        []machine.Posting
 	TxMetadata      map[string]machine.Value
-	AccountMetadata machine.Metadata
+	AccountMetadata machine.AccountsMetadata
 	Error           machine.InterpreterError
 }
 
@@ -179,7 +179,7 @@ func TestSetAccountMeta(t *testing.T) {
 	`)
 
 	tc.expected = CaseResult{
-		AccountMetadata: machine.Metadata{
+		AccountMetadata: machine.AccountsMetadata{
 			"acc": {
 				"num":          "42",
 				"str":          "abc",
@@ -196,7 +196,7 @@ func TestSetAccountMeta(t *testing.T) {
 
 func TestOverrideAccountMeta(t *testing.T) {
 	tc := NewTestCase()
-	tc.meta = machine.Metadata{
+	tc.meta = machine.AccountsMetadata{
 		"acc": {
 			"initial":    "0",
 			"overridden": "1",
@@ -207,7 +207,7 @@ func TestOverrideAccountMeta(t *testing.T) {
 	set_account_meta(@acc, "new", 2)
 	`)
 	tc.expected = CaseResult{
-		AccountMetadata: machine.Metadata{
+		AccountMetadata: machine.AccountsMetadata{
 			"acc": {
 				"overridden": "100",
 				"new":        "2",
@@ -998,7 +998,7 @@ func TestMetadata(t *testing.T) {
 	tc.setVarsFromJSON(t, `{
 		"sale": "sales:042"
 	}`)
-	tc.meta = machine.Metadata{
+	tc.meta = machine.AccountsMetadata{
 		"sales:042": {
 			"seller": "users:053",
 		},

@@ -27,10 +27,10 @@ var runStdinFlag bool
 var runOutFormatOpt string
 
 type inputOpts struct {
-	Script    string               `json:"script"`
-	Variables map[string]string    `json:"variables"`
-	Meta      interpreter.Metadata `json:"metadata"`
-	Balances  interpreter.Balances `json:"balances"`
+	Script    string                       `json:"script"`
+	Variables map[string]string            `json:"variables"`
+	Meta      interpreter.AccountsMetadata `json:"metadata"`
+	Balances  interpreter.Balances         `json:"balances"`
 }
 
 func (o *inputOpts) fromRaw() {
@@ -101,7 +101,7 @@ func (o *inputOpts) fromOptions(path string) {
 func run(path string) {
 	opt := inputOpts{
 		Variables: make(map[string]string),
-		Meta:      make(interpreter.Metadata),
+		Meta:      make(interpreter.AccountsMetadata),
 		Balances:  make(interpreter.Balances),
 	}
 
@@ -164,7 +164,7 @@ func showPretty(result *interpreter.ExecutionResult) {
 	fmt.Println()
 
 	fmt.Println(ansi.ColorCyan("Meta:"))
-	txMetaJson, err := json.MarshalIndent(result.TxMeta, "", "  ")
+	txMetaJson, err := json.MarshalIndent(result.Metadata, "", "  ")
 	if err != nil {
 		panic(err)
 	}

@@ -33,7 +33,7 @@ send [COIN 100] (
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{},
-			Meta:     interpreter.Metadata{"account_that_needs_meta": {"k": "source2"}},
+			Meta:     interpreter.AccountsMetadata{"account_that_needs_meta": {"k": "source2"}},
 		},
 	}
 	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{
@@ -147,7 +147,7 @@ func (os *ObservableStore) GetBalances(ctx context.Context, q interpreter.Balanc
 
 }
 
-func (os *ObservableStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.Metadata, error) {
+func (os *ObservableStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	os.GetMetadataCalls = append(os.GetMetadataCalls, q)
 	return os.StaticStore.GetAccountsMetadata(ctx, q)
 }
