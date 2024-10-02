@@ -22,6 +22,8 @@ func Parse(code string) ParseResult {
 	return ParseResult{parseResult: parser.Parse(code)}
 }
 
+var ParseErrorsToString = parser.ParseErrorsToString
+
 func (p ParseResult) GetParsingErrors() []ParserError {
 	return p.parseResult.Errors
 }
