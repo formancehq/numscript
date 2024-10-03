@@ -2657,3 +2657,29 @@ func TestCascadingSources(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestUseBalanceTwice(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars { monetary $v = balance(@src, COIN) }
+
+	send $v (
+		source = @src
+		destination = @dest
+	)`)
+
+	tc.setBalance("src", "COIN", 50)
+	tc.expected = CaseResult{
+
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

@@ -136,6 +136,86 @@ func TestGetBalancesOverdraft(t *testing.T) {
 		store.GetBalancesCalls)
 }
 
+func TestDoNotFetchBalanceTwice(t *testing.T) {
+	parseResult := numscript.Parse(`vars { monetary $v = balance(@src, COIN) }
+
+	send $v (
+		source = @src
+		destination = @dest
+	)`)
+
+	store := ObservableStore{}
+	parseResult.Run(context.Background(), nil, &store)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"src": {"COIN"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
+func TestDoNotFetchBalanceTwice2(t *testing.T) {
+	// same test as before, but this time the second batch is not empty
+	parseResult := numscript.Parse(`vars { monetary $v = balance(@src1, COIN) }
+
+	send $v (
+		source = {
+			@src1
+			@src2
+		}
+		destination = @dest
+	)`)
+
+	store := ObservableStore{}
+	parseResult.Run(context.Background(), nil, &store)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"src1": {"COIN"},
+			},
+			{
+				"src2": {"COIN"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
+func TestDoNotFetchBalanceTwice3(t *testing.T) {
+	// same test as before, but this time the second batch requires a _different asset_
+	parseResult := numscript.Parse(`vars { monetary $eur_m = balance(@src, EUR/2) }
+
+	
+	send [USD/2 100] (
+		// note here we are fetching a different currency
+		source = @src
+		destination = @dest
+	)
+`)
+
+	store := ObservableStore{}
+	parseResult.Run(context.Background(), nil, &store)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"src": {"EUR/2"},
+			},
+			{
+				"src": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
 func TestQueryBalanceErr(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = @src

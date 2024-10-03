@@ -5,6 +5,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
+	"golang.org/x/exp/maps"
 )
 
 // traverse the script to batch in advance required balance queries
@@ -56,15 +57,34 @@ func (st *programState) batchQuery(account string, asset string) {
 }
 
 func (st *programState) runBalancesQuery() error {
-	balances, err := st.Store.GetBalances(st.ctx, st.CurrentBalanceQuery)
+	filteredQuery := BalanceQuery{}
+	for accountName, queriedCurrencies := range st.CurrentBalanceQuery {
+
+		cachedCurrenciesForAccount := defaultMapGet(st.CachedBalances, accountName, func() AccountBalance {
+			return AccountBalance{}
+		})
+
+		for _, queriedCurrency := range queriedCurrencies {
+			isAlreadyCached := slices.Contains(maps.Keys(cachedCurrenciesForAccount), queriedCurrency)
+			if !isAlreadyCached {
+				filteredQuery[accountName] = queriedCurrencies
+			}
+		}
+
+	}
+
+	// avoid updating balances if we don't need to fetch new data
+	if len(filteredQuery) == 0 {
+		return nil
+	}
+
+	balances, err := st.Store.GetBalances(st.ctx, filteredQuery)
 	if err != nil {
 		return err
 	}
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	// TODO merge maps
-	// TODO handle optimistic balances
 	st.CachedBalances = balances
 	return nil
 }
