@@ -120,15 +120,3 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		return nil
 	}
 }
-
-// func (s *programState) requestBalance(q BalanceQuery) error {
-// 	fetchedBalance, err := s.Store.GetBalances(q)
-
-// 	// TODO properly handle err
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	s.CachedBalances = fetchedBalance
-// 	return nil
-// }

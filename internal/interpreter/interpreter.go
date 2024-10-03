@@ -208,8 +208,7 @@ func RunProgram(
 
 	genericErr := st.runBalancesQuery()
 	if genericErr != nil {
-		// TODO properly handle this err
-		panic(genericErr)
+		return nil, QueryBalanceError{WrappedError: genericErr}
 	}
 
 	postings := make([]Posting, 0)
@@ -721,13 +720,11 @@ func meta(
 		return "", err
 	}
 
-	meta, e := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
-		// TODO batch queries
+	meta, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
 		*account: []string{*key},
 	})
-	// TODO properly handle
-	if e != nil {
-		panic(e)
+	if fetchMetaErr != nil {
+		return "", QueryMetadataError{WrappedError: fetchMetaErr}
 	}
 	s.CachedAccountsMeta = meta
 
@@ -758,10 +755,9 @@ func balance(
 
 	// body
 	s.batchQuery(*account, *asset)
-	genericErr := s.runBalancesQuery()
-	if genericErr != nil {
-		// TODO properly handle this err
-		panic(genericErr)
+	fetchBalanceErr := s.runBalancesQuery()
+	if fetchBalanceErr != nil {
+		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
 	}
 
 	balance := s.getCachedBalance(*account, *asset)

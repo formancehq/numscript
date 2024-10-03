@@ -165,3 +165,12 @@ type QueryBalanceError struct {
 func (e QueryBalanceError) Error() string {
 	return e.WrappedError.Error()
 }
+
+type QueryMetadataError struct {
+	parser.Range
+	WrappedError error
+}
+
+func (e QueryMetadataError) Error() string {
+	return e.WrappedError.Error()
+}

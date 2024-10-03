@@ -2,6 +2,7 @@ package numscript_test
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -135,6 +136,41 @@ func TestGetBalancesOverdraft(t *testing.T) {
 		store.GetBalancesCalls)
 }
 
+func TestQueryBalanceErr(t *testing.T) {
+	parseResult := numscript.Parse(`send [COIN 100] (
+	source = @src
+  	destination = @dest
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, &ErrorStore{})
+	require.IsType(t, err, interpreter.QueryBalanceError{})
+}
+
+func TestMetadataFetchErr(t *testing.T) {
+	parseResult := numscript.Parse(`vars {
+	number $x = meta(@acc, "k")
+}`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, &ErrorStore{})
+	require.IsType(t, err, interpreter.QueryMetadataError{})
+}
+
+func TestBalanceFunctionErr(t *testing.T) {
+	parseResult := numscript.Parse(`vars {
+	monetary $x = balance(@acc, USD/2)
+}`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, &ErrorStore{})
+	require.IsType(t, err, interpreter.QueryBalanceError{})
+}
+
 type ObservableStore struct {
 	StaticStore      interpreter.StaticStore
 	GetBalancesCalls []numscript.BalanceQuery
@@ -150,4 +186,14 @@ func (os *ObservableStore) GetBalances(ctx context.Context, q interpreter.Balanc
 func (os *ObservableStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	os.GetMetadataCalls = append(os.GetMetadataCalls, q)
 	return os.StaticStore.GetAccountsMetadata(ctx, q)
+}
+
+type ErrorStore struct{}
+
+func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
+	return nil, errors.New("Error while fetching balances")
+}
+
+func (*ErrorStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	return nil, errors.New("Error while fetching metadata")
 }
