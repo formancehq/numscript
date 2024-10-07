@@ -1690,6 +1690,21 @@ func TestNegativeBalance(t *testing.T) {
 	test(t, tc)
 }
 
+func TestNegativeBalanceLiteral(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [EUR/2 -100] (
+		source = @world
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.NegativeAmountErr{
+			Amount: machine.MonetaryInt(*big.NewInt(-100)),
+		},
+	}
+	test(t, tc)
+}
+
 func TestBalanceNotFound(t *testing.T) {
 	// TODO double check
 	tc := NewTestCase()
