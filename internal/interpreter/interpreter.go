@@ -3,7 +3,6 @@ package interpreter
 import (
 	"context"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -79,15 +78,14 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 
 	asset := parts[0]
 
-	// TODO check original numscript impl
 	rawAmount := parts[1]
-	parsedAmount, err := strconv.ParseInt(rawAmount, 0, 64)
-	if err != nil {
-		return Monetary{}, InvalidMonetaryLiteral{Source: source}
+	n, ok := new(big.Int).SetString(rawAmount, 10)
+	if !ok {
+		return Monetary{}, InvalidNumberLiteral{Source: rawAmount}
 	}
 	mon := Monetary{
 		Asset:  Asset(asset),
-		Amount: NewMonetaryInt(parsedAmount),
+		Amount: MonetaryInt(*n),
 	}
 	return mon, nil
 }

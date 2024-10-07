@@ -2749,3 +2749,42 @@ func TestInvalidNumberLiteral(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestBigIntMonetary(t *testing.T) {
+	script := `
+ 		vars { monetary $amt }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = {
+				100% to @dest
+				remaining kept
+			}
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	amt, ok := new(big.Int).SetString("99999223372036854775807", 10)
+	if !ok {
+		panic("Invalid number")
+	}
+	tc.vars = map[string]string{
+		"amt": "USD/123 " + amt.String(),
+	}
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/123",
+				Amount:      amt,
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
