@@ -63,12 +63,12 @@ type ExecutionResult struct {
 	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
 }
 
-func parsePercentage(p string) big.Rat {
+func parsePercentage(p string) *big.Rat {
 	num, den, err := parser.ParsePercentageRatio(p)
 	if err != nil {
 		panic(err)
 	}
-	return *big.NewRat(int64(num), int64(den))
+	return new(big.Rat).SetFrac(num, den)
 }
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
@@ -100,16 +100,15 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAccount:
 		return AccountAddress(rawValue), nil
 	case analysis.TypePortion:
-		return Portion(parsePercentage(rawValue)), nil
+		return Portion(*parsePercentage(rawValue)), nil
 	case analysis.TypeAsset:
 		return Asset(rawValue), nil
 	case analysis.TypeNumber:
-		// TODO check original numscript impl
-		i, err := strconv.ParseInt(rawValue, 0, 64)
-		if err != nil {
+		n, ok := new(big.Int).SetString(rawValue, 10)
+		if !ok {
 			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
-		return NewMonetaryInt(i), nil
+		return MonetaryInt(*n), nil
 	case analysis.TypeString:
 		return String(rawValue), nil
 	default:
@@ -327,7 +326,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		}
 		st.CurrentAsset = string(monetary.Asset)
 
-		monetaryAmt := big.Int(monetary.Amount)
+		monetaryAmt := (*big.Int)(&monetary.Amount)
 		if monetaryAmt.Cmp(big.NewInt(0)) == -1 {
 			return nil, NegativeAmountErr{Amount: monetary.Amount}
 		}
@@ -420,7 +419,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		// We switch to the default sending evaluation for this subsource
-		return s.trySendingUpTo(source.From, *monetary)
+		return s.trySendingUpTo(source.From, monetary)
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
@@ -432,15 +431,15 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 }
 
 // Fails if it doesn't manage to send exactly "amount"
-func (s *programState) trySendingExact(source parser.Source, amount big.Int) InterpreterError {
+func (s *programState) trySendingExact(source parser.Source, amount *big.Int) InterpreterError {
 	sentAmt, err := s.trySendingUpTo(source, amount)
 	if err != nil {
 		return err
 	}
-	if sentAmt.Cmp(&amount) != 0 {
+	if sentAmt.Cmp(amount) != 0 {
 		return MissingFundsErr{
 			Asset:     s.CurrentAsset,
-			Needed:    amount,
+			Needed:    *amount,
 			Available: *sentAmt,
 			Range:     source.GetRange(),
 		}
@@ -448,7 +447,7 @@ func (s *programState) trySendingExact(source parser.Source, amount big.Int) Int
 	return nil
 }
 
-func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -457,30 +456,28 @@ func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount
 		overdraft = nil
 	}
 
-	var actuallySentAmt big.Int
+	var actuallySentAmt *big.Int
 	if overdraft == nil {
 		// unbounded overdraft: we send the required amount
-		actuallySentAmt.Set(&amount)
+		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
 		balance := s.getCachedBalance(*account, s.CurrentAsset)
 
 		// that's the amount we are allowed to send (balance + overdraft)
-		var safeSendAmt big.Int
-		safeSendAmt.Add(balance, overdraft)
-
-		actuallySentAmt = *utils.MinBigInt(&safeSendAmt, &amount)
+		safeSendAmt := new(big.Int).Add(balance, overdraft)
+		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
 
 	s.Senders = append(s.Senders, Sender{
 		Name:     *account,
-		Monetary: &actuallySentAmt,
+		Monetary: actuallySentAmt,
 	})
-	return &actuallySentAmt, nil
+	return actuallySentAmt, nil
 }
 
 // Tries sending "amount" and returns the actually sent amt.
 // Doesn't fail (unless nested sources fail)
-func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*big.Int, InterpreterError) {
+func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		return s.trySendingToAccount(source.Literal, amount, big.NewInt(0))
@@ -497,44 +494,40 @@ func (s *programState) trySendingUpTo(source parser.Source, amount big.Int) (*bi
 		return s.trySendingToAccount(source.Address, amount, cap)
 
 	case *parser.SourceInorder:
-		var totalLeft big.Int
-		totalLeft.Set(&amount)
+		totalLeft := new(big.Int).Set(amount)
 		for _, source := range source.Sources {
 			sentAmt, err := s.trySendingUpTo(source, totalLeft)
 			if err != nil {
 				return nil, err
 			}
-			totalLeft.Sub(&totalLeft, sentAmt)
+			totalLeft.Sub(totalLeft, sentAmt)
 		}
-
-		var sentAmt big.Int
-		sentAmt.Sub(&amount, &totalLeft)
-		return &sentAmt, nil
+		return new(big.Int).Sub(amount, totalLeft), nil
 
 	case *parser.SourceAllotment:
 		var items []parser.AllotmentValue
 		for _, i := range source.Items {
 			items = append(items, i.Allotment)
 		}
-		allot, err := s.makeAllotment(amount.Int64(), items)
+		allot, err := s.makeAllotment(amount, items)
 		if err != nil {
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			err := s.trySendingExact(allotmentItem.From, *big.NewInt(allot[i]))
+			err := s.trySendingExact(allotmentItem.From, allot[i])
 			if err != nil {
 				return nil, err
 			}
 		}
-		return &amount, nil
+		return amount, nil
 
 	case *parser.SourceCapped:
 		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
-		cappedAmount := utils.MinBigInt(&amount, cap)
-		return s.trySendingUpTo(source.From, *cappedAmount)
+		cappedAmount := utils.MinBigInt(amount, cap)
+		return s.trySendingUpTo(source.From, cappedAmount)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
@@ -563,14 +556,14 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 			items = append(items, i.Allotment)
 		}
 
-		allot, err := s.makeAllotment(amount.Int64(), items)
+		allot, err := s.makeAllotment(amount, items)
 		if err != nil {
 			return err
 		}
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
-			amtToReceive := big.NewInt(allot[i])
+			amtToReceive := allot[i]
 			err := s.receiveFromKeptOrDest(allotmentItem.To, amtToReceive)
 			if err != nil {
 				return err
@@ -581,15 +574,14 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		return nil
 
 	case *parser.DestinationInorder:
-		var remainingAmount big.Int
-		remainingAmount.Set(amount)
+		remainingAmount := new(big.Int).Set(amount)
 
-		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive big.Int) InterpreterError {
-			err := s.receiveFromKeptOrDest(keptOrDest, &amountToReceive)
+		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive *big.Int) InterpreterError {
+			err := s.receiveFromKeptOrDest(keptOrDest, amountToReceive)
 			if err != nil {
 				return err
 			}
-			remainingAmount.Sub(&remainingAmount, &amountToReceive)
+			remainingAmount.Sub(remainingAmount, amountToReceive)
 			return err
 		}
 
@@ -605,16 +597,16 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 				break
 			}
 
-			err = handler(destinationClause.To, *utils.MinBigInt(cap, &remainingAmount))
+			err = handler(destinationClause.To, utils.MinBigInt(cap, remainingAmount))
 			if err != nil {
 				return err
 			}
 
 		}
 
-		var cp big.Int // if remainingAmount bad things with pointers happen.. somehow
-		cp.Set(&remainingAmount)
-		return handler(destination.Remaining, cp)
+		remainingAmountCopy := new(big.Int).Set(remainingAmount)
+		// passing "remainingAmount" directly breaks the code
+		return handler(destination.Remaining, remainingAmountCopy)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
@@ -641,19 +633,18 @@ func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination
 
 }
 
-func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentValue) ([]int64, InterpreterError) {
-	// TODO runtime error when totalAllotment != 1?
+func (s *programState) makeAllotment(monetary *big.Int, items []parser.AllotmentValue) ([]*big.Int, InterpreterError) {
 	totalAllotment := big.NewRat(0, 1)
-	var allotments []big.Rat
+	var allotments []*big.Rat
 
 	remainingAllotmentIndex := -1
 
 	for i, item := range items {
 		switch allotment := item.(type) {
 		case *parser.RatioLiteral:
-			rat := big.NewRat(int64(allotment.Numerator), int64(allotment.Denominator))
+			rat := allotment.ToRatio()
 			totalAllotment.Add(totalAllotment, rat)
-			allotments = append(allotments, *rat)
+			allotments = append(allotments, rat)
 		case *parser.VariableLiteral:
 			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
 			if err != nil {
@@ -661,45 +652,44 @@ func (s *programState) makeAllotment(monetary int64, items []parser.AllotmentVal
 			}
 
 			totalAllotment.Add(totalAllotment, rat)
-			allotments = append(allotments, *rat)
+			allotments = append(allotments, rat)
 
 		case *parser.RemainingAllotment:
 			remainingAllotmentIndex = i
-			var rat big.Rat
-			allotments = append(allotments, rat)
+			allotments = append(allotments, new(big.Rat))
 			// TODO check there are not duplicate remaining clause
 		}
 	}
 
 	if remainingAllotmentIndex != -1 {
-		var rat big.Rat
-		rat.Sub(big.NewRat(1, 1), totalAllotment)
-		allotments[remainingAllotmentIndex] = rat
+		allotments[remainingAllotmentIndex] = new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
 	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}
 
-	parts := make([]int64, len(allotments))
+	parts := make([]*big.Int, len(allotments))
 
-	var totalAllocated int64
+	totalAllocated := big.NewInt(0)
 
 	for i, allot := range allotments {
-		var product big.Rat
-		product.Mul(&allot, big.NewRat(monetary, 1))
+		monetaryRat := new(big.Rat).SetInt(monetary)
+		product := new(big.Rat).Mul(allot, monetaryRat)
 
-		floored := product.Num().Int64() / product.Denom().Int64()
+		floored := new(big.Int).Div(product.Num(), product.Denom())
 
 		parts[i] = floored
-		totalAllocated += floored
+		totalAllocated.Add(totalAllocated, floored)
+
 	}
 
 	for i := range parts {
-		if totalAllocated >= monetary {
+		if /* totalAllocated >= monetary */ totalAllocated.Cmp(monetary) != -1 {
 			break
 		}
 
-		parts[i]++
-		totalAllocated++
+		parts[i].Add(parts[i], big.NewInt(1))
+		// totalAllocated++
+		totalAllocated.Add(totalAllocated, big.NewInt(1))
 	}
 
 	return parts, nil
@@ -768,12 +758,11 @@ func balance(
 		}
 	}
 
-	var balanceCopy big.Int
-	balanceCopy.Set(balance)
+	balanceCopy := new(big.Int).Set(balance)
 
 	m := Monetary{
 		Asset:  Asset(*asset),
-		Amount: MonetaryInt(balanceCopy),
+		Amount: MonetaryInt(*balanceCopy),
 	}
 	return &m, nil
 }

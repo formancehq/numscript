@@ -2,6 +2,7 @@ package parser
 
 import (
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -230,18 +231,20 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	}
 }
 
+func unsafeParseBigInt(s string) *big.Int {
+	s = strings.TrimSpace(s)
+	i, ok := new(big.Int).SetString(s, 10)
+	if !ok {
+		panic("invalid int: " + s)
+	}
+	return i
+}
+
 func parseRatio(source string, range_ Range) *RatioLiteral {
 	split := strings.Split(source, "/")
 
-	num, err := strconv.ParseUint(strings.TrimSpace(split[0]), 0, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	den, err := strconv.ParseUint(strings.TrimSpace(split[1]), 0, 64)
-	if err != nil {
-		panic(err)
-	}
+	num := unsafeParseBigInt(split[0])
+	den := unsafeParseBigInt(split[1])
 
 	return &RatioLiteral{
 		Range:       range_,
@@ -250,11 +253,12 @@ func parseRatio(source string, range_ Range) *RatioLiteral {
 	}
 }
 
-func ParsePercentageRatio(source string) (uint64, uint64, error) {
+// TODO actually handle big int
+func ParsePercentageRatio(source string) (*big.Int, *big.Int, error) {
 	str := strings.TrimSuffix(source, "%")
 	num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
 	if err != nil {
-		return 0, 0, err
+		return nil, nil, err
 	}
 
 	var denominator uint64
@@ -267,7 +271,7 @@ func ParsePercentageRatio(source string) (uint64, uint64, error) {
 		denominator = 100
 	}
 
-	return num, denominator, nil
+	return big.NewInt(int64(num)), big.NewInt(int64(denominator)), nil
 }
 
 func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
