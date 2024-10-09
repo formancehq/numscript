@@ -66,17 +66,17 @@ func (d lines) fit(s *state, mode Mode, indentation int) {
 }
 
 func (d break_) fit(s *state, mode Mode, indentation int) {
-	switch mode {
-	case ModeBroken:
-		// Exit immediately by emptying the queue
-		s.queue = NewQueue[queueItem]()
+	s.queue = NewQueue[queueItem]()
+	// switch mode {
+	// case ModeBroken:
+	// 	// Exit immediately by emptying the queue
 
-	case ModeUnbroken:
-		s.width -= len(d.Unbroken)
+	// case ModeUnbroken:
+	// 	s.width -= len(d.Unbroken)
 
-	default:
-		utils.NonExhaustiveMatchPanic[any](mode)
-	}
+	// default:
+	// 	utils.NonExhaustiveMatchPanic[any](mode)
+	// }
 }
 
 func (d nest) fit(s *state, mode Mode, indentation int) {
