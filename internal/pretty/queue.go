@@ -11,6 +11,15 @@ func NewQueue[T any]() Queue[T] {
 	return Queue[T]{}
 }
 
+func NewQueueOf[T any](ts ...T) Queue[T] {
+	slices.Reverse(ts)
+	q := NewQueue[T]()
+	for _, x := range ts {
+		q.PushFront(x)
+	}
+	return q
+}
+
 func (q *Queue[T]) PushFront(x T) {
 	q.items = append(q.items, x)
 }
