@@ -3,7 +3,7 @@ package pretty_test
 import (
 	"testing"
 
-	"github.com/formancehq/numscript/pretty"
+	"github.com/formancehq/numscript/internal/pretty"
 
 	"github.com/stretchr/testify/require"
 )
