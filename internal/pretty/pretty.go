@@ -1,7 +1,10 @@
 package pretty
 
 import (
+	"slices"
 	"strings"
+
+	"github.com/formancehq/numscript/internal/utils"
 )
 
 type Mode = byte
@@ -27,7 +30,7 @@ type state struct {
 
 type Document interface {
 	render(s *state, mode Mode, indentation int)
-	fit(s *state, mode Mode, indentation int, width int)
+	fit(s *state, mode Mode, indentation int)
 }
 
 type (
@@ -40,23 +43,35 @@ type (
 )
 
 // Fits
-func (d text) fit(s *state, mode Mode, indentation int, width int) {
-	// width -= doc.text.length;
+func (d text) fit(s *state, mode Mode, indentation int) {
+	s.width -= len(d.Text)
 }
 
-func (d concat) fit(s *state, mode Mode, indentation int, width int) {
+func (d concat) fit(s *state, mode Mode, indentation int) {
+	// Push docs in reverse order
+	docsCopy := slices.Clone(d.Documents)
+	slices.Reverse(docsCopy)
+
+	for _, doc := range docsCopy {
+		s.queue.PushFront(queueItem{
+			mode:        mode,
+			indentation: indentation,
+			doc:         doc,
+		})
+	}
 }
 
-func (d lines) fit(s *state, mode Mode, indentation int, width int) {
+func (d lines) fit(s *state, mode Mode, indentation int) {
 }
 
-func (d break_) fit(s *state, mode Mode, indentation int, width int) {
+func (d break_) fit(s *state, mode Mode, indentation int) {
 }
 
-func (d nest) fit(s *state, mode Mode, indentation int, width int) {
+func (d nest) fit(s *state, mode Mode, indentation int) {
 }
 
-func (d group) fit(s *state, mode Mode, indentation int, width int) {
+func (d group) fit(s *state, mode Mode, indentation int) {
+	panic("GROUP")
 }
 
 // Render
@@ -83,7 +98,17 @@ func (d lines) render(s *state, mode Mode, indentation int) {
 }
 
 func (d break_) render(s *state, mode Mode, indentation int) {
-	s.builder.WriteString(d.Unbroken)
+	switch mode {
+	case ModeBroken:
+		s.builder.WriteByte('\n')
+		// TODO restore indentation
+
+	case ModeUnbroken:
+		s.builder.WriteString(d.Unbroken)
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](mode)
+	}
 }
 
 func (d nest) render(s *state, mode Mode, indentation int) {
@@ -105,8 +130,22 @@ func (d group) render(s *state, mode Mode, indentation int) {
 	// 	tail: null,
 	//   });
 
+	stateCopy := state{
+		opt:   s.opt,
+		width: s.opt.maxWidth - s.width,
+		queue: NewQueueOf(queueItem{
+			doc:         d.Document,
+			indentation: indentation,
+			mode:        mode,
+		}),
+
+		// Do not pass the builder
+		// this will result in a runtime error if accessed
+		// however the fit() function is not supposed to write on the buffer
+	}
+
 	var nestedMode Mode
-	if s.fits(s.opt.maxWidth - s.width) {
+	if stateCopy.fits() {
 		nestedMode = ModeUnbroken
 	} else {
 		nestedMode = ModeBroken
@@ -148,14 +187,14 @@ func PrintDefault(d Document) string {
 	return NewPrintBuilder().Print(d)
 }
 
-func (s *state) fits(width int) bool {
+func (s state) fits() bool {
 	for !s.queue.IsEmpty() {
-		if width < 0 {
+		if s.width < 0 {
 			return false
 		}
 
 		item := s.queue.Pop()
-		item.doc.fit(s, item.mode, item.indentation, width)
+		item.doc.fit(&s, item.mode, item.indentation)
 	}
 
 	return true
