@@ -62,16 +62,33 @@ func (d concat) fit(s *state, mode Mode, indentation int) {
 }
 
 func (d lines) fit(s *state, mode Mode, indentation int) {
+	// Lines always fits
 }
 
 func (d break_) fit(s *state, mode Mode, indentation int) {
+	switch mode {
+	case ModeBroken:
+		// Exit immediately by emptying the queue
+		s.queue = NewQueue[queueItem]()
+
+	case ModeUnbroken:
+		s.width -= len(d.Unbroken)
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](mode)
+	}
 }
 
 func (d nest) fit(s *state, mode Mode, indentation int) {
+	s.queue.PushFront(queueItem{
+		mode:        mode,
+		doc:         d.Document,
+		indentation: indentation + s.opt.nestSize,
+	})
 }
 
 func (d group) fit(s *state, mode Mode, indentation int) {
-	panic("GROUP")
+	panic("TODO fits group")
 }
 
 // Render
@@ -101,7 +118,9 @@ func (d break_) render(s *state, mode Mode, indentation int) {
 	switch mode {
 	case ModeBroken:
 		s.builder.WriteByte('\n')
-		// TODO restore indentation
+		// Restore indentation
+		padding := strings.Repeat(string(s.opt.indentationSymbol), indentation)
+		s.builder.WriteString(padding)
 
 	case ModeUnbroken:
 		s.builder.WriteString(d.Unbroken)
@@ -123,13 +142,6 @@ func (d nest) render(s *state, mode Mode, indentation int) {
 }
 
 func (d group) render(s *state, mode Mode, indentation int) {
-	// const fit = fits(maxWidth - width, nestSize, {
-	// 	indentation,
-	// 	mode: "unbroken",
-	// 	doc,
-	// 	tail: null,
-	//   });
-
 	stateCopy := state{
 		opt:   s.opt,
 		width: s.opt.maxWidth - s.width,
