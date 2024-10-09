@@ -11,6 +11,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDoNotGetWorldBalance(t *testing.T) {
+	parseResult := numscript.Parse(`send [COIN 100] (
+	source = @world
+  	destination = @dest
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+			Meta:     interpreter.AccountsMetadata{},
+		},
+	}
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{},
+		&store,
+	)
+	require.Nil(t, err)
+
+	require.Equal(t,
+		([]numscript.BalanceQuery)(nil),
+		store.GetBalancesCalls)
+}
+
 func TestGetBalancesInorder(t *testing.T) {
 	parseResult := numscript.Parse(`vars {
 	account $s1
