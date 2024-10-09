@@ -49,9 +49,11 @@ type (
 	Store = interpreter.Store
 
 	Value = interpreter.Value
+
+	InterpreterError = interpreter.InterpreterError
 )
 
-func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, error) {
+func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
 	res, err := interpreter.RunProgram(ctx, p.parseResult.Value, vars, store)
 	if err != nil {
 		return ExecutionResult{}, err
