@@ -60,3 +60,7 @@ func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (E
 	}
 	return *res, nil
 }
+
+func (p ParseResult) GetSource() string {
+	return p.parseResult.Source
+}
