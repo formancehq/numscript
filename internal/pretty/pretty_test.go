@@ -89,3 +89,33 @@ func TestBreakWhenNotEnoughSpace(t *testing.T) {
 	out := NewPrintBuilder().WithMaxWidth(1).Print(doc)
 	require.Equal(t, "ab\ncd", out)
 }
+
+func TestNestedWhenUnbroken(t *testing.T) {
+	doc := Concat(
+		Text("ab"),
+		Nest(
+			Concat(
+				SpaceBreak(),
+				Text("cd"),
+			),
+		),
+	)
+
+	out := NewPrintBuilder().WithMaxWidth(1000000).Print(doc)
+	require.Equal(t, "ab cd", out)
+}
+
+func TestNestedWhenBroken(t *testing.T) {
+	doc := Concat(
+		Text("ab"),
+		Nest(
+			Concat(
+				SpaceBreak(),
+				Text("cd"),
+			),
+		),
+	)
+
+	out := NewPrintBuilder().WithMaxWidth(1).Print(doc)
+	require.Equal(t, "ab\n  cd", out)
+}
