@@ -100,6 +100,34 @@ func TestInorderDest(t *testing.T) {
 	AssertIsFormatted(t, src)
 }
 
+func TestAllotmentSrc(t *testing.T) {
+	src := `send $amount (
+  source = {
+    1/3 from @a
+    4% from @a1
+    $var from @b
+    remaining from @r
+  }
+  destination = @dest
+)`
+
+	AssertIsFormatted(t, src)
+}
+
+func TestAllotmentDest(t *testing.T) {
+	src := `send $amount (
+  source = @src
+  destination = {
+    1/3 to @a
+    4% kept
+    $var to @b
+    remaining to @r
+  }
+)`
+
+	AssertIsFormatted(t, src)
+}
+
 func AssertIsFormatted(t *testing.T, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)

@@ -2,6 +2,7 @@ package format
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -45,7 +46,10 @@ func fmtLit(lit parser.Literal) string {
 		return lit.Asset
 
 	case *parser.RatioLiteral:
-		panic("TODO ratio lit")
+		if lit.Denominator.Cmp(big.NewInt(100)) == 0 {
+			return lit.Numerator.String() + "%"
+		}
+		return fmt.Sprintf("%s/%s", lit.Numerator.String(), lit.Denominator.String())
 
 	case *parser.NumberLiteral:
 		return fmt.Sprint(lit.Number)
@@ -69,6 +73,22 @@ func fmtSentValue(sentValue parser.SentValue) string {
 	}
 }
 
+func fmtAllotmentValue(allot parser.AllotmentValue) string {
+	switch allot := allot.(type) {
+	case *parser.RatioLiteral:
+		return fmtLit(allot)
+
+	case *parser.VariableLiteral:
+		return fmtLit(allot)
+
+	case *parser.RemainingAllotment:
+		return "remaining"
+
+	default:
+		return utils.NonExhaustiveMatchPanic[string](allot)
+	}
+}
+
 func fmtSrc(src parser.Source) string {
 	switch src := src.(type) {
 	case *parser.SourceAccount:
@@ -87,7 +107,12 @@ func fmtSrc(src parser.Source) string {
 		return fmt.Sprintf("max %s from %s", fmtLit(src.Cap), fmtSrc(src.From))
 
 	case *parser.SourceAllotment:
-		panic("TODO src allot")
+		var lines []string
+		for _, item := range src.Items {
+			s := fmt.Sprintf("%s from %s", fmtAllotmentValue(item.Allotment), fmtSrc(item.From))
+			lines = append(lines, s)
+		}
+		return block(strings.Join(lines, "\n"))
 
 	case *parser.SourceOverdraft:
 		panic("TODO src overdraft")
@@ -129,7 +154,12 @@ func fmtDest(dest parser.Destination) string {
 		)
 
 	case *parser.DestinationAllotment:
-		panic("TODO Dest allot")
+		var lines []string
+		for _, item := range dest.Items {
+			s := fmt.Sprintf("%s %s", fmtAllotmentValue(item.Allotment), fmtKeptorDest(item.To))
+			lines = append(lines, s)
+		}
+		return block(strings.Join(lines, "\n"))
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](dest)
