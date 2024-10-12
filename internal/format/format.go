@@ -12,6 +12,13 @@ func Format(program parser.Program) string {
 	return fmtProgram(program)
 }
 
+func block(inner string) string {
+	return fmt.Sprintf(
+		"{\n%s}",
+		nest(inner),
+	)
+}
+
 func nest(srcs ...string) string {
 	src := strings.Join(srcs, "")
 
@@ -72,9 +79,8 @@ func fmtSrc(src parser.Source) string {
 		for _, subSrc := range src.Sources {
 			lines = append(lines, fmtSrc(subSrc))
 		}
-		return fmt.Sprintf(
-			"{\n%s}",
-			nest(strings.Join(lines, "\n")),
+		return block(
+			strings.Join(lines, "\n"),
 		)
 
 	case *parser.SourceCapped:
@@ -118,10 +124,8 @@ func fmtDest(dest parser.Destination) string {
 
 		s := fmt.Sprintf("remaining %s", fmtKeptorDest(dest.Remaining))
 		lines = append(lines, s)
-
-		return fmt.Sprintf(
-			"{\n%s}",
-			nest(strings.Join(lines, "\n")),
+		return block(
+			strings.Join(lines, "\n"),
 		)
 
 	case *parser.DestinationAllotment:
