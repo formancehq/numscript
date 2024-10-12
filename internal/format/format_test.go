@@ -18,6 +18,21 @@ func TestFormatSimpleAddr(t *testing.T) {
 	AssertIsFormatted(t, src)
 }
 
+func TestFormatManyStatements(t *testing.T) {
+
+	src := `send $amount (
+  source = $src
+  destination = $dest
+)
+
+send $amount (
+  source = $src
+  destination = $dest
+)`
+
+	AssertIsFormatted(t, src)
+}
+
 func TestSendAll(t *testing.T) {
 	src := `send [COIN *] (
   source = @src
