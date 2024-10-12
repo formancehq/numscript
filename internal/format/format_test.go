@@ -18,6 +18,33 @@ func TestFormatSimpleAddr(t *testing.T) {
 	AssertIsFormatted(t, src)
 }
 
+func TestSendAll(t *testing.T) {
+	src := `send [COIN *] (
+  source = @src
+  destination = @dest
+)`
+
+	AssertIsFormatted(t, src)
+}
+
+func TestOverdraftUnbounded(t *testing.T) {
+	src := `send $ass (
+  source = @src allowing unbounded overdraft
+  destination = @dest
+)`
+
+	AssertIsFormatted(t, src)
+}
+
+func TestOverdraftBounded(t *testing.T) {
+	src := `send $ass (
+  source = @src allowing overdraft up to $x
+  destination = @dest
+)`
+
+	AssertIsFormatted(t, src)
+}
+
 func TestFormatMonetary(t *testing.T) {
 	src := `send [COIN 100] (
   source = $src

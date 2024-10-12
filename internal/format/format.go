@@ -63,7 +63,7 @@ func fmtLit(lit parser.Literal) string {
 func fmtSentValue(sentValue parser.SentValue) string {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		panic("TODO send*")
+		return fmt.Sprintf("[%s *]", fmtLit(sentValue.Asset))
 
 	case *parser.SentValueLiteral:
 		return fmtLit(sentValue.Monetary)
@@ -115,7 +115,11 @@ func fmtSrc(src parser.Source) string {
 		return block(strings.Join(lines, "\n"))
 
 	case *parser.SourceOverdraft:
-		panic("TODO src overdraft")
+		if src.Bounded == nil {
+			return fmt.Sprintf("%s allowing unbounded overdraft", fmtLit(src.Address))
+		}
+
+		return fmt.Sprintf("%s allowing overdraft up to %s", fmtLit(src.Address), fmtLit(*src.Bounded))
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](src)
