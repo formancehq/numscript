@@ -175,7 +175,7 @@ func fmtProgram(program parser.Program) string {
 	for _, statement := range program.Statements {
 		statementsDocs = append(statementsDocs, fmtStatement(statement))
 	}
-	return strings.Join(statementsDocs, "\n")
+	return strings.Join(statementsDocs, "\n\n")
 }
 
 func fmtStatement(statement parser.Statement) string {
