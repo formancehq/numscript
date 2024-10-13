@@ -178,6 +178,18 @@ example_fn(@acc, EUR, 1/2)`
 	AssertIsFormatted(t, src)
 }
 
+func TestVars(t *testing.T) {
+	src := `vars {
+  monetary $x
+  account $a
+  number $a = meta(@acc, "k")
+  portion $a = something(ASSET, EUR/2, 42)
+}
+`
+
+	AssertIsFormatted(t, src)
+}
+
 func AssertIsFormatted(t *testing.T, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
