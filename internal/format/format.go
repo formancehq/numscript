@@ -54,6 +54,9 @@ func fmtLit(lit parser.Literal) string {
 	case *parser.NumberLiteral:
 		return fmt.Sprint(lit.Number)
 
+	case *parser.StringLiteral:
+		return fmt.Sprintf(`"%s"`, lit.String)
+
 	default:
 		return utils.NonExhaustiveMatchPanic[string](lit)
 	}
@@ -196,7 +199,11 @@ func fmtStatement(statement parser.Statement) string {
 		)
 
 	case *parser.FnCall:
-		panic("fnCall")
+		var args []string
+		for _, arg := range statement.Args {
+			args = append(args, fmtLit(arg))
+		}
+		return fmt.Sprintf("%s(%s)", statement.Caller.Name, strings.Join(args, ", "))
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](statement)
