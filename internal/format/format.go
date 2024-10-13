@@ -189,15 +189,19 @@ func fmtVars(vars []parser.VarDeclaration) string {
 		lines = append(lines, s)
 	}
 
-	return fmt.Sprintf("vars %s\n", block(strings.Join(lines, "\n")))
+	return fmt.Sprintf("vars %s\n", block(strings.Join(lines, "\n"))) + "\n"
 }
 
 func fmtStatements(statements []parser.Statement) string {
+	if len(statements) == 0 {
+		return ""
+	}
+
 	var statementsDocs []string
 	for _, statement := range statements {
 		statementsDocs = append(statementsDocs, fmtStatement(statement))
 	}
-	return strings.Join(statementsDocs, "\n\n")
+	return strings.Join(statementsDocs, "\n\n") + "\n"
 }
 
 func fmtProgram(program parser.Program) string {
