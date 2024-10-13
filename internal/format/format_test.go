@@ -170,6 +170,14 @@ func TestAllotmentDest(t *testing.T) {
 	AssertIsFormatted(t, src)
 }
 
+func TestFnCall(t *testing.T) {
+	src := `set_tx_meta("k", 42)
+
+example_fn(@acc, EUR, 1/2)`
+
+	AssertIsFormatted(t, src)
+}
+
 func AssertIsFormatted(t *testing.T, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
@@ -177,8 +185,3 @@ func AssertIsFormatted(t *testing.T, src string) {
 	formatted := format.Format(parsed.Value)
 	require.Equal(t, src, formatted)
 }
-
-// TODO vars
-// TODO allotment
-// TODO inorder
-// TODO max
