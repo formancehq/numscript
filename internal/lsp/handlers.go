@@ -3,8 +3,10 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/format"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 
@@ -140,6 +142,31 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 	}
 }
 
+func (state *State) handleFormat(params DocumentFormattingParams) []TextEdit {
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+
+	formatted := format.Format(doc.CheckResult.Program)
+
+	lines := strings.Split(doc.Text, "\n")
+	lastLine := lines[len(lines)-1]
+
+	return []TextEdit{
+		{
+			Range: Range{
+				Start: Position{},
+				End: Position{
+					Character: uint32(len(lastLine)),
+					Line:      uint32(len(lines)),
+				},
+			},
+			NewText: formatted,
+		},
+	}
+}
+
 func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymbol {
 	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
@@ -169,9 +196,10 @@ func Handle(r jsonrpc2.Request, state State) any {
 					OpenClose: true,
 					Change:    Full,
 				},
-				HoverProvider:          true,
-				DefinitionProvider:     true,
-				DocumentSymbolProvider: true,
+				HoverProvider:              true,
+				DefinitionProvider:         true,
+				DocumentSymbolProvider:     true,
+				DocumentFormattingProvider: true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -210,6 +238,11 @@ func Handle(r jsonrpc2.Request, state State) any {
 		var p DocumentSymbolParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleGetSymbols(p)
+
+	case "textDocument/formatting":
+		var p DocumentFormattingParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleFormat(p)
 
 	default:
 		// Unhandled method
