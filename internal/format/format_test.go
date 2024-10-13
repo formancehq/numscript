@@ -13,7 +13,8 @@ func TestFormatSimpleAddr(t *testing.T) {
 	src := `send $amount (
   source = $src
   destination = $dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -28,7 +29,8 @@ func TestFormatManyStatements(t *testing.T) {
 send $amount (
   source = $src
   destination = $dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -37,7 +39,8 @@ func TestSendAll(t *testing.T) {
 	src := `send [COIN *] (
   source = @src
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -46,7 +49,8 @@ func TestOverdraftUnbounded(t *testing.T) {
 	src := `send $ass (
   source = @src allowing unbounded overdraft
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -55,7 +59,8 @@ func TestOverdraftBounded(t *testing.T) {
 	src := `send $ass (
   source = @src allowing overdraft up to $x
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -64,7 +69,8 @@ func TestFormatMonetary(t *testing.T) {
 	src := `send [COIN 100] (
   source = $src
   destination = $dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -73,7 +79,8 @@ func TestFormatMaxSrc(t *testing.T) {
 	src := `send $amt (
   source = max [COIN 10] from $src
   destination = $dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -82,7 +89,8 @@ func TestFormatAddr(t *testing.T) {
 	src := `send $amount (
   source = @src
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -94,7 +102,8 @@ func TestInorder(t *testing.T) {
     @s2
   }
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -109,7 +118,8 @@ func TestInorderSrcNested(t *testing.T) {
     }
   }
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -124,7 +134,8 @@ func TestInorderSrcNestedInMax(t *testing.T) {
     }
   }
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -137,7 +148,8 @@ func TestInorderDest(t *testing.T) {
     max [COIN 10] kept
     remaining to @d3
   }
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -151,7 +163,8 @@ func TestAllotmentSrc(t *testing.T) {
     remaining from @r
   }
   destination = @dest
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -165,7 +178,8 @@ func TestAllotmentDest(t *testing.T) {
     $var to @b
     remaining to @r
   }
-)`
+)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -173,7 +187,8 @@ func TestAllotmentDest(t *testing.T) {
 func TestFnCall(t *testing.T) {
 	src := `set_tx_meta("k", 42)
 
-example_fn(@acc, EUR, 1/2)`
+example_fn(@acc, EUR, 1/2)
+`
 
 	AssertIsFormatted(t, src)
 }
@@ -185,11 +200,27 @@ func TestVars(t *testing.T) {
   number $a = meta(@acc, "k")
   portion $a = something(ASSET, EUR/2, 42)
 }
+
 `
 
 	AssertIsFormatted(t, src)
 }
 
+func TestMixAll(t *testing.T) {
+	src := `vars {
+  monetary $amt
+}
+
+send $amt (
+  source = @a
+  destination = @b
+)
+
+set_tx_meta("k", 42)
+`
+
+	AssertIsFormatted(t, src)
+}
 func AssertIsFormatted(t *testing.T, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
