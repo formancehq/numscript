@@ -173,12 +173,35 @@ func fmtDest(dest parser.Destination) string {
 	}
 }
 
-func fmtProgram(program parser.Program) string {
+func fmtVars(vars []parser.VarDeclaration) string {
+	if len(vars) == 0 {
+		return ""
+	}
+
+	var lines []string
+	for _, varDecl := range vars {
+		origin := ""
+		if varDecl.Origin != nil {
+			origin = " = " + fmtFnCall(*varDecl.Origin)
+		}
+
+		s := fmt.Sprintf("%s $%s%s", varDecl.Type.Name, varDecl.Name.Name, origin)
+		lines = append(lines, s)
+	}
+
+	return fmt.Sprintf("vars %s\n", block(strings.Join(lines, "\n")))
+}
+
+func fmtStatements(statements []parser.Statement) string {
 	var statementsDocs []string
-	for _, statement := range program.Statements {
+	for _, statement := range statements {
 		statementsDocs = append(statementsDocs, fmtStatement(statement))
 	}
 	return strings.Join(statementsDocs, "\n\n")
+}
+
+func fmtProgram(program parser.Program) string {
+	return fmt.Sprint(fmtVars(program.Vars), fmtStatements(program.Statements))
 }
 
 func fmtStatement(statement parser.Statement) string {
@@ -199,13 +222,17 @@ func fmtStatement(statement parser.Statement) string {
 		)
 
 	case *parser.FnCall:
-		var args []string
-		for _, arg := range statement.Args {
-			args = append(args, fmtLit(arg))
-		}
-		return fmt.Sprintf("%s(%s)", statement.Caller.Name, strings.Join(args, ", "))
+		return fmtFnCall(*statement)
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](statement)
 	}
+}
+
+func fmtFnCall(fnCall parser.FnCall) string {
+	var args []string
+	for _, arg := range fnCall.Args {
+		args = append(args, fmtLit(arg))
+	}
+	return fmt.Sprintf("%s(%s)", fnCall.Caller.Name, strings.Join(args, ", "))
 }
