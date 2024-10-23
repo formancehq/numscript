@@ -48,6 +48,8 @@ type (
 
 	Store = interpreter.Store
 
+	StaticStore = interpreter.StaticStore
+
 	Value = interpreter.Value
 
 	InterpreterError = interpreter.InterpreterError
