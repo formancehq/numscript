@@ -140,6 +140,13 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 		}
 		return *monetary, nil
 
+	case analysis.FnVarOriginOverdraft:
+		monetary, err := overdraft(s, fnCall.Range, args)
+		if err != nil {
+			return nil, err
+		}
+		return *monetary, nil
+
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
 	}
@@ -764,6 +771,22 @@ func meta(
 	return value, nil
 }
 
+// Utility function to get the balance
+func getBalance(
+	s *programState,
+	account string,
+	asset string,
+) (*big.Int, InterpreterError) {
+	s.batchQuery(account, asset)
+	fetchBalanceErr := s.runBalancesQuery()
+	if fetchBalanceErr != nil {
+		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+	}
+	balance := s.getCachedBalance(account, asset)
+	return balance, nil
+
+}
+
 func balance(
 	s *programState,
 	r parser.Range,
@@ -779,13 +802,12 @@ func balance(
 	}
 
 	// body
-	s.batchQuery(*account, *asset)
-	fetchBalanceErr := s.runBalancesQuery()
-	if fetchBalanceErr != nil {
-		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+
+	balance, err := getBalance(s, *account, *asset)
+	if err != nil {
+		return nil, err
 	}
 
-	balance := s.getCachedBalance(*account, *asset)
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, NegativeBalanceError{
 			Account: *account,
@@ -800,6 +822,40 @@ func balance(
 		Amount: MonetaryInt(*balanceCopy),
 	}
 	return &m, nil
+}
+
+func overdraft(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (*Monetary, InterpreterError) {
+	// TODO more precise args range location
+	p := NewArgsParser(args)
+	account := parseArg(p, r, expectAccount)
+	asset := parseArg(p, r, expectAsset)
+	err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	balance_, err := getBalance(s, *account, *asset)
+	if err != nil {
+		return nil, err
+	}
+
+	balanceIsPositive := balance_.Cmp(big.NewInt(0)) == 1
+	if balanceIsPositive {
+		return &Monetary{
+			Amount: NewMonetaryInt(0),
+			Asset:  Asset(*asset),
+		}, nil
+	}
+
+	overdraft := new(big.Int).Neg(balance_)
+	return &Monetary{
+		Amount: MonetaryInt(*overdraft),
+		Asset:  Asset(*asset),
+	}, nil
 }
 
 func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError {
