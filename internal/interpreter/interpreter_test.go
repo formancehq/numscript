@@ -3266,6 +3266,118 @@ func TestSaveFromAccount(t *testing.T) {
 	})
 }
 
+// new semantics
+func TestOverdraftFunctionWhenNegative(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "EUR/2", -100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionWhenZero(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// zero posting is omitted
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionWhenPositive(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "EUR/2", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// zero posting is omitted
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft_amount(@user:001, USD/2) }
+
+
+		// we have at most 1000 USD/2 to remove user:001's debt
+ 		send [USD/2 1000] (
+ 			source = @world
+ 			destination = {
+				// but we send at most what we need to cancel the debt
+				max $amt to @user:001
+				remaining kept
+			}
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("user:001", "USD/2", -100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			machine.Posting{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "user:001",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestAddMonetariesSameCurrency(t *testing.T) {
 	script := `
  		send [COIN 1] + [COIN 2] (
