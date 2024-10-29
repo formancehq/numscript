@@ -36,13 +36,13 @@ func numscriptParserInit() {
 		"", "", "", "", "", "'vars'", "'max'", "'source'", "'destination'",
 		"'send'", "'from'", "'up'", "'to'", "'remaining'", "'allowing'", "'unbounded'",
 		"'overdraft'", "'kept'", "'('", "')'", "'['", "']'", "'{'", "'}'", "','",
-		"'='", "'*'",
+		"'='", "'*'", "'-'",
 	}
 	staticData.SymbolicNames = []string{
 		"", "WS", "NEWLINE", "MULTILINE_COMMENT", "LINE_COMMENT", "VARS", "MAX",
 		"SOURCE", "DESTINATION", "SEND", "FROM", "UP", "TO", "REMAINING", "ALLOWING",
 		"UNBOUNDED", "OVERDRAFT", "KEPT", "LPARENS", "RPARENS", "LBRACKET",
-		"RBRACKET", "LBRACE", "RBRACE", "COMMA", "EQ", "STAR", "RATIO_PORTION_LITERAL",
+		"RBRACKET", "LBRACE", "RBRACE", "COMMA", "EQ", "STAR", "MINUS", "RATIO_PORTION_LITERAL",
 		"PERCENTAGE_PORTION_LITERAL", "STRING", "IDENTIFIER", "NUMBER", "VARIABLE_NAME",
 		"ACCOUNT", "ASSET",
 	}
@@ -55,7 +55,7 @@ func numscriptParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 34, 209, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 35, 209, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 1, 0, 1, 0, 1,
@@ -84,19 +84,19 @@ func numscriptParserInit() {
 		152, 1, 0, 0, 0, 28, 159, 1, 0, 0, 0, 30, 161, 1, 0, 0, 0, 32, 185, 1,
 		0, 0, 0, 34, 187, 1, 0, 0, 0, 36, 192, 1, 0, 0, 0, 38, 206, 1, 0, 0, 0,
 		40, 41, 5, 20, 0, 0, 41, 42, 3, 4, 2, 0, 42, 43, 3, 4, 2, 0, 43, 44, 5,
-		21, 0, 0, 44, 1, 1, 0, 0, 0, 45, 48, 5, 27, 0, 0, 46, 48, 5, 28, 0, 0,
-		47, 45, 1, 0, 0, 0, 47, 46, 1, 0, 0, 0, 48, 3, 1, 0, 0, 0, 49, 57, 5, 34,
-		0, 0, 50, 57, 5, 29, 0, 0, 51, 57, 5, 33, 0, 0, 52, 57, 5, 32, 0, 0, 53,
-		57, 5, 31, 0, 0, 54, 57, 3, 0, 0, 0, 55, 57, 3, 2, 1, 0, 56, 49, 1, 0,
+		21, 0, 0, 44, 1, 1, 0, 0, 0, 45, 48, 5, 28, 0, 0, 46, 48, 5, 29, 0, 0,
+		47, 45, 1, 0, 0, 0, 47, 46, 1, 0, 0, 0, 48, 3, 1, 0, 0, 0, 49, 57, 5, 35,
+		0, 0, 50, 57, 5, 30, 0, 0, 51, 57, 5, 34, 0, 0, 52, 57, 5, 33, 0, 0, 53,
+		57, 5, 32, 0, 0, 54, 57, 3, 0, 0, 0, 55, 57, 3, 2, 1, 0, 56, 49, 1, 0,
 		0, 0, 56, 50, 1, 0, 0, 0, 56, 51, 1, 0, 0, 0, 56, 52, 1, 0, 0, 0, 56, 53,
 		1, 0, 0, 0, 56, 54, 1, 0, 0, 0, 56, 55, 1, 0, 0, 0, 57, 5, 1, 0, 0, 0,
 		58, 63, 3, 4, 2, 0, 59, 60, 5, 24, 0, 0, 60, 62, 3, 4, 2, 0, 61, 59, 1,
 		0, 0, 0, 62, 65, 1, 0, 0, 0, 63, 61, 1, 0, 0, 0, 63, 64, 1, 0, 0, 0, 64,
-		7, 1, 0, 0, 0, 65, 63, 1, 0, 0, 0, 66, 67, 5, 30, 0, 0, 67, 69, 5, 18,
+		7, 1, 0, 0, 0, 65, 63, 1, 0, 0, 0, 66, 67, 5, 31, 0, 0, 67, 69, 5, 18,
 		0, 0, 68, 70, 3, 6, 3, 0, 69, 68, 1, 0, 0, 0, 69, 70, 1, 0, 0, 0, 70, 71,
 		1, 0, 0, 0, 71, 72, 5, 19, 0, 0, 72, 9, 1, 0, 0, 0, 73, 74, 5, 25, 0, 0,
-		74, 75, 3, 8, 4, 0, 75, 11, 1, 0, 0, 0, 76, 77, 5, 30, 0, 0, 77, 79, 5,
-		32, 0, 0, 78, 80, 3, 10, 5, 0, 79, 78, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0,
+		74, 75, 3, 8, 4, 0, 75, 11, 1, 0, 0, 0, 76, 77, 5, 31, 0, 0, 77, 79, 5,
+		33, 0, 0, 78, 80, 3, 10, 5, 0, 79, 78, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0,
 		80, 13, 1, 0, 0, 0, 81, 82, 5, 5, 0, 0, 82, 86, 5, 22, 0, 0, 83, 85, 3,
 		12, 6, 0, 84, 83, 1, 0, 0, 0, 85, 88, 1, 0, 0, 0, 86, 84, 1, 0, 0, 0, 86,
 		87, 1, 0, 0, 0, 87, 89, 1, 0, 0, 0, 88, 86, 1, 0, 0, 0, 89, 90, 5, 23,
@@ -106,8 +106,8 @@ func numscriptParserInit() {
 		1, 0, 0, 0, 99, 97, 1, 0, 0, 0, 100, 101, 5, 0, 0, 1, 101, 17, 1, 0, 0,
 		0, 102, 103, 5, 20, 0, 0, 103, 104, 3, 4, 2, 0, 104, 105, 5, 26, 0, 0,
 		105, 106, 5, 21, 0, 0, 106, 19, 1, 0, 0, 0, 107, 110, 3, 0, 0, 0, 108,
-		110, 5, 32, 0, 0, 109, 107, 1, 0, 0, 0, 109, 108, 1, 0, 0, 0, 110, 21,
-		1, 0, 0, 0, 111, 115, 3, 2, 1, 0, 112, 115, 5, 32, 0, 0, 113, 115, 5, 13,
+		110, 5, 33, 0, 0, 109, 107, 1, 0, 0, 0, 109, 108, 1, 0, 0, 0, 110, 21,
+		1, 0, 0, 0, 111, 115, 3, 2, 1, 0, 112, 115, 5, 33, 0, 0, 113, 115, 5, 13,
 		0, 0, 114, 111, 1, 0, 0, 0, 114, 112, 1, 0, 0, 0, 114, 113, 1, 0, 0, 0,
 		115, 23, 1, 0, 0, 0, 116, 117, 3, 4, 2, 0, 117, 118, 5, 14, 0, 0, 118,
 		119, 5, 15, 0, 0, 119, 120, 5, 16, 0, 0, 120, 151, 1, 0, 0, 0, 121, 122,
@@ -208,14 +208,15 @@ const (
 	NumscriptParserCOMMA                      = 24
 	NumscriptParserEQ                         = 25
 	NumscriptParserSTAR                       = 26
-	NumscriptParserRATIO_PORTION_LITERAL      = 27
-	NumscriptParserPERCENTAGE_PORTION_LITERAL = 28
-	NumscriptParserSTRING                     = 29
-	NumscriptParserIDENTIFIER                 = 30
-	NumscriptParserNUMBER                     = 31
-	NumscriptParserVARIABLE_NAME              = 32
-	NumscriptParserACCOUNT                    = 33
-	NumscriptParserASSET                      = 34
+	NumscriptParserMINUS                      = 27
+	NumscriptParserRATIO_PORTION_LITERAL      = 28
+	NumscriptParserPERCENTAGE_PORTION_LITERAL = 29
+	NumscriptParserSTRING                     = 30
+	NumscriptParserIDENTIFIER                 = 31
+	NumscriptParserNUMBER                     = 32
+	NumscriptParserVARIABLE_NAME              = 33
+	NumscriptParserACCOUNT                    = 34
+	NumscriptParserASSET                      = 35
 )
 
 // NumscriptParser rules.
@@ -1323,7 +1324,7 @@ func (p *NumscriptParser) FunctionCall() (localctx IFunctionCallContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&33152827392) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&66304606208) != 0 {
 		{
 			p.SetState(68)
 			p.FunctionCallArgs()
@@ -3198,7 +3199,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4697628672) != 0) {
+		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&9395249152) != 0) {
 			{
 				p.SetState(130)
 				p.AllotmentClauseSrc()
@@ -3238,7 +3239,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&33157021760) != 0 {
+		for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&66308800576) != 0 {
 			{
 				p.SetState(138)
 				p.Source()
@@ -4091,7 +4092,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4697628672) != 0) {
+		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&9395249152) != 0) {
 			{
 				p.SetState(167)
 				p.AllotmentClauseDest()

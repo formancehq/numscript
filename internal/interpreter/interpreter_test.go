@@ -1690,6 +1690,21 @@ func TestNegativeBalance(t *testing.T) {
 	test(t, tc)
 }
 
+func TestNegativeBalanceLiteral(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [EUR/2 -100] (
+		source = @world
+		destination = @dest
+	)`)
+	tc.expected = CaseResult{
+		Error: machine.NegativeAmountErr{
+			Amount: machine.MonetaryInt(*big.NewInt(-100)),
+		},
+	}
+	test(t, tc)
+}
+
 func TestBalanceNotFound(t *testing.T) {
 	// TODO double check
 	tc := NewTestCase()
@@ -2746,6 +2761,45 @@ func TestInvalidNumberLiteral(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error:    machine.InvalidNumberLiteral{Range: parser.Range{}, Source: "not a number"},
+	}
+	test(t, tc)
+}
+
+func TestBigIntMonetary(t *testing.T) {
+	script := `
+ 		vars { monetary $amt }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = {
+				100% to @dest
+				remaining kept
+			}
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	amt, ok := new(big.Int).SetString("99999223372036854775807", 10)
+	if !ok {
+		panic("Invalid number")
+	}
+	tc.vars = map[string]string{
+		"amt": "USD/123 " + amt.String(),
+	}
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/123",
+				Amount:      amt,
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
 	}
 	test(t, tc)
 }

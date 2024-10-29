@@ -1827,3 +1827,57 @@ mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_POR
 
 
 ---
+
+[TestNegativeNumberLit - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:17, Line:0},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:0},
+                            End:   parser.Position{Character:11, Line:0},
+                        },
+                        Asset: "EUR/2",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:0},
+                            End:   parser.Position{Character:16, Line:0},
+                        },
+                        Number: -100,
+                    },
+                },
+            },
+            Source: &parser.SourceAccount{
+                Literal: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:1},
+                        End:   parser.Position{Character:15, Line:1},
+                    },
+                    Name: "src",
+                },
+            },
+            Destination: &parser.DestinationAccount{
+                Literal: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:16, Line:2},
+                        End:   parser.Position{Character:21, Line:2},
+                    },
+                    Name: "dest",
+                },
+            },
+        },
+    },
+}
+---

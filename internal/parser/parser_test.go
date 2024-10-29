@@ -7,6 +7,7 @@ import (
 
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestShowErrorLines(t *testing.T) {
@@ -55,6 +56,15 @@ func TestInorderSource(t *testing.T) {
   source = { @s1 @s2 }
   destination = @d
 )`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestNegativeNumberLit(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 -100] (
+  source = @src
+  destination = @dest
+)`)
+	require.Nil(t, p.Errors)
 	snaps.MatchSnapshot(t, p.Value)
 }
 
