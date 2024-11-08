@@ -85,6 +85,62 @@ func TestDuplicateVariable(t *testing.T) {
 	)
 }
 
+func TestUnboundVarInSaveAccount(t *testing.T) {
+	t.Parallel()
+
+	input := `save $unbound_mon from $unbound_acc`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+	require.Len(t, diagnostics, 2)
+
+	assert.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon"},
+				Range: parser.RangeOfIndexed(input, "$unbound_mon", 0),
+			},
+			{
+				Kind:  &analysis.UnboundVariable{Name: "unbound_acc"},
+				Range: parser.RangeOfIndexed(input, "$unbound_acc", 0),
+			},
+		},
+		diagnostics,
+	)
+}
+
+func TestMismatchedTypeInSave(t *testing.T) {
+	t.Parallel()
+
+	input := `vars {
+	string $str
+	number $n
+}
+	
+save $str from $n
+`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+	require.Len(t, diagnostics, 2)
+
+	assert.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind:  &analysis.TypeMismatch{Expected: "monetary", Got: "string"},
+				Range: parser.RangeOfIndexed(input, "$str", 1),
+			},
+			{
+				Kind:  &analysis.TypeMismatch{Expected: "account", Got: "number"},
+				Range: parser.RangeOfIndexed(input, "$n", 1),
+			},
+		},
+		diagnostics,
+	)
+}
+
 func TestUnboundVarInSource(t *testing.T) {
 	t.Parallel()
 

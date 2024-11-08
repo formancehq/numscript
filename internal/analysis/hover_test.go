@@ -35,6 +35,54 @@ send $amt (
 	assert.NotNil(t, resolved)
 }
 
+func TestHoverOnSaveMonetaryVar(t *testing.T) {
+	input := `vars { monetary $amt }
+
+save $amt from @acc
+`
+
+	rng := parser.RangeOfIndexed(input, "$amt", 1)
+
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+	assert.NotNil(t, hover)
+
+	variableHover, ok := hover.(*analysis.VariableHover)
+	assert.True(t, ok, "Expected VariableHover")
+
+	assert.Equal(t, rng, variableHover.Range)
+
+	checkResult := analysis.CheckProgram(program)
+	assert.NotNil(t, variableHover.Node)
+
+	resolved := checkResult.ResolveVar(variableHover.Node)
+	assert.NotNil(t, resolved)
+}
+
+func TestHoverOnAccountVar(t *testing.T) {
+	input := `vars { account $acc }
+
+save [COIN 100] from $acc
+`
+
+	rng := parser.RangeOfIndexed(input, "$acc", 1)
+
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+	assert.NotNil(t, hover)
+
+	variableHover, ok := hover.(*analysis.VariableHover)
+	assert.True(t, ok, "Expected VariableHover")
+
+	assert.Equal(t, rng, variableHover.Range)
+
+	checkResult := analysis.CheckProgram(program)
+	assert.NotNil(t, variableHover.Node)
+
+	resolved := checkResult.ResolveVar(variableHover.Node)
+	assert.NotNil(t, resolved)
+}
+
 func TestHoverOnMonetaryVarAmt(t *testing.T) {
 	input := `vars { number $amt }
 

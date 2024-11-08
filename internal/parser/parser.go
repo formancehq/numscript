@@ -533,7 +533,7 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	}
 }
 
-func parseSave(saveCtx *parser.SaveStatementContext) *SaveStatement {
+func parseSaveStatement(saveCtx *parser.SaveStatementContext) *SaveStatement {
 	return &SaveStatement{
 		Range:     ctxToRange(saveCtx),
 		SentValue: parseSentValue(saveCtx.SentValue()),
@@ -547,7 +547,7 @@ func parseStatement(statementCtx parser.IStatementContext) Statement {
 		return parseSendStatement(statementCtx)
 
 	case *parser.SaveStatementContext:
-		return parseSave(statementCtx)
+		return parseSaveStatement(statementCtx)
 
 	case *parser.FnCallStatementContext:
 		return parseFnCall(statementCtx.FunctionCall())
