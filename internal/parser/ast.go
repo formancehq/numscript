@@ -18,50 +18,42 @@ func (*RatioLiteral) literal()    {}
 func (*NumberLiteral) literal()   {}
 func (*StringLiteral) literal()   {}
 
-func (l *AssetLiteral) GetRange() Range    { return l.Range }
-func (l *MonetaryLiteral) GetRange() Range { return l.Range }
-func (l *AccountLiteral) GetRange() Range  { return l.Range }
-func (l *VariableLiteral) GetRange() Range { return l.Range }
-func (l *RatioLiteral) GetRange() Range    { return l.Range }
-func (l *NumberLiteral) GetRange() Range   { return l.Range }
-func (l *StringLiteral) GetRange() Range   { return l.Range }
-
 type (
 	AssetLiteral struct {
-		Range Range
+		Range
 		Asset string
 	}
 
 	NumberLiteral struct {
-		Range  Range
+		Range
 		Number int
 	}
 
 	StringLiteral struct {
-		Range  Range
+		Range
 		String string
 	}
 
 	MonetaryLiteral struct {
-		Range  Range
+		Range
 		Asset  Literal
 		Amount Literal
 	}
 
 	AccountLiteral struct {
-		Range Range
-		Name  string
+		Range
+		Name string
 	}
 
 	RatioLiteral struct {
-		Range       Range
+		Range
 		Numerator   *big.Int
 		Denominator *big.Int
 	}
 
 	VariableLiteral struct {
-		Range Range
-		Name  string
+		Range
+		Name string
 	}
 )
 
@@ -70,7 +62,7 @@ func (r RatioLiteral) ToRatio() *big.Rat {
 }
 
 type RemainingAllotment struct {
-	Range Range
+	Range
 }
 
 func (a *AccountLiteral) IsWorld() bool {
@@ -90,34 +82,28 @@ func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
 
-func (s *SourceAccount) GetRange() Range   { return s.Literal.GetRange() }
-func (s *SourceInorder) GetRange() Range   { return s.Range }
-func (s *SourceAllotment) GetRange() Range { return s.Range }
-func (s *SourceCapped) GetRange() Range    { return s.Range }
-func (s *SourceOverdraft) GetRange() Range { return s.Range }
-
 type (
 	SourceAccount struct {
-		Literal Literal
+		Literal
 	}
 
 	SourceInorder struct {
-		Range   Range
+		Range
 		Sources []Source
 	}
 	SourceAllotment struct {
-		Range Range
+		Range
 		Items []SourceAllotmentItem
 	}
 
 	SourceCapped struct {
-		Range Range
-		From  Source
-		Cap   Literal
+		Range
+		From Source
+		Cap  Literal
 	}
 
 	SourceOverdraft struct {
-		Range   Range
+		Range
 		Address Literal
 		Bounded *Literal
 	}
@@ -130,7 +116,7 @@ func (*RatioLiteral) allotmentValue()       {}
 func (*VariableLiteral) allotmentValue()    {}
 
 type SourceAllotmentItem struct {
-	Range     Range
+	Range
 	Allotment AllotmentValue
 	From      Source
 }
@@ -138,32 +124,28 @@ type SourceAllotmentItem struct {
 // Destination exprs
 type Destination interface {
 	destination()
-	GetRange() Range
+	Ranged
 }
 
 func (*DestinationInorder) destination()   {}
 func (*DestinationAccount) destination()   {}
 func (*DestinationAllotment) destination() {}
 
-func (d *DestinationAccount) GetRange() Range   { return d.Literal.GetRange() }
-func (d *DestinationInorder) GetRange() Range   { return d.Range }
-func (d *DestinationAllotment) GetRange() Range { return d.Range }
-
 type (
 	DestinationAccount struct {
-		Literal Literal
+		Literal
 	}
 
 	DestinationInorder struct {
-		Range     Range
+		Range
 		Clauses   []DestinationInorderClause
 		Remaining KeptOrDestination
 	}
 
 	DestinationInorderClause struct {
-		Range Range
-		Cap   Literal
-		To    KeptOrDestination
+		Range
+		Cap Literal
+		To  KeptOrDestination
 	}
 )
 
@@ -171,7 +153,7 @@ type KeptOrDestination interface {
 	keptOrDestination()
 }
 type DestinationKept struct {
-	Range Range
+	Range
 }
 type DestinationTo struct {
 	Destination Destination
@@ -181,12 +163,12 @@ func (*DestinationKept) keptOrDestination() {}
 func (*DestinationTo) keptOrDestination()   {}
 
 type DestinationAllotment struct {
-	Range Range
+	Range
 	Items []DestinationAllotmentItem
 }
 
 type DestinationAllotmentItem struct {
-	Range     Range
+	Range
 	Allotment AllotmentValue
 	To        KeptOrDestination
 }
@@ -195,22 +177,19 @@ type DestinationAllotmentItem struct {
 
 type Statement interface {
 	statement()
-	GetRange() Range
+	Ranged
 }
 
 func (*FnCall) statement()        {}
 func (*SendStatement) statement() {}
 
-func (s *FnCall) GetRange() Range        { return s.Range }
-func (s *SendStatement) GetRange() Range { return s.Range }
-
 type FnCallIdentifier struct {
-	Range Range
-	Name  string
+	Range
+	Name string
 }
 
 type FnCall struct {
-	Range  Range
+	Range
 	Caller *FnCallIdentifier
 	Args   []Literal
 }
@@ -220,7 +199,7 @@ type SentValueLiteral struct {
 	Monetary Literal
 }
 type SentValueAll struct {
-	Range Range
+	Range
 	Asset Literal
 }
 
@@ -228,19 +207,19 @@ func (*SentValueLiteral) sentValue() {}
 func (*SentValueAll) sentValue()     {}
 
 type SendStatement struct {
-	Range       Range
+	Range
 	SentValue   SentValue
 	Source      Source
 	Destination Destination
 }
 
 type TypeDecl struct {
-	Range Range
-	Name  string
+	Range
+	Name string
 }
 
 type VarDeclaration struct {
-	Range  Range
+	Range
 	Name   *VariableLiteral
 	Type   *TypeDecl
 	Origin *FnCall
