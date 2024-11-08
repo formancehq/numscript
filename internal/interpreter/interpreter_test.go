@@ -2844,6 +2844,28 @@ func TestSaveFromAccount(t *testing.T) {
 		test(t, tc)
 	})
 
+	t.Run("save causes failure", func(t *testing.T) {
+		script := `
+ 			save [USD/2 1] from @alice
+
+ 			send [USD/2 30] (
+ 			   source = @alice
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD/2", 30)
+		tc.expected = CaseResult{
+			Postings: []Posting{},
+			Error: machine.MissingFundsErr{
+				Asset:     "USD/2",
+				Needed:    *big.NewInt(30),
+				Available: *big.NewInt(29),
+			},
+		}
+		test(t, tc)
+	})
+
 	t.Run("save all", func(t *testing.T) {
 		script := `
  			save [USD *] from @alice
