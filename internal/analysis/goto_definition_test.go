@@ -7,6 +7,7 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGotoDefinitionOnSendMonetaryVar(t *testing.T) {
@@ -23,7 +24,7 @@ send $amt (
 	checkResult := analysis.CheckProgram(program)
 
 	res := analysis.GotoDefinition(program, rng.Start, checkResult)
-	assert.NotNil(t, res)
+	require.NotNil(t, res)
 
 	assert.Equal(t, &analysis.GotoDefinitionResult{
 		Range: parser.RangeOfIndexed(input, "$amt", 0),

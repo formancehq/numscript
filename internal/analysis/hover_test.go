@@ -6,7 +6,7 @@ import (
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHoverOnSendMonetaryVar(t *testing.T) {
@@ -21,18 +21,18 @@ send $amt (
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
-	assert.NotNil(t, hover)
+	require.NotNil(t, hover)
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.True(t, ok, "Expected VariableHover")
+	require.True(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnSaveMonetaryVar(t *testing.T) {
@@ -45,18 +45,18 @@ save $amt from @acc
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
-	assert.NotNil(t, hover)
+	require.NotNil(t, hover)
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.True(t, ok, "Expected VariableHover")
+	require.True(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnAccountVar(t *testing.T) {
@@ -69,18 +69,18 @@ save [COIN 100] from $acc
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
-	assert.NotNil(t, hover)
+	require.NotNil(t, hover)
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.True(t, ok, "Expected VariableHover")
+	require.True(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnMonetaryVarAmt(t *testing.T) {
@@ -95,7 +95,7 @@ send [COIN $amt] (
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
-	assert.NotNil(t, hover)
+	require.NotNil(t, hover)
 }
 
 func TestHoverOnMonetaryVarAsset(t *testing.T) {
@@ -110,7 +110,7 @@ send [$asset 100] (
 
 	program := parser.Parse(input).Value
 	hover := analysis.HoverOn(program, rng.Start)
-	assert.NotNil(t, hover)
+	require.NotNil(t, hover)
 }
 
 func TestHoverOnSource(t *testing.T) {
@@ -133,18 +133,18 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNil(t, hover, "hover should not be nil")
+	require.NotNil(t, hover, "hover should not be nil")
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.True(t, ok, "Expected VariableHover")
+	require.True(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnDestinationInorder(t *testing.T) {
@@ -167,18 +167,18 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.Truef(t, ok, "Expected VariableHover")
+	require.Truef(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnDestinationInorderRemaining(t *testing.T) {
@@ -201,18 +201,18 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 
 	variableHover, ok := hover.(*analysis.VariableHover)
-	assert.Truef(t, ok, "Expected VariableHover")
+	require.Truef(t, ok, "Expected VariableHover")
 
-	assert.Equal(t, rng, variableHover.Range)
+	require.Equal(t, rng, variableHover.Range)
 
 	checkResult := analysis.CheckProgram(program)
-	assert.NotNil(t, variableHover.Node)
+	require.NotNil(t, variableHover.Node)
 
 	resolved := checkResult.ResolveVar(variableHover.Node)
-	assert.NotNil(t, resolved)
+	require.NotNil(t, resolved)
 }
 
 func TestHoverOnSrcVariableAllotment(t *testing.T) {
@@ -229,7 +229,7 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnDestVariableAllotment(t *testing.T) {
@@ -246,7 +246,7 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnUnboundSrc(t *testing.T) {
@@ -263,7 +263,7 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnBoundedCap(t *testing.T) {
@@ -280,7 +280,7 @@ send [C 10] (
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnFnCall(t *testing.T) {
@@ -294,7 +294,7 @@ set_tx_meta($str, 42)
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnOriginFnCall(t *testing.T) {
@@ -309,7 +309,7 @@ func TestHoverOnOriginFnCall(t *testing.T) {
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 }
 
 func TestHoverOnFnCallDocs(t *testing.T) {
@@ -321,16 +321,16 @@ func TestHoverOnFnCallDocs(t *testing.T) {
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 
 	fnHover, ok := hover.(*analysis.BuiltinFnHover)
 	if !ok {
 		t.Fatalf("Expected a BuiltinFnHover")
 	}
 
-	assert.Equal(t, fnHover.Range, rng)
-	assert.NotNil(t, fnHover.Node)
-	assert.Equal(t, "set_tx_meta", fnHover.Node.Caller.Name)
+	require.Equal(t, fnHover.Range, rng)
+	require.NotNil(t, fnHover.Node)
+	require.Equal(t, "set_tx_meta", fnHover.Node.Caller.Name)
 }
 
 func TestHoverOnFnOriginDocs(t *testing.T) {
@@ -342,20 +342,20 @@ func TestHoverOnFnOriginDocs(t *testing.T) {
 
 	hover := analysis.HoverOn(program, rng.Start)
 
-	assert.NotNilf(t, hover, "hover should not be nil")
+	require.NotNilf(t, hover, "hover should not be nil")
 
 	fnHover, ok := hover.(*analysis.BuiltinFnHover)
 	if !ok {
 		t.Fatalf("Expected a BuiltinFnHover")
 	}
 
-	assert.Equal(t, fnHover.Range, rng)
-	assert.NotNil(t, fnHover.Node)
-	assert.Equal(t, "balance", fnHover.Node.Caller.Name)
+	require.Equal(t, fnHover.Range, rng)
+	require.NotNil(t, fnHover.Node)
+	require.Equal(t, "balance", fnHover.Node.Caller.Name)
 
 	res := analysis.CheckProgram(program)
 	resolution := res.ResolveBuiltinFn(fnHover.Node.Caller)
-	assert.NotNil(t, resolution)
+	require.NotNil(t, resolution)
 
 	resolution, ok = resolution.(analysis.VarOriginFnCallResolution)
 	if !ok {
@@ -376,7 +376,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("missing source", func(t *testing.T) {
@@ -390,7 +390,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("missing source in inorder", func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("missing dest", func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("invalid call arg", func(t *testing.T) {
@@ -430,7 +430,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("missing sent value", func(t *testing.T) {
@@ -441,7 +441,7 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 
 	t.Run("missing inorder clause", func(t *testing.T) {
@@ -457,6 +457,6 @@ func TestHoverFaultTolerance(t *testing.T) {
 		rng := parser.RangeOfIndexed(input, "<invalidtk>", 0)
 		program := parser.Parse(input).Value
 		hover := analysis.HoverOn(program, rng.Start)
-		assert.Nil(t, hover)
+		require.Nil(t, hover)
 	})
 }
