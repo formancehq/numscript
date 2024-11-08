@@ -195,8 +195,13 @@ type FnCall struct {
 	Args   []Literal
 }
 
-type SentValue interface{ sentValue() }
+type SentValue interface {
+	sentValue()
+	Ranged
+}
+
 type SentValueLiteral struct {
+	Range
 	Monetary Literal
 }
 type SentValueAll struct {

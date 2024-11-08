@@ -89,6 +89,10 @@ parser.Program{
                 End:   parser.Position{Character:1, Line:3},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
@@ -135,6 +139,10 @@ parser.Program{
                 End:   parser.Position{Character:1, Line:3},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
@@ -219,6 +227,10 @@ parser.Program{
                 End:   parser.Position{Character:2, Line:5},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},

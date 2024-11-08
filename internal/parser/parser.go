@@ -564,6 +564,7 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	switch statementCtx := statementCtx.(type) {
 	case *parser.SentLiteralContext:
 		return &SentValueLiteral{
+			Range:    ctxToRange(statementCtx),
 			Monetary: parseLiteral(statementCtx.Literal()),
 		}
 	case *parser.SentAllContext:
