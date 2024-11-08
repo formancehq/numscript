@@ -97,6 +97,36 @@ send [COIN 100] (
 		store.GetBalancesCalls)
 }
 
+func TestDoNotGetBalancesTwice(t *testing.T) {
+	parseResult := numscript.Parse(`send [COIN 100] (
+	source = {
+		@alice
+		@alice
+		@world
+	}
+  	destination = @dest
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.Nil(t, err)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"alice": {"COIN"},
+			},
+		},
+		store.GetBalancesCalls)
+}
+
 func TestGetBalancesAllotment(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = {
@@ -273,6 +303,35 @@ func TestBalanceFunctionErr(t *testing.T) {
 
 	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, &ErrorStore{})
 	require.IsType(t, err, interpreter.QueryBalanceError{})
+}
+
+func TestSaveQuery(t *testing.T) {
+	parseResult := numscript.Parse(`
+save [USD/2 10] from @alice
+
+send [USD/2 30] (
+	source = {
+		@alice
+		@world
+	}
+	destination = @bob
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{}
+	parseResult.Run(context.Background(), nil, &store)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"alice": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
 }
 
 type ObservableStore struct {

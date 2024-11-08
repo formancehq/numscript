@@ -50,6 +50,12 @@ func HoverOn(program parser.Program, position parser.Position) Hover {
 				return hover
 			}
 
+		case *parser.SaveStatement:
+			hover := hoverOnSaveStatement(*statement, position)
+			if hover != nil {
+				return hover
+			}
+
 		case *parser.FnCall:
 			hover := hoverOnFnCall(*statement, position)
 			if hover != nil {
@@ -90,6 +96,24 @@ func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hove
 	default:
 		return utils.NonExhaustiveMatchPanic[Hover](sentValue)
 	}
+}
+
+func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Position) Hover {
+	if !saveStatement.Range.Contains(position) {
+		return nil
+	}
+
+	hover := hoverOnSentValue(saveStatement.SentValue, position)
+	if hover != nil {
+		return hover
+	}
+
+	hover = hoverOnLiteral(saveStatement.Literal, position)
+	if hover != nil {
+		return hover
+	}
+
+	return nil
 }
 
 func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Position) Hover {

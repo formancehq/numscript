@@ -182,6 +182,7 @@ type Statement interface {
 
 func (*FnCall) statement()        {}
 func (*SendStatement) statement() {}
+func (*SaveStatement) statement() {}
 
 type FnCallIdentifier struct {
 	Range
@@ -194,8 +195,13 @@ type FnCall struct {
 	Args   []Literal
 }
 
-type SentValue interface{ sentValue() }
+type SentValue interface {
+	sentValue()
+	Ranged
+}
+
 type SentValueLiteral struct {
+	Range
 	Monetary Literal
 }
 type SentValueAll struct {
@@ -211,6 +217,12 @@ type SendStatement struct {
 	SentValue   SentValue
 	Source      Source
 	Destination Destination
+}
+
+type SaveStatement struct {
+	Range
+	SentValue SentValue
+	Literal   Literal
 }
 
 type TypeDecl struct {

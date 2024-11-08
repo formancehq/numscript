@@ -348,7 +348,7 @@ func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 	case *parser.StringLiteralContext:
 		return parseStringLiteralCtx(literalCtx)
 
-	case *parser.LiteralContext:
+	case nil, *parser.LiteralContext:
 		return nil
 
 	default:
@@ -533,13 +533,23 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	}
 }
 
+func parseSaveStatement(saveCtx *parser.SaveStatementContext) *SaveStatement {
+	return &SaveStatement{
+		Range:     ctxToRange(saveCtx),
+		SentValue: parseSentValue(saveCtx.SentValue()),
+		Literal:   parseLiteral(saveCtx.Literal()),
+	}
+}
+
 func parseStatement(statementCtx parser.IStatementContext) Statement {
 	switch statementCtx := statementCtx.(type) {
 	case *parser.SendStatementContext:
 		return parseSendStatement(statementCtx)
 
-	case *parser.FnCallStatementContext:
+	case *parser.SaveStatementContext:
+		return parseSaveStatement(statementCtx)
 
+	case *parser.FnCallStatementContext:
 		return parseFnCall(statementCtx.FunctionCall())
 
 	case *parser.StatementContext:
@@ -554,6 +564,7 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	switch statementCtx := statementCtx.(type) {
 	case *parser.SentLiteralContext:
 		return &SentValueLiteral{
+			Range:    ctxToRange(statementCtx),
 			Monetary: parseLiteral(statementCtx.Literal()),
 		}
 	case *parser.SentAllContext:

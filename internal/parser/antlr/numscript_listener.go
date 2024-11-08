@@ -125,6 +125,9 @@ type NumscriptListener interface {
 	// EnterSendStatement is called when entering the sendStatement production.
 	EnterSendStatement(c *SendStatementContext)
 
+	// EnterSaveStatement is called when entering the saveStatement production.
+	EnterSaveStatement(c *SaveStatementContext)
+
 	// EnterFnCallStatement is called when entering the fnCallStatement production.
 	EnterFnCallStatement(c *FnCallStatementContext)
 
@@ -244,6 +247,9 @@ type NumscriptListener interface {
 
 	// ExitSendStatement is called when exiting the sendStatement production.
 	ExitSendStatement(c *SendStatementContext)
+
+	// ExitSaveStatement is called when exiting the saveStatement production.
+	ExitSaveStatement(c *SaveStatementContext)
 
 	// ExitFnCallStatement is called when exiting the fnCallStatement production.
 	ExitFnCallStatement(c *FnCallStatementContext)

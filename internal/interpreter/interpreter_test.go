@@ -50,7 +50,9 @@ func removeRange(e machine.InterpreterError) machine.InterpreterError {
 	case machine.InvalidTypeErr:
 		e.Range = parser.Range{}
 		return e
-
+	case machine.NegativeAmountErr:
+		e.Range = parser.Range{}
+		return e
 	default:
 		return e
 	}
@@ -2804,4 +2806,298 @@ func TestBigIntMonetary(t *testing.T) {
 		Error: nil,
 	}
 	test(t, tc)
+}
+
+func TestSaveFromAccount(t *testing.T) {
+
+	t.Run("simple", func(t *testing.T) {
+		script := `
+ 			save [USD 10] from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(10),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(20),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("save causes failure", func(t *testing.T) {
+		script := `
+ 			save [USD/2 1] from @alice
+
+ 			send [USD/2 30] (
+ 			   source = @alice
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD/2", 30)
+		tc.expected = CaseResult{
+			Postings: []Posting{},
+			Error: machine.MissingFundsErr{
+				Asset:     "USD/2",
+				Needed:    *big.NewInt(30),
+				Available: *big.NewInt(29),
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("save all", func(t *testing.T) {
+		script := `
+ 			save [USD *] from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				// 0-posting omitted
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(30),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("save more than balance", func(t *testing.T) {
+		script := `
+ 			save [USD 30] from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				// 0-posting omitted
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(30),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("with asset var", func(t *testing.T) {
+		script := `
+			vars {
+				asset $ass
+			}
+ 			save [$ass 10] from @alice
+
+ 			send [$ass 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.vars = map[string]string{
+			"ass": "USD",
+		}
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(10),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(20),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("with monetary var", func(t *testing.T) {
+		script := `
+			vars {
+				monetary $mon
+			}
+
+ 			save $mon from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.vars = map[string]string{
+			"mon": "USD 10",
+		}
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(10),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(20),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("multi postings", func(t *testing.T) {
+		script := `
+ 			send [USD 10] (
+ 			   source = @alice
+ 			   destination = @bob
+ 			)
+
+			save [USD 5] from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(10),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(5),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(25),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("save a different asset", func(t *testing.T) {
+		script := `
+			save [COIN 100] from @alice
+
+ 			send [USD 30] (
+ 			   source = {
+ 				  @alice
+ 				  @world
+ 			   }
+ 			   destination = @bob
+ 			)`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("alice", "COIN", 100)
+		tc.setBalance("alice", "USD", 20)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(20),
+					Source:      "alice",
+					Destination: "bob",
+				},
+				{
+					Asset:       "USD",
+					Amount:      big.NewInt(10),
+					Source:      "world",
+					Destination: "bob",
+				},
+			},
+			Error: nil,
+		}
+		test(t, tc)
+	})
+
+	t.Run("negative amount", func(t *testing.T) {
+		script := `
+	
+			save [USD -100] from @A`
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setBalance("A", "USD", -100)
+		tc.expected = CaseResult{
+			Postings: []Posting{},
+			Error: machine.NegativeAmountErr{
+				Amount: machine.NewMonetaryInt(-100),
+			},
+		}
+		test(t, tc)
+	})
 }

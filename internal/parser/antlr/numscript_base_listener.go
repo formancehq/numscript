@@ -259,6 +259,12 @@ func (s *BaseNumscriptListener) EnterSendStatement(ctx *SendStatementContext) {}
 // ExitSendStatement is called when production sendStatement is exited.
 func (s *BaseNumscriptListener) ExitSendStatement(ctx *SendStatementContext) {}
 
+// EnterSaveStatement is called when production saveStatement is entered.
+func (s *BaseNumscriptListener) EnterSaveStatement(ctx *SaveStatementContext) {}
+
+// ExitSaveStatement is called when production saveStatement is exited.
+func (s *BaseNumscriptListener) ExitSaveStatement(ctx *SaveStatementContext) {}
+
 // EnterFnCallStatement is called when production fnCallStatement is entered.
 func (s *BaseNumscriptListener) EnterFnCallStatement(ctx *FnCallStatementContext) {}
 

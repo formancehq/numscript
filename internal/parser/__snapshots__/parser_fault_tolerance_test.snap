@@ -89,6 +89,10 @@ parser.Program{
                 End:   parser.Position{Character:1, Line:3},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
@@ -135,6 +139,10 @@ parser.Program{
                 End:   parser.Position{Character:1, Line:3},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
@@ -219,6 +227,10 @@ parser.Program{
                 End:   parser.Position{Character:2, Line:5},
             },
             SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:14, Line:0},
+                },
                 Monetary: &parser.MonetaryLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
@@ -316,5 +328,103 @@ parser.Program{
         },
     },
     Statements: nil,
+}
+---
+
+[TestFaultToleranceIncompleteSave - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:4, Line:1},
+            },
+            SentValue: nil,
+            Literal:   nil,
+        },
+    },
+}
+---
+
+[TestFaultToleranceIncompleteSave2 - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:14, Line:1},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:1},
+                    End:   parser.Position{Character:14, Line:1},
+                },
+                Monetary: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:1},
+                        End:   parser.Position{Character:14, Line:1},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:1},
+                            End:   parser.Position{Character:10, Line:1},
+                        },
+                        Asset: "COIN",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:11, Line:1},
+                            End:   parser.Position{Character:13, Line:1},
+                        },
+                        Number: 10,
+                    },
+                },
+            },
+            Literal: nil,
+        },
+    },
+}
+---
+
+[TestFaultToleranceIncompleteSave3 - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:19, Line:1},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:1},
+                    End:   parser.Position{Character:14, Line:1},
+                },
+                Monetary: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:1},
+                        End:   parser.Position{Character:14, Line:1},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:1},
+                            End:   parser.Position{Character:10, Line:1},
+                        },
+                        Asset: "COIN",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:11, Line:1},
+                            End:   parser.Position{Character:13, Line:1},
+                        },
+                        Number: 10,
+                    },
+                },
+            },
+            Literal: nil,
+        },
+    },
 }
 ---

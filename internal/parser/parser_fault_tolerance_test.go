@@ -75,3 +75,24 @@ vars {
 	`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestFaultToleranceIncompleteSave(t *testing.T) {
+	p := parser.Parse(`
+save 
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceIncompleteSave2(t *testing.T) {
+	p := parser.Parse(`
+save [COIN 10] 
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestFaultToleranceIncompleteSave3(t *testing.T) {
+	p := parser.Parse(`
+save [COIN 10] from
+	`)
+	snaps.MatchSnapshot(t, p.Value)
+}

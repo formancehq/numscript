@@ -173,6 +173,10 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 	res.emptiedAccount = make(map[string]struct{})
 
 	switch statement := statement.(type) {
+	case *parser.SaveStatement:
+		res.checkSentValue(statement.SentValue)
+		res.checkLiteral(statement.Literal, TypeAccount)
+
 	case *parser.SendStatement:
 		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
 		res.unboundedSend = isSendAll
