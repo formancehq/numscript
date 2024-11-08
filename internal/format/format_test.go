@@ -221,6 +221,28 @@ set_tx_meta("k", 42)
 
 	AssertIsFormatted(t, src)
 }
+
+func TestPreserveComments(t *testing.T) {
+	src := `vars {
+  // c1
+  monetary $amt
+}
+
+// c2
+send $amt (
+  // c3
+  source = @a
+  destination = @b
+)
+
+
+// c4
+set_tx_meta("k", 42)
+`
+
+	AssertIsFormatted(t, src)
+}
+
 func AssertIsFormatted(t *testing.T, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
