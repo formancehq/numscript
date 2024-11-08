@@ -348,7 +348,7 @@ func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 	case *parser.StringLiteralContext:
 		return parseStringLiteralCtx(literalCtx)
 
-	case *parser.LiteralContext:
+	case nil, *parser.LiteralContext:
 		return nil
 
 	default:
