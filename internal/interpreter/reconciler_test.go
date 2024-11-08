@@ -18,6 +18,7 @@ type ReconcileTestCase struct {
 }
 
 func runReconcileTestCase(t *testing.T, tc ReconcileTestCase) {
+	t.Parallel()
 	if tc.Currency == "" {
 		tc.Currency = "COIN"
 	}

@@ -9,6 +9,8 @@ import (
 )
 
 func TestPositionGt(t *testing.T) {
+	t.Parallel()
+
 	assert.True(t, (&parser.Position{
 		Line:      10,
 		Character: 20,
@@ -52,6 +54,8 @@ func TestPositionGt(t *testing.T) {
 }
 
 func TestContainsSameLine(t *testing.T) {
+	t.Parallel()
+
 	rng := parser.Range{
 		Start: parser.Position{Line: 42, Character: 5},
 		End:   parser.Position{Line: 42, Character: 10},
@@ -94,6 +98,8 @@ func TestContainsSameLine(t *testing.T) {
 }
 
 func TestContainsManyLines(t *testing.T) {
+	t.Parallel()
+
 	rng := parser.Range{
 		Start: parser.Position{Line: 10, Character: 5},
 		End:   parser.Position{Line: 100, Character: 10},
@@ -111,6 +117,8 @@ func TestContainsManyLines(t *testing.T) {
 }
 
 func TestPositionOf(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t,
 		&parser.Position{Character: 0},
 		parser.PositionOf("abc", "a"),
@@ -133,6 +141,8 @@ func TestPositionOf(t *testing.T) {
 }
 
 func TestPositionOfIndexed(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t,
 		&parser.Position{Character: 2},
 		parser.PositionOfIndexed("aba", "a", 1),
@@ -170,6 +180,8 @@ or spanning 2 lines`
 }
 
 func TestShowRangeComplex(t *testing.T) {
+	t.Parallel()
+
 	src := `
 example err
 or that spans more

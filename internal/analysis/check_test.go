@@ -12,6 +12,8 @@ import (
 )
 
 func TestInvalidType(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { invalid $my_var }
 send [C 10] (
 	source = $my_var
@@ -37,6 +39,8 @@ send [C 10] (
 }
 
 func TestValidType(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { account $my_var }
 send [C 10] (
 	source = $my_var
@@ -49,6 +53,8 @@ send [C 10] (
 }
 
 func TestDuplicateVariable(t *testing.T) {
+	t.Parallel()
+
 	input := `vars {
   account $x
   account $y
@@ -80,6 +86,8 @@ func TestDuplicateVariable(t *testing.T) {
 }
 
 func TestUnboundVarInSource(t *testing.T) {
+	t.Parallel()
+
 	input := `send [C 1] (
   source = { max [C 1] from $unbound_var }
   destination = @dest
@@ -106,6 +114,8 @@ func TestUnboundVarInSource(t *testing.T) {
 }
 
 func TestUnboundVarInDest(t *testing.T) {
+	t.Parallel()
+
 	input := `send [C 1] (
   source = @src
   destination = {
@@ -131,6 +141,8 @@ func TestUnboundVarInDest(t *testing.T) {
 }
 
 func TestUnboundMany(t *testing.T) {
+	t.Parallel()
+
 	input := `send [C 1] (
   	source = {
   		1/3 from $unbound1
@@ -146,6 +158,8 @@ func TestUnboundMany(t *testing.T) {
 }
 
 func TestUnboundCurrenciesVars(t *testing.T) {
+	t.Parallel()
+
 	input := `send $unbound1 (
   	source = {
 		max $unbound2 from @a
@@ -162,6 +176,8 @@ func TestUnboundCurrenciesVars(t *testing.T) {
 // TODO unbound vars in declr
 
 func TestUnusedVarInSource(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { monetary $unused_var }`
 
 	program := parser.Parse(input).Value
@@ -185,6 +201,8 @@ func TestUnusedVarInSource(t *testing.T) {
 }
 
 func TestWrongTypeForMonetaryLitAsset(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { account $a }
 
 send [$a 100] (
@@ -213,6 +231,8 @@ send [$a 100] (
 }
 
 func TestWrongTypeForMonetaryLitNumber(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { account $n }
 
 send [EUR/2 $n] (
@@ -241,6 +261,8 @@ send [EUR/2 $n] (
 }
 
 func TestWrongTypeForCap(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { account $account }
 
 send [COIN 100] (
@@ -269,6 +291,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForSrcAccount(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $x }
 
 send [COIN 100] (
@@ -297,6 +321,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForDestAccount(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $x }
 
 send [COIN 100] (
@@ -325,6 +351,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForUnboundedAccount(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $x }
 
 send [COIN 100] (
@@ -353,6 +381,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForBoundedOverdraftCap(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $x }
 
 send [COIN 100] (
@@ -381,6 +411,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForSrcAllotmentPortion(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { string $p }
 
 send [COIN 100] (
@@ -412,6 +444,8 @@ send [COIN 100] (
 }
 
 func TestWrongTypeForDestAllotmentPortion(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { string $p }
 
 send [COIN 100] (
@@ -443,6 +477,8 @@ send [COIN 100] (
 }
 
 func TestBadRemainingInSource(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
   	source = {
 		1/2 from @a
@@ -474,6 +510,8 @@ func TestBadRemainingInSource(t *testing.T) {
 }
 
 func TestBadRemainingInDest(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
   	source = @a
   	destination = {
@@ -505,6 +543,8 @@ func TestBadRemainingInDest(t *testing.T) {
 }
 
 func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = {
 		1/3 from @s1
@@ -536,6 +576,8 @@ func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 }
 
 func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = {
 		2/3 from @s1
@@ -568,6 +610,8 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 }
 
 func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = @src
   	destination = {
@@ -591,6 +635,8 @@ func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 }
 
 func TestNoAllotmentLt1ErrIfVariable(t *testing.T) {
+	t.Parallel()
+
 	input := `vars {
 	portion $portion1
 	portion $portion2
@@ -613,6 +659,8 @@ send [COIN 100] (
 }
 
 func TestAllotmentGt1ErrIfVariable(t *testing.T) {
+	t.Parallel()
+
 	input := `vars {
 	portion $portion1
 	portion $portion2
@@ -637,6 +685,8 @@ send [COIN 100] (
 }
 
 func TestAllotmentErrOnlyOneVar(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $portion }
 
 send [COIN 100] (
@@ -661,6 +711,8 @@ send [COIN 100] (
 }
 
 func TestAllotmentErrWhenVarIsZero(t *testing.T) {
+	t.Parallel()
+
 	input := `vars {
 	portion $portion1
 	portion $portion2
@@ -697,6 +749,8 @@ send [COIN 100] (
 }
 
 func TestNoBadAllotmentWhenRemaining(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = {
 		1/3 from @s1
@@ -713,6 +767,8 @@ func TestNoBadAllotmentWhenRemaining(t *testing.T) {
 }
 
 func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = {
 		2/3 from @s1
@@ -737,6 +793,8 @@ func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
 }
 
 func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
+	t.Parallel()
+
 	input := `send [COIN 100] (
    source = {
 		2/3 from @s1
@@ -764,6 +822,8 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 }
 
 func TestNoSingleAllotmentVariable(t *testing.T) {
+	t.Parallel()
+
 	input := `vars { portion $allot }
 
 send [COIN 100] (
@@ -781,6 +841,8 @@ send [COIN 100] (
 }
 
 func TestCheckNoUnboundFunctionCall(t *testing.T) {
+	t.Parallel()
+
 	input := `invalid_fn_call()`
 
 	program := parser.Parse(input).Value
@@ -801,6 +863,8 @@ func TestCheckNoUnboundFunctionCall(t *testing.T) {
 }
 
 func TestAllowedFnCall(t *testing.T) {
+	t.Parallel()
+
 	input := `set_tx_meta("for_cone", "true")`
 
 	program := parser.Parse(input).Value
@@ -810,6 +874,8 @@ func TestAllowedFnCall(t *testing.T) {
 }
 
 func TestCheckFnCallTypesWrongType(t *testing.T) {
+	t.Parallel()
+
 	input := `set_tx_meta(@addr, 42)`
 
 	program := parser.Parse(input).Value
@@ -833,6 +899,8 @@ func TestCheckFnCallTypesWrongType(t *testing.T) {
 }
 
 func TestTooFewFnArgs(t *testing.T) {
+	t.Parallel()
+
 	input := `set_tx_meta("arg")`
 
 	program := parser.Parse(input).Value
@@ -856,6 +924,8 @@ func TestTooFewFnArgs(t *testing.T) {
 }
 
 func TestTooManyFnArgs(t *testing.T) {
+	t.Parallel()
+
 	input := `set_tx_meta("arg", "ok", 10, 20)`
 
 	program := parser.Parse(input).Value
@@ -879,6 +949,8 @@ func TestTooManyFnArgs(t *testing.T) {
 }
 
 func TestCheckTrailingCommaFnCall(t *testing.T) {
+	t.Parallel()
+
 	input := `set_tx_meta("ciao", 42, 10, )`
 
 	program := parser.Parse(input).Value
@@ -888,6 +960,8 @@ func TestCheckTrailingCommaFnCall(t *testing.T) {
 }
 
 func TestCheckTypesOriginFn(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	vars {
 		monetary $mon = meta(42, "str")
@@ -915,6 +989,8 @@ func TestCheckTypesOriginFn(t *testing.T) {
 }
 
 func TestCheckReturnTypeOriginFn(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	vars {
 		account $mon = balance(@account, EUR/2)
@@ -942,6 +1018,8 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 }
 
 func TestWorldOverdraft(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 100] (
 		source = {
@@ -965,6 +1043,8 @@ func TestWorldOverdraft(t *testing.T) {
 }
 
 func TestForbidAllotmentInSendAll(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 *] (
 		source = {
@@ -986,6 +1066,8 @@ func TestForbidAllotmentInSendAll(t *testing.T) {
 }
 
 func TestAllowAllotmentInCappedSendAll(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 *] (
 		source = {
@@ -1003,6 +1085,8 @@ func TestAllowAllotmentInCappedSendAll(t *testing.T) {
 }
 
 func TestDisallowAllotmentInCappedSendAllOutsideMax(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 *] (
 		source = {
@@ -1027,6 +1111,8 @@ func TestDisallowAllotmentInCappedSendAllOutsideMax(t *testing.T) {
 }
 
 func TestNoForbidAllotmentInSendAll(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 *] (
 		source = @a
@@ -1048,6 +1134,8 @@ func TestNoForbidAllotmentInSendAll(t *testing.T) {
 }
 
 func TestForbidUnboundedSrcInSendAll(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [GEM *] (
 		source = {
@@ -1073,6 +1161,8 @@ func TestForbidUnboundedSrcInSendAll(t *testing.T) {
 }
 
 func TestAllowUnboundedSrcInSendAllWhenCapped(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [GEM *] (
 		source = max [GEM 100] from {
@@ -1088,6 +1178,8 @@ func TestAllowUnboundedSrcInSendAllWhenCapped(t *testing.T) {
 }
 
 func TestForbidWorldSrcInSendAll(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [EUR/2 *] (
 		source = @world
@@ -1100,6 +1192,8 @@ func TestForbidWorldSrcInSendAll(t *testing.T) {
 }
 
 func TestForbidEmptiedAccount(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1126,6 +1220,8 @@ func TestForbidEmptiedAccount(t *testing.T) {
 }
 
 func TestResetEmptiedAccount(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = @a
@@ -1143,6 +1239,8 @@ func TestResetEmptiedAccount(t *testing.T) {
 }
 
 func TestEmptiedAccountInMax(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1174,6 +1272,8 @@ func TestEmptiedAccountInMax(t *testing.T) {
 }
 
 func TestEmptiedAccountDoNotLeakMaxed(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1190,6 +1290,8 @@ func TestEmptiedAccountDoNotLeakMaxed(t *testing.T) {
 }
 
 func TestDoNotEmptyAccountInMax(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1220,6 +1322,8 @@ func TestDoNotEmptyAccountInMax(t *testing.T) {
 }
 
 func TestDoNotEmitEmptiedAccountOnAllotment(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1235,6 +1339,8 @@ func TestDoNotEmitEmptiedAccountOnAllotment(t *testing.T) {
 }
 
 func TestDoNotAllowExprAfterWorld(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1260,6 +1366,8 @@ func TestDoNotAllowExprAfterWorld(t *testing.T) {
 }
 
 func TestAllowWorldInNextExpr(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 1] (
 		source = @world
@@ -1278,6 +1386,8 @@ func TestAllowWorldInNextExpr(t *testing.T) {
 }
 
 func TestAllowWorldInMaxedExpr(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 10] (
 		source = {
@@ -1294,6 +1404,8 @@ func TestAllowWorldInMaxedExpr(t *testing.T) {
 }
 
 func TestDoNotAllowExprAfterWorldInsideMaxed(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 10] (
 		source = max [COIN 1] from {
@@ -1319,6 +1431,8 @@ func TestDoNotAllowExprAfterWorldInsideMaxed(t *testing.T) {
 }
 
 func TestDoNotAllowExprAfterUnbounded(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
@@ -1344,6 +1458,8 @@ func TestDoNotAllowExprAfterUnbounded(t *testing.T) {
 }
 
 func TestAllowExprAfterBoundedOverdraft(t *testing.T) {
+	t.Parallel()
+
 	input := `
 	send [COIN 100] (
 		source = {
