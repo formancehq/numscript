@@ -1881,3 +1881,110 @@ parser.Program{
     },
 }
 ---
+
+[TestSaveStatementSimple - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:28, Line:1},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.MonetaryLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    Asset: &parser.AssetLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:6, Line:1},
+                            End:   parser.Position{Character:11, Line:1},
+                        },
+                        Asset: "EUR/2",
+                    },
+                    Amount: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:1},
+                            End:   parser.Position{Character:15, Line:1},
+                        },
+                        Number: 100,
+                    },
+                },
+            },
+            Literal: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:22, Line:1},
+                    End:   parser.Position{Character:28, Line:1},
+                },
+                Name: "alice",
+            },
+        },
+    },
+}
+---
+
+[TestSaveAllStatement - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:26, Line:1},
+            },
+            SentValue: &parser.SentValueAll{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:1},
+                    End:   parser.Position{Character:14, Line:1},
+                },
+                Asset: &parser.AssetLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:6, Line:1},
+                        End:   parser.Position{Character:11, Line:1},
+                    },
+                    Asset: "EUR/2",
+                },
+            },
+            Literal: &parser.AccountLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:20, Line:1},
+                    End:   parser.Position{Character:26, Line:1},
+                },
+                Name: "alice",
+            },
+        },
+    },
+}
+---
+
+[TestSaveStatementVar - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SaveStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:19, Line:1},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Monetary: &parser.VariableLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:1},
+                        End:   parser.Position{Character:9, Line:1},
+                    },
+                    Name: "amt",
+                },
+            },
+            Literal: &parser.VariableLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:15, Line:1},
+                    End:   parser.Position{Character:19, Line:1},
+                },
+                Name: "acc",
+            },
+        },
+    },
+}
+---

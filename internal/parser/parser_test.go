@@ -270,3 +270,27 @@ send $var (
 	`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestSaveStatementSimple(t *testing.T) {
+	p := parser.Parse(`
+save [EUR/2 100] from @alice
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestSaveAllStatement(t *testing.T) {
+	p := parser.Parse(`
+save [EUR/2 *] from @alice
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestSaveStatementVar(t *testing.T) {
+	p := parser.Parse(`
+save $amt from $acc
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

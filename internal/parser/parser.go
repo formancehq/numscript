@@ -533,13 +533,23 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	}
 }
 
+func parseSave(saveCtx *parser.SaveStatementContext) *SaveStatement {
+	return &SaveStatement{
+		Range:     ctxToRange(saveCtx),
+		SentValue: parseSentValue(saveCtx.SentValue()),
+		Literal:   parseLiteral(saveCtx.Literal()),
+	}
+}
+
 func parseStatement(statementCtx parser.IStatementContext) Statement {
 	switch statementCtx := statementCtx.(type) {
 	case *parser.SendStatementContext:
 		return parseSendStatement(statementCtx)
 
-	case *parser.FnCallStatementContext:
+	case *parser.SaveStatementContext:
+		return parseSave(statementCtx)
 
+	case *parser.FnCallStatementContext:
 		return parseFnCall(statementCtx.FunctionCall())
 
 	case *parser.StatementContext:

@@ -19,6 +19,7 @@ ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
 KEPT: 'kept';
+SAVE: 'save';
 LPARENS: '(';
 RPARENS: ')';
 LBRACKET: '[';
@@ -100,4 +101,5 @@ sentValue: literal # sentLiteral | sentAllLit # sentAll;
 
 statement:
 	SEND sentValue LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
+	| SAVE sentValue FROM literal												# saveStatement
 	| functionCall																# fnCallStatement;
