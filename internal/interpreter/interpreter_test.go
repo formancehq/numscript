@@ -80,6 +80,8 @@ func (c *TestCase) setBalance(account string, asset string, amount int64) {
 }
 
 func test(t *testing.T, testCase TestCase) {
+	t.Parallel()
+
 	prog := testCase.program
 
 	require.NotNil(t, prog)

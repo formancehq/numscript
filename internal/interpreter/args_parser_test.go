@@ -9,12 +9,16 @@ import (
 )
 
 func TestParseEmptyArgsValidArity(t *testing.T) {
+	t.Parallel()
+
 	p := NewArgsParser([]Value{})
 	err := p.parse()
 	require.Nil(t, err)
 }
 
 func TestParseInvalidArity(t *testing.T) {
+	t.Parallel()
+
 	p := NewArgsParser([]Value{})
 	parseArg(p, parser.Range{}, expectAccount)
 	parseArg(p, parser.Range{}, expectAsset)
@@ -28,6 +32,8 @@ func TestParseInvalidArity(t *testing.T) {
 }
 
 func TestParseValid(t *testing.T) {
+	t.Parallel()
+
 	p := NewArgsParser([]Value{
 		NewMonetaryInt(42),
 		AccountAddress("user:001"),
@@ -46,6 +52,8 @@ func TestParseValid(t *testing.T) {
 }
 
 func TestParseBadType(t *testing.T) {
+	t.Parallel()
+
 	p := NewArgsParser([]Value{
 		NewMonetaryInt(42),
 		AccountAddress("user:001"),

@@ -11,6 +11,8 @@ import (
 )
 
 func TestMarshalMonetaryInt(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.NewMonetaryInt(42)
 
 	j, err := json.Marshal(x)
@@ -19,6 +21,8 @@ func TestMarshalMonetaryInt(t *testing.T) {
 }
 
 func TestMarshalString(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.String("abc")
 
 	j, err := json.Marshal(x)
@@ -27,6 +31,8 @@ func TestMarshalString(t *testing.T) {
 }
 
 func TestMarshalAsset(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.Asset("EUR/2")
 
 	j, err := json.Marshal(x)
@@ -35,6 +41,8 @@ func TestMarshalAsset(t *testing.T) {
 }
 
 func TestMarshalAddress(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.AccountAddress("abc")
 
 	j, err := json.Marshal(x)
@@ -43,6 +51,8 @@ func TestMarshalAddress(t *testing.T) {
 }
 
 func TestMarshalPortion(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.Portion(*big.NewRat(2, 3))
 
 	j, err := json.Marshal(x)
@@ -51,6 +61,8 @@ func TestMarshalPortion(t *testing.T) {
 }
 
 func TestMarshalMonetary(t *testing.T) {
+	t.Parallel()
+
 	x := interpreter.Monetary{
 		Asset:  interpreter.Asset("USD/2"),
 		Amount: interpreter.NewMonetaryInt(100),
