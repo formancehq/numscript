@@ -15,26 +15,32 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 	case *parser.FnCall:
 		return nil
 
-	case *parser.SendStatement:
-		// set the current asset
-		switch sentValue := statement.SentValue.(type) {
-		case *parser.SentValueAll:
-			asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
-			if err != nil {
-				return err
-			}
-			st.CurrentAsset = *asset
-
-		case *parser.SentValueLiteral:
-			monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
-			if err != nil {
-				return err
-			}
-			st.CurrentAsset = string(monetary.Asset)
-
-		default:
-			utils.NonExhaustiveMatchPanic[any](sentValue)
+	case *parser.SaveStatement:
+		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		if err != nil {
+			return err
 		}
+
+		// Although we don't technically need this account's balance rn,
+		// having access to the balance simplifies the "save" statement implementation
+		// this means that we would have a needless query in the case in which the account
+		// which is selected in the "save" statement never actually appears as source
+		//
+		// this would mean that the "save" statement was not needed in the first place,
+		// so preventing this query would hardly be an useful optimization
+		account, err := evaluateLitExpecting(st, statement.Literal, expectAccount)
+		if err != nil {
+			return err
+		}
+		st.batchQuery(*account, *asset)
+		return nil
+
+	case *parser.SendStatement:
+		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		if err != nil {
+			return err
+		}
+		st.CurrentAsset = *asset
 
 		// traverse source
 		return st.findBalancesQueries(statement.Source)
@@ -51,7 +57,7 @@ func (st *programState) batchQuery(account string, asset string) {
 	}
 
 	previousValues := st.CurrentBalanceQuery[account]
-	if !slices.Contains[[]string, string](previousValues, account) {
+	if !slices.Contains[[]string, string](previousValues, asset) {
 		st.CurrentBalanceQuery[account] = append(previousValues, asset)
 	}
 }

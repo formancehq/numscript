@@ -277,6 +277,10 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 
 	case *parser.SendStatement:
 		return st.runSendStatement(*statement)
+
+	case *parser.SaveStatement:
+		return st.runSaveStatement(*statement)
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](statement)
 		return nil, nil
@@ -297,6 +301,41 @@ func (st *programState) getPostings() ([]Posting, InterpreterError) {
 		destBalance.Add(destBalance, posting.Amount)
 	}
 	return postings, nil
+}
+
+func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]Posting, InterpreterError) {
+	asset, amt, err := st.evaluateSentAmt(saveStatement.SentValue)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := evaluateLitExpecting(st, saveStatement.Literal, expectAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	balance := st.getCachedBalance(*account, *asset)
+
+	if amt == nil {
+		balance.Set(big.NewInt(0))
+	} else {
+		// Do not allow negative saves
+		if amt.Cmp(big.NewInt(0)) == -1 {
+			return nil, NegativeAmountErr{
+				Range:  saveStatement.SentValue.GetRange(),
+				Amount: MonetaryInt(*amt),
+			}
+		}
+
+		// we decrease the balance by "amt"
+		balance.Sub(balance, amt)
+		// without going under 0
+		if balance.Cmp(big.NewInt(0)) == -1 {
+			balance.Set(big.NewInt(0))
+		}
+	}
+
+	return nil, nil
 }
 
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, InterpreterError) {
@@ -795,4 +834,28 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 	accountMeta[*key] = (*meta).String()
 
 	return nil
+}
+
+func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *big.Int, InterpreterError) {
+	switch sentValue := sentValue.(type) {
+	case *parser.SentValueAll:
+		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		if err != nil {
+			return nil, nil, err
+		}
+		return asset, nil, nil
+
+	case *parser.SentValueLiteral:
+		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
+		if err != nil {
+			return nil, nil, err
+		}
+		s := string(monetary.Asset)
+		bi := big.Int(monetary.Amount)
+		return &s, &bi, nil
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](sentValue)
+		return nil, nil, nil
+	}
 }
