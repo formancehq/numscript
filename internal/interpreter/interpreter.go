@@ -858,6 +858,9 @@ func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *b
 	}
 }
 
+var percentRegex = regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
+var fractionRegex = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
+
 // slightly edited copy-paste from:
 // https://github.com/formancehq/ledger/blob/b188d0c80eadaab5024d74edc967c7005e155f7c/internal/machine/portion.go#L57
 
@@ -865,8 +868,7 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	var res *big.Rat
 	var ok bool
 
-	re := regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
-	percentMatch := re.FindStringSubmatch(input)
+	percentMatch := percentRegex.FindStringSubmatch(input)
 	if len(percentMatch) != 0 {
 		integral := percentMatch[1]
 		fractional := percentMatch[2]
@@ -876,8 +878,7 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 		}
 		res.Mul(res, big.NewRat(1, 100))
 	} else {
-		re = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
-		fractionMatch := re.FindStringSubmatch(input)
+		fractionMatch := fractionRegex.FindStringSubmatch(input)
 		if len(fractionMatch) != 0 {
 			numerator := fractionMatch[1]
 			denominator := fractionMatch[2]
