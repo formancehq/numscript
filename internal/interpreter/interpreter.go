@@ -91,7 +91,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAccount:
 		return AccountAddress(rawValue), nil
 	case analysis.TypePortion:
-		bi, err := parsePortionSpecific(rawValue)
+		bi, err := ParsePortionSpecific(rawValue)
 		if err != nil {
 			return nil, err
 		}
@@ -861,7 +861,7 @@ func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *b
 // slightly edited copy-paste from:
 // https://github.com/formancehq/ledger/blob/b188d0c80eadaab5024d74edc967c7005e155f7c/internal/machine/portion.go#L57
 
-func parsePortionSpecific(input string) (*big.Rat, InterpreterError) {
+func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	var res *big.Rat
 	var ok bool
 
@@ -890,5 +890,10 @@ func parsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	if res == nil {
 		return nil, BadPortionParsingErr{Reason: "invalid format", Source: input}
 	}
+
+	if res.Cmp(big.NewRat(0, 1)) == -1 || res.Cmp(big.NewRat(1, 1)) == 1 {
+		return nil, BadPortionParsingErr{Reason: "portion must be between 0% and 100% inclusive", Source: input}
+	}
+
 	return res, nil
 }
