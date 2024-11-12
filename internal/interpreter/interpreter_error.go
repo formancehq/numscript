@@ -65,6 +65,16 @@ func (e UnboundVariableErr) Error() string {
 	return fmt.Sprintf("Unbound variable: $%s", e.Name)
 }
 
+type BadPortionParsingErr struct {
+	parser.Range
+	Source string
+	Reason string
+}
+
+func (e BadPortionParsingErr) Error() string {
+	return fmt.Sprintf("Bad portion: %s", e.Reason)
+}
+
 type MissingVariableErr struct {
 	parser.Range
 	Name string
