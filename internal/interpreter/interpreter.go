@@ -3,6 +3,7 @@ package interpreter
 import (
 	"context"
 	"math/big"
+	"regexp"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -62,14 +63,6 @@ type ExecutionResult struct {
 	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
 }
 
-func parsePercentage(p string) *big.Rat {
-	num, den, err := parser.ParsePercentageRatio(p)
-	if err != nil {
-		panic(err)
-	}
-	return new(big.Rat).SetFrac(num, den)
-}
-
 func parseMonetary(source string) (Monetary, InterpreterError) {
 	parts := strings.Split(source, " ")
 	if len(parts) != 2 {
@@ -98,7 +91,12 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAccount:
 		return AccountAddress(rawValue), nil
 	case analysis.TypePortion:
-		return Portion(*parsePercentage(rawValue)), nil
+		bi, err := ParsePortionSpecific(rawValue)
+		if err != nil {
+			return nil, err
+		}
+
+		return Portion(*bi), nil
 	case analysis.TypeAsset:
 		return Asset(rawValue), nil
 	case analysis.TypeNumber:
@@ -858,4 +856,45 @@ func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *b
 		utils.NonExhaustiveMatchPanic[any](sentValue)
 		return nil, nil, nil
 	}
+}
+
+var percentRegex = regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
+var fractionRegex = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
+
+// slightly edited copy-paste from:
+// https://github.com/formancehq/ledger/blob/b188d0c80eadaab5024d74edc967c7005e155f7c/internal/machine/portion.go#L57
+
+func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
+	var res *big.Rat
+	var ok bool
+
+	percentMatch := percentRegex.FindStringSubmatch(input)
+	if len(percentMatch) != 0 {
+		integral := percentMatch[1]
+		fractional := percentMatch[2]
+		res, ok = new(big.Rat).SetString(integral + "." + fractional)
+		if !ok {
+			return nil, BadPortionParsingErr{Reason: "invalid percent format", Source: input}
+		}
+		res.Mul(res, big.NewRat(1, 100))
+	} else {
+		fractionMatch := fractionRegex.FindStringSubmatch(input)
+		if len(fractionMatch) != 0 {
+			numerator := fractionMatch[1]
+			denominator := fractionMatch[2]
+			res, ok = new(big.Rat).SetString(numerator + "/" + denominator)
+			if !ok {
+				return nil, BadPortionParsingErr{Reason: "invalid fractional format", Source: input}
+			}
+		}
+	}
+	if res == nil {
+		return nil, BadPortionParsingErr{Reason: "invalid format", Source: input}
+	}
+
+	if res.Cmp(big.NewRat(0, 1)) == -1 || res.Cmp(big.NewRat(1, 1)) == 1 {
+		return nil, BadPortionParsingErr{Reason: "portion must be between 0% and 100% inclusive", Source: input}
+	}
+
+	return res, nil
 }

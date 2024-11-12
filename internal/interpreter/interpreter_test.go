@@ -309,6 +309,62 @@ func TestVariablesJSON(t *testing.T) {
 	test(t, tc)
 }
 
+func TestPortionSyntax(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		portion $por
+	}
+	send [COIN 3] (
+		source = @world
+		destination = {
+			$por to @a
+			remaining kept
+		}
+	)
+	`)
+	tc.setVarsFromJSON(t, `{
+		"por": "1/3"
+	}`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestBadPortionSyntax(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		portion $por
+	}
+	send [COIN 3] (
+		source = @world
+		destination = {
+			$por to @a
+			remaining kept
+		}
+	)
+	`)
+	tc.setVarsFromJSON(t, `{
+		"por": "not a portion"
+	}`)
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.BadPortionParsingErr{
+			Source: "not a portion",
+			Reason: "invalid format",
+		},
+	}
+	test(t, tc)
+}
+
 func TestSource(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `vars {
