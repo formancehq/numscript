@@ -2199,7 +2199,6 @@ parser.Program{
 }
 ---
 
-
 [TestInfixPrec - 1]
 parser.Program{
     Vars:       nil,
@@ -2257,6 +2256,73 @@ parser.Program{
                             End:   parser.Position{Character:27, Line:1},
                         },
                         Number: 3,
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestIfExprInDestSimple - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:1, Line:6},
+            },
+            SentValue: &parser.SentValueAll{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:1},
+                    End:   parser.Position{Character:14, Line:1},
+                },
+                Asset: &parser.AssetLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:6, Line:1},
+                        End:   parser.Position{Character:11, Line:1},
+                    },
+                    Asset: "USD/2",
+                },
+            },
+            Source: &parser.SourceAccount{
+                ValueExpr: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:10, Line:2},
+                        End:   parser.Position{Character:16, Line:2},
+                    },
+                    Name: "world",
+                },
+            },
+            Destination: &parser.IfExpr[github.com/formancehq/numscript/internal/parser.Destination]{
+                Range: parser.Range{
+                    Start: parser.Position{Character:2, Line:4},
+                    End:   parser.Position{Character:5, Line:5},
+                },
+                Condition: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:9, Line:4},
+                        End:   parser.Position{Character:14, Line:4},
+                    },
+                    Name: "cond",
+                },
+                IfBranch: &parser.DestinationAccount{
+                    ValueExpr: &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:2, Line:4},
+                            End:   parser.Position{Character:5, Line:4},
+                        },
+                        Name: "d1",
+                    },
+                },
+                ElseBranch: &parser.DestinationAccount{
+                    ValueExpr: &parser.AccountLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:2, Line:5},
+                            End:   parser.Position{Character:5, Line:5},
+                        },
+                        Name: "d2",
                     },
                 },
             },

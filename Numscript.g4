@@ -18,6 +18,8 @@ REMAINING: 'remaining';
 ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
+IF: 'if';
+ELSE: 'else';
 KEPT: 'kept';
 SAVE: 'save';
 LPARENS: '(';
@@ -94,6 +96,7 @@ destinationInOrderClause: MAX valueExpr keptOrDestination;
 
 destination:
 	valueExpr																# destAccount
+	| ifBranch = destination IF valueExpr ELSE elseBranch = destination		# destIf
 	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
 	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
 allotmentClauseDest: allotment keptOrDestination;

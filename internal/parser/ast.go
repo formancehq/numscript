@@ -4,6 +4,13 @@ import (
 	"math/big"
 )
 
+type IfExpr[Value Ranged] struct {
+	Range
+	Condition  ValueExpr
+	IfBranch   Value
+	ElseBranch Value
+}
+
 type ValueExpr interface {
 	Ranged
 	valueExpr()
@@ -144,6 +151,7 @@ type Destination interface {
 func (*DestinationAccount) destination()   {}
 func (*DestinationInorder) destination()   {}
 func (*DestinationAllotment) destination() {}
+func (*IfExpr[Destination]) destination()  {}
 
 type (
 	DestinationAccount struct {
