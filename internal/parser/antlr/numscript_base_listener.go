@@ -223,6 +223,18 @@ func (s *BaseNumscriptListener) EnterDestinationInOrderClause(ctx *DestinationIn
 // ExitDestinationInOrderClause is called when production destinationInOrderClause is exited.
 func (s *BaseNumscriptListener) ExitDestinationInOrderClause(ctx *DestinationInOrderClauseContext) {}
 
+// EnterDestInorder is called when production destInorder is entered.
+func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
+
+// ExitDestInorder is called when production destInorder is exited.
+func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
+
+// EnterDestIf is called when production destIf is entered.
+func (s *BaseNumscriptListener) EnterDestIf(ctx *DestIfContext) {}
+
+// ExitDestIf is called when production destIf is exited.
+func (s *BaseNumscriptListener) ExitDestIf(ctx *DestIfContext) {}
+
 // EnterDestAccount is called when production destAccount is entered.
 func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
 
@@ -234,12 +246,6 @@ func (s *BaseNumscriptListener) EnterDestAllotment(ctx *DestAllotmentContext) {}
 
 // ExitDestAllotment is called when production destAllotment is exited.
 func (s *BaseNumscriptListener) ExitDestAllotment(ctx *DestAllotmentContext) {}
-
-// EnterDestInorder is called when production destInorder is entered.
-func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
-
-// ExitDestInorder is called when production destInorder is exited.
-func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
 
 // EnterAllotmentClauseDest is called when production allotmentClauseDest is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}

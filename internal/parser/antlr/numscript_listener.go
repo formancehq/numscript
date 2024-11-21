@@ -107,14 +107,17 @@ type NumscriptListener interface {
 	// EnterDestinationInOrderClause is called when entering the destinationInOrderClause production.
 	EnterDestinationInOrderClause(c *DestinationInOrderClauseContext)
 
+	// EnterDestInorder is called when entering the destInorder production.
+	EnterDestInorder(c *DestInorderContext)
+
+	// EnterDestIf is called when entering the destIf production.
+	EnterDestIf(c *DestIfContext)
+
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
 
 	// EnterDestAllotment is called when entering the destAllotment production.
 	EnterDestAllotment(c *DestAllotmentContext)
-
-	// EnterDestInorder is called when entering the destInorder production.
-	EnterDestInorder(c *DestInorderContext)
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
@@ -233,14 +236,17 @@ type NumscriptListener interface {
 	// ExitDestinationInOrderClause is called when exiting the destinationInOrderClause production.
 	ExitDestinationInOrderClause(c *DestinationInOrderClauseContext)
 
+	// ExitDestInorder is called when exiting the destInorder production.
+	ExitDestInorder(c *DestInorderContext)
+
+	// ExitDestIf is called when exiting the destIf production.
+	ExitDestIf(c *DestIfContext)
+
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)
 
 	// ExitDestAllotment is called when exiting the destAllotment production.
 	ExitDestAllotment(c *DestAllotmentContext)
-
-	// ExitDestInorder is called when exiting the destInorder production.
-	ExitDestInorder(c *DestInorderContext)
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)

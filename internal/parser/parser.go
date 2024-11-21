@@ -430,6 +430,14 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			Items: items,
 		}
 
+	case *parser.DestIfContext:
+		return &IfExpr[Destination]{
+			Range:      ctxToRange(destCtx),
+			Condition:  parseValueExpr(destCtx.ValueExpr()),
+			IfBranch:   parseDestination(destCtx.GetIfBranch()),
+			ElseBranch: parseDestination(destCtx.GetElseBranch()),
+		}
+
 	case *parser.DestinationContext:
 		return nil
 
