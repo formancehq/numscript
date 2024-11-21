@@ -508,7 +508,7 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 		return nil
 	}
 
-	ident := fnCallCtx.IDENTIFIER()
+	ident := fnCallCtx.GetFnName()
 	if ident == nil {
 		return nil
 	}
@@ -518,8 +518,8 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	return &FnCall{
 		Range: ctxToRange(fnCallCtx),
 		Caller: &FnCallIdentifier{
-			Range: tokenToRange(ident.GetSymbol()),
-			Name:  ident.GetSymbol().GetText(),
+			Range: tokenToRange(ident),
+			Name:  ident.GetText(),
 		},
 		Args: parseFnArgs(allArgs),
 	}

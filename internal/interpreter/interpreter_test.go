@@ -3269,7 +3269,7 @@ func TestSaveFromAccount(t *testing.T) {
 // new semantics
 func TestOverdraftFunctionWhenNegative(t *testing.T) {
 	script := `
- 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
 
  		send $amt (
  			source = @world
@@ -3298,7 +3298,7 @@ func TestOverdraftFunctionWhenNegative(t *testing.T) {
 
 func TestOverdraftFunctionWhenZero(t *testing.T) {
 	script := `
- 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
 
  		send $amt (
  			source = @world
@@ -3321,7 +3321,7 @@ func TestOverdraftFunctionWhenZero(t *testing.T) {
 
 func TestOverdraftFunctionWhenPositive(t *testing.T) {
 	script := `
- 		vars { monetary $amt = overdraft_amount(@acc, EUR/2) }
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
 
  		send $amt (
  			source = @world
@@ -3345,7 +3345,7 @@ func TestOverdraftFunctionWhenPositive(t *testing.T) {
 
 func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
 	script := `
- 		vars { monetary $amt = overdraft_amount(@user:001, USD/2) }
+ 		vars { monetary $amt = overdraft(@user:001, USD/2) }
 
 
 		// we have at most 1000 USD/2 to remove user:001's debt
