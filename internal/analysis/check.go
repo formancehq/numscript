@@ -55,7 +55,7 @@ const FnSetTxMeta = "set_tx_meta"
 const FnSetAccountMeta = "set_account_meta"
 const FnVarOriginMeta = "meta"
 const FnVarOriginBalance = "balance"
-const FnVarOriginOverdraft = "overdraft_amount" // <- TODO integrate with lsp
+const FnVarOriginOverdraft = "overdraft"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{

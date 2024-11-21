@@ -59,7 +59,8 @@ literal:
 	| portion		# portionLiteral;
 
 functionCallArgs: literal ( COMMA literal)*;
-functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
+functionCall:
+	fnName = (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
 
 varOrigin: EQ functionCall;
 varDeclaration:
