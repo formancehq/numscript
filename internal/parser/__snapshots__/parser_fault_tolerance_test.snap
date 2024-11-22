@@ -7,7 +7,7 @@ parser.Program{
                 Start: parser.Position{Character:7, Line:0},
                 End:   parser.Position{Character:18, Line:0},
             },
-            Name: (*parser.VariableLiteral)(nil),
+            Name: (*parser.Variable)(nil),
             Type: &parser.TypeDecl{
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:0},
@@ -115,7 +115,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:13, Line:1},
                         End:   parser.Position{Character:15, Line:1},
@@ -173,7 +173,7 @@ parser.Program{
                 Cap:  nil,
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:18, Line:2},
                         End:   parser.Position{Character:20, Line:2},
@@ -253,7 +253,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -310,7 +310,7 @@ parser.Program{
                 Start: parser.Position{Character:1, Line:2},
                 End:   parser.Position{Character:11, Line:2},
             },
-            Name: &parser.VariableLiteral{
+            Name: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:2},
                     End:   parser.Position{Character:9, Line:2},
@@ -341,7 +341,7 @@ parser.Program{
                 End:   parser.Position{Character:4, Line:1},
             },
             SentValue: nil,
-            Literal:   nil,
+            Amount:    nil,
         },
     },
 }
@@ -382,7 +382,7 @@ parser.Program{
                     },
                 },
             },
-            Literal: nil,
+            Amount: nil,
         },
     },
 }
@@ -423,7 +423,7 @@ parser.Program{
                     },
                 },
             },
-            Literal: nil,
+            Amount: nil,
         },
     },
 }

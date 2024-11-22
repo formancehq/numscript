@@ -98,7 +98,7 @@ func (st *programState) runBalancesQuery() error {
 func (st *programState) findBalancesQueries(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateLitExpecting(st, source.Literal, expectAccount)
+		account, err := evaluateLitExpecting(st, source.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}

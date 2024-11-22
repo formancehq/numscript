@@ -9,7 +9,7 @@ type Hover interface{ hover() }
 
 type VariableHover struct {
 	Range parser.Range
-	Node  *parser.VariableLiteral
+	Node  *parser.Variable
 }
 
 func (*VariableHover) hover() {}
@@ -139,13 +139,13 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 	return nil
 }
 
-func hoverOnLiteral(lit parser.Literal, position parser.Position) Hover {
+func hoverOnLiteral(lit parser.ValueExpr, position parser.Position) Hover {
 	if lit == nil || !lit.GetRange().Contains(position) {
 		return nil
 	}
 
 	switch lit := lit.(type) {
-	case *parser.VariableLiteral:
+	case *parser.Variable:
 		return &VariableHover{
 			Range: lit.Range,
 			Node:  lit,
@@ -219,7 +219,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 			}
 
 			switch allot := item.Allotment.(type) {
-			case parser.Literal:
+			case parser.ValueExpr:
 				hover := hoverOnLiteral(allot, position)
 				if hover != nil {
 					return hover
@@ -233,7 +233,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 		}
 
 	case *parser.SourceAccount:
-		return hoverOnLiteral(source.Literal, position)
+		return hoverOnLiteral(source.ValueExpr, position)
 	}
 
 	return nil
@@ -291,7 +291,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 			}
 
 			switch allot := item.Allotment.(type) {
-			case parser.Literal:
+			case parser.ValueExpr:
 				hover := hoverOnLiteral(allot, position)
 				if hover != nil {
 					return hover
@@ -305,7 +305,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 		}
 
 	case *parser.DestinationAccount:
-		return hoverOnLiteral(source.Literal, position)
+		return hoverOnLiteral(source.ValueExpr, position)
 	}
 
 	return nil

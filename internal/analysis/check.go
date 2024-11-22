@@ -83,12 +83,12 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	unboundedAccountInSend parser.Literal
+	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
 	unboundedSend          bool
 	declaredVars           map[string]parser.VarDeclaration
 	unusedVars             map[string]parser.Range
-	varResolution          map[*parser.VariableLiteral]parser.VarDeclaration
+	varResolution          map[*parser.Variable]parser.VarDeclaration
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
 	Diagnostics            []Diagnostic
 	Program                parser.Program
@@ -114,7 +114,7 @@ func (r CheckResult) GetWarningsCount() int {
 	return c
 }
 
-func (r CheckResult) ResolveVar(v *parser.VariableLiteral) *parser.VarDeclaration {
+func (r CheckResult) ResolveVar(v *parser.Variable) *parser.VarDeclaration {
 	k, ok := r.varResolution[v]
 	if !ok {
 		return nil
@@ -135,7 +135,7 @@ func newCheckResult(program parser.Program) CheckResult {
 		emptiedAccount:   make(map[string]struct{}),
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
-		varResolution:    make(map[*parser.VariableLiteral]parser.VarDeclaration),
+		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
 		Program:          program,
 	}
@@ -223,7 +223,7 @@ func parsingErrorToDiagnostic(parserError parser.ParserError) Diagnostic {
 func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 	resolution, resolved := res.fnCallResolution[fnCall.Caller]
 
-	var validArgs []parser.Literal
+	var validArgs []parser.ValueExpr
 	for _, lit := range fnCall.Args {
 		if lit != nil {
 			validArgs = append(validArgs, lit)
@@ -302,7 +302,7 @@ func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
 	}
 }
 
-func (res *CheckResult) checkDuplicateVars(variableName parser.VariableLiteral, decl parser.VarDeclaration) {
+func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
 	// check there aren't duplicate variables
 	if _, ok := res.declaredVars[variableName.Name]; ok {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
@@ -329,9 +329,9 @@ func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDecl
 	res.checkFnCallArity(&fnCall)
 }
 
-func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {
+func (res *CheckResult) checkLiteral(lit parser.ValueExpr, requiredType string) {
 	switch lit := lit.(type) {
-	case *parser.VariableLiteral:
+	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
 		} else {
@@ -365,7 +365,7 @@ func (res *CheckResult) checkLiteral(lit parser.Literal, requiredType string) {
 	}
 }
 
-func (res *CheckResult) assertHasType(lit parser.Literal, requiredType string, actualType string) {
+func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string, actualType string) {
 	if requiredType == TypeAny || requiredType == actualType {
 		return
 	}
@@ -403,8 +403,8 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		res.checkLiteral(source.Literal, TypeAccount)
-		if account, ok := source.Literal.(*parser.AccountLiteral); ok {
+		res.checkLiteral(source.ValueExpr, TypeAccount)
+		if account, ok := source.ValueExpr.(*parser.AccountLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
 				res.Diagnostics = append(res.Diagnostics, Diagnostic{
 					Range: source.GetRange(),
@@ -470,14 +470,14 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 		var remainingAllotment *parser.RemainingAllotment = nil
-		var variableLiterals []parser.VariableLiteral
+		var variableLiterals []parser.Variable
 
 		sum := big.NewRat(0, 1)
 		for i, allottedItem := range source.Items {
 			isLast := i == len(source.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
-			case *parser.VariableLiteral:
+			case *parser.Variable:
 				variableLiterals = append(variableLiterals, *allotment)
 				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
@@ -512,7 +512,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		res.checkLiteral(destination.Literal, TypeAccount)
+		res.checkLiteral(destination.ValueExpr, TypeAccount)
 
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
@@ -523,14 +523,14 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 	case *parser.DestinationAllotment:
 		var remainingAllotment *parser.RemainingAllotment
-		var variableLiterals []parser.VariableLiteral
+		var variableLiterals []parser.Variable
 		sum := big.NewRat(0, 1)
 
 		for i, allottedItem := range destination.Items {
 			isLast := i == len(destination.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
-			case *parser.VariableLiteral:
+			case *parser.Variable:
 				variableLiterals = append(variableLiterals, *allotment)
 				res.checkLiteral(allotment, TypePortion)
 			case *parser.RatioLiteral:
@@ -566,7 +566,7 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 	sum big.Rat,
 	rng parser.Range,
 	remaining *parser.RemainingAllotment,
-	variableLiterals []parser.VariableLiteral,
+	variableLiterals []parser.Variable,
 ) {
 	cmp := sum.Cmp(big.NewRat(1, 1))
 	switch cmp {

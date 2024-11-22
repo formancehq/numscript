@@ -34,7 +34,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:15, Line:1},
@@ -43,7 +43,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
@@ -92,7 +92,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.VariableLiteral{
+                ValueExpr: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:27, Line:1},
@@ -101,7 +101,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.VariableLiteral{
+                ValueExpr: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:33, Line:2},
@@ -175,7 +175,7 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:22, Line:1},
                                     End:   parser.Position{Character:25, Line:1},
@@ -187,7 +187,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
@@ -261,7 +261,7 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:13, Line:2},
                                     End:   parser.Position{Character:16, Line:2},
@@ -290,7 +290,7 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:10, Line:3},
                                     End:   parser.Position{Character:13, Line:3},
@@ -311,7 +311,7 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:16, Line:4},
                                     End:   parser.Position{Character:19, Line:4},
@@ -323,7 +323,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:6},
                         End:   parser.Position{Character:18, Line:6},
@@ -397,7 +397,7 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:24, Line:1},
                                     End:   parser.Position{Character:26, Line:1},
@@ -409,7 +409,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
@@ -458,7 +458,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -493,7 +493,7 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                Literal: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:25, Line:2},
                                         End:   parser.Position{Character:27, Line:2},
@@ -551,7 +551,7 @@ parser.Program{
                     End:   parser.Position{Character:35, Line:1},
                 },
                 From: &parser.SourceAccount{
-                    Literal: &parser.AccountLiteral{
+                    ValueExpr: &parser.AccountLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:31, Line:1},
                             End:   parser.Position{Character:35, Line:1},
@@ -581,7 +581,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
@@ -635,7 +635,7 @@ parser.Program{
                     End:   parser.Position{Character:32, Line:1},
                 },
                 From: &parser.SourceAccount{
-                    Literal: &parser.AccountLiteral{
+                    ValueExpr: &parser.AccountLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:28, Line:1},
                             End:   parser.Position{Character:32, Line:1},
@@ -643,7 +643,7 @@ parser.Program{
                         Name: "src",
                     },
                 },
-                Cap: &parser.VariableLiteral{
+                Cap: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:1},
                         End:   parser.Position{Character:22, Line:1},
@@ -652,7 +652,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
@@ -712,7 +712,7 @@ parser.Program{
                             End:   parser.Position{Character:27, Line:2},
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:23, Line:2},
                                     End:   parser.Position{Character:27, Line:2},
@@ -742,7 +742,7 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
-                        Literal: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:1, Line:3},
                                 End:   parser.Position{Character:3, Line:3},
@@ -751,7 +751,7 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
-                        Literal: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:1, Line:4},
                                 End:   parser.Position{Character:3, Line:4},
@@ -762,7 +762,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:6},
                         End:   parser.Position{Character:21, Line:6},
@@ -811,7 +811,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:27, Line:1},
                         End:   parser.Position{Character:31, Line:1},
@@ -820,7 +820,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:46, Line:1},
                         End:   parser.Position{Character:51, Line:1},
@@ -861,7 +861,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:27, Line:2},
                         End:   parser.Position{Character:31, Line:2},
@@ -870,7 +870,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:46, Line:2},
                         End:   parser.Position{Character:51, Line:2},
@@ -894,7 +894,7 @@ parser.Program{
                 Start: parser.Position{Character:7, Line:0},
                 End:   parser.Position{Character:23, Line:0},
             },
-            Name: &parser.VariableLiteral{
+            Name: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:16, Line:0},
                     End:   parser.Position{Character:23, Line:0},
@@ -929,7 +929,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:0},
                     End:   parser.Position{Character:13, Line:0},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
                         End:   parser.Position{Character:13, Line:0},
@@ -938,7 +938,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -947,7 +947,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
@@ -996,7 +996,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -1031,7 +1031,7 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                Literal: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:10, Line:3},
                                         End:   parser.Position{Character:12, Line:3},
@@ -1054,7 +1054,7 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                Literal: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:14, Line:4},
                                         End:   parser.Position{Character:17, Line:4},
@@ -1117,7 +1117,7 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:2},
                             End:   parser.Position{Character:11, Line:2},
                         },
-                        Allotment: &parser.VariableLiteral{
+                        Allotment: &parser.Variable{
                             Range: parser.Range{
                                 Start: parser.Position{Character:1, Line:2},
                                 End:   parser.Position{Character:3, Line:2},
@@ -1125,7 +1125,7 @@ parser.Program{
                             Name: "x",
                         },
                         From: &parser.SourceAccount{
-                            Literal: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:9, Line:2},
                                     End:   parser.Position{Character:11, Line:2},
@@ -1137,7 +1137,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:4},
                         End:   parser.Position{Character:18, Line:4},
@@ -1164,7 +1164,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:0},
                     End:   parser.Position{Character:7, Line:0},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
                         End:   parser.Position{Character:7, Line:0},
@@ -1184,10 +1184,10 @@ parser.Program{
                     },
                     Name: "src",
                 },
-                Bounded: (*parser.Literal)(nil),
+                Bounded: (*parser.ValueExpr)(nil),
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
@@ -1214,7 +1214,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:0},
                     End:   parser.Position{Character:7, Line:0},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
                         End:   parser.Position{Character:7, Line:0},
@@ -1227,17 +1227,17 @@ parser.Program{
                     Start: parser.Position{Character:10, Line:1},
                     End:   parser.Position{Character:50, Line:1},
                 },
-                Address: &parser.VariableLiteral{
+                Address: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:10, Line:1},
                         End:   parser.Position{Character:21, Line:1},
                     },
                     Name: "my_src_var",
                 },
-                Bounded: (*parser.Literal)(nil),
+                Bounded: (*parser.ValueExpr)(nil),
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
@@ -1264,7 +1264,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:0},
                     End:   parser.Position{Character:7, Line:0},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
                         End:   parser.Position{Character:7, Line:0},
@@ -1277,7 +1277,7 @@ parser.Program{
                     Start: parser.Position{Character:10, Line:1},
                     End:   parser.Position{Character:57, Line:1},
                 },
-                Address: &parser.VariableLiteral{
+                Address: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:10, Line:1},
                         End:   parser.Position{Character:21, Line:1},
@@ -1306,7 +1306,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
@@ -1429,7 +1429,7 @@ parser.Program{
                         abs: {0x2},
                     },
                 },
-                &parser.VariableLiteral{
+                &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:1, Line:5},
                         End:   parser.Position{Character:8, Line:5},
@@ -1457,7 +1457,7 @@ parser.Program{
                 Start: parser.Position{Character:1, Line:2},
                 End:   parser.Position{Character:49, Line:2},
             },
-            Name: &parser.VariableLiteral{
+            Name: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:10, Line:2},
                     End:   parser.Position{Character:17, Line:2},
@@ -1548,7 +1548,7 @@ parser.Program{
                 },
                 Sources: {
                     &parser.SourceAccount{
-                        Literal: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:13, Line:1},
                                 End:   parser.Position{Character:16, Line:1},
@@ -1557,7 +1557,7 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
-                        Literal: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:17, Line:1},
                                 End:   parser.Position{Character:20, Line:1},
@@ -1568,7 +1568,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
@@ -1595,7 +1595,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:0},
                     End:   parser.Position{Character:9, Line:0},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:0},
                         End:   parser.Position{Character:9, Line:0},
@@ -1604,7 +1604,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -1623,7 +1623,7 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:3},
                             End:   parser.Position{Character:15, Line:3},
                         },
-                        Cap: &parser.VariableLiteral{
+                        Cap: &parser.Variable{
                             Range: parser.Range{
                                 Start: parser.Position{Character:5, Line:3},
                                 End:   parser.Position{Character:8, Line:3},
@@ -1632,7 +1632,7 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                Literal: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:12, Line:3},
                                         End:   parser.Position{Character:15, Line:3},
@@ -1677,7 +1677,7 @@ parser.Program{
                 },
                 Remaining: &parser.DestinationTo{
                     Destination: &parser.DestinationAccount{
-                        Literal: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:14, Line:5},
                                 End:   parser.Position{Character:17, Line:5},
@@ -1715,7 +1715,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:10, Line:1},
                         End:   parser.Position{Character:12, Line:1},
@@ -1724,7 +1724,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:17, Line:2},
@@ -1773,7 +1773,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
@@ -1834,7 +1834,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:1},
                     End:   parser.Position{Character:9, Line:1},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:1},
                         End:   parser.Position{Character:9, Line:1},
@@ -1843,7 +1843,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:2},
                         End:   parser.Position{Character:17, Line:2},
@@ -1878,7 +1878,7 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                Literal: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:13, Line:4},
                                         End:   parser.Position{Character:22, Line:4},
@@ -1948,7 +1948,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:15, Line:1},
@@ -1957,7 +1957,7 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                Literal: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
@@ -2005,7 +2005,7 @@ parser.Program{
                     },
                 },
             },
-            Literal: &parser.AccountLiteral{
+            Amount: &parser.AccountLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:22, Line:1},
                     End:   parser.Position{Character:28, Line:1},
@@ -2039,7 +2039,7 @@ parser.Program{
                     Asset: "EUR/2",
                 },
             },
-            Literal: &parser.AccountLiteral{
+            Amount: &parser.AccountLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:20, Line:1},
                     End:   parser.Position{Character:26, Line:1},
@@ -2065,7 +2065,7 @@ parser.Program{
                     Start: parser.Position{Character:5, Line:1},
                     End:   parser.Position{Character:9, Line:1},
                 },
-                Monetary: &parser.VariableLiteral{
+                Monetary: &parser.Variable{
                     Range: parser.Range{
                         Start: parser.Position{Character:5, Line:1},
                         End:   parser.Position{Character:9, Line:1},
@@ -2073,7 +2073,7 @@ parser.Program{
                     Name: "amt",
                 },
             },
-            Literal: &parser.VariableLiteral{
+            Amount: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:15, Line:1},
                     End:   parser.Position{Character:19, Line:1},
