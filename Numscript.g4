@@ -52,14 +52,19 @@ portion:
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
 valueExpr:
-	VARIABLE_NAME											# variableExpr
-	| ASSET													# assetLiteral
-	| STRING												# stringLiteral
-	| ACCOUNT												# accountLiteral
-	| NUMBER												# numberLiteral
-	| monetaryLit											# monetaryLiteral
-	| portion												# portionLiteral
-	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
+	VARIABLE_NAME														# variableExpr
+	| ASSET																# assetLiteral
+	| STRING															# stringLiteral
+	| ACCOUNT															# accountLiteral
+	| NUMBER															# numberLiteral
+	| monetaryLit														# monetaryLiteral
+	| portion															# portionLiteral
+	| left = valueExpr op = ('+' | '-') right = valueExpr				# infixAddSubExpr
+	| left = valueExpr op = ('==' | '!=') right = valueExpr				# infixEqExpr
+	| left = valueExpr op = ('<' | '<=' | '>' | '>=') right = valueExpr	# infixCompExpr
+	| left = valueExpr op = '||' right = valueExpr						# infixOrExpr
+	| left = valueExpr op = '&&' right = valueExpr						# infixAndExpr
+	| '(' valueExpr ')'													# parensExpr;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall:

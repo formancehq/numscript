@@ -328,3 +328,12 @@ send [USD/2 *] (
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestCmpExpr(t *testing.T) {
+	p := parser.Parse(`
+example_fn($x == 1 && (1 + $y <= 100))
+`)
+
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

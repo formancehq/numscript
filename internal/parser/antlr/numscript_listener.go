@@ -17,14 +17,29 @@ type NumscriptListener interface {
 	// EnterPercentage is called when entering the percentage production.
 	EnterPercentage(c *PercentageContext)
 
+	// EnterInfixCompExpr is called when entering the infixCompExpr production.
+	EnterInfixCompExpr(c *InfixCompExprContext)
+
+	// EnterAccountLiteral is called when entering the accountLiteral production.
+	EnterAccountLiteral(c *AccountLiteralContext)
+
+	// EnterParensExpr is called when entering the parensExpr production.
+	EnterParensExpr(c *ParensExprContext)
+
+	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
+	EnterMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// EnterInfixEqExpr is called when entering the infixEqExpr production.
+	EnterInfixEqExpr(c *InfixEqExprContext)
+
 	// EnterVariableExpr is called when entering the variableExpr production.
 	EnterVariableExpr(c *VariableExprContext)
 
 	// EnterPortionLiteral is called when entering the portionLiteral production.
 	EnterPortionLiteral(c *PortionLiteralContext)
 
-	// EnterInfixExpr is called when entering the infixExpr production.
-	EnterInfixExpr(c *InfixExprContext)
+	// EnterInfixAndExpr is called when entering the infixAndExpr production.
+	EnterInfixAndExpr(c *InfixAndExprContext)
 
 	// EnterAssetLiteral is called when entering the assetLiteral production.
 	EnterAssetLiteral(c *AssetLiteralContext)
@@ -32,11 +47,11 @@ type NumscriptListener interface {
 	// EnterStringLiteral is called when entering the stringLiteral production.
 	EnterStringLiteral(c *StringLiteralContext)
 
-	// EnterAccountLiteral is called when entering the accountLiteral production.
-	EnterAccountLiteral(c *AccountLiteralContext)
+	// EnterInfixOrExpr is called when entering the infixOrExpr production.
+	EnterInfixOrExpr(c *InfixOrExprContext)
 
-	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
-	EnterMonetaryLiteral(c *MonetaryLiteralContext)
+	// EnterInfixAddSubExpr is called when entering the infixAddSubExpr production.
+	EnterInfixAddSubExpr(c *InfixAddSubExprContext)
 
 	// EnterNumberLiteral is called when entering the numberLiteral production.
 	EnterNumberLiteral(c *NumberLiteralContext)
@@ -146,14 +161,29 @@ type NumscriptListener interface {
 	// ExitPercentage is called when exiting the percentage production.
 	ExitPercentage(c *PercentageContext)
 
+	// ExitInfixCompExpr is called when exiting the infixCompExpr production.
+	ExitInfixCompExpr(c *InfixCompExprContext)
+
+	// ExitAccountLiteral is called when exiting the accountLiteral production.
+	ExitAccountLiteral(c *AccountLiteralContext)
+
+	// ExitParensExpr is called when exiting the parensExpr production.
+	ExitParensExpr(c *ParensExprContext)
+
+	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
+	ExitMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// ExitInfixEqExpr is called when exiting the infixEqExpr production.
+	ExitInfixEqExpr(c *InfixEqExprContext)
+
 	// ExitVariableExpr is called when exiting the variableExpr production.
 	ExitVariableExpr(c *VariableExprContext)
 
 	// ExitPortionLiteral is called when exiting the portionLiteral production.
 	ExitPortionLiteral(c *PortionLiteralContext)
 
-	// ExitInfixExpr is called when exiting the infixExpr production.
-	ExitInfixExpr(c *InfixExprContext)
+	// ExitInfixAndExpr is called when exiting the infixAndExpr production.
+	ExitInfixAndExpr(c *InfixAndExprContext)
 
 	// ExitAssetLiteral is called when exiting the assetLiteral production.
 	ExitAssetLiteral(c *AssetLiteralContext)
@@ -161,11 +191,11 @@ type NumscriptListener interface {
 	// ExitStringLiteral is called when exiting the stringLiteral production.
 	ExitStringLiteral(c *StringLiteralContext)
 
-	// ExitAccountLiteral is called when exiting the accountLiteral production.
-	ExitAccountLiteral(c *AccountLiteralContext)
+	// ExitInfixOrExpr is called when exiting the infixOrExpr production.
+	ExitInfixOrExpr(c *InfixOrExprContext)
 
-	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
-	ExitMonetaryLiteral(c *MonetaryLiteralContext)
+	// ExitInfixAddSubExpr is called when exiting the infixAddSubExpr production.
+	ExitInfixAddSubExpr(c *InfixAddSubExprContext)
 
 	// ExitNumberLiteral is called when exiting the numberLiteral production.
 	ExitNumberLiteral(c *NumberLiteralContext)
