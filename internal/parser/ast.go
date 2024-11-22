@@ -61,10 +61,6 @@ func (r RatioLiteral) ToRatio() *big.Rat {
 	return new(big.Rat).SetFrac(r.Numerator, r.Denominator)
 }
 
-type RemainingAllotment struct {
-	Range
-}
-
 func (a *AccountLiteral) IsWorld() bool {
 	return a.Name == "world"
 }
@@ -96,6 +92,12 @@ type (
 		Items []SourceAllotmentItem
 	}
 
+	SourceAllotmentItem struct {
+		Range
+		Allotment AllotmentValue
+		From      Source
+	}
+
 	SourceCapped struct {
 		Range
 		From Source
@@ -115,10 +117,8 @@ func (*RemainingAllotment) allotmentValue() {}
 func (*RatioLiteral) allotmentValue()       {}
 func (*VariableLiteral) allotmentValue()    {}
 
-type SourceAllotmentItem struct {
+type RemainingAllotment struct {
 	Range
-	Allotment AllotmentValue
-	From      Source
 }
 
 // Destination exprs
@@ -127,8 +127,8 @@ type Destination interface {
 	Ranged
 }
 
-func (*DestinationInorder) destination()   {}
 func (*DestinationAccount) destination()   {}
+func (*DestinationInorder) destination()   {}
 func (*DestinationAllotment) destination() {}
 
 type (
@@ -147,31 +147,35 @@ type (
 		Cap Literal
 		To  KeptOrDestination
 	}
+
+	DestinationAllotment struct {
+		Range
+		Items []DestinationAllotmentItem
+	}
+
+	DestinationAllotmentItem struct {
+		Range
+		Allotment AllotmentValue
+		To        KeptOrDestination
+	}
 )
 
 type KeptOrDestination interface {
 	keptOrDestination()
 }
-type DestinationKept struct {
-	Range
-}
-type DestinationTo struct {
-	Destination Destination
-}
 
 func (*DestinationKept) keptOrDestination() {}
 func (*DestinationTo) keptOrDestination()   {}
 
-type DestinationAllotment struct {
-	Range
-	Items []DestinationAllotmentItem
-}
+type (
+	DestinationKept struct {
+		Range
+	}
 
-type DestinationAllotmentItem struct {
-	Range
-	Allotment AllotmentValue
-	To        KeptOrDestination
-}
+	DestinationTo struct {
+		Destination Destination
+	}
+)
 
 // Statements
 
