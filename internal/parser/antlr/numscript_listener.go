@@ -38,6 +38,9 @@ type NumscriptListener interface {
 	// EnterPortionLiteral is called when entering the portionLiteral production.
 	EnterPortionLiteral(c *PortionLiteralContext)
 
+	// EnterNotExpr is called when entering the notExpr production.
+	EnterNotExpr(c *NotExprContext)
+
 	// EnterInfixAndExpr is called when entering the infixAndExpr production.
 	EnterInfixAndExpr(c *InfixAndExprContext)
 
@@ -175,6 +178,9 @@ type NumscriptListener interface {
 
 	// ExitPortionLiteral is called when exiting the portionLiteral production.
 	ExitPortionLiteral(c *PortionLiteralContext)
+
+	// ExitNotExpr is called when exiting the notExpr production.
+	ExitNotExpr(c *NotExprContext)
 
 	// ExitInfixAndExpr is called when exiting the infixAndExpr production.
 	ExitInfixAndExpr(c *InfixAndExprContext)

@@ -335,6 +335,12 @@ func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
 	case *parser.ParensExprContext:
 		return parseValueExpr(valueExprCtx.ValueExpr())
 
+	case *parser.NotExprContext:
+		return &NotExpr{
+			Range: ctxToRange(valueExprCtx),
+			Expr:  parseValueExpr(valueExprCtx.ValueExpr()),
+		}
+
 	case *parser.InfixAddSubExprContext:
 		return parseInfixNode(valueExprCtx)
 

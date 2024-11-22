@@ -59,6 +59,7 @@ valueExpr:
 	| NUMBER															# numberLiteral
 	| monetaryLit														# monetaryLiteral
 	| portion															# portionLiteral
+	| '!' valueExpr														# notExpr
 	| left = valueExpr op = ('+' | '-') right = valueExpr				# infixAddSubExpr
 	| left = valueExpr op = ('==' | '!=') right = valueExpr				# infixEqExpr
 	| left = valueExpr op = ('<' | '<=' | '>' | '>=') right = valueExpr	# infixCompExpr
