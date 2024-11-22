@@ -28,7 +28,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		//
 		// this would mean that the "save" statement was not needed in the first place,
 		// so preventing this query would hardly be an useful optimization
-		account, err := evaluateLitExpecting(st, statement.Literal, expectAccount)
+		account, err := evaluateLitExpecting(st, statement.Amount, expectAccount)
 		if err != nil {
 			return err
 		}

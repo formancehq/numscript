@@ -308,7 +308,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		return nil, err
 	}
 
-	account, err := evaluateLitExpecting(st, saveStatement.Literal, expectAccount)
+	account, err := evaluateLitExpecting(st, saveStatement.Amount, expectAccount)
 	if err != nil {
 		return nil, err
 	}

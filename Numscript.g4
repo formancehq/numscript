@@ -50,13 +50,14 @@ portion:
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
 valueExpr:
-	ASSET			# assetLiteral
-	| STRING		# stringLiteral
-	| ACCOUNT		# accountLiteral
-	| VARIABLE_NAME	# variableLiteral
-	| NUMBER		# numberLiteral
-	| monetaryLit	# monetaryLiteral
-	| portion		# portionLiteral;
+	VARIABLE_NAME											# variableExpr
+	| ASSET													# assetLiteral
+	| STRING												# stringLiteral
+	| ACCOUNT												# accountLiteral
+	| NUMBER												# numberLiteral
+	| monetaryLit											# monetaryLiteral
+	| portion												# portionLiteral
+	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;

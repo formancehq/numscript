@@ -175,7 +175,7 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 	switch statement := statement.(type) {
 	case *parser.SaveStatement:
 		res.checkSentValue(statement.SentValue)
-		res.checkLiteral(statement.Literal, TypeAccount)
+		res.checkLiteral(statement.Amount, TypeAccount)
 
 	case *parser.SendStatement:
 		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
