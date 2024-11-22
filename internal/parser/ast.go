@@ -4,19 +4,18 @@ import (
 	"math/big"
 )
 
-// does it even make sense to have a literal supertype?
-type Literal interface {
+type ValueExpr interface {
 	Ranged
-	literal()
+	valueExpr()
 }
 
-func (*AssetLiteral) literal()    {}
-func (*MonetaryLiteral) literal() {}
-func (*AccountLiteral) literal()  {}
-func (*VariableLiteral) literal() {}
-func (*RatioLiteral) literal()    {}
-func (*NumberLiteral) literal()   {}
-func (*StringLiteral) literal()   {}
+func (*Variable) valueExpr()        {}
+func (*AssetLiteral) valueExpr()    {}
+func (*MonetaryLiteral) valueExpr() {}
+func (*AccountLiteral) valueExpr()  {}
+func (*RatioLiteral) valueExpr()    {}
+func (*NumberLiteral) valueExpr()   {}
+func (*StringLiteral) valueExpr()   {}
 
 type (
 	AssetLiteral struct {
@@ -36,8 +35,8 @@ type (
 
 	MonetaryLiteral struct {
 		Range
-		Asset  Literal
-		Amount Literal
+		Asset  ValueExpr
+		Amount ValueExpr
 	}
 
 	AccountLiteral struct {
@@ -51,7 +50,7 @@ type (
 		Denominator *big.Int
 	}
 
-	VariableLiteral struct {
+	Variable struct {
 		Range
 		Name string
 	}
@@ -80,7 +79,7 @@ func (*SourceOverdraft) source() {}
 
 type (
 	SourceAccount struct {
-		Literal
+		ValueExpr
 	}
 
 	SourceInorder struct {
@@ -101,13 +100,13 @@ type (
 	SourceCapped struct {
 		Range
 		From Source
-		Cap  Literal
+		Cap  ValueExpr
 	}
 
 	SourceOverdraft struct {
 		Range
-		Address Literal
-		Bounded *Literal
+		Address ValueExpr
+		Bounded *ValueExpr
 	}
 )
 
@@ -115,7 +114,7 @@ type AllotmentValue interface{ allotmentValue() }
 
 func (*RemainingAllotment) allotmentValue() {}
 func (*RatioLiteral) allotmentValue()       {}
-func (*VariableLiteral) allotmentValue()    {}
+func (*Variable) allotmentValue()           {}
 
 type RemainingAllotment struct {
 	Range
@@ -133,7 +132,7 @@ func (*DestinationAllotment) destination() {}
 
 type (
 	DestinationAccount struct {
-		Literal
+		ValueExpr
 	}
 
 	DestinationInorder struct {
@@ -144,7 +143,7 @@ type (
 
 	DestinationInorderClause struct {
 		Range
-		Cap Literal
+		Cap ValueExpr
 		To  KeptOrDestination
 	}
 
@@ -196,7 +195,7 @@ type FnCallIdentifier struct {
 type FnCall struct {
 	Range
 	Caller *FnCallIdentifier
-	Args   []Literal
+	Args   []ValueExpr
 }
 
 type SentValue interface {
@@ -206,11 +205,11 @@ type SentValue interface {
 
 type SentValueLiteral struct {
 	Range
-	Monetary Literal
+	Monetary ValueExpr
 }
 type SentValueAll struct {
 	Range
-	Asset Literal
+	Asset ValueExpr
 }
 
 func (*SentValueLiteral) sentValue() {}
@@ -226,7 +225,7 @@ type SendStatement struct {
 type SaveStatement struct {
 	Range
 	SentValue SentValue
-	Literal   Literal
+	Amount    ValueExpr
 }
 
 type TypeDecl struct {
@@ -236,7 +235,7 @@ type TypeDecl struct {
 
 type VarDeclaration struct {
 	Range
-	Name   *VariableLiteral
+	Name   *Variable
 	Type   *TypeDecl
 	Origin *FnCall
 }

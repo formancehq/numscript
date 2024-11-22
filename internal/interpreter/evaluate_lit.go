@@ -7,7 +7,7 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterError) {
+func (st *programState) evaluateLit(literal parser.ValueExpr) (Value, InterpreterError) {
 	switch literal := literal.(type) {
 	case *parser.AssetLiteral:
 		return Asset(literal.Asset), nil
@@ -32,7 +32,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterE
 
 		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
 
-	case *parser.VariableLiteral:
+	case *parser.Variable:
 		value, ok := st.ParsedVars[literal.Name]
 		if !ok {
 			return nil, UnboundVariableErr{
@@ -47,7 +47,7 @@ func (st *programState) evaluateLit(literal parser.Literal) (Value, InterpreterE
 	}
 }
 
-func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
+func evaluateLitExpecting[T any](st *programState, literal parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
 	value, err := st.evaluateLit(literal)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func evaluateLitExpecting[T any](st *programState, literal parser.Literal, expec
 	return res, nil
 }
 
-func (st *programState) evaluateLiterals(literals []parser.Literal) ([]Value, InterpreterError) {
+func (st *programState) evaluateLiterals(literals []parser.ValueExpr) ([]Value, InterpreterError) {
 	var values []Value
 	for _, argLit := range literals {
 		value, err := st.evaluateLit(argLit)
