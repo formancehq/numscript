@@ -207,6 +207,14 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Bounded: &varMon,
 		}
 
+	case *parser.SourceIfContext:
+		return &IfExpr[Source]{
+			Range:      ctxToRange(sourceCtx),
+			Condition:  parseValueExpr(sourceCtx.ValueExpr()),
+			IfBranch:   parseSource(sourceCtx.GetIfBranch()),
+			ElseBranch: parseSource(sourceCtx.GetElseBranch()),
+		}
+
 	case *parser.SourceContext:
 		return nil
 
