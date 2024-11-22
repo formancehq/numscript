@@ -1897,13 +1897,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'max', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'!', 'max', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'!', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -2409,6 +2409,42 @@ parser.Program{
                             },
                             Number: 100,
                         },
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestNotExpr - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:15, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:10, Line:1},
+                },
+                Name: "example_fn",
+            },
+            Args: {
+                &parser.NotExpr{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:1},
+                        End:   parser.Position{Character:14, Line:1},
+                    },
+                    Expr: &parser.Variable{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:12, Line:1},
+                            End:   parser.Position{Character:14, Line:1},
+                        },
+                        Name: "x",
                     },
                 },
             },

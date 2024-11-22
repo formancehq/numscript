@@ -81,6 +81,12 @@ func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) 
 // ExitPortionLiteral is called when production portionLiteral is exited.
 func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
 
+// EnterNotExpr is called when production notExpr is entered.
+func (s *BaseNumscriptListener) EnterNotExpr(ctx *NotExprContext) {}
+
+// ExitNotExpr is called when production notExpr is exited.
+func (s *BaseNumscriptListener) ExitNotExpr(ctx *NotExprContext) {}
+
 // EnterInfixAndExpr is called when production infixAndExpr is entered.
 func (s *BaseNumscriptListener) EnterInfixAndExpr(ctx *InfixAndExprContext) {}
 
