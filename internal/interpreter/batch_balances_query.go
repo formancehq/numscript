@@ -141,6 +141,19 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		return nil
 
+	case *parser.IfExpr[parser.Source]:
+		err := st.findBalancesQueries(source.IfBranch)
+		if err != nil {
+			return err
+		}
+
+		err = st.findBalancesQueries(source.ElseBranch)
+		if err != nil {
+			return err
+		}
+
+		return nil
+
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
 		return nil

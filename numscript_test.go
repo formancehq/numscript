@@ -334,6 +334,33 @@ send [USD/2 30] (
 
 }
 
+func TestIfExpr(t *testing.T) {
+	parseResult := numscript.Parse(`
+send [USD/2 30] (
+	source =
+		@a if 1 == 1 else
+		@b
+	destination = @bob
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{}
+	parseResult.Run(context.Background(), nil, &store)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"a": {"USD/2"},
+				"b": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
 type ObservableStore struct {
 	StaticStore      interpreter.StaticStore
 	GetBalancesCalls []numscript.BalanceQuery
