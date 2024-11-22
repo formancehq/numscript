@@ -504,6 +504,18 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
 
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.sendAll(source.IfBranch)
+		} else {
+			return s.sendAll(source.ElseBranch)
+		}
+
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
 		return nil, nil
@@ -608,6 +620,18 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cappedAmount.Set(big.NewInt(0))
 		}
 		return s.trySendingUpTo(source.From, cappedAmount)
+
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.trySendingUpTo(source.IfBranch, amount)
+		} else {
+			return s.trySendingUpTo(source.ElseBranch, amount)
+		}
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
