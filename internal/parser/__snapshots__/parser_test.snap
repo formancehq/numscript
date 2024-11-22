@@ -1897,13 +1897,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'max', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'max', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -2323,6 +2323,92 @@ parser.Program{
                             End:   parser.Position{Character:5, Line:5},
                         },
                         Name: "d2",
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestCmpExpr - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:38, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:10, Line:1},
+                },
+                Name: "example_fn",
+            },
+            Args: {
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:1},
+                        End:   parser.Position{Character:37, Line:1},
+                    },
+                    Operator: "&&",
+                    Left:     &parser.BinaryInfix{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:11, Line:1},
+                            End:   parser.Position{Character:18, Line:1},
+                        },
+                        Operator: "==",
+                        Left:     &parser.Variable{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:11, Line:1},
+                                End:   parser.Position{Character:13, Line:1},
+                            },
+                            Name: "x",
+                        },
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:17, Line:1},
+                                End:   parser.Position{Character:18, Line:1},
+                            },
+                            Number: 1,
+                        },
+                    },
+                    Right: &parser.BinaryInfix{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:23, Line:1},
+                            End:   parser.Position{Character:36, Line:1},
+                        },
+                        Operator: "<=",
+                        Left:     &parser.BinaryInfix{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:23, Line:1},
+                                End:   parser.Position{Character:29, Line:1},
+                            },
+                            Operator: "+",
+                            Left:     &parser.NumberLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:23, Line:1},
+                                    End:   parser.Position{Character:24, Line:1},
+                                },
+                                Number: 1,
+                            },
+                            Right: &parser.Variable{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:27, Line:1},
+                                    End:   parser.Position{Character:29, Line:1},
+                                },
+                                Name: "y",
+                            },
+                        },
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:33, Line:1},
+                                End:   parser.Position{Character:36, Line:1},
+                            },
+                            Number: 100,
+                        },
                     },
                 },
             },

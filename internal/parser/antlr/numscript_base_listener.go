@@ -39,6 +39,36 @@ func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
 // ExitPercentage is called when production percentage is exited.
 func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
 
+// EnterInfixCompExpr is called when production infixCompExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixCompExpr(ctx *InfixCompExprContext) {}
+
+// ExitInfixCompExpr is called when production infixCompExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixCompExpr(ctx *InfixCompExprContext) {}
+
+// EnterAccountLiteral is called when production accountLiteral is entered.
+func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
+
+// ExitAccountLiteral is called when production accountLiteral is exited.
+func (s *BaseNumscriptListener) ExitAccountLiteral(ctx *AccountLiteralContext) {}
+
+// EnterParensExpr is called when production parensExpr is entered.
+func (s *BaseNumscriptListener) EnterParensExpr(ctx *ParensExprContext) {}
+
+// ExitParensExpr is called when production parensExpr is exited.
+func (s *BaseNumscriptListener) ExitParensExpr(ctx *ParensExprContext) {}
+
+// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
+func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
+func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// EnterInfixEqExpr is called when production infixEqExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixEqExpr(ctx *InfixEqExprContext) {}
+
+// ExitInfixEqExpr is called when production infixEqExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixEqExpr(ctx *InfixEqExprContext) {}
+
 // EnterVariableExpr is called when production variableExpr is entered.
 func (s *BaseNumscriptListener) EnterVariableExpr(ctx *VariableExprContext) {}
 
@@ -51,11 +81,11 @@ func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) 
 // ExitPortionLiteral is called when production portionLiteral is exited.
 func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
 
-// EnterInfixExpr is called when production infixExpr is entered.
-func (s *BaseNumscriptListener) EnterInfixExpr(ctx *InfixExprContext) {}
+// EnterInfixAndExpr is called when production infixAndExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixAndExpr(ctx *InfixAndExprContext) {}
 
-// ExitInfixExpr is called when production infixExpr is exited.
-func (s *BaseNumscriptListener) ExitInfixExpr(ctx *InfixExprContext) {}
+// ExitInfixAndExpr is called when production infixAndExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixAndExpr(ctx *InfixAndExprContext) {}
 
 // EnterAssetLiteral is called when production assetLiteral is entered.
 func (s *BaseNumscriptListener) EnterAssetLiteral(ctx *AssetLiteralContext) {}
@@ -69,17 +99,17 @@ func (s *BaseNumscriptListener) EnterStringLiteral(ctx *StringLiteralContext) {}
 // ExitStringLiteral is called when production stringLiteral is exited.
 func (s *BaseNumscriptListener) ExitStringLiteral(ctx *StringLiteralContext) {}
 
-// EnterAccountLiteral is called when production accountLiteral is entered.
-func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
+// EnterInfixOrExpr is called when production infixOrExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixOrExpr(ctx *InfixOrExprContext) {}
 
-// ExitAccountLiteral is called when production accountLiteral is exited.
-func (s *BaseNumscriptListener) ExitAccountLiteral(ctx *AccountLiteralContext) {}
+// ExitInfixOrExpr is called when production infixOrExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixOrExpr(ctx *InfixOrExprContext) {}
 
-// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
-func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+// EnterInfixAddSubExpr is called when production infixAddSubExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixAddSubExpr(ctx *InfixAddSubExprContext) {}
 
-// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
-func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+// ExitInfixAddSubExpr is called when production infixAddSubExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixAddSubExpr(ctx *InfixAddSubExprContext) {}
 
 // EnterNumberLiteral is called when production numberLiteral is entered.
 func (s *BaseNumscriptListener) EnterNumberLiteral(ctx *NumberLiteralContext) {}
