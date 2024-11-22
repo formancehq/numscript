@@ -294,3 +294,23 @@ save $amt from $acc
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestInfix(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta("k1", 1 + "invalid arg")
+set_tx_meta("k2", 1/2 - [COIN 10])
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestInfixPrec(t *testing.T) {
+	// 1 + 2 - 3
+	// should be the same as
+	// (1 + 2) - 3
+	p := parser.Parse(`
+set_tx_meta("k1", 1 + 2 - 3)
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

@@ -2084,3 +2084,183 @@ parser.Program{
     },
 }
 ---
+
+[TestInfix - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:36, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:1},
+                        End:   parser.Position{Character:35, Line:1},
+                    },
+                    Operator: "+",
+                    Left:     &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:1},
+                            End:   parser.Position{Character:19, Line:1},
+                        },
+                        Number: 1,
+                    },
+                    Right: &parser.StringLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:22, Line:1},
+                            End:   parser.Position{Character:35, Line:1},
+                        },
+                        String: "invalid arg",
+                    },
+                },
+            },
+        },
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:2},
+                End:   parser.Position{Character:34, Line:2},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:2},
+                    End:   parser.Position{Character:11, Line:2},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:2},
+                        End:   parser.Position{Character:16, Line:2},
+                    },
+                    String: "k2",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:2},
+                        End:   parser.Position{Character:33, Line:2},
+                    },
+                    Operator: "-",
+                    Left:     &parser.RatioLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:2},
+                            End:   parser.Position{Character:21, Line:2},
+                        },
+                        Numerator: &big.Int{
+                            neg: false,
+                            abs: {0x1},
+                        },
+                        Denominator: &big.Int{
+                            neg: false,
+                            abs: {0x2},
+                        },
+                    },
+                    Right: &parser.MonetaryLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:24, Line:2},
+                            End:   parser.Position{Character:33, Line:2},
+                        },
+                        Asset: &parser.AssetLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:25, Line:2},
+                                End:   parser.Position{Character:29, Line:2},
+                            },
+                            Asset: "COIN",
+                        },
+                        Amount: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:30, Line:2},
+                                End:   parser.Position{Character:32, Line:2},
+                            },
+                            Number: 10,
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+
+[TestInfixPrec - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:28, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:1},
+                        End:   parser.Position{Character:27, Line:1},
+                    },
+                    Operator: "-",
+                    Left:     &parser.BinaryInfix{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:1},
+                            End:   parser.Position{Character:23, Line:1},
+                        },
+                        Operator: "+",
+                        Left:     &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:18, Line:1},
+                                End:   parser.Position{Character:19, Line:1},
+                            },
+                            Number: 1,
+                        },
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:22, Line:1},
+                                End:   parser.Position{Character:23, Line:1},
+                            },
+                            Number: 2,
+                        },
+                    },
+                    Right: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:26, Line:1},
+                            End:   parser.Position{Character:27, Line:1},
+                        },
+                        Number: 3,
+                    },
+                },
+            },
+        },
+    },
+}
+---
