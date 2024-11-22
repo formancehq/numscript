@@ -403,7 +403,7 @@ func (s *programState) getCachedBalance(account string, asset string) *big.Int {
 	return assetBalance
 }
 
-func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -430,7 +430,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft 
 func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.sendAllToAccount(source.Literal, big.NewInt(0))
+		return s.sendAllToAccount(source.ValueExpr, big.NewInt(0))
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -489,7 +489,7 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 	return nil
 }
 
-func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -522,7 +522,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount
 func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.trySendingToAccount(source.Literal, amount, big.NewInt(0))
+		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0))
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -582,7 +582,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
+		account, err := evaluateLitExpecting(s, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -687,7 +687,7 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			rat := allotment.ToRatio()
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, rat)
-		case *parser.VariableLiteral:
+		case *parser.Variable:
 			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
 			if err != nil {
 				return nil, err
