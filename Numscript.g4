@@ -87,6 +87,7 @@ allotment:
 
 source:
 	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| ifBranch = source IF valueExpr ELSE elseBranch = source				# sourceIf
 	| address = valueExpr ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
 		srcAccountBoundedOverdraft
 	| valueExpr							# srcAccount
