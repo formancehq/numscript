@@ -7,25 +7,25 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func (st *programState) evaluateLit(literal parser.ValueExpr) (Value, InterpreterError) {
-	switch literal := literal.(type) {
+func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterError) {
+	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
-		return Asset(literal.Asset), nil
+		return Asset(expr.Asset), nil
 	case *parser.AccountLiteral:
-		return AccountAddress(literal.Name), nil
+		return AccountAddress(expr.Name), nil
 	case *parser.StringLiteral:
-		return String(literal.String), nil
+		return String(expr.String), nil
 	case *parser.RatioLiteral:
-		return Portion(*literal.ToRatio()), nil
+		return Portion(*expr.ToRatio()), nil
 	case *parser.NumberLiteral:
-		return MonetaryInt(*big.NewInt(int64(literal.Number))), nil
+		return MonetaryInt(*big.NewInt(int64(expr.Number))), nil
 	case *parser.MonetaryLiteral:
-		asset, err := evaluateLitExpecting(st, literal.Asset, expectAsset)
+		asset, err := evaluateExprAs(st, expr.Asset, expectAsset)
 		if err != nil {
 			return nil, err
 		}
 
-		amount, err := evaluateLitExpecting(st, literal.Amount, expectNumber)
+		amount, err := evaluateExprAs(st, expr.Amount, expectNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -33,27 +33,27 @@ func (st *programState) evaluateLit(literal parser.ValueExpr) (Value, Interprete
 		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
 
 	case *parser.Variable:
-		value, ok := st.ParsedVars[literal.Name]
+		value, ok := st.ParsedVars[expr.Name]
 		if !ok {
 			return nil, UnboundVariableErr{
-				Name:  literal.Name,
-				Range: literal.Range,
+				Name:  expr.Name,
+				Range: expr.Range,
 			}
 		}
 		return value, nil
 	default:
-		utils.NonExhaustiveMatchPanic[any](literal)
+		utils.NonExhaustiveMatchPanic[any](expr)
 		return nil, nil
 	}
 }
 
-func evaluateLitExpecting[T any](st *programState, literal parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
-	value, err := st.evaluateLit(literal)
+func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
+	value, err := st.evaluateExpr(expr)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := expect(value, literal.GetRange())
+	res, err := expect(value, expr.GetRange())
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +61,10 @@ func evaluateLitExpecting[T any](st *programState, literal parser.ValueExpr, exp
 	return res, nil
 }
 
-func (st *programState) evaluateLiterals(literals []parser.ValueExpr) ([]Value, InterpreterError) {
+func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Value, InterpreterError) {
 	var values []Value
 	for _, argLit := range literals {
-		value, err := st.evaluateLit(argLit)
+		value, err := st.evaluateExpr(argLit)
 		if err != nil {
 			return nil, err
 		}
