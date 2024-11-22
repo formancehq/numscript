@@ -3738,3 +3738,107 @@ func TestOrExpr(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestIfExprInDest(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN 10] (
+			source = @world
+			destination =
+				@a if $amt < 10 else
+				@b
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "world",
+					Destination: "a",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "world",
+					Destination: "b",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
+
+func TestIfExprInSendAllDest(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN *] (
+			source = @acc allowing overdraft up to [COIN 10]
+			destination =
+				@a if $amt < 10 else
+				@b
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "acc",
+					Destination: "a",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "acc",
+					Destination: "b",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
