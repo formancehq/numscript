@@ -83,9 +83,23 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	return mon, nil
 }
 
+func parseBool(source string) (Bool, InterpreterError) {
+	switch source {
+	case "true":
+		return Bool(true), nil
+	case "false":
+		return Bool(false), nil
+
+	default:
+		return Bool(false), InvalidBoolLiteral{Source: source}
+	}
+}
+
 func parseVar(type_ string, rawValue string, r parser.Range) (Value, InterpreterError) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
+	case analysis.TypeBool:
+		return parseBool(rawValue)
 	case analysis.TypeMonetary:
 		return parseMonetary(rawValue)
 	case analysis.TypeAccount:

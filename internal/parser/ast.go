@@ -23,6 +23,7 @@ func (*AccountLiteral) valueExpr()  {}
 func (*RatioLiteral) valueExpr()    {}
 func (*NumberLiteral) valueExpr()   {}
 func (*StringLiteral) valueExpr()   {}
+func (*NotExpr) valueExpr()         {}
 func (*BinaryInfix) valueExpr()     {}
 
 type InfixOperator string
@@ -30,6 +31,14 @@ type InfixOperator string
 const (
 	InfixOperatorPlus  InfixOperator = "+"
 	InfixOperatorMinus InfixOperator = "-"
+	InfixOperatorEq    InfixOperator = "=="
+	InfixOperatorNeq   InfixOperator = "!="
+	InfixOperatorLt    InfixOperator = "<"
+	InfixOperatorLte   InfixOperator = "<="
+	InfixOperatorGt    InfixOperator = ">"
+	InfixOperatorGte   InfixOperator = ">="
+	InfixOperatorAnd   InfixOperator = "&&"
+	InfixOperatorOr    InfixOperator = "||"
 )
 
 type (
@@ -68,6 +77,11 @@ type (
 	Variable struct {
 		Range
 		Name string
+	}
+
+	NotExpr struct {
+		Range
+		Expr ValueExpr
 	}
 
 	BinaryInfix struct {

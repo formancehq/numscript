@@ -11,6 +11,7 @@ import (
 const TypeMonetary = "monetary"
 const TypeAccount = "account"
 const TypePortion = "portion"
+const TypeBool = "bool"
 const TypeAsset = "asset"
 const TypeNumber = "number"
 const TypeString = "string"
