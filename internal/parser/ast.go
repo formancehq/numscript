@@ -103,8 +103,8 @@ func (a *AccountLiteral) IsWorld() bool {
 // Source exprs
 
 type Source interface {
+	Ranged
 	source()
-	GetRange() Range
 }
 
 func (*SourceInorder) source()   {}
@@ -112,6 +112,7 @@ func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
+func (*IfExpr[Source]) source()  {}
 
 type (
 	SourceAccount struct {
