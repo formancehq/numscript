@@ -13,6 +13,7 @@ type Value interface {
 	String() string
 }
 
+type Bool bool
 type String string
 type Asset string
 type Portion big.Rat
@@ -23,12 +24,15 @@ type Monetary struct {
 	Asset  Asset
 }
 
+func (Bool) value()           {}
 func (String) value()         {}
 func (AccountAddress) value() {}
 func (MonetaryInt) value()    {}
 func (Monetary) value()       {}
 func (Portion) value()        {}
 func (Asset) value()          {}
+
+// TODO Bool MarshalJSON
 
 func (v MonetaryInt) MarshalJSON() ([]byte, error) {
 	bigInt := big.Int(v)
@@ -45,6 +49,14 @@ func (v Portion) MarshalJSON() ([]byte, error) {
 func (v Monetary) MarshalJSON() ([]byte, error) {
 	m := fmt.Sprintf("\"%s %s\"", v.Asset, v.Amount.String())
 	return []byte(m), nil
+}
+
+func (v Bool) String() string {
+	if v {
+		return "true"
+	} else {
+		return "false"
+	}
 }
 
 func (v String) String() string {
@@ -148,6 +160,16 @@ func expectPortion(v Value, r parser.Range) (*big.Rat, InterpreterError) {
 
 	default:
 		return nil, TypeError{Expected: analysis.TypePortion, Value: v, Range: r}
+	}
+}
+
+func expectBool(v Value, r parser.Range) (*bool, InterpreterError) {
+	switch v := v.(type) {
+	case Bool:
+		return (*bool)(&v), nil
+
+	default:
+		return nil, TypeError{Expected: analysis.TypeBool, Value: v, Range: r}
 	}
 }
 
