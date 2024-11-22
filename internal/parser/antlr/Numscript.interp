@@ -79,7 +79,7 @@ ASSET
 rule names:
 monetaryLit
 portion
-literal
+valueExpr
 functionCallArgs
 functionCall
 varOrigin

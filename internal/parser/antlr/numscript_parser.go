@@ -47,7 +47,7 @@ func numscriptParserInit() {
 		"ACCOUNT", "ASSET",
 	}
 	staticData.RuleNames = []string{
-		"monetaryLit", "portion", "literal", "functionCallArgs", "functionCall",
+		"monetaryLit", "portion", "valueExpr", "functionCallArgs", "functionCall",
 		"varOrigin", "varDeclaration", "varsDeclaration", "program", "sentAllLit",
 		"cap", "allotment", "source", "allotmentClauseSrc", "keptOrDestination",
 		"destinationInOrderClause", "destination", "allotmentClauseDest", "sentValue",
@@ -227,7 +227,7 @@ const (
 const (
 	NumscriptParserRULE_monetaryLit              = 0
 	NumscriptParserRULE_portion                  = 1
-	NumscriptParserRULE_literal                  = 2
+	NumscriptParserRULE_valueExpr                = 2
 	NumscriptParserRULE_functionCallArgs         = 3
 	NumscriptParserRULE_functionCall             = 4
 	NumscriptParserRULE_varOrigin                = 5
@@ -255,22 +255,22 @@ type IMonetaryLitContext interface {
 	GetParser() antlr.Parser
 
 	// GetAsset returns the asset rule contexts.
-	GetAsset() ILiteralContext
+	GetAsset() IValueExprContext
 
 	// GetAmt returns the amt rule contexts.
-	GetAmt() ILiteralContext
+	GetAmt() IValueExprContext
 
 	// SetAsset sets the asset rule contexts.
-	SetAsset(ILiteralContext)
+	SetAsset(IValueExprContext)
 
 	// SetAmt sets the amt rule contexts.
-	SetAmt(ILiteralContext)
+	SetAmt(IValueExprContext)
 
 	// Getter signatures
 	LBRACKET() antlr.TerminalNode
 	RBRACKET() antlr.TerminalNode
-	AllLiteral() []ILiteralContext
-	Literal(i int) ILiteralContext
+	AllValueExpr() []IValueExprContext
+	ValueExpr(i int) IValueExprContext
 
 	// IsMonetaryLitContext differentiates from other interfaces.
 	IsMonetaryLitContext()
@@ -279,8 +279,8 @@ type IMonetaryLitContext interface {
 type MonetaryLitContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
-	asset  ILiteralContext
-	amt    ILiteralContext
+	asset  IValueExprContext
+	amt    IValueExprContext
 }
 
 func NewEmptyMonetaryLitContext() *MonetaryLitContext {
@@ -310,13 +310,13 @@ func NewMonetaryLitContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 
 func (s *MonetaryLitContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *MonetaryLitContext) GetAsset() ILiteralContext { return s.asset }
+func (s *MonetaryLitContext) GetAsset() IValueExprContext { return s.asset }
 
-func (s *MonetaryLitContext) GetAmt() ILiteralContext { return s.amt }
+func (s *MonetaryLitContext) GetAmt() IValueExprContext { return s.amt }
 
-func (s *MonetaryLitContext) SetAsset(v ILiteralContext) { s.asset = v }
+func (s *MonetaryLitContext) SetAsset(v IValueExprContext) { s.asset = v }
 
-func (s *MonetaryLitContext) SetAmt(v ILiteralContext) { s.amt = v }
+func (s *MonetaryLitContext) SetAmt(v IValueExprContext) { s.amt = v }
 
 func (s *MonetaryLitContext) LBRACKET() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserLBRACKET, 0)
@@ -326,20 +326,20 @@ func (s *MonetaryLitContext) RBRACKET() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserRBRACKET, 0)
 }
 
-func (s *MonetaryLitContext) AllLiteral() []ILiteralContext {
+func (s *MonetaryLitContext) AllValueExpr() []IValueExprContext {
 	children := s.GetChildren()
 	len := 0
 	for _, ctx := range children {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			len++
 		}
 	}
 
-	tst := make([]ILiteralContext, len)
+	tst := make([]IValueExprContext, len)
 	i := 0
 	for _, ctx := range children {
-		if t, ok := ctx.(ILiteralContext); ok {
-			tst[i] = t.(ILiteralContext)
+		if t, ok := ctx.(IValueExprContext); ok {
+			tst[i] = t.(IValueExprContext)
 			i++
 		}
 	}
@@ -347,11 +347,11 @@ func (s *MonetaryLitContext) AllLiteral() []ILiteralContext {
 	return tst
 }
 
-func (s *MonetaryLitContext) Literal(i int) ILiteralContext {
+func (s *MonetaryLitContext) ValueExpr(i int) IValueExprContext {
 	var t antlr.RuleContext
 	j := 0
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			if j == i {
 				t = ctx.(antlr.RuleContext)
 				break
@@ -364,7 +364,7 @@ func (s *MonetaryLitContext) Literal(i int) ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *MonetaryLitContext) GetRuleContext() antlr.RuleContext {
@@ -403,7 +403,7 @@ func (p *NumscriptParser) MonetaryLit() (localctx IMonetaryLitContext) {
 	{
 		p.SetState(41)
 
-		var _x = p.Literal()
+		var _x = p.ValueExpr()
 
 		localctx.(*MonetaryLitContext).asset = _x
 	}
@@ -411,7 +411,7 @@ func (p *NumscriptParser) MonetaryLit() (localctx IMonetaryLitContext) {
 	{
 		p.SetState(42)
 
-		var _x = p.Literal()
+		var _x = p.ValueExpr()
 
 		localctx.(*MonetaryLitContext).amt = _x
 	}
@@ -612,70 +612,70 @@ errorExit:
 	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
-// ILiteralContext is an interface to support dynamic dispatch.
-type ILiteralContext interface {
+// IValueExprContext is an interface to support dynamic dispatch.
+type IValueExprContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-	// IsLiteralContext differentiates from other interfaces.
-	IsLiteralContext()
+	// IsValueExprContext differentiates from other interfaces.
+	IsValueExprContext()
 }
 
-type LiteralContext struct {
+type ValueExprContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyLiteralContext() *LiteralContext {
-	var p = new(LiteralContext)
+func NewEmptyValueExprContext() *ValueExprContext {
+	var p = new(ValueExprContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = NumscriptParserRULE_literal
+	p.RuleIndex = NumscriptParserRULE_valueExpr
 	return p
 }
 
-func InitEmptyLiteralContext(p *LiteralContext) {
+func InitEmptyValueExprContext(p *ValueExprContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = NumscriptParserRULE_literal
+	p.RuleIndex = NumscriptParserRULE_valueExpr
 }
 
-func (*LiteralContext) IsLiteralContext() {}
+func (*ValueExprContext) IsValueExprContext() {}
 
-func NewLiteralContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *LiteralContext {
-	var p = new(LiteralContext)
+func NewValueExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ValueExprContext {
+	var p = new(ValueExprContext)
 
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = NumscriptParserRULE_literal
+	p.RuleIndex = NumscriptParserRULE_valueExpr
 
 	return p
 }
 
-func (s *LiteralContext) GetParser() antlr.Parser { return s.parser }
+func (s *ValueExprContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *LiteralContext) CopyAll(ctx *LiteralContext) {
+func (s *ValueExprContext) CopyAll(ctx *ValueExprContext) {
 	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
-func (s *LiteralContext) GetRuleContext() antlr.RuleContext {
+func (s *ValueExprContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *LiteralContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+func (s *ValueExprContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
 type PortionLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewPortionLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PortionLiteralContext {
 	var p = new(PortionLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -713,15 +713,15 @@ func (s *PortionLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type AssetLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewAssetLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *AssetLiteralContext {
 	var p = new(AssetLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -747,15 +747,15 @@ func (s *AssetLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type StringLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewStringLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *StringLiteralContext {
 	var p = new(StringLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -781,15 +781,15 @@ func (s *StringLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type VariableLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewVariableLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *VariableLiteralContext {
 	var p = new(VariableLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -815,15 +815,15 @@ func (s *VariableLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type AccountLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewAccountLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *AccountLiteralContext {
 	var p = new(AccountLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -849,15 +849,15 @@ func (s *AccountLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type MonetaryLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewMonetaryLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *MonetaryLiteralContext {
 	var p = new(MonetaryLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -895,15 +895,15 @@ func (s *MonetaryLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type NumberLiteralContext struct {
-	LiteralContext
+	ValueExprContext
 }
 
 func NewNumberLiteralContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *NumberLiteralContext {
 	var p = new(NumberLiteralContext)
 
-	InitEmptyLiteralContext(&p.LiteralContext)
+	InitEmptyValueExprContext(&p.ValueExprContext)
 	p.parser = parser
-	p.CopyAll(ctx.(*LiteralContext))
+	p.CopyAll(ctx.(*ValueExprContext))
 
 	return p
 }
@@ -928,9 +928,9 @@ func (s *NumberLiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (p *NumscriptParser) Literal() (localctx ILiteralContext) {
-	localctx = NewLiteralContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 4, NumscriptParserRULE_literal)
+func (p *NumscriptParser) ValueExpr() (localctx IValueExprContext) {
+	localctx = NewValueExprContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 4, NumscriptParserRULE_valueExpr)
 	p.SetState(56)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
@@ -1040,8 +1040,8 @@ type IFunctionCallArgsContext interface {
 	GetParser() antlr.Parser
 
 	// Getter signatures
-	AllLiteral() []ILiteralContext
-	Literal(i int) ILiteralContext
+	AllValueExpr() []IValueExprContext
+	ValueExpr(i int) IValueExprContext
 	AllCOMMA() []antlr.TerminalNode
 	COMMA(i int) antlr.TerminalNode
 
@@ -1081,20 +1081,20 @@ func NewFunctionCallArgsContext(parser antlr.Parser, parent antlr.ParserRuleCont
 
 func (s *FunctionCallArgsContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *FunctionCallArgsContext) AllLiteral() []ILiteralContext {
+func (s *FunctionCallArgsContext) AllValueExpr() []IValueExprContext {
 	children := s.GetChildren()
 	len := 0
 	for _, ctx := range children {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			len++
 		}
 	}
 
-	tst := make([]ILiteralContext, len)
+	tst := make([]IValueExprContext, len)
 	i := 0
 	for _, ctx := range children {
-		if t, ok := ctx.(ILiteralContext); ok {
-			tst[i] = t.(ILiteralContext)
+		if t, ok := ctx.(IValueExprContext); ok {
+			tst[i] = t.(IValueExprContext)
 			i++
 		}
 	}
@@ -1102,11 +1102,11 @@ func (s *FunctionCallArgsContext) AllLiteral() []ILiteralContext {
 	return tst
 }
 
-func (s *FunctionCallArgsContext) Literal(i int) ILiteralContext {
+func (s *FunctionCallArgsContext) ValueExpr(i int) IValueExprContext {
 	var t antlr.RuleContext
 	j := 0
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			if j == i {
 				t = ctx.(antlr.RuleContext)
 				break
@@ -1119,7 +1119,7 @@ func (s *FunctionCallArgsContext) Literal(i int) ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *FunctionCallArgsContext) AllCOMMA() []antlr.TerminalNode {
@@ -1158,7 +1158,7 @@ func (p *NumscriptParser) FunctionCallArgs() (localctx IFunctionCallArgsContext)
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(58)
-		p.Literal()
+		p.ValueExpr()
 	}
 	p.SetState(63)
 	p.GetErrorHandler().Sync(p)
@@ -1178,7 +1178,7 @@ func (p *NumscriptParser) FunctionCallArgs() (localctx IFunctionCallArgsContext)
 		}
 		{
 			p.SetState(60)
-			p.Literal()
+			p.ValueExpr()
 		}
 
 		p.SetState(65)
@@ -2057,16 +2057,16 @@ type ISentAllLitContext interface {
 	GetParser() antlr.Parser
 
 	// GetAsset returns the asset rule contexts.
-	GetAsset() ILiteralContext
+	GetAsset() IValueExprContext
 
 	// SetAsset sets the asset rule contexts.
-	SetAsset(ILiteralContext)
+	SetAsset(IValueExprContext)
 
 	// Getter signatures
 	LBRACKET() antlr.TerminalNode
 	STAR() antlr.TerminalNode
 	RBRACKET() antlr.TerminalNode
-	Literal() ILiteralContext
+	ValueExpr() IValueExprContext
 
 	// IsSentAllLitContext differentiates from other interfaces.
 	IsSentAllLitContext()
@@ -2075,7 +2075,7 @@ type ISentAllLitContext interface {
 type SentAllLitContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
-	asset  ILiteralContext
+	asset  IValueExprContext
 }
 
 func NewEmptySentAllLitContext() *SentAllLitContext {
@@ -2105,9 +2105,9 @@ func NewSentAllLitContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *SentAllLitContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *SentAllLitContext) GetAsset() ILiteralContext { return s.asset }
+func (s *SentAllLitContext) GetAsset() IValueExprContext { return s.asset }
 
-func (s *SentAllLitContext) SetAsset(v ILiteralContext) { s.asset = v }
+func (s *SentAllLitContext) SetAsset(v IValueExprContext) { s.asset = v }
 
 func (s *SentAllLitContext) LBRACKET() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserLBRACKET, 0)
@@ -2121,10 +2121,10 @@ func (s *SentAllLitContext) RBRACKET() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserRBRACKET, 0)
 }
 
-func (s *SentAllLitContext) Literal() ILiteralContext {
+func (s *SentAllLitContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -2134,7 +2134,7 @@ func (s *SentAllLitContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SentAllLitContext) GetRuleContext() antlr.RuleContext {
@@ -2173,7 +2173,7 @@ func (p *NumscriptParser) SentAllLit() (localctx ISentAllLitContext) {
 	{
 		p.SetState(103)
 
-		var _x = p.Literal()
+		var _x = p.ValueExpr()
 
 		localctx.(*SentAllLitContext).asset = _x
 	}
@@ -2674,8 +2674,8 @@ func (s *SourceContext) ToStringTree(ruleNames []string, recog antlr.Recognizer)
 
 type SrcAccountBoundedOverdraftContext struct {
 	SourceContext
-	address     ILiteralContext
-	maxOvedraft ILiteralContext
+	address     IValueExprContext
+	maxOvedraft IValueExprContext
 }
 
 func NewSrcAccountBoundedOverdraftContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcAccountBoundedOverdraftContext {
@@ -2688,13 +2688,13 @@ func NewSrcAccountBoundedOverdraftContext(parser antlr.Parser, ctx antlr.ParserR
 	return p
 }
 
-func (s *SrcAccountBoundedOverdraftContext) GetAddress() ILiteralContext { return s.address }
+func (s *SrcAccountBoundedOverdraftContext) GetAddress() IValueExprContext { return s.address }
 
-func (s *SrcAccountBoundedOverdraftContext) GetMaxOvedraft() ILiteralContext { return s.maxOvedraft }
+func (s *SrcAccountBoundedOverdraftContext) GetMaxOvedraft() IValueExprContext { return s.maxOvedraft }
 
-func (s *SrcAccountBoundedOverdraftContext) SetAddress(v ILiteralContext) { s.address = v }
+func (s *SrcAccountBoundedOverdraftContext) SetAddress(v IValueExprContext) { s.address = v }
 
-func (s *SrcAccountBoundedOverdraftContext) SetMaxOvedraft(v ILiteralContext) { s.maxOvedraft = v }
+func (s *SrcAccountBoundedOverdraftContext) SetMaxOvedraft(v IValueExprContext) { s.maxOvedraft = v }
 
 func (s *SrcAccountBoundedOverdraftContext) GetRuleContext() antlr.RuleContext {
 	return s
@@ -2716,20 +2716,20 @@ func (s *SrcAccountBoundedOverdraftContext) TO() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserTO, 0)
 }
 
-func (s *SrcAccountBoundedOverdraftContext) AllLiteral() []ILiteralContext {
+func (s *SrcAccountBoundedOverdraftContext) AllValueExpr() []IValueExprContext {
 	children := s.GetChildren()
 	len := 0
 	for _, ctx := range children {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			len++
 		}
 	}
 
-	tst := make([]ILiteralContext, len)
+	tst := make([]IValueExprContext, len)
 	i := 0
 	for _, ctx := range children {
-		if t, ok := ctx.(ILiteralContext); ok {
-			tst[i] = t.(ILiteralContext)
+		if t, ok := ctx.(IValueExprContext); ok {
+			tst[i] = t.(IValueExprContext)
 			i++
 		}
 	}
@@ -2737,11 +2737,11 @@ func (s *SrcAccountBoundedOverdraftContext) AllLiteral() []ILiteralContext {
 	return tst
 }
 
-func (s *SrcAccountBoundedOverdraftContext) Literal(i int) ILiteralContext {
+func (s *SrcAccountBoundedOverdraftContext) ValueExpr(i int) IValueExprContext {
 	var t antlr.RuleContext
 	j := 0
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			if j == i {
 				t = ctx.(antlr.RuleContext)
 				break
@@ -2754,7 +2754,7 @@ func (s *SrcAccountBoundedOverdraftContext) Literal(i int) ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SrcAccountBoundedOverdraftContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -2771,7 +2771,7 @@ func (s *SrcAccountBoundedOverdraftContext) ExitRule(listener antlr.ParseTreeLis
 
 type SrcAccountUnboundedOverdraftContext struct {
 	SourceContext
-	address ILiteralContext
+	address IValueExprContext
 }
 
 func NewSrcAccountUnboundedOverdraftContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcAccountUnboundedOverdraftContext {
@@ -2784,9 +2784,9 @@ func NewSrcAccountUnboundedOverdraftContext(parser antlr.Parser, ctx antlr.Parse
 	return p
 }
 
-func (s *SrcAccountUnboundedOverdraftContext) GetAddress() ILiteralContext { return s.address }
+func (s *SrcAccountUnboundedOverdraftContext) GetAddress() IValueExprContext { return s.address }
 
-func (s *SrcAccountUnboundedOverdraftContext) SetAddress(v ILiteralContext) { s.address = v }
+func (s *SrcAccountUnboundedOverdraftContext) SetAddress(v IValueExprContext) { s.address = v }
 
 func (s *SrcAccountUnboundedOverdraftContext) GetRuleContext() antlr.RuleContext {
 	return s
@@ -2804,10 +2804,10 @@ func (s *SrcAccountUnboundedOverdraftContext) OVERDRAFT() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserOVERDRAFT, 0)
 }
 
-func (s *SrcAccountUnboundedOverdraftContext) Literal() ILiteralContext {
+func (s *SrcAccountUnboundedOverdraftContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -2817,7 +2817,7 @@ func (s *SrcAccountUnboundedOverdraftContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SrcAccountUnboundedOverdraftContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -3078,10 +3078,10 @@ func (s *SrcAccountContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *SrcAccountContext) Literal() ILiteralContext {
+func (s *SrcAccountContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -3091,7 +3091,7 @@ func (s *SrcAccountContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SrcAccountContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -3124,7 +3124,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		{
 			p.SetState(116)
 
-			var _x = p.Literal()
+			var _x = p.ValueExpr()
 
 			localctx.(*SrcAccountUnboundedOverdraftContext).address = _x
 		}
@@ -3159,7 +3159,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		{
 			p.SetState(121)
 
-			var _x = p.Literal()
+			var _x = p.ValueExpr()
 
 			localctx.(*SrcAccountBoundedOverdraftContext).address = _x
 		}
@@ -3198,7 +3198,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		{
 			p.SetState(126)
 
-			var _x = p.Literal()
+			var _x = p.ValueExpr()
 
 			localctx.(*SrcAccountBoundedOverdraftContext).maxOvedraft = _x
 		}
@@ -3208,7 +3208,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 		p.EnterOuterAlt(localctx, 3)
 		{
 			p.SetState(128)
-			p.Literal()
+			p.ValueExpr()
 		}
 
 	case 4:
@@ -3677,7 +3677,7 @@ type IDestinationInOrderClauseContext interface {
 
 	// Getter signatures
 	MAX() antlr.TerminalNode
-	Literal() ILiteralContext
+	ValueExpr() IValueExprContext
 	KeptOrDestination() IKeptOrDestinationContext
 
 	// IsDestinationInOrderClauseContext differentiates from other interfaces.
@@ -3720,10 +3720,10 @@ func (s *DestinationInOrderClauseContext) MAX() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserMAX, 0)
 }
 
-func (s *DestinationInOrderClauseContext) Literal() ILiteralContext {
+func (s *DestinationInOrderClauseContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -3733,7 +3733,7 @@ func (s *DestinationInOrderClauseContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *DestinationInOrderClauseContext) KeptOrDestination() IKeptOrDestinationContext {
@@ -3786,7 +3786,7 @@ func (p *NumscriptParser) DestinationInOrderClause() (localctx IDestinationInOrd
 	}
 	{
 		p.SetState(162)
-		p.Literal()
+		p.ValueExpr()
 	}
 	{
 		p.SetState(163)
@@ -3977,10 +3977,10 @@ func (s *DestAccountContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *DestAccountContext) Literal() ILiteralContext {
+func (s *DestAccountContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -3990,7 +3990,7 @@ func (s *DestAccountContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *DestAccountContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -4101,7 +4101,7 @@ func (p *NumscriptParser) Destination() (localctx IDestinationContext) {
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(165)
-			p.Literal()
+			p.ValueExpr()
 		}
 
 	case 2:
@@ -4456,10 +4456,10 @@ func (s *SentLiteralContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *SentLiteralContext) Literal() ILiteralContext {
+func (s *SentLiteralContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -4469,7 +4469,7 @@ func (s *SentLiteralContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SentLiteralContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -4499,7 +4499,7 @@ func (p *NumscriptParser) SentValue() (localctx ISentValueContext) {
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(190)
-			p.Literal()
+			p.ValueExpr()
 		}
 
 	case 2:
@@ -4729,10 +4729,10 @@ func (s *SaveStatementContext) FROM() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserFROM, 0)
 }
 
-func (s *SaveStatementContext) Literal() ILiteralContext {
+func (s *SaveStatementContext) ValueExpr() IValueExprContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ILiteralContext); ok {
+		if _, ok := ctx.(IValueExprContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -4742,7 +4742,7 @@ func (s *SaveStatementContext) Literal() ILiteralContext {
 		return nil
 	}
 
-	return t.(ILiteralContext)
+	return t.(IValueExprContext)
 }
 
 func (s *SaveStatementContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -4910,7 +4910,7 @@ func (p *NumscriptParser) Statement() (localctx IStatementContext) {
 		}
 		{
 			p.SetState(208)
-			p.Literal()
+			p.ValueExpr()
 		}
 
 	case NumscriptParserOVERDRAFT, NumscriptParserIDENTIFIER:

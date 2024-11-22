@@ -173,7 +173,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
 		return &SourceAccount{
-			Literal: parseLiteral(sourceCtx.Literal()),
+			Literal: parseLiteral(sourceCtx.ValueExpr()),
 		}
 
 	case *parser.SrcInorderContext:
@@ -318,7 +318,7 @@ func parseStringLiteralCtx(stringCtx *parser.StringLiteralContext) *StringLitera
 	}
 }
 
-func parseLiteral(literalCtx parser.ILiteralContext) Literal {
+func parseLiteral(literalCtx parser.IValueExprContext) Literal {
 	switch literalCtx := literalCtx.(type) {
 	case *parser.AccountLiteralContext:
 		return &AccountLiteral{
@@ -348,7 +348,7 @@ func parseLiteral(literalCtx parser.ILiteralContext) Literal {
 	case *parser.StringLiteralContext:
 		return parseStringLiteralCtx(literalCtx)
 
-	case nil, *parser.LiteralContext:
+	case nil, *parser.ValueExprContext:
 		return nil
 
 	default:
@@ -392,7 +392,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
 		return &DestinationAccount{
-			Literal: parseLiteral(destCtx.Literal()),
+			Literal: parseLiteral(destCtx.ValueExpr()),
 		}
 
 	case *parser.DestInorderContext:
@@ -434,7 +434,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseContext) DestinationInorderClause {
 	return DestinationInorderClause{
 		Range: ctxToRange(clauseCtx),
-		Cap:   parseLiteral(clauseCtx.Literal()),
+		Cap:   parseLiteral(clauseCtx.ValueExpr()),
 		To:    parseKeptOrDestination(clauseCtx.KeptOrDestination()),
 	}
 }
@@ -505,7 +505,7 @@ func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []Literal {
 	}
 
 	var args []Literal
-	for _, literal := range fnCallArgCtx.AllLiteral() {
+	for _, literal := range fnCallArgCtx.AllValueExpr() {
 		args = append(args, parseLiteral(literal))
 	}
 	return args
@@ -537,7 +537,7 @@ func parseSaveStatement(saveCtx *parser.SaveStatementContext) *SaveStatement {
 	return &SaveStatement{
 		Range:     ctxToRange(saveCtx),
 		SentValue: parseSentValue(saveCtx.SentValue()),
-		Literal:   parseLiteral(saveCtx.Literal()),
+		Literal:   parseLiteral(saveCtx.ValueExpr()),
 	}
 }
 
@@ -565,7 +565,7 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	case *parser.SentLiteralContext:
 		return &SentValueLiteral{
 			Range:    ctxToRange(statementCtx),
-			Monetary: parseLiteral(statementCtx.Literal()),
+			Monetary: parseLiteral(statementCtx.ValueExpr()),
 		}
 	case *parser.SentAllContext:
 		return &SentValueAll{
