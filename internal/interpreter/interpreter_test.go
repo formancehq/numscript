@@ -3206,3 +3206,136 @@ func TestSaveFromAccount(t *testing.T) {
 		test(t, tc)
 	})
 }
+
+func TestAddMonetariesSameCurrency(t *testing.T) {
+	script := `
+ 		send [COIN 1] + [COIN 2] (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1 + 2),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddNumbers(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 1 + 2)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(1 + 2),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddNumbersInvalidRightType(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 1 + "not a number")
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.TypeError{
+			Expected: "number",
+			Value:    machine.String("not a number"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddMonetariesDifferentCurrencies(t *testing.T) {
+	script := `
+ 		send [USD/2 1] + [EUR/2 2] (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MismatchedCurrencyError{
+			Expected: "USD/2",
+			Got:      "EUR/2",
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddInvalidLeftType(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", EUR/2 + EUR/3)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.TypeError{
+			Expected: "monetary|number",
+			Value:    machine.Asset("EUR/2"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestSubNumbers(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 10 - 1)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(10 - 1),
+		},
+	}
+	test(t, tc)
+}
+
+func TestSubMonetaries(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", [USD/2 10] - [USD/2 3])
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.Monetary{
+				Amount: machine.NewMonetaryInt(10 - 3),
+				Asset:  "USD/2",
+			},
+		},
+	}
+	test(t, tc)
+}

@@ -41,6 +41,22 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			}
 		}
 		return value, nil
+
+	// TypeError
+	case *parser.BinaryInfix:
+
+		switch expr.Operator {
+		case parser.InfixOperatorPlus:
+			return st.plusOp(expr.Left, expr.Right)
+
+		case parser.InfixOperatorMinus:
+			return st.subOp(expr.Left, expr.Right)
+
+		default:
+			utils.NonExhaustiveMatchPanic[any](expr.Operator)
+			return nil, nil
+		}
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](expr)
 		return nil, nil
@@ -71,4 +87,40 @@ func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Valu
 		values = append(values, value)
 	}
 	return values, nil
+}
+
+func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+	leftValue, err := evaluateExprAs(st, left, expectOneOf(
+		expectMapped(expectMonetary, func(m Monetary) opAdd {
+			return m
+		}),
+
+		// while "x.map(identity)" is the same as "x", just writing "expectNumber" would't typecheck
+		expectMapped(expectNumber, func(bi big.Int) opAdd {
+			return MonetaryInt(bi)
+		}),
+	))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return (*leftValue).evalAdd(st, right)
+}
+
+func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+	leftValue, err := evaluateExprAs(st, left, expectOneOf(
+		expectMapped(expectMonetary, func(m Monetary) opSub {
+			return m
+		}),
+		expectMapped(expectNumber, func(bi big.Int) opSub {
+			return MonetaryInt(bi)
+		}),
+	))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return (*leftValue).evalSub(st, right)
 }
