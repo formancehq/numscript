@@ -3291,6 +3291,201 @@ func TestSubMonetaries(t *testing.T) {
 	test(t, tc)
 }
 
+func TestBool(t *testing.T) {
+	script := `
+	vars {
+		bool $bt
+		bool $bf
+	}
+
+ 		set_tx_meta("t", $bt)
+		set_tx_meta("f", $bf)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"t": machine.Bool(true),
+			"f": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestExprs(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 10 - (1 + 2))
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(10 - (1 + 2)),
+		},
+	}
+	test(t, tc)
+}
+
+func TestEqExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("k1", 1 == 1)
+		set_tx_meta("k2", 1 == 2)
+
+		set_tx_meta("k3", 1 != 2)
+		set_tx_meta("k4", 1 != 1)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(false),
+			"k3": machine.Bool(true),
+			"k4": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestCmpExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("lt1", 1 < 10)
+		set_tx_meta("lt2", 1 < 1)
+		set_tx_meta("lt3", 10 < 1)
+
+		set_tx_meta("lg1", 1 > 10)
+		set_tx_meta("lg2", 1 > 1)
+		set_tx_meta("lg3", 10 > 1)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"lt1": machine.Bool(true),
+			"lt2": machine.Bool(false),
+			"lt3": machine.Bool(false),
+			"lg1": machine.Bool(false),
+			"lg2": machine.Bool(false),
+			"lg3": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
+func TestCmpEqExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("lte1", 1 <= 10)
+		set_tx_meta("lte2", 1 <= 1)
+		set_tx_meta("lte3", 10 <= 1)
+
+		set_tx_meta("lge1", 1 >= 10)
+		set_tx_meta("lge2", 1 >= 1)
+		set_tx_meta("lge3", 10 >= 1)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"lte1": machine.Bool(true),
+			"lte2": machine.Bool(true),
+			"lte3": machine.Bool(false),
+			"lge1": machine.Bool(false),
+			"lge2": machine.Bool(true),
+			"lge3": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAndExpr(t *testing.T) {
+	script := `
+		vars {
+			bool $bt
+			bool $bf
+		}
+
+ 		set_tx_meta("k1", $bt && $bt)
+		set_tx_meta("k2", $bt && $bf)
+		set_tx_meta("k3", $bf && $bt)
+		set_tx_meta("k4", $bf && $bf)
+
+
+		// the right part of && is never evaluated
+		set_tx_meta("lazy", $bf && $unbound)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(false),
+			"k3": machine.Bool(false),
+			"k4": machine.Bool(false),
+
+			"lazy": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestOrExpr(t *testing.T) {
+	script := `
+		vars {
+			bool $bt
+			bool $bf
+		}
+
+ 		set_tx_meta("k1", $bt || $bt)
+		set_tx_meta("k2", $bt || $bf)
+		set_tx_meta("k3", $bf || $bt)
+		set_tx_meta("k4", $bf || $bf)
+
+
+		// the right part of || is never evaluated
+		set_tx_meta("lazy", $bt || $unbound)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(true),
+			"k3": machine.Bool(true),
+			"k4": machine.Bool(false),
+
+			"lazy": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
 // new semantics
 func TestOverdraftFunctionWhenNegative(t *testing.T) {
 	script := `
