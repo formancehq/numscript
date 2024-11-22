@@ -664,6 +664,18 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		// passing "remainingAmount" directly breaks the code
 		return handler(destination.Remaining, remainingAmountCopy)
 
+	case *parser.IfExpr[parser.Destination]:
+		cond, err := evaluateExprAs(s, destination.Condition, expectBool)
+		if err != nil {
+			return err
+		}
+
+		if *cond {
+			return s.receiveFrom(destination.IfBranch, amount)
+		} else {
+			return s.receiveFrom(destination.ElseBranch, amount)
+		}
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
 		return nil
