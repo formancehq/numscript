@@ -114,7 +114,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 }
 
 func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, InterpreterError) {
-	args, err := s.evaluateLiterals(fnCall.Args)
+	args, err := s.evaluateExpressions(fnCall.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		args, err := st.evaluateLiterals(statement.Args)
+		args, err := st.evaluateExpressions(statement.Args)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +308,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		return nil, err
 	}
 
-	account, err := evaluateLitExpecting(st, saveStatement.Amount, expectAccount)
+	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, InterpreterError) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +356,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		return st.getPostings()
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return nil, err
 		}
@@ -398,7 +398,7 @@ func (s *programState) getCachedBalance(account string, asset string) *big.Int {
 }
 
 func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
-	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +429,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			bounded, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			bounded, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -449,7 +449,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return totalSent, nil
 
 	case *parser.SourceCapped:
-		monetary, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -486,7 +486,7 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 }
 
 func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
-	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			upTo, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			upTo, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -560,7 +560,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		return amount, nil
 
 	case *parser.SourceCapped:
-		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		cap, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -581,7 +581,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		account, err := evaluateLitExpecting(s, destination.ValueExpr, expectAccount)
+		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -628,7 +628,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 
 		for _, destinationClause := range destination.Clauses {
 
-			cap, err := evaluateLitExpecting(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -687,7 +687,7 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, rat)
 		case *parser.Variable:
-			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
+			rat, err := evaluateExprAs(s, allotment, expectPortion)
 			if err != nil {
 				return nil, err
 			}
@@ -843,14 +843,14 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
 			return nil, nil, err
 		}
 		return asset, nil, nil
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return nil, nil, err
 		}
