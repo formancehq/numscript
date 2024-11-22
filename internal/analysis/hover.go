@@ -108,7 +108,7 @@ func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Po
 		return hover
 	}
 
-	hover = hoverOnLiteral(saveStatement.Literal, position)
+	hover = hoverOnLiteral(saveStatement.Amount, position)
 	if hover != nil {
 		return hover
 	}

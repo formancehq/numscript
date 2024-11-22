@@ -16,6 +16,14 @@ func (*AccountLiteral) valueExpr()  {}
 func (*RatioLiteral) valueExpr()    {}
 func (*NumberLiteral) valueExpr()   {}
 func (*StringLiteral) valueExpr()   {}
+func (*BinaryInfix) valueExpr()     {}
+
+type InfixOperator string
+
+const (
+	InfixOperatorPlus  InfixOperator = "+"
+	InfixOperatorMinus InfixOperator = "-"
+)
 
 type (
 	AssetLiteral struct {
@@ -53,6 +61,13 @@ type (
 	Variable struct {
 		Range
 		Name string
+	}
+
+	BinaryInfix struct {
+		Range
+		Operator InfixOperator
+		Left     ValueExpr
+		Right    ValueExpr
 	}
 )
 

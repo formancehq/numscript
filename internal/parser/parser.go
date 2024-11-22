@@ -342,11 +342,19 @@ func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
 	case *parser.PortionLiteralContext:
 		return parsePortionSource(valueExprCtx.Portion())
 
-	case *parser.VariableLiteralContext:
+	case *parser.VariableExprContext:
 		return variableLiteralFromCtx(valueExprCtx)
 
 	case *parser.StringLiteralContext:
 		return parseStringLiteralCtx(valueExprCtx)
+
+	case *parser.InfixExprContext:
+		return &BinaryInfix{
+			Range:    ctxToRange(valueExprCtx),
+			Operator: InfixOperator(valueExprCtx.GetOp().GetText()),
+			Left:     parseValueExpr(valueExprCtx.GetLeft()),
+			Right:    parseValueExpr(valueExprCtx.GetRight()),
+		}
 
 	case nil, *parser.ValueExprContext:
 		return nil
