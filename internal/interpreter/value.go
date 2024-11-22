@@ -155,7 +155,75 @@ func expectAnything(v Value, _ parser.Range) (*Value, InterpreterError) {
 	return &v, nil
 }
 
+func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (*T, InterpreterError)) func(v Value, r parser.Range) (*T, InterpreterError) {
+	return func(v Value, r parser.Range) (*T, InterpreterError) {
+		if len(combinators) == 0 {
+			// this should be unreachable
+			panic("Invalid argument: no combinators given")
+		}
+
+		var errs []TypeError
+		for _, combinator := range combinators {
+			out, err := combinator(v, r)
+			if err == nil {
+				return out, nil
+			}
+
+			typeErr, ok := err.(TypeError)
+			if !ok {
+				return nil, err
+			}
+			errs = append(errs, typeErr)
+		}
+
+		// e.g. typeErr.map(e => e.Expected).join("|")
+		expected := ""
+		for index, typeErr := range errs {
+			if index != 0 {
+				expected += "|"
+			}
+			expected += typeErr.Expected
+		}
+
+		return nil, TypeError{
+			Range:    r,
+			Value:    v,
+			Expected: expected,
+		}
+	}
+}
+
+func expectMapped[T any, U any](
+	combinator func(v Value, r parser.Range) (*T, InterpreterError),
+	mapper func(value T) U,
+) func(v Value, r parser.Range) (*U, InterpreterError) {
+	return func(v Value, r parser.Range) (*U, InterpreterError) {
+		out, err := combinator(v, r)
+		if err != nil {
+			return nil, err
+		}
+		mapped := mapper(*out)
+		return &mapped, nil
+	}
+}
+
 func NewMonetaryInt(n int64) MonetaryInt {
 	bi := big.NewInt(n)
 	return MonetaryInt(*bi)
+}
+
+func (m MonetaryInt) Add(other MonetaryInt) MonetaryInt {
+	bi := big.Int(m)
+	otherBi := big.Int(other)
+
+	sum := new(big.Int).Add(&bi, &otherBi)
+	return MonetaryInt(*sum)
+}
+
+func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
+	bi := big.Int(m)
+	otherBi := big.Int(other)
+
+	sum := new(big.Int).Sub(&bi, &otherBi)
+	return MonetaryInt(*sum)
 }
