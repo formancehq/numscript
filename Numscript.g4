@@ -43,13 +43,13 @@ ACCOUNT: '@' [a-zA-Z0-9_-]+ (':' [a-zA-Z0-9_-]+)*;
 ASSET: [A-Z/0-9]+;
 
 monetaryLit:
-	LBRACKET (asset = literal) (amt = literal) RBRACKET;
+	LBRACKET (asset = valueExpr) (amt = valueExpr) RBRACKET;
 
 portion:
 	RATIO_PORTION_LITERAL			# ratio
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
-literal:
+valueExpr:
 	ASSET			# assetLiteral
 	| STRING		# stringLiteral
 	| ACCOUNT		# accountLiteral
@@ -58,7 +58,7 @@ literal:
 	| monetaryLit	# monetaryLiteral
 	| portion		# portionLiteral;
 
-functionCallArgs: literal ( COMMA literal)*;
+functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
 
 varOrigin: EQ functionCall;
@@ -68,7 +68,7 @@ varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
 program: varsDeclaration? statement* EOF;
 
-sentAllLit: LBRACKET (asset = literal) STAR RBRACKET;
+sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
@@ -78,28 +78,29 @@ allotment:
 	| REMAINING		# remainingAllotment;
 
 source:
-	address = literal ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
-	| address = literal ALLOWING OVERDRAFT UP TO maxOvedraft = literal	# srcAccountBoundedOverdraft
-	| literal															# srcAccount
-	| LBRACE allotmentClauseSrc+ RBRACE									# srcAllotment
-	| LBRACE source* RBRACE												# srcInorder
-	| MAX cap FROM source												# srcCapped;
+	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| address = valueExpr ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
+		srcAccountBoundedOverdraft
+	| valueExpr							# srcAccount
+	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
+	| LBRACE source* RBRACE				# srcInorder
+	| MAX cap FROM source				# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 keptOrDestination:
 	TO destination	# destinationTo
 	| KEPT			# destinationKept;
-destinationInOrderClause: MAX literal keptOrDestination;
+destinationInOrderClause: MAX valueExpr keptOrDestination;
 
 destination:
-	literal																	# destAccount
+	valueExpr																# destAccount
 	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
 	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
 allotmentClauseDest: allotment keptOrDestination;
 
-sentValue: literal # sentLiteral | sentAllLit # sentAll;
+sentValue: valueExpr # sentLiteral | sentAllLit # sentAll;
 
 statement:
 	SEND sentValue LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
-	| SAVE sentValue FROM literal												# saveStatement
+	| SAVE sentValue FROM valueExpr												# saveStatement
 	| functionCall																# fnCallStatement;
