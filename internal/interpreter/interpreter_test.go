@@ -3805,3 +3805,72 @@ func TestIfExprInSendAllSource(t *testing.T) {
 	})
 
 }
+
+func TestIfExprUseCase(t *testing.T) {
+
+	script := `
+		vars {
+			monetary $amt
+			monetary $cheap_bank_overdraft = overdraft(@world:cheap_bank, USD/2)
+			monetary $expensive_bank_overdraft = overdraft(@world:expensive_bank, USD/2)
+		}
+		
+		send $amt (
+			source = @merchants:1234 allowing unbounded overdraft
+			destination =
+				{
+					max $cheap_bank_overdraft to @world:cheap_bank
+					remaining kept
+				} if $cheap_bank_overdraft <= $amt  else
+				{
+					max $expensive_bank_overdraft to @world:expensive_bank 
+					remaining kept
+				} if $expensive_bank_overdraft <= $amt else
+				@world
+		)
+`
+
+	t.Run("select first bank", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+
+		tc.setVarsFromJSON(t, `{"amt": "USD/2 100"}`)
+		tc.setBalance("world:cheap_bank", "USD/2", -10)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(10),
+					Source:      "merchants:1234",
+					Destination: "world:cheap_bank",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("select second bank", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+
+		tc.setVarsFromJSON(t, `{"amt": "USD/2 100"}`)
+		// amount is lower than what we need to repay this bank's overdraft
+		tc.setBalance("world:cheap_bank", "USD/2", -1000)
+
+		tc.setBalance("world:expensive_bank", "USD/2", -42)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(42),
+					Source:      "merchants:1234",
+					Destination: "world:expensive_bank",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
