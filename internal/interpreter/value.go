@@ -234,14 +234,6 @@ func NewMonetaryInt(n int64) MonetaryInt {
 	return MonetaryInt(*bi)
 }
 
-func (m MonetaryInt) Add(other MonetaryInt) MonetaryInt {
-	bi := big.Int(m)
-	otherBi := big.Int(other)
-
-	sum := new(big.Int).Add(&bi, &otherBi)
-	return MonetaryInt(*sum)
-}
-
 func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 	bi := big.Int(m)
 	otherBi := big.Int(other)

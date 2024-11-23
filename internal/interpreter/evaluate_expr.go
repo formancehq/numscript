@@ -148,20 +148,6 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 	return (*leftValue).evalSub(st, right)
 }
 
-func (st *programState) numOp(left parser.ValueExpr, right parser.ValueExpr, op func(left *big.Int, right *big.Int) Value) (Value, InterpreterError) {
-	parsedLeft, err := evaluateExprAs(st, left, expectNumber)
-	if err != nil {
-		return nil, err
-	}
-
-	parsedRight, err := evaluateExprAs(st, right, expectNumber)
-	if err != nil {
-		return nil, err
-	}
-
-	return op(parsedLeft, parsedRight), nil
-}
-
 func (st *programState) eqOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
 	parsedLeft, err := evaluateExprAs(st, left, expectAnything)
 	if err != nil {
@@ -193,47 +179,81 @@ func (st *programState) neqOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 }
 
 func (st *programState) ltOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	return st.numOp(left, right, func(left, right *big.Int) Value {
-		switch left.Cmp(right) {
-		case -1:
-			return Bool(true)
-		default:
-			return Bool(false)
-		}
-	})
+	cmp, err := st.evaluateExprAsCmp(left)
+	if err != nil {
+		return nil, err
+	}
+
+	cmpResult, err := (*cmp).evalCmp(st, right)
+	if err != nil {
+		return nil, err
+	}
+
+	switch *cmpResult {
+	case -1:
+		return Bool(true), nil
+	default:
+		return Bool(false), nil
+	}
+
 }
 
 func (st *programState) gtOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	return st.numOp(left, right, func(left, right *big.Int) Value {
-		switch left.Cmp(right) {
-		case 1:
-			return Bool(true)
-		default:
-			return Bool(false)
-		}
-	})
+	cmp, err := st.evaluateExprAsCmp(left)
+	if err != nil {
+		return nil, err
+	}
+
+	cmpResult, err := (*cmp).evalCmp(st, right)
+	if err != nil {
+		return nil, err
+	}
+
+	switch *cmpResult {
+	case 1:
+		return Bool(true), nil
+	default:
+		return Bool(false), nil
+	}
 }
 
 func (st *programState) lteOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	return st.numOp(left, right, func(left, right *big.Int) Value {
-		switch left.Cmp(right) {
-		case -1, 0:
-			return Bool(true)
-		default:
-			return Bool(false)
-		}
-	})
+	cmp, err := st.evaluateExprAsCmp(left)
+	if err != nil {
+		return nil, err
+	}
+
+	cmpResult, err := (*cmp).evalCmp(st, right)
+	if err != nil {
+		return nil, err
+	}
+
+	switch *cmpResult {
+	case -1, 0:
+		return Bool(true), nil
+	default:
+		return Bool(false), nil
+	}
+
 }
 
 func (st *programState) gteOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	return st.numOp(left, right, func(left, right *big.Int) Value {
-		switch left.Cmp(right) {
-		case 1, 0:
-			return Bool(true)
-		default:
-			return Bool(false)
-		}
-	})
+	cmp, err := st.evaluateExprAsCmp(left)
+	if err != nil {
+		return nil, err
+	}
+
+	cmpResult, err := (*cmp).evalCmp(st, right)
+	if err != nil {
+		return nil, err
+	}
+
+	switch *cmpResult {
+	case 1, 0:
+		return Bool(true), nil
+	default:
+		return Bool(false), nil
+	}
 }
 
 func (st *programState) andOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
