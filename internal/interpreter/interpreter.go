@@ -452,7 +452,9 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		if err != nil {
 			return nil, err
 		}
-
+		if monetary.Cmp(big.NewInt(0)) == -1 {
+			monetary.Set(big.NewInt(0))
+		}
 		// We switch to the default sending evaluation for this subsource
 		return s.trySendingUpTo(source.From, monetary)
 
@@ -562,6 +564,9 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			return nil, err
 		}
 		cappedAmount := utils.MinBigInt(amount, cap)
+		if cappedAmount.Cmp(big.NewInt(0)) == -1 {
+			cappedAmount.Set(big.NewInt(0))
+		}
 		return s.trySendingUpTo(source.From, cappedAmount)
 
 	default:
