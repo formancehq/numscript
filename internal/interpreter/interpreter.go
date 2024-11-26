@@ -853,6 +853,10 @@ func overdraft(
 	r parser.Range,
 	args []Value,
 ) (*Monetary, InterpreterError) {
+	if !s.OverdraftFunctionFeatureFlag {
+		return nil, ExperimentalFeature{FlagName: ExperimentalOverdraftFunctionFeatureFlag}
+	}
+
 	// TODO more precise args range location
 	p := NewArgsParser(args)
 	account := parseArg(p, r, expectAccount)
