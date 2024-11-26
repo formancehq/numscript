@@ -118,7 +118,7 @@ func run(path string) {
 	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
 		Meta:     opt.Meta,
-	})
+	}, nil)
 
 	if err != nil {
 		rng := err.GetRange()

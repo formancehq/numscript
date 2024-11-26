@@ -56,7 +56,20 @@ type (
 )
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
-	res, err := interpreter.RunProgram(ctx, p.parseResult.Value, vars, store)
+	return p.RunWithFeatureFlags(ctx, vars, store, nil)
+}
+
+func (p ParseResult) RunWithFeatureFlags(
+	ctx context.Context,
+	vars VariablesMap,
+	store Store,
+	featureFlags map[string]struct{},
+) (ExecutionResult, InterpreterError) {
+	if featureFlags == nil {
+		featureFlags = make(map[string]struct{})
+	}
+
+	res, err := interpreter.RunProgram(ctx, p.parseResult.Value, vars, store, featureFlags)
 	if err != nil {
 		return ExecutionResult{}, err
 	}
