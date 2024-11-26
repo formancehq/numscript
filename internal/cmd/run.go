@@ -26,6 +26,8 @@ var runRawOpt string
 var runStdinFlag bool
 var runOutFormatOpt string
 
+var overdraftFeatureFlag bool
+
 type inputOpts struct {
 	Script    string                       `json:"script"`
 	Variables map[string]string            `json:"variables"`
@@ -115,10 +117,15 @@ func run(path string) {
 		os.Exit(1)
 	}
 
+	featureFlags := map[string]struct{}{}
+	if overdraftFeatureFlag {
+		featureFlags[interpreter.ExperimentalOverdraftFunctionFeatureFlag] = struct{}{}
+	}
+
 	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
 		Meta:     opt.Meta,
-	}, nil)
+	}, featureFlags)
 
 	if err != nil {
 		rng := err.GetRange()
@@ -191,6 +198,9 @@ func getRunCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&runMetaOpt, "meta", "m", "", "Path of a json file containing the accounts metadata")
 	cmd.Flags().StringVarP(&runRawOpt, "raw", "r", "", "Raw json input containing script, variables, balances, metadata")
 	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
+
+	// Feature flag
+	cmd.Flags().BoolVar(&overdraftFeatureFlag, interpreter.ExperimentalOverdraftFunctionFeatureFlag, false, "feature flag to enable the overdraft() function")
 
 	// Output options
 	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
