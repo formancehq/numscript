@@ -28,7 +28,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		//
 		// this would mean that the "save" statement was not needed in the first place,
 		// so preventing this query would hardly be an useful optimization
-		account, err := evaluateLitExpecting(st, statement.Literal, expectAccount)
+		account, err := evaluateExprAs(st, statement.Amount, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func (st *programState) runBalancesQuery() error {
 func (st *programState) findBalancesQueries(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateLitExpecting(st, source.Literal, expectAccount)
+		account, err := evaluateExprAs(st, source.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return nil
 		}
 
-		account, err := evaluateLitExpecting(st, source.Address, expectAccount)
+		account, err := evaluateExprAs(st, source.Address, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -139,6 +139,19 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 				return err
 			}
 		}
+		return nil
+
+	case *parser.IfExpr[parser.Source]:
+		err := st.findBalancesQueries(source.IfBranch)
+		if err != nil {
+			return err
+		}
+
+		err = st.findBalancesQueries(source.ElseBranch)
+		if err != nil {
+			return err
+		}
+
 		return nil
 
 	default:

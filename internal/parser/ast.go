@@ -4,19 +4,42 @@ import (
 	"math/big"
 )
 
-// does it even make sense to have a literal supertype?
-type Literal interface {
-	Ranged
-	literal()
+type IfExpr[Value Ranged] struct {
+	Range
+	Condition  ValueExpr
+	IfBranch   Value
+	ElseBranch Value
 }
 
-func (*AssetLiteral) literal()    {}
-func (*MonetaryLiteral) literal() {}
-func (*AccountLiteral) literal()  {}
-func (*VariableLiteral) literal() {}
-func (*RatioLiteral) literal()    {}
-func (*NumberLiteral) literal()   {}
-func (*StringLiteral) literal()   {}
+type ValueExpr interface {
+	Ranged
+	valueExpr()
+}
+
+func (*Variable) valueExpr()        {}
+func (*AssetLiteral) valueExpr()    {}
+func (*MonetaryLiteral) valueExpr() {}
+func (*AccountLiteral) valueExpr()  {}
+func (*RatioLiteral) valueExpr()    {}
+func (*NumberLiteral) valueExpr()   {}
+func (*StringLiteral) valueExpr()   {}
+func (*NotExpr) valueExpr()         {}
+func (*BinaryInfix) valueExpr()     {}
+
+type InfixOperator string
+
+const (
+	InfixOperatorPlus  InfixOperator = "+"
+	InfixOperatorMinus InfixOperator = "-"
+	InfixOperatorEq    InfixOperator = "=="
+	InfixOperatorNeq   InfixOperator = "!="
+	InfixOperatorLt    InfixOperator = "<"
+	InfixOperatorLte   InfixOperator = "<="
+	InfixOperatorGt    InfixOperator = ">"
+	InfixOperatorGte   InfixOperator = ">="
+	InfixOperatorAnd   InfixOperator = "&&"
+	InfixOperatorOr    InfixOperator = "||"
+)
 
 type (
 	AssetLiteral struct {
@@ -36,8 +59,8 @@ type (
 
 	MonetaryLiteral struct {
 		Range
-		Asset  Literal
-		Amount Literal
+		Asset  ValueExpr
+		Amount ValueExpr
 	}
 
 	AccountLiteral struct {
@@ -51,9 +74,21 @@ type (
 		Denominator *big.Int
 	}
 
-	VariableLiteral struct {
+	Variable struct {
 		Range
 		Name string
+	}
+
+	NotExpr struct {
+		Range
+		Expr ValueExpr
+	}
+
+	BinaryInfix struct {
+		Range
+		Operator InfixOperator
+		Left     ValueExpr
+		Right    ValueExpr
 	}
 )
 
@@ -68,8 +103,8 @@ func (a *AccountLiteral) IsWorld() bool {
 // Source exprs
 
 type Source interface {
+	Ranged
 	source()
-	GetRange() Range
 }
 
 func (*SourceInorder) source()   {}
@@ -77,10 +112,11 @@ func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
+func (*IfExpr[Source]) source()  {}
 
 type (
 	SourceAccount struct {
-		Literal
+		ValueExpr
 	}
 
 	SourceInorder struct {
@@ -101,13 +137,13 @@ type (
 	SourceCapped struct {
 		Range
 		From Source
-		Cap  Literal
+		Cap  ValueExpr
 	}
 
 	SourceOverdraft struct {
 		Range
-		Address Literal
-		Bounded *Literal
+		Address ValueExpr
+		Bounded *ValueExpr
 	}
 )
 
@@ -115,7 +151,7 @@ type AllotmentValue interface{ allotmentValue() }
 
 func (*RemainingAllotment) allotmentValue() {}
 func (*RatioLiteral) allotmentValue()       {}
-func (*VariableLiteral) allotmentValue()    {}
+func (*Variable) allotmentValue()           {}
 
 type RemainingAllotment struct {
 	Range
@@ -130,10 +166,11 @@ type Destination interface {
 func (*DestinationAccount) destination()   {}
 func (*DestinationInorder) destination()   {}
 func (*DestinationAllotment) destination() {}
+func (*IfExpr[Destination]) destination()  {}
 
 type (
 	DestinationAccount struct {
-		Literal
+		ValueExpr
 	}
 
 	DestinationInorder struct {
@@ -144,7 +181,7 @@ type (
 
 	DestinationInorderClause struct {
 		Range
-		Cap Literal
+		Cap ValueExpr
 		To  KeptOrDestination
 	}
 
@@ -196,7 +233,7 @@ type FnCallIdentifier struct {
 type FnCall struct {
 	Range
 	Caller *FnCallIdentifier
-	Args   []Literal
+	Args   []ValueExpr
 }
 
 type SentValue interface {
@@ -206,11 +243,11 @@ type SentValue interface {
 
 type SentValueLiteral struct {
 	Range
-	Monetary Literal
+	Monetary ValueExpr
 }
 type SentValueAll struct {
 	Range
-	Asset Literal
+	Asset ValueExpr
 }
 
 func (*SentValueLiteral) sentValue() {}
@@ -226,7 +263,7 @@ type SendStatement struct {
 type SaveStatement struct {
 	Range
 	SentValue SentValue
-	Literal   Literal
+	Amount    ValueExpr
 }
 
 type TypeDecl struct {
@@ -236,7 +273,7 @@ type TypeDecl struct {
 
 type VarDeclaration struct {
 	Range
-	Name   *VariableLiteral
+	Name   *Variable
 	Type   *TypeDecl
 	Origin *FnCall
 }

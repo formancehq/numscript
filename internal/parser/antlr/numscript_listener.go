@@ -17,26 +17,47 @@ type NumscriptListener interface {
 	// EnterPercentage is called when entering the percentage production.
 	EnterPercentage(c *PercentageContext)
 
+	// EnterInfixCompExpr is called when entering the infixCompExpr production.
+	EnterInfixCompExpr(c *InfixCompExprContext)
+
+	// EnterAccountLiteral is called when entering the accountLiteral production.
+	EnterAccountLiteral(c *AccountLiteralContext)
+
+	// EnterParensExpr is called when entering the parensExpr production.
+	EnterParensExpr(c *ParensExprContext)
+
+	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
+	EnterMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// EnterInfixEqExpr is called when entering the infixEqExpr production.
+	EnterInfixEqExpr(c *InfixEqExprContext)
+
+	// EnterVariableExpr is called when entering the variableExpr production.
+	EnterVariableExpr(c *VariableExprContext)
+
+	// EnterPortionLiteral is called when entering the portionLiteral production.
+	EnterPortionLiteral(c *PortionLiteralContext)
+
+	// EnterNotExpr is called when entering the notExpr production.
+	EnterNotExpr(c *NotExprContext)
+
+	// EnterInfixAndExpr is called when entering the infixAndExpr production.
+	EnterInfixAndExpr(c *InfixAndExprContext)
+
 	// EnterAssetLiteral is called when entering the assetLiteral production.
 	EnterAssetLiteral(c *AssetLiteralContext)
 
 	// EnterStringLiteral is called when entering the stringLiteral production.
 	EnterStringLiteral(c *StringLiteralContext)
 
-	// EnterAccountLiteral is called when entering the accountLiteral production.
-	EnterAccountLiteral(c *AccountLiteralContext)
+	// EnterInfixOrExpr is called when entering the infixOrExpr production.
+	EnterInfixOrExpr(c *InfixOrExprContext)
 
-	// EnterVariableLiteral is called when entering the variableLiteral production.
-	EnterVariableLiteral(c *VariableLiteralContext)
+	// EnterInfixAddSubExpr is called when entering the infixAddSubExpr production.
+	EnterInfixAddSubExpr(c *InfixAddSubExprContext)
 
 	// EnterNumberLiteral is called when entering the numberLiteral production.
 	EnterNumberLiteral(c *NumberLiteralContext)
-
-	// EnterMonetaryLiteral is called when entering the monetaryLiteral production.
-	EnterMonetaryLiteral(c *MonetaryLiteralContext)
-
-	// EnterPortionLiteral is called when entering the portionLiteral production.
-	EnterPortionLiteral(c *PortionLiteralContext)
 
 	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
 	EnterFunctionCallArgs(c *FunctionCallArgsContext)
@@ -74,14 +95,11 @@ type NumscriptListener interface {
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
 
-	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
-	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
-
 	// EnterSrcAccountBoundedOverdraft is called when entering the srcAccountBoundedOverdraft production.
 	EnterSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
 
-	// EnterSrcAccount is called when entering the srcAccount production.
-	EnterSrcAccount(c *SrcAccountContext)
+	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
+	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
 	// EnterSrcAllotment is called when entering the srcAllotment production.
 	EnterSrcAllotment(c *SrcAllotmentContext)
@@ -91,6 +109,12 @@ type NumscriptListener interface {
 
 	// EnterSrcCapped is called when entering the srcCapped production.
 	EnterSrcCapped(c *SrcCappedContext)
+
+	// EnterSrcAccount is called when entering the srcAccount production.
+	EnterSrcAccount(c *SrcAccountContext)
+
+	// EnterSourceIf is called when entering the sourceIf production.
+	EnterSourceIf(c *SourceIfContext)
 
 	// EnterAllotmentClauseSrc is called when entering the allotmentClauseSrc production.
 	EnterAllotmentClauseSrc(c *AllotmentClauseSrcContext)
@@ -104,14 +128,17 @@ type NumscriptListener interface {
 	// EnterDestinationInOrderClause is called when entering the destinationInOrderClause production.
 	EnterDestinationInOrderClause(c *DestinationInOrderClauseContext)
 
+	// EnterDestInorder is called when entering the destInorder production.
+	EnterDestInorder(c *DestInorderContext)
+
+	// EnterDestIf is called when entering the destIf production.
+	EnterDestIf(c *DestIfContext)
+
 	// EnterDestAccount is called when entering the destAccount production.
 	EnterDestAccount(c *DestAccountContext)
 
 	// EnterDestAllotment is called when entering the destAllotment production.
 	EnterDestAllotment(c *DestAllotmentContext)
-
-	// EnterDestInorder is called when entering the destInorder production.
-	EnterDestInorder(c *DestInorderContext)
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
@@ -140,26 +167,47 @@ type NumscriptListener interface {
 	// ExitPercentage is called when exiting the percentage production.
 	ExitPercentage(c *PercentageContext)
 
+	// ExitInfixCompExpr is called when exiting the infixCompExpr production.
+	ExitInfixCompExpr(c *InfixCompExprContext)
+
+	// ExitAccountLiteral is called when exiting the accountLiteral production.
+	ExitAccountLiteral(c *AccountLiteralContext)
+
+	// ExitParensExpr is called when exiting the parensExpr production.
+	ExitParensExpr(c *ParensExprContext)
+
+	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
+	ExitMonetaryLiteral(c *MonetaryLiteralContext)
+
+	// ExitInfixEqExpr is called when exiting the infixEqExpr production.
+	ExitInfixEqExpr(c *InfixEqExprContext)
+
+	// ExitVariableExpr is called when exiting the variableExpr production.
+	ExitVariableExpr(c *VariableExprContext)
+
+	// ExitPortionLiteral is called when exiting the portionLiteral production.
+	ExitPortionLiteral(c *PortionLiteralContext)
+
+	// ExitNotExpr is called when exiting the notExpr production.
+	ExitNotExpr(c *NotExprContext)
+
+	// ExitInfixAndExpr is called when exiting the infixAndExpr production.
+	ExitInfixAndExpr(c *InfixAndExprContext)
+
 	// ExitAssetLiteral is called when exiting the assetLiteral production.
 	ExitAssetLiteral(c *AssetLiteralContext)
 
 	// ExitStringLiteral is called when exiting the stringLiteral production.
 	ExitStringLiteral(c *StringLiteralContext)
 
-	// ExitAccountLiteral is called when exiting the accountLiteral production.
-	ExitAccountLiteral(c *AccountLiteralContext)
+	// ExitInfixOrExpr is called when exiting the infixOrExpr production.
+	ExitInfixOrExpr(c *InfixOrExprContext)
 
-	// ExitVariableLiteral is called when exiting the variableLiteral production.
-	ExitVariableLiteral(c *VariableLiteralContext)
+	// ExitInfixAddSubExpr is called when exiting the infixAddSubExpr production.
+	ExitInfixAddSubExpr(c *InfixAddSubExprContext)
 
 	// ExitNumberLiteral is called when exiting the numberLiteral production.
 	ExitNumberLiteral(c *NumberLiteralContext)
-
-	// ExitMonetaryLiteral is called when exiting the monetaryLiteral production.
-	ExitMonetaryLiteral(c *MonetaryLiteralContext)
-
-	// ExitPortionLiteral is called when exiting the portionLiteral production.
-	ExitPortionLiteral(c *PortionLiteralContext)
 
 	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
 	ExitFunctionCallArgs(c *FunctionCallArgsContext)
@@ -197,14 +245,11 @@ type NumscriptListener interface {
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)
 
-	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
-	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
-
 	// ExitSrcAccountBoundedOverdraft is called when exiting the srcAccountBoundedOverdraft production.
 	ExitSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
 
-	// ExitSrcAccount is called when exiting the srcAccount production.
-	ExitSrcAccount(c *SrcAccountContext)
+	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
+	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
 	// ExitSrcAllotment is called when exiting the srcAllotment production.
 	ExitSrcAllotment(c *SrcAllotmentContext)
@@ -214,6 +259,12 @@ type NumscriptListener interface {
 
 	// ExitSrcCapped is called when exiting the srcCapped production.
 	ExitSrcCapped(c *SrcCappedContext)
+
+	// ExitSrcAccount is called when exiting the srcAccount production.
+	ExitSrcAccount(c *SrcAccountContext)
+
+	// ExitSourceIf is called when exiting the sourceIf production.
+	ExitSourceIf(c *SourceIfContext)
 
 	// ExitAllotmentClauseSrc is called when exiting the allotmentClauseSrc production.
 	ExitAllotmentClauseSrc(c *AllotmentClauseSrcContext)
@@ -227,14 +278,17 @@ type NumscriptListener interface {
 	// ExitDestinationInOrderClause is called when exiting the destinationInOrderClause production.
 	ExitDestinationInOrderClause(c *DestinationInOrderClauseContext)
 
+	// ExitDestInorder is called when exiting the destInorder production.
+	ExitDestInorder(c *DestInorderContext)
+
+	// ExitDestIf is called when exiting the destIf production.
+	ExitDestIf(c *DestIfContext)
+
 	// ExitDestAccount is called when exiting the destAccount production.
 	ExitDestAccount(c *DestAccountContext)
 
 	// ExitDestAllotment is called when exiting the destAllotment production.
 	ExitDestAllotment(c *DestAllotmentContext)
-
-	// ExitDestInorder is called when exiting the destInorder production.
-	ExitDestInorder(c *DestInorderContext)
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)

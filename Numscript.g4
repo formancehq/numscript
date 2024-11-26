@@ -18,6 +18,8 @@ REMAINING: 'remaining';
 ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
+IF: 'if';
+ELSE: 'else';
 KEPT: 'kept';
 SAVE: 'save';
 LPARENS: '(';
@@ -43,23 +45,31 @@ ACCOUNT: '@' [a-zA-Z0-9_-]+ (':' [a-zA-Z0-9_-]+)*;
 ASSET: [A-Z/0-9]+;
 
 monetaryLit:
-	LBRACKET (asset = literal) (amt = literal) RBRACKET;
+	LBRACKET (asset = valueExpr) (amt = valueExpr) RBRACKET;
 
 portion:
 	RATIO_PORTION_LITERAL			# ratio
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
-literal:
-	ASSET			# assetLiteral
-	| STRING		# stringLiteral
-	| ACCOUNT		# accountLiteral
-	| VARIABLE_NAME	# variableLiteral
-	| NUMBER		# numberLiteral
-	| monetaryLit	# monetaryLiteral
-	| portion		# portionLiteral;
+valueExpr:
+	VARIABLE_NAME														# variableExpr
+	| ASSET																# assetLiteral
+	| STRING															# stringLiteral
+	| ACCOUNT															# accountLiteral
+	| NUMBER															# numberLiteral
+	| monetaryLit														# monetaryLiteral
+	| portion															# portionLiteral
+	| '!' valueExpr														# notExpr
+	| left = valueExpr op = ('+' | '-') right = valueExpr				# infixAddSubExpr
+	| left = valueExpr op = ('==' | '!=') right = valueExpr				# infixEqExpr
+	| left = valueExpr op = ('<' | '<=' | '>' | '>=') right = valueExpr	# infixCompExpr
+	| left = valueExpr op = '||' right = valueExpr						# infixOrExpr
+	| left = valueExpr op = '&&' right = valueExpr						# infixAndExpr
+	| '(' valueExpr ')'													# parensExpr;
 
-functionCallArgs: literal ( COMMA literal)*;
-functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
+functionCallArgs: valueExpr ( COMMA valueExpr)*;
+functionCall:
+	fnName = (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
 
 varOrigin: EQ functionCall;
 varDeclaration:
@@ -68,7 +78,7 @@ varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
 program: varsDeclaration? statement* EOF;
 
-sentAllLit: LBRACKET (asset = literal) STAR RBRACKET;
+sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 
 cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
 
@@ -78,28 +88,31 @@ allotment:
 	| REMAINING		# remainingAllotment;
 
 source:
-	address = literal ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
-	| address = literal ALLOWING OVERDRAFT UP TO maxOvedraft = literal	# srcAccountBoundedOverdraft
-	| literal															# srcAccount
-	| LBRACE allotmentClauseSrc+ RBRACE									# srcAllotment
-	| LBRACE source* RBRACE												# srcInorder
-	| MAX cap FROM source												# srcCapped;
+	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| ifBranch = source IF valueExpr ELSE elseBranch = source				# sourceIf
+	| address = valueExpr ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
+		srcAccountBoundedOverdraft
+	| valueExpr							# srcAccount
+	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
+	| LBRACE source* RBRACE				# srcInorder
+	| MAX cap FROM source				# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 keptOrDestination:
 	TO destination	# destinationTo
 	| KEPT			# destinationKept;
-destinationInOrderClause: MAX literal keptOrDestination;
+destinationInOrderClause: MAX valueExpr keptOrDestination;
 
 destination:
-	literal																	# destAccount
+	valueExpr																# destAccount
+	| ifBranch = destination IF valueExpr ELSE elseBranch = destination		# destIf
 	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
 	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
 allotmentClauseDest: allotment keptOrDestination;
 
-sentValue: literal # sentLiteral | sentAllLit # sentAll;
+sentValue: valueExpr # sentLiteral | sentAllLit # sentAll;
 
 statement:
 	SEND sentValue LPARENS SOURCE EQ source DESTINATION EQ destination RPARENS	# sendStatement
-	| SAVE sentValue FROM literal												# saveStatement
+	| SAVE sentValue FROM valueExpr												# saveStatement
 	| functionCall																# fnCallStatement;

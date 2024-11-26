@@ -83,9 +83,23 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	return mon, nil
 }
 
+func parseBool(source string) (Bool, InterpreterError) {
+	switch source {
+	case "true":
+		return Bool(true), nil
+	case "false":
+		return Bool(false), nil
+
+	default:
+		return Bool(false), InvalidBoolLiteral{Source: source}
+	}
+}
+
 func parseVar(type_ string, rawValue string, r parser.Range) (Value, InterpreterError) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
+	case analysis.TypeBool:
+		return parseBool(rawValue)
 	case analysis.TypeMonetary:
 		return parseMonetary(rawValue)
 	case analysis.TypeAccount:
@@ -114,7 +128,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 }
 
 func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, InterpreterError) {
-	args, err := s.evaluateLiterals(fnCall.Args)
+	args, err := s.evaluateExpressions(fnCall.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +149,13 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 	case analysis.FnVarOriginBalance:
 		monetary, err := balance(s, fnCall.Range, args)
+		if err != nil {
+			return nil, err
+		}
+		return *monetary, nil
+
+	case analysis.FnVarOriginOverdraft:
+		monetary, err := overdraft(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +274,7 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		args, err := st.evaluateLiterals(statement.Args)
+		args, err := st.evaluateExpressions(statement.Args)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +329,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		return nil, err
 	}
 
-	account, err := evaluateLitExpecting(st, saveStatement.Literal, expectAccount)
+	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +361,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, InterpreterError) {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +377,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 		return st.getPostings()
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return nil, err
 		}
@@ -397,8 +418,8 @@ func (s *programState) getCachedBalance(account string, asset string) *big.Int {
 	return assetBalance
 }
 
-func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft *big.Int) (*big.Int, InterpreterError) {
-	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
+	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -424,12 +445,12 @@ func (s *programState) sendAllToAccount(accountLiteral parser.Literal, ovedraft 
 func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.sendAllToAccount(source.Literal, big.NewInt(0))
+		return s.sendAllToAccount(source.ValueExpr, big.NewInt(0))
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			bounded, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			bounded, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -449,7 +470,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return totalSent, nil
 
 	case *parser.SourceCapped:
-		monetary, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -461,6 +482,18 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
+
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.sendAll(source.IfBranch)
+		} else {
+			return s.sendAll(source.ElseBranch)
+		}
 
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
@@ -485,8 +518,8 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 	return nil
 }
 
-func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
-	account, err := evaluateLitExpecting(s, accountLiteral, expectAccount)
+func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
+	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -518,12 +551,12 @@ func (s *programState) trySendingToAccount(accountLiteral parser.Literal, amount
 func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.trySendingToAccount(source.Literal, amount, big.NewInt(0))
+		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0))
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			upTo, err := evaluateLitExpecting(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			upTo, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -560,7 +593,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		return amount, nil
 
 	case *parser.SourceCapped:
-		cap, err := evaluateLitExpecting(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		cap, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -569,6 +602,18 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cappedAmount.Set(big.NewInt(0))
 		}
 		return s.trySendingUpTo(source.From, cappedAmount)
+
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.trySendingUpTo(source.IfBranch, amount)
+		} else {
+			return s.trySendingUpTo(source.ElseBranch, amount)
+		}
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
@@ -581,7 +626,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		account, err := evaluateLitExpecting(s, destination.Literal, expectAccount)
+		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -628,7 +673,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 
 		for _, destinationClause := range destination.Clauses {
 
-			cap, err := evaluateLitExpecting(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -648,6 +693,18 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		remainingAmountCopy := new(big.Int).Set(remainingAmount)
 		// passing "remainingAmount" directly breaks the code
 		return handler(destination.Remaining, remainingAmountCopy)
+
+	case *parser.IfExpr[parser.Destination]:
+		cond, err := evaluateExprAs(s, destination.Condition, expectBool)
+		if err != nil {
+			return err
+		}
+
+		if *cond {
+			return s.receiveFrom(destination.IfBranch, amount)
+		} else {
+			return s.receiveFrom(destination.ElseBranch, amount)
+		}
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
@@ -686,8 +743,8 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			rat := allotment.ToRatio()
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, rat)
-		case *parser.VariableLiteral:
-			rat, err := evaluateLitExpecting(s, allotment, expectPortion)
+		case *parser.Variable:
+			rat, err := evaluateExprAs(s, allotment, expectPortion)
 			if err != nil {
 				return nil, err
 			}
@@ -770,6 +827,22 @@ func meta(
 	return value, nil
 }
 
+// Utility function to get the balance
+func getBalance(
+	s *programState,
+	account string,
+	asset string,
+) (*big.Int, InterpreterError) {
+	s.batchQuery(account, asset)
+	fetchBalanceErr := s.runBalancesQuery()
+	if fetchBalanceErr != nil {
+		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+	}
+	balance := s.getCachedBalance(account, asset)
+	return balance, nil
+
+}
+
 func balance(
 	s *programState,
 	r parser.Range,
@@ -785,13 +858,12 @@ func balance(
 	}
 
 	// body
-	s.batchQuery(*account, *asset)
-	fetchBalanceErr := s.runBalancesQuery()
-	if fetchBalanceErr != nil {
-		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+
+	balance, err := getBalance(s, *account, *asset)
+	if err != nil {
+		return nil, err
 	}
 
-	balance := s.getCachedBalance(*account, *asset)
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, NegativeBalanceError{
 			Account: *account,
@@ -806,6 +878,40 @@ func balance(
 		Amount: MonetaryInt(*balanceCopy),
 	}
 	return &m, nil
+}
+
+func overdraft(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (*Monetary, InterpreterError) {
+	// TODO more precise args range location
+	p := NewArgsParser(args)
+	account := parseArg(p, r, expectAccount)
+	asset := parseArg(p, r, expectAsset)
+	err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	balance_, err := getBalance(s, *account, *asset)
+	if err != nil {
+		return nil, err
+	}
+
+	balanceIsPositive := balance_.Cmp(big.NewInt(0)) == 1
+	if balanceIsPositive {
+		return &Monetary{
+			Amount: NewMonetaryInt(0),
+			Asset:  Asset(*asset),
+		}, nil
+	}
+
+	overdraft := new(big.Int).Neg(balance_)
+	return &Monetary{
+		Amount: MonetaryInt(*overdraft),
+		Asset:  Asset(*asset),
+	}, nil
 }
 
 func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError {
@@ -843,14 +949,14 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateLitExpecting(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
 			return nil, nil, err
 		}
 		return asset, nil, nil
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateLitExpecting(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return nil, nil, err
 		}

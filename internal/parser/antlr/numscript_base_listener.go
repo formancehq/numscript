@@ -39,6 +39,60 @@ func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
 // ExitPercentage is called when production percentage is exited.
 func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
 
+// EnterInfixCompExpr is called when production infixCompExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixCompExpr(ctx *InfixCompExprContext) {}
+
+// ExitInfixCompExpr is called when production infixCompExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixCompExpr(ctx *InfixCompExprContext) {}
+
+// EnterAccountLiteral is called when production accountLiteral is entered.
+func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
+
+// ExitAccountLiteral is called when production accountLiteral is exited.
+func (s *BaseNumscriptListener) ExitAccountLiteral(ctx *AccountLiteralContext) {}
+
+// EnterParensExpr is called when production parensExpr is entered.
+func (s *BaseNumscriptListener) EnterParensExpr(ctx *ParensExprContext) {}
+
+// ExitParensExpr is called when production parensExpr is exited.
+func (s *BaseNumscriptListener) ExitParensExpr(ctx *ParensExprContext) {}
+
+// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
+func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
+func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
+
+// EnterInfixEqExpr is called when production infixEqExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixEqExpr(ctx *InfixEqExprContext) {}
+
+// ExitInfixEqExpr is called when production infixEqExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixEqExpr(ctx *InfixEqExprContext) {}
+
+// EnterVariableExpr is called when production variableExpr is entered.
+func (s *BaseNumscriptListener) EnterVariableExpr(ctx *VariableExprContext) {}
+
+// ExitVariableExpr is called when production variableExpr is exited.
+func (s *BaseNumscriptListener) ExitVariableExpr(ctx *VariableExprContext) {}
+
+// EnterPortionLiteral is called when production portionLiteral is entered.
+func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
+
+// ExitPortionLiteral is called when production portionLiteral is exited.
+func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
+
+// EnterNotExpr is called when production notExpr is entered.
+func (s *BaseNumscriptListener) EnterNotExpr(ctx *NotExprContext) {}
+
+// ExitNotExpr is called when production notExpr is exited.
+func (s *BaseNumscriptListener) ExitNotExpr(ctx *NotExprContext) {}
+
+// EnterInfixAndExpr is called when production infixAndExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixAndExpr(ctx *InfixAndExprContext) {}
+
+// ExitInfixAndExpr is called when production infixAndExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixAndExpr(ctx *InfixAndExprContext) {}
+
 // EnterAssetLiteral is called when production assetLiteral is entered.
 func (s *BaseNumscriptListener) EnterAssetLiteral(ctx *AssetLiteralContext) {}
 
@@ -51,35 +105,23 @@ func (s *BaseNumscriptListener) EnterStringLiteral(ctx *StringLiteralContext) {}
 // ExitStringLiteral is called when production stringLiteral is exited.
 func (s *BaseNumscriptListener) ExitStringLiteral(ctx *StringLiteralContext) {}
 
-// EnterAccountLiteral is called when production accountLiteral is entered.
-func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
+// EnterInfixOrExpr is called when production infixOrExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixOrExpr(ctx *InfixOrExprContext) {}
 
-// ExitAccountLiteral is called when production accountLiteral is exited.
-func (s *BaseNumscriptListener) ExitAccountLiteral(ctx *AccountLiteralContext) {}
+// ExitInfixOrExpr is called when production infixOrExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixOrExpr(ctx *InfixOrExprContext) {}
 
-// EnterVariableLiteral is called when production variableLiteral is entered.
-func (s *BaseNumscriptListener) EnterVariableLiteral(ctx *VariableLiteralContext) {}
+// EnterInfixAddSubExpr is called when production infixAddSubExpr is entered.
+func (s *BaseNumscriptListener) EnterInfixAddSubExpr(ctx *InfixAddSubExprContext) {}
 
-// ExitVariableLiteral is called when production variableLiteral is exited.
-func (s *BaseNumscriptListener) ExitVariableLiteral(ctx *VariableLiteralContext) {}
+// ExitInfixAddSubExpr is called when production infixAddSubExpr is exited.
+func (s *BaseNumscriptListener) ExitInfixAddSubExpr(ctx *InfixAddSubExprContext) {}
 
 // EnterNumberLiteral is called when production numberLiteral is entered.
 func (s *BaseNumscriptListener) EnterNumberLiteral(ctx *NumberLiteralContext) {}
 
 // ExitNumberLiteral is called when production numberLiteral is exited.
 func (s *BaseNumscriptListener) ExitNumberLiteral(ctx *NumberLiteralContext) {}
-
-// EnterMonetaryLiteral is called when production monetaryLiteral is entered.
-func (s *BaseNumscriptListener) EnterMonetaryLiteral(ctx *MonetaryLiteralContext) {}
-
-// ExitMonetaryLiteral is called when production monetaryLiteral is exited.
-func (s *BaseNumscriptListener) ExitMonetaryLiteral(ctx *MonetaryLiteralContext) {}
-
-// EnterPortionLiteral is called when production portionLiteral is entered.
-func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
-
-// ExitPortionLiteral is called when production portionLiteral is exited.
-func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
 
 // EnterFunctionCallArgs is called when production functionCallArgs is entered.
 func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
@@ -153,14 +195,6 @@ func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentC
 // ExitRemainingAllotment is called when production remainingAllotment is exited.
 func (s *BaseNumscriptListener) ExitRemainingAllotment(ctx *RemainingAllotmentContext) {}
 
-// EnterSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is entered.
-func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
-}
-
-// ExitSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is exited.
-func (s *BaseNumscriptListener) ExitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
-}
-
 // EnterSrcAccountBoundedOverdraft is called when production srcAccountBoundedOverdraft is entered.
 func (s *BaseNumscriptListener) EnterSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) {
 }
@@ -169,11 +203,13 @@ func (s *BaseNumscriptListener) EnterSrcAccountBoundedOverdraft(ctx *SrcAccountB
 func (s *BaseNumscriptListener) ExitSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) {
 }
 
-// EnterSrcAccount is called when production srcAccount is entered.
-func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
+// EnterSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is entered.
+func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
+}
 
-// ExitSrcAccount is called when production srcAccount is exited.
-func (s *BaseNumscriptListener) ExitSrcAccount(ctx *SrcAccountContext) {}
+// ExitSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is exited.
+func (s *BaseNumscriptListener) ExitSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
+}
 
 // EnterSrcAllotment is called when production srcAllotment is entered.
 func (s *BaseNumscriptListener) EnterSrcAllotment(ctx *SrcAllotmentContext) {}
@@ -192,6 +228,18 @@ func (s *BaseNumscriptListener) EnterSrcCapped(ctx *SrcCappedContext) {}
 
 // ExitSrcCapped is called when production srcCapped is exited.
 func (s *BaseNumscriptListener) ExitSrcCapped(ctx *SrcCappedContext) {}
+
+// EnterSrcAccount is called when production srcAccount is entered.
+func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
+
+// ExitSrcAccount is called when production srcAccount is exited.
+func (s *BaseNumscriptListener) ExitSrcAccount(ctx *SrcAccountContext) {}
+
+// EnterSourceIf is called when production sourceIf is entered.
+func (s *BaseNumscriptListener) EnterSourceIf(ctx *SourceIfContext) {}
+
+// ExitSourceIf is called when production sourceIf is exited.
+func (s *BaseNumscriptListener) ExitSourceIf(ctx *SourceIfContext) {}
 
 // EnterAllotmentClauseSrc is called when production allotmentClauseSrc is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseSrc(ctx *AllotmentClauseSrcContext) {}
@@ -217,6 +265,18 @@ func (s *BaseNumscriptListener) EnterDestinationInOrderClause(ctx *DestinationIn
 // ExitDestinationInOrderClause is called when production destinationInOrderClause is exited.
 func (s *BaseNumscriptListener) ExitDestinationInOrderClause(ctx *DestinationInOrderClauseContext) {}
 
+// EnterDestInorder is called when production destInorder is entered.
+func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
+
+// ExitDestInorder is called when production destInorder is exited.
+func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
+
+// EnterDestIf is called when production destIf is entered.
+func (s *BaseNumscriptListener) EnterDestIf(ctx *DestIfContext) {}
+
+// ExitDestIf is called when production destIf is exited.
+func (s *BaseNumscriptListener) ExitDestIf(ctx *DestIfContext) {}
+
 // EnterDestAccount is called when production destAccount is entered.
 func (s *BaseNumscriptListener) EnterDestAccount(ctx *DestAccountContext) {}
 
@@ -228,12 +288,6 @@ func (s *BaseNumscriptListener) EnterDestAllotment(ctx *DestAllotmentContext) {}
 
 // ExitDestAllotment is called when production destAllotment is exited.
 func (s *BaseNumscriptListener) ExitDestAllotment(ctx *DestAllotmentContext) {}
-
-// EnterDestInorder is called when production destInorder is entered.
-func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
-
-// ExitDestInorder is called when production destInorder is exited.
-func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
 
 // EnterAllotmentClauseDest is called when production allotmentClauseDest is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}

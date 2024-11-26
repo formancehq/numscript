@@ -123,14 +123,14 @@ func parseVarDeclaration(varDecl parser.IVarDeclarationContext) *VarDeclaration 
 	}
 }
 
-func parseVarLiteral(tk antlr.Token) *VariableLiteral {
+func parseVarLiteral(tk antlr.Token) *Variable {
 	if tk == nil || tk.GetTokenIndex() == -1 {
 		return nil
 	}
 
 	name := tk.GetText()[1:]
 
-	return &VariableLiteral{
+	return &Variable{
 		Range: tokenToRange(tk),
 		Name:  name,
 	}
@@ -147,7 +147,7 @@ func parseVarType(tk antlr.Token) *TypeDecl {
 	}
 }
 
-func parseCapLit(capCtx parser.ICapContext) Literal {
+func parseCapLit(capCtx parser.ICapContext) ValueExpr {
 	switch capCtx := capCtx.(type) {
 	case *parser.LitCapContext:
 		return parseMonetaryLit(capCtx.MonetaryLit())
@@ -159,7 +159,7 @@ func parseCapLit(capCtx parser.ICapContext) Literal {
 		return nil
 
 	default:
-		return utils.NonExhaustiveMatchPanic[Literal](capCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[ValueExpr](capCtx.GetText())
 	}
 }
 
@@ -173,7 +173,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	switch sourceCtx := sourceCtx.(type) {
 	case *parser.SrcAccountContext:
 		return &SourceAccount{
-			Literal: parseLiteral(sourceCtx.Literal()),
+			ValueExpr: parseValueExpr(sourceCtx.ValueExpr()),
 		}
 
 	case *parser.SrcInorderContext:
@@ -211,16 +211,24 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	case *parser.SrcAccountUnboundedOverdraftContext:
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseLiteral(sourceCtx.GetAddress()),
+			Address: parseValueExpr(sourceCtx.GetAddress()),
 		}
 
 	case *parser.SrcAccountBoundedOverdraftContext:
-		varMon := parseLiteral(sourceCtx.GetMaxOvedraft())
+		varMon := parseValueExpr(sourceCtx.GetMaxOvedraft())
 
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
-			Address: parseLiteral(sourceCtx.GetAddress()),
+			Address: parseValueExpr(sourceCtx.GetAddress()),
 			Bounded: &varMon,
+		}
+
+	case *parser.SourceIfContext:
+		return &IfExpr[Source]{
+			Range:      ctxToRange(sourceCtx),
+			Condition:  parseValueExpr(sourceCtx.ValueExpr()),
+			IfBranch:   parseSource(sourceCtx.GetIfBranch()),
+			ElseBranch: parseSource(sourceCtx.GetElseBranch()),
 		}
 
 	case *parser.SourceContext:
@@ -318,49 +326,90 @@ func parseStringLiteralCtx(stringCtx *parser.StringLiteralContext) *StringLitera
 	}
 }
 
-func parseLiteral(literalCtx parser.ILiteralContext) Literal {
-	switch literalCtx := literalCtx.(type) {
+func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
+	switch valueExprCtx := valueExprCtx.(type) {
 	case *parser.AccountLiteralContext:
 		return &AccountLiteral{
-			Range: ctxToRange(literalCtx),
+			Range: ctxToRange(valueExprCtx),
 			// Discard the '@'
-			Name: literalCtx.GetText()[1:],
+			Name: valueExprCtx.GetText()[1:],
 		}
 
 	case *parser.MonetaryLiteralContext:
-		return parseMonetaryLit(literalCtx.MonetaryLit())
+		return parseMonetaryLit(valueExprCtx.MonetaryLit())
 
 	case *parser.AssetLiteralContext:
 		return &AssetLiteral{
-			Range: ctxToRange(literalCtx),
-			Asset: literalCtx.GetText(),
+			Range: ctxToRange(valueExprCtx),
+			Asset: valueExprCtx.GetText(),
 		}
 
 	case *parser.NumberLiteralContext:
-		return parseNumberLiteral(literalCtx.NUMBER())
+		return parseNumberLiteral(valueExprCtx.NUMBER())
 
 	case *parser.PortionLiteralContext:
-		return parsePortionSource(literalCtx.Portion())
+		return parsePortionSource(valueExprCtx.Portion())
 
-	case *parser.VariableLiteralContext:
-		return variableLiteralFromCtx(literalCtx)
+	case *parser.VariableExprContext:
+		return variableLiteralFromCtx(valueExprCtx)
 
 	case *parser.StringLiteralContext:
-		return parseStringLiteralCtx(literalCtx)
+		return parseStringLiteralCtx(valueExprCtx)
 
-	case nil, *parser.LiteralContext:
+	case *parser.ParensExprContext:
+		return parseValueExpr(valueExprCtx.ValueExpr())
+
+	case *parser.NotExprContext:
+		return &NotExpr{
+			Range: ctxToRange(valueExprCtx),
+			Expr:  parseValueExpr(valueExprCtx.ValueExpr()),
+		}
+
+	case *parser.InfixAddSubExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixEqExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixCompExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixOrExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixAndExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case nil, *parser.ValueExprContext:
 		return nil
 
 	default:
-		return utils.NonExhaustiveMatchPanic[Literal](literalCtx.GetText())
+		return utils.NonExhaustiveMatchPanic[ValueExpr](valueExprCtx.GetText())
 	}
 }
 
-func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *VariableLiteral {
+type infixNode interface {
+	antlr.ParserRuleContext
+
+	GetOp() antlr.Token
+	GetLeft() parser.IValueExprContext
+	GetRight() parser.IValueExprContext
+}
+
+func parseInfixNode(expr infixNode) *BinaryInfix {
+	return &BinaryInfix{
+		Range:    ctxToRange(expr),
+		Operator: InfixOperator(expr.GetOp().GetText()),
+		Left:     parseValueExpr(expr.GetLeft()),
+		Right:    parseValueExpr(expr.GetRight()),
+	}
+}
+
+func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *Variable {
 	// Discard the '$'
 	name := ctx.GetText()[1:]
 
-	return &VariableLiteral{
+	return &Variable{
 		Range: ctxToRange(ctx),
 		Name:  name,
 	}
@@ -392,7 +441,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 	switch destCtx := destCtx.(type) {
 	case *parser.DestAccountContext:
 		return &DestinationAccount{
-			Literal: parseLiteral(destCtx.Literal()),
+			ValueExpr: parseValueExpr(destCtx.ValueExpr()),
 		}
 
 	case *parser.DestInorderContext:
@@ -422,6 +471,14 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 			Items: items,
 		}
 
+	case *parser.DestIfContext:
+		return &IfExpr[Destination]{
+			Range:      ctxToRange(destCtx),
+			Condition:  parseValueExpr(destCtx.ValueExpr()),
+			IfBranch:   parseDestination(destCtx.GetIfBranch()),
+			ElseBranch: parseDestination(destCtx.GetElseBranch()),
+		}
+
 	case *parser.DestinationContext:
 		return nil
 
@@ -434,7 +491,7 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseContext) DestinationInorderClause {
 	return DestinationInorderClause{
 		Range: ctxToRange(clauseCtx),
-		Cap:   parseLiteral(clauseCtx.Literal()),
+		Cap:   parseValueExpr(clauseCtx.ValueExpr()),
 		To:    parseKeptOrDestination(clauseCtx.KeptOrDestination()),
 	}
 }
@@ -499,14 +556,14 @@ func parseDestinationPortion(portionCtx parser.IPortionContext) AllotmentValue {
 	}
 }
 
-func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []Literal {
+func parseFnArgs(fnCallArgCtx parser.IFunctionCallArgsContext) []ValueExpr {
 	if fnCallArgCtx == nil {
 		return nil
 	}
 
-	var args []Literal
-	for _, literal := range fnCallArgCtx.AllLiteral() {
-		args = append(args, parseLiteral(literal))
+	var args []ValueExpr
+	for _, valueExpr := range fnCallArgCtx.AllValueExpr() {
+		args = append(args, parseValueExpr(valueExpr))
 	}
 	return args
 }
@@ -516,7 +573,7 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 		return nil
 	}
 
-	ident := fnCallCtx.IDENTIFIER()
+	ident := fnCallCtx.GetFnName()
 	if ident == nil {
 		return nil
 	}
@@ -526,8 +583,8 @@ func parseFnCall(fnCallCtx parser.IFunctionCallContext) *FnCall {
 	return &FnCall{
 		Range: ctxToRange(fnCallCtx),
 		Caller: &FnCallIdentifier{
-			Range: tokenToRange(ident.GetSymbol()),
-			Name:  ident.GetSymbol().GetText(),
+			Range: tokenToRange(ident),
+			Name:  ident.GetText(),
 		},
 		Args: parseFnArgs(allArgs),
 	}
@@ -537,7 +594,7 @@ func parseSaveStatement(saveCtx *parser.SaveStatementContext) *SaveStatement {
 	return &SaveStatement{
 		Range:     ctxToRange(saveCtx),
 		SentValue: parseSentValue(saveCtx.SentValue()),
-		Literal:   parseLiteral(saveCtx.Literal()),
+		Amount:    parseValueExpr(saveCtx.ValueExpr()),
 	}
 }
 
@@ -565,12 +622,12 @@ func parseSentValue(statementCtx parser.ISentValueContext) SentValue {
 	case *parser.SentLiteralContext:
 		return &SentValueLiteral{
 			Range:    ctxToRange(statementCtx),
-			Monetary: parseLiteral(statementCtx.Literal()),
+			Monetary: parseValueExpr(statementCtx.ValueExpr()),
 		}
 	case *parser.SentAllContext:
 		return &SentValueAll{
 			Range: ctxToRange(statementCtx),
-			Asset: parseLiteral(statementCtx.SentAllLit().GetAsset()),
+			Asset: parseValueExpr(statementCtx.SentAllLit().GetAsset()),
 		}
 
 	case *parser.SentValueContext:
@@ -612,8 +669,8 @@ func parseMonetaryLit(monetaryLitCtx parser.IMonetaryLitContext) *MonetaryLitera
 
 	return &MonetaryLiteral{
 		Range:  ctxToRange(monetaryLitCtx),
-		Asset:  parseLiteral(monetaryLitCtx.GetAsset()),
-		Amount: parseLiteral(monetaryLitCtx.GetAmt()),
+		Asset:  parseValueExpr(monetaryLitCtx.GetAsset()),
+		Amount: parseValueExpr(monetaryLitCtx.GetAmt()),
 	}
 }
 

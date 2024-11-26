@@ -3206,3 +3206,720 @@ func TestSaveFromAccount(t *testing.T) {
 		test(t, tc)
 	})
 }
+
+func TestAddMonetariesSameCurrency(t *testing.T) {
+	script := `
+ 		send [COIN 1] + [COIN 2] (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1 + 2),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddNumbers(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 1 + 2)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(1 + 2),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddNumbersInvalidRightType(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 1 + "not a number")
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.TypeError{
+			Expected: "number",
+			Value:    machine.String("not a number"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddMonetariesDifferentCurrencies(t *testing.T) {
+	script := `
+ 		send [USD/2 1] + [EUR/2 2] (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MismatchedCurrencyError{
+			Expected: "USD/2",
+			Got:      "EUR/2",
+		},
+	}
+	test(t, tc)
+}
+
+func TestAddInvalidLeftType(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", EUR/2 + EUR/3)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.TypeError{
+			Expected: "monetary|number",
+			Value:    machine.Asset("EUR/2"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestSubNumbers(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 10 - 1)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(10 - 1),
+		},
+	}
+	test(t, tc)
+}
+
+func TestSubMonetaries(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", [USD/2 10] - [USD/2 3])
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.Monetary{
+				Amount: machine.NewMonetaryInt(10 - 3),
+				Asset:  "USD/2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestBool(t *testing.T) {
+	script := `
+	vars {
+		bool $bt
+		bool $bf
+	}
+
+ 		set_tx_meta("t", $bt)
+		set_tx_meta("f", $bf)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"t": machine.Bool(true),
+			"f": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestExprs(t *testing.T) {
+	script := `
+ 		set_tx_meta("k", 10 - (1 + 2))
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.NewMonetaryInt(10 - (1 + 2)),
+		},
+	}
+	test(t, tc)
+}
+
+func TestEqExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("k1", 1 == 1)
+		set_tx_meta("k2", 1 == 2)
+
+		set_tx_meta("k3", 1 != 2)
+		set_tx_meta("k4", 1 != 1)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(false),
+			"k3": machine.Bool(true),
+			"k4": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestCmpExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("lt1", 1 < 10)
+		set_tx_meta("lt2", 1 < 1)
+		set_tx_meta("lt3", 10 < 1)
+
+		set_tx_meta("lg1", 1 > 10)
+		set_tx_meta("lg2", 1 > 1)
+		set_tx_meta("lg3", 10 > 1)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"lt1": machine.Bool(true),
+			"lt2": machine.Bool(false),
+			"lt3": machine.Bool(false),
+			"lg1": machine.Bool(false),
+			"lg2": machine.Bool(false),
+			"lg3": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
+func TestCmpEqExpr(t *testing.T) {
+	script := `
+ 		set_tx_meta("lte1", 1 <= 10)
+		set_tx_meta("lte2", 1 <= 1)
+		set_tx_meta("lte3", 10 <= 1)
+
+		set_tx_meta("lge1", 1 >= 10)
+		set_tx_meta("lge2", 1 >= 1)
+		set_tx_meta("lge3", 10 >= 1)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"lte1": machine.Bool(true),
+			"lte2": machine.Bool(true),
+			"lte3": machine.Bool(false),
+			"lge1": machine.Bool(false),
+			"lge2": machine.Bool(true),
+			"lge3": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAndExpr(t *testing.T) {
+	script := `
+		vars {
+			bool $bt
+			bool $bf
+		}
+
+ 		set_tx_meta("k1", $bt && $bt)
+		set_tx_meta("k2", $bt && $bf)
+		set_tx_meta("k3", $bf && $bt)
+		set_tx_meta("k4", $bf && $bf)
+
+
+		// the right part of && is never evaluated
+		set_tx_meta("lazy", $bf && $unbound)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(false),
+			"k3": machine.Bool(false),
+			"k4": machine.Bool(false),
+
+			"lazy": machine.Bool(false),
+		},
+	}
+	test(t, tc)
+}
+
+func TestOrExpr(t *testing.T) {
+	script := `
+		vars {
+			bool $bt
+			bool $bf
+		}
+
+ 		set_tx_meta("k1", $bt || $bt)
+		set_tx_meta("k2", $bt || $bf)
+		set_tx_meta("k3", $bf || $bt)
+		set_tx_meta("k4", $bf || $bf)
+
+
+		// the right part of || is never evaluated
+		set_tx_meta("lazy", $bt || $unbound)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setVarsFromJSON(t, `{"bt": "true", "bf": "false"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k1": machine.Bool(true),
+			"k2": machine.Bool(true),
+			"k3": machine.Bool(true),
+			"k4": machine.Bool(false),
+
+			"lazy": machine.Bool(true),
+		},
+	}
+	test(t, tc)
+}
+
+func TestIfExprInDest(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN 10] (
+			source = @world
+			destination =
+				@a if $amt < 10 else
+				@b
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "world",
+					Destination: "a",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "world",
+					Destination: "b",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
+
+func TestIfExprInSendAllDest(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN *] (
+			source = @acc allowing overdraft up to [COIN 10]
+			destination =
+				@a if $amt < 10 else
+				@b
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "acc",
+					Destination: "a",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "acc",
+					Destination: "b",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
+
+// new semantics
+func TestOverdraftFunctionWhenNegative(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "EUR/2", -100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionWhenZero(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// zero posting is omitted
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionWhenPositive(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft(@acc, EUR/2) }
+
+ 		send $amt (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "EUR/2", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// zero posting is omitted
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
+	script := `
+ 		vars { monetary $amt = overdraft(@user:001, USD/2) }
+
+
+		// we have at most 1000 USD/2 to remove user:001's debt
+ 		send [USD/2 1000] (
+ 			source = @world
+ 			destination = {
+				// but we send at most what we need to cancel the debt
+				max $amt to @user:001
+				remaining kept
+			}
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("user:001", "USD/2", -100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			machine.Posting{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "user:001",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestIfExprInSource(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN 10] (
+			source =
+					@a allowing unbounded overdraft if $amt < 10 else
+					@b allowing unbounded overdraft
+			destination = @dest
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "a",
+					Destination: "dest",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "b",
+					Destination: "dest",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
+
+func TestIfExprInSendAllSource(t *testing.T) {
+	script := `
+		vars {
+			number $amt 
+		}
+
+		send [COIN *] (
+			source =
+				{ max [COIN 10] from @a allowing unbounded overdraft } if $amt < 10 else
+				{ max [COIN 10] from @b allowing unbounded overdraft }
+			destination = @dest
+		)
+`
+
+	t.Run("1", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "1"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "a",
+					Destination: "dest",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+		tc.setVarsFromJSON(t, `{"amt": "200"}`)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(10),
+					Source:      "b",
+					Destination: "dest",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
+
+func TestIfExprUseCase(t *testing.T) {
+
+	script := `
+		vars {
+			monetary $amt
+			monetary $cheap_bank_overdraft = overdraft(@world:cheap_bank, USD/2)
+			monetary $expensive_bank_overdraft = overdraft(@world:expensive_bank, USD/2)
+		}
+		
+		send $amt (
+			source = @merchants:1234 allowing unbounded overdraft
+			destination =
+				{
+					max $cheap_bank_overdraft to @world:cheap_bank
+					remaining kept
+				} if $cheap_bank_overdraft <= $amt  else
+				{
+					max $expensive_bank_overdraft to @world:expensive_bank 
+					remaining kept
+				} if $expensive_bank_overdraft <= $amt else
+				@world
+		)
+`
+
+	t.Run("select first bank", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+
+		tc.setVarsFromJSON(t, `{"amt": "USD/2 100"}`)
+		tc.setBalance("world:cheap_bank", "USD/2", -10)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(10),
+					Source:      "merchants:1234",
+					Destination: "world:cheap_bank",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("select second bank", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, script)
+
+		tc.setVarsFromJSON(t, `{"amt": "USD/2 100"}`)
+		// amount is lower than what we need to repay this bank's overdraft
+		tc.setBalance("world:cheap_bank", "USD/2", -1000)
+
+		tc.setBalance("world:expensive_bank", "USD/2", -42)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "USD/2",
+					Amount:      big.NewInt(42),
+					Source:      "merchants:1234",
+					Destination: "world:expensive_bank",
+				},
+			},
+		}
+		test(t, tc)
+	})
+
+}
