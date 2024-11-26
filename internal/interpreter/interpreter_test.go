@@ -91,7 +91,7 @@ func test(t *testing.T, testCase TestCase) {
 	execResult, err := machine.RunProgram(context.Background(), *prog, testCase.vars, machine.StaticStore{
 		testCase.balances,
 		testCase.meta,
-	})
+	}, nil)
 
 	expected := testCase.expected
 	if expected.Error != nil {

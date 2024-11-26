@@ -175,6 +175,7 @@ func RunProgram(
 	program parser.Program,
 	vars map[string]string,
 	store Store,
+	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
 	st := programState{
 		ParsedVars:         make(map[string]Value),
