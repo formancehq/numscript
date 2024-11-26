@@ -177,6 +177,10 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 	return nil
 }
 
+type FeatureFlag = string
+
+const ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
+
 func RunProgram(
 	ctx context.Context,
 	program parser.Program,
@@ -194,6 +198,10 @@ func RunProgram(
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
+	}
+
+	if _, ok := featureFlags[ExperimentalOverdraftFunctionFeatureFlag]; ok {
+		st.OverdraftFunctionFeatureFlag = true
 	}
 
 	err := st.parseVars(program.Vars, vars)
@@ -252,6 +260,8 @@ type programState struct {
 	CachedBalances     Balances
 
 	CurrentBalanceQuery BalanceQuery
+
+	OverdraftFunctionFeatureFlag bool
 }
 
 func (st *programState) pushSender(name string, monetary *big.Int) {
