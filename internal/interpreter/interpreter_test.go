@@ -82,16 +82,50 @@ func (c *TestCase) setBalance(account string, asset string, amount int64) {
 }
 
 func test(t *testing.T, testCase TestCase) {
+	testWithFeatureFlag(t, testCase, "")
+}
+
+// A version of test() which tests code under a feature flag
+// if the feature flag is the empty string, it behaves as test()
+// otherwise, it tests the program under that feature flag and also tests that
+// the same script, without the flag, yields the ExperimentalFeature{} error
+func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	t.Parallel()
 
 	prog := testCase.program
 
 	require.NotNil(t, prog)
 
-	execResult, err := machine.RunProgram(context.Background(), *prog, testCase.vars, machine.StaticStore{
-		testCase.balances,
-		testCase.meta,
-	}, nil)
+	featureFlags := map[string]struct{}{}
+	if flagName != "" {
+		featureFlags[flagName] = struct{}{}
+
+		_, err := machine.RunProgram(
+			context.Background(),
+			*prog,
+			testCase.vars,
+			machine.StaticStore{
+				testCase.balances,
+				testCase.meta,
+			},
+			nil,
+		)
+
+		require.Equal(t, machine.ExperimentalFeature{
+			FlagName: flagName,
+		}, removeRange(err))
+	}
+
+	execResult, err := machine.RunProgram(
+		context.Background(),
+		*prog,
+		testCase.vars,
+		machine.StaticStore{
+			testCase.balances,
+			testCase.meta,
+		},
+		featureFlags,
+	)
 
 	expected := testCase.expected
 	if expected.Error != nil {
@@ -3266,7 +3300,6 @@ func TestSaveFromAccount(t *testing.T) {
 	})
 }
 
-// new semantics
 func TestOverdraftFunctionWhenNegative(t *testing.T) {
 	script := `
  		vars { monetary $amt = overdraft(@acc, EUR/2) }
@@ -3293,7 +3326,7 @@ func TestOverdraftFunctionWhenNegative(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionWhenZero(t *testing.T) {
@@ -3316,7 +3349,7 @@ func TestOverdraftFunctionWhenZero(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionWhenPositive(t *testing.T) {
@@ -3340,7 +3373,7 @@ func TestOverdraftFunctionWhenPositive(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
@@ -3375,7 +3408,7 @@ func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestAddMonetariesSameCurrency(t *testing.T) {

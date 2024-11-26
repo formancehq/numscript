@@ -184,3 +184,12 @@ type QueryMetadataError struct {
 func (e QueryMetadataError) Error() string {
 	return e.WrappedError.Error()
 }
+
+type ExperimentalFeature struct {
+	parser.Range
+	FlagName string
+}
+
+func (e ExperimentalFeature) Error() string {
+	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
+}
