@@ -60,7 +60,8 @@ valueExpr:
 	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
-functionCall: (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
+functionCall:
+	fnName = (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
 
 varOrigin: EQ functionCall;
 varDeclaration:
