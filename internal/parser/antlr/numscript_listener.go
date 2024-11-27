@@ -62,12 +62,6 @@ type NumscriptListener interface {
 	// EnterSentAllLit is called when entering the sentAllLit production.
 	EnterSentAllLit(c *SentAllLitContext)
 
-	// EnterLitCap is called when entering the litCap production.
-	EnterLitCap(c *LitCapContext)
-
-	// EnterVarCap is called when entering the varCap production.
-	EnterVarCap(c *VarCapContext)
-
 	// EnterPortionedAllotment is called when entering the portionedAllotment production.
 	EnterPortionedAllotment(c *PortionedAllotmentContext)
 
@@ -187,12 +181,6 @@ type NumscriptListener interface {
 
 	// ExitSentAllLit is called when exiting the sentAllLit production.
 	ExitSentAllLit(c *SentAllLitContext)
-
-	// ExitLitCap is called when exiting the litCap production.
-	ExitLitCap(c *LitCapContext)
-
-	// ExitVarCap is called when exiting the varCap production.
-	ExitVarCap(c *VarCapContext)
 
 	// ExitPortionedAllotment is called when exiting the portionedAllotment production.
 	ExitPortionedAllotment(c *PortionedAllotmentContext)
