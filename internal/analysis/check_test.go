@@ -110,6 +110,34 @@ func TestUnboundVarInSaveAccount(t *testing.T) {
 	)
 }
 
+func TestUnboundVarInInfixOp(t *testing.T) {
+	t.Parallel()
+
+	input := `
+		send [COIN 10] + $unbound_mon1 (
+			source = max [COIN 10] + $unbound_mon2 from @world
+			destination = @b
+		)
+	`
+
+	parseResult := parser.Parse(input)
+	require.Empty(t, parseResult.Errors)
+
+	assert.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon1"},
+				Range: parser.RangeOfIndexed(input, "$unbound_mon1", 0),
+			},
+			{
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon2"},
+				Range: parser.RangeOfIndexed(input, "$unbound_mon2", 0),
+			},
+		},
+		analysis.CheckProgram(parseResult.Value).Diagnostics,
+	)
+}
+
 func TestMismatchedTypeInSave(t *testing.T) {
 	t.Parallel()
 
