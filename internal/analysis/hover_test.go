@@ -86,7 +86,7 @@ save [COIN 100] from $acc
 func TestHoverOnMonetaryVarAmt(t *testing.T) {
 	input := `vars { number $amt }
 
-send [COIN $amt] (
+send [COIN 10] + [COIN $amt] (
 	source = @a
 	destination = @b
 )`

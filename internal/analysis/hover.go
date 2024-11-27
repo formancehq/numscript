@@ -88,10 +88,10 @@ func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hove
 		return nil
 
 	case *parser.SentValueAll:
-		return hoverOnLiteral(sentValue.Asset, position)
+		return hoverOnExpression(sentValue.Asset, position)
 
 	case *parser.SentValueLiteral:
-		return hoverOnLiteral(sentValue.Monetary, position)
+		return hoverOnExpression(sentValue.Monetary, position)
 
 	default:
 		return utils.NonExhaustiveMatchPanic[Hover](sentValue)
@@ -108,7 +108,7 @@ func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Po
 		return hover
 	}
 
-	hover = hoverOnLiteral(saveStatement.Amount, position)
+	hover = hoverOnExpression(saveStatement.Amount, position)
 	if hover != nil {
 		return hover
 	}
@@ -139,7 +139,7 @@ func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Po
 	return nil
 }
 
-func hoverOnLiteral(lit parser.ValueExpr, position parser.Position) Hover {
+func hoverOnExpression(lit parser.ValueExpr, position parser.Position) Hover {
 	if lit == nil || !lit.GetRange().Contains(position) {
 		return nil
 	}
@@ -151,12 +151,22 @@ func hoverOnLiteral(lit parser.ValueExpr, position parser.Position) Hover {
 			Node:  lit,
 		}
 	case *parser.MonetaryLiteral:
-		hover := hoverOnLiteral(lit.Amount, position)
+		hover := hoverOnExpression(lit.Amount, position)
 		if hover != nil {
 			return hover
 		}
 
-		hover = hoverOnLiteral(lit.Asset, position)
+		hover = hoverOnExpression(lit.Asset, position)
+		if hover != nil {
+			return hover
+		}
+	case *parser.BinaryInfix:
+		hover := hoverOnExpression(lit.Left, position)
+		if hover != nil {
+			return hover
+		}
+
+		hover = hoverOnExpression(lit.Right, position)
 		if hover != nil {
 			return hover
 		}
@@ -173,7 +183,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 	switch source := source.(type) {
 	case *parser.SourceCapped:
-		hover := hoverOnLiteral(source.Cap, position)
+		hover := hoverOnExpression(source.Cap, position)
 		if hover != nil {
 			return hover
 		}
@@ -184,13 +194,13 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 		return nil
 
 	case *parser.SourceOverdraft:
-		hover := hoverOnLiteral(source.Address, position)
+		hover := hoverOnExpression(source.Address, position)
 		if hover != nil {
 			return hover
 		}
 
 		if source.Bounded != nil {
-			hover := hoverOnLiteral(*source.Bounded, position)
+			hover := hoverOnExpression(*source.Bounded, position)
 			if hover != nil {
 				return hover
 			}
@@ -220,7 +230,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 
 			switch allot := item.Allotment.(type) {
 			case parser.ValueExpr:
-				hover := hoverOnLiteral(allot, position)
+				hover := hoverOnExpression(allot, position)
 				if hover != nil {
 					return hover
 				}
@@ -233,7 +243,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 		}
 
 	case *parser.SourceAccount:
-		return hoverOnLiteral(source.ValueExpr, position)
+		return hoverOnExpression(source.ValueExpr, position)
 	}
 
 	return nil
@@ -267,7 +277,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 				continue
 			}
 
-			hover := hoverOnLiteral(inorderClause.Cap, position)
+			hover := hoverOnExpression(inorderClause.Cap, position)
 			if hover != nil {
 				return hover
 			}
@@ -292,7 +302,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 
 			switch allot := item.Allotment.(type) {
 			case parser.ValueExpr:
-				hover := hoverOnLiteral(allot, position)
+				hover := hoverOnExpression(allot, position)
 				if hover != nil {
 					return hover
 				}
@@ -305,7 +315,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 		}
 
 	case *parser.DestinationAccount:
-		return hoverOnLiteral(source.ValueExpr, position)
+		return hoverOnExpression(source.ValueExpr, position)
 	}
 
 	return nil
@@ -326,7 +336,7 @@ func hoverOnFnCall(callStatement parser.FnCall, position parser.Position) Hover 
 	}
 
 	for _, arg := range callStatement.Args {
-		hover := hoverOnLiteral(arg, position)
+		hover := hoverOnExpression(arg, position)
 		if hover != nil {
 			return hover
 		}
