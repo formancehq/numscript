@@ -175,7 +175,7 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 	switch statement := statement.(type) {
 	case *parser.SaveStatement:
 		res.checkSentValue(statement.SentValue)
-		res.checkLiteral(statement.Amount, TypeAccount)
+		res.checkExpression(statement.Amount, TypeAccount)
 
 	case *parser.SendStatement:
 		_, isSendAll := statement.SentValue.(*parser.SentValueAll)
@@ -273,11 +273,11 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			}
 
 			type_ := sig[index]
-			res.checkLiteral(arg, type_)
+			res.checkExpression(arg, type_)
 		}
 	} else {
 		for _, arg := range validArgs {
-			res.checkLiteral(arg, TypeAny)
+			res.checkExpression(arg, TypeAny)
 		}
 
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
@@ -329,7 +329,7 @@ func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDecl
 	res.checkFnCallArity(&fnCall)
 }
 
-func (res *CheckResult) checkLiteral(lit parser.ValueExpr, requiredType string) {
+func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -350,8 +350,8 @@ func (res *CheckResult) checkLiteral(lit parser.ValueExpr, requiredType string) 
 
 	case *parser.MonetaryLiteral:
 		res.assertHasType(lit, requiredType, TypeMonetary)
-		res.checkLiteral(lit.Asset, TypeAsset)
-		res.checkLiteral(lit.Amount, TypeNumber)
+		res.checkExpression(lit.Asset, TypeAsset)
+		res.checkExpression(lit.Amount, TypeNumber)
 	case *parser.AccountLiteral:
 		res.assertHasType(lit, requiredType, TypeAccount)
 	case *parser.RatioLiteral:
@@ -362,6 +362,9 @@ func (res *CheckResult) checkLiteral(lit parser.ValueExpr, requiredType string) 
 		res.assertHasType(lit, requiredType, TypeNumber)
 	case *parser.StringLiteral:
 		res.assertHasType(lit, requiredType, TypeString)
+	case *parser.BinaryInfix:
+		res.checkExpression(lit.Left, TypeAny)
+		res.checkExpression(lit.Right, TypeAny)
 	}
 }
 
@@ -383,9 +386,9 @@ func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string,
 func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		res.checkLiteral(sentValue.Asset, TypeAsset)
+		res.checkExpression(sentValue.Asset, TypeAsset)
 	case *parser.SentValueLiteral:
-		res.checkLiteral(sentValue.Monetary, TypeMonetary)
+		res.checkExpression(sentValue.Monetary, TypeMonetary)
 	}
 }
 
@@ -403,7 +406,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		res.checkLiteral(source.ValueExpr, TypeAccount)
+		res.checkExpression(source.ValueExpr, TypeAccount)
 		if account, ok := source.ValueExpr.(*parser.AccountLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
 				res.Diagnostics = append(res.Diagnostics, Diagnostic{
@@ -443,9 +446,9 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			})
 		}
 
-		res.checkLiteral(source.Address, TypeAccount)
+		res.checkExpression(source.Address, TypeAccount)
 		if source.Bounded != nil {
-			res.checkLiteral(*source.Bounded, TypeMonetary)
+			res.checkExpression(*source.Bounded, TypeMonetary)
 		}
 
 	case *parser.SourceInorder:
@@ -456,7 +459,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.SourceCapped:
 		onExit := res.enterCappedSource()
 
-		res.checkLiteral(source.Cap, TypeMonetary)
+		res.checkExpression(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
 
 		onExit()
@@ -479,7 +482,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.Variable:
 				variableLiterals = append(variableLiterals, *allotment)
-				res.checkLiteral(allotment, TypePortion)
+				res.checkExpression(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
@@ -512,11 +515,11 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		res.checkLiteral(destination.ValueExpr, TypeAccount)
+		res.checkExpression(destination.ValueExpr, TypeAccount)
 
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
-			res.checkLiteral(clause.Cap, TypeMonetary)
+			res.checkExpression(clause.Cap, TypeMonetary)
 			res.checkKeptOrDestination(clause.To)
 		}
 		res.checkKeptOrDestination(destination.Remaining)
@@ -532,7 +535,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 			switch allotment := allottedItem.Allotment.(type) {
 			case *parser.Variable:
 				variableLiterals = append(variableLiterals, *allotment)
-				res.checkLiteral(allotment, TypePortion)
+				res.checkExpression(allotment, TypePortion)
 			case *parser.RatioLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
