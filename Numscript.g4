@@ -71,8 +71,6 @@ program: varsDeclaration? statement* EOF;
 
 sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 
-cap: monetaryLit # litCap | VARIABLE_NAME # varCap;
-
 allotment:
 	portion			# portionedAllotment
 	| VARIABLE_NAME	# portionVariable
@@ -85,7 +83,7 @@ source:
 	| valueExpr							# srcAccount
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
 	| LBRACE source* RBRACE				# srcInorder
-	| MAX cap FROM source				# srcCapped;
+	| MAX cap = valueExpr FROM source	# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
 keptOrDestination:

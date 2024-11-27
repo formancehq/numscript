@@ -129,18 +129,6 @@ func (s *BaseNumscriptListener) EnterSentAllLit(ctx *SentAllLitContext) {}
 // ExitSentAllLit is called when production sentAllLit is exited.
 func (s *BaseNumscriptListener) ExitSentAllLit(ctx *SentAllLitContext) {}
 
-// EnterLitCap is called when production litCap is entered.
-func (s *BaseNumscriptListener) EnterLitCap(ctx *LitCapContext) {}
-
-// ExitLitCap is called when production litCap is exited.
-func (s *BaseNumscriptListener) ExitLitCap(ctx *LitCapContext) {}
-
-// EnterVarCap is called when production varCap is entered.
-func (s *BaseNumscriptListener) EnterVarCap(ctx *VarCapContext) {}
-
-// ExitVarCap is called when production varCap is exited.
-func (s *BaseNumscriptListener) ExitVarCap(ctx *VarCapContext) {}
-
 // EnterPortionedAllotment is called when production portionedAllotment is entered.
 func (s *BaseNumscriptListener) EnterPortionedAllotment(ctx *PortionedAllotmentContext) {}
 

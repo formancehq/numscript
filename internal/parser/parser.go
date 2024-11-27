@@ -147,22 +147,6 @@ func parseVarType(tk antlr.Token) *TypeDecl {
 	}
 }
 
-func parseCapLit(capCtx parser.ICapContext) ValueExpr {
-	switch capCtx := capCtx.(type) {
-	case *parser.LitCapContext:
-		return parseMonetaryLit(capCtx.MonetaryLit())
-
-	case *parser.VarCapContext:
-		return variableLiteralFromCtx(capCtx)
-
-	case *parser.CapContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[ValueExpr](capCtx.GetText())
-	}
-}
-
 func parseSource(sourceCtx parser.ISourceContext) Source {
 	if sourceCtx == nil {
 		return nil
@@ -205,7 +189,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		return &SourceCapped{
 			Range: range_,
 			From:  parseSource(sourceCtx.Source()),
-			Cap:   parseCapLit(sourceCtx.Cap_()),
+			Cap:   parseValueExpr(sourceCtx.GetCap_()),
 		}
 
 	case *parser.SrcAccountUnboundedOverdraftContext:
