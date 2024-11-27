@@ -1385,6 +1385,12 @@ type IFunctionCallContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// GetFnName returns the fnName token.
+	GetFnName() antlr.Token
+
+	// SetFnName sets the fnName token.
+	SetFnName(antlr.Token)
+
 	// Getter signatures
 	LPARENS() antlr.TerminalNode
 	RPARENS() antlr.TerminalNode
@@ -1399,6 +1405,7 @@ type IFunctionCallContext interface {
 type FunctionCallContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	fnName antlr.Token
 }
 
 func NewEmptyFunctionCallContext() *FunctionCallContext {
@@ -1427,6 +1434,10 @@ func NewFunctionCallContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 }
 
 func (s *FunctionCallContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *FunctionCallContext) GetFnName() antlr.Token { return s.fnName }
+
+func (s *FunctionCallContext) SetFnName(v antlr.Token) { s.fnName = v }
 
 func (s *FunctionCallContext) LPARENS() antlr.TerminalNode {
 	return s.GetToken(NumscriptParserLPARENS, 0)
@@ -1488,10 +1499,17 @@ func (p *NumscriptParser) FunctionCall() (localctx IFunctionCallContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(73)
+
+		var _lt = p.GetTokenStream().LT(1)
+
+		localctx.(*FunctionCallContext).fnName = _lt
+
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == NumscriptParserOVERDRAFT || _la == NumscriptParserIDENTIFIER) {
-			p.GetErrorHandler().RecoverInline(p)
+			var _ri = p.GetErrorHandler().RecoverInline(p)
+
+			localctx.(*FunctionCallContext).fnName = _ri
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
 			p.Consume()
