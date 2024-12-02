@@ -1,4 +1,4 @@
-module github.com/formancehq/numscript
+module github.com/PagoPlus/numscriptex
 
 go 1.22.1
 
