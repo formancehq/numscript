@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/ansi"
-	"github.com/formancehq/numscript/internal/utils"
+	"github.com/PagoPlus/numscriptex/internal/ansi"
+	"github.com/PagoPlus/numscriptex/internal/utils"
 )
 
 type Severity = byte

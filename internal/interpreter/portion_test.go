@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/interpreter"
+	"github.com/PagoPlus/numscriptex/internal/interpreter"
 )
 
 func TestBetween0And1Inclusive(t *testing.T) {

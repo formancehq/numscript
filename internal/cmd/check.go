@@ -5,7 +5,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/PagoPlus/numscriptex/internal/analysis"
 
 	"github.com/spf13/cobra"
 )

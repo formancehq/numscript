@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 	"github.com/stretchr/testify/require"
 )
 

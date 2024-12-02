@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/formancehq/numscript/internal/ansi"
-	"github.com/formancehq/numscript/internal/interpreter"
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/ansi"
+	"github.com/PagoPlus/numscriptex/internal/interpreter"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 
 	"github.com/spf13/cobra"
 )

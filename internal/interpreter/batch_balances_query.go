@@ -3,8 +3,8 @@ package interpreter
 import (
 	"slices"
 
-	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
+	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/utils"
 	"golang.org/x/exp/maps"
 )
 

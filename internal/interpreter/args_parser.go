@@ -1,6 +1,6 @@
 package interpreter
 
-import "github.com/formancehq/numscript/internal/parser"
+import "github.com/PagoPlus/numscriptex/internal/parser"
 
 type argsParser struct {
 	parsedArgsCount int

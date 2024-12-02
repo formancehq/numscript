@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/formancehq/numscript/internal/lsp"
+	"github.com/PagoPlus/numscriptex/internal/lsp"
 
 	"github.com/spf13/cobra"
 )

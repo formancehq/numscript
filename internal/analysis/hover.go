@@ -1,8 +1,8 @@
 package analysis
 
 import (
-	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
+	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/utils"
 )
 
 type Hover interface{ hover() }

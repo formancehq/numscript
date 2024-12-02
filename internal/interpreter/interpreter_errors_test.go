@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/interpreter"
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/interpreter"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )

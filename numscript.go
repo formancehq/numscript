@@ -3,8 +3,8 @@ package numscript
 import (
 	"context"
 
-	"github.com/formancehq/numscript/internal/interpreter"
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/interpreter"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 )
 
 // This struct represents a parsed numscript source code

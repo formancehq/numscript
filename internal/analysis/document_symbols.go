@@ -1,7 +1,7 @@
 package analysis
 
 import (
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 )
 
 type DocumentSymbolKind = float64

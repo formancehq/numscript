@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/formancehq/numscript/internal/analysis"
-	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
+	"github.com/PagoPlus/numscriptex/internal/analysis"
+	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/utils"
 
 	"github.com/sourcegraph/jsonrpc2"
 )

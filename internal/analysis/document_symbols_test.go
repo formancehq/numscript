@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/analysis"
-	"github.com/formancehq/numscript/internal/parser"
+	"github.com/PagoPlus/numscriptex/internal/analysis"
+	"github.com/PagoPlus/numscriptex/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 )

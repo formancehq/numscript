@@ -1,6 +1,6 @@
 package analysis
 
-import "github.com/formancehq/numscript/internal/parser"
+import "github.com/PagoPlus/numscriptex/internal/parser"
 
 type GotoDefinitionResult struct {
 	Range parser.Range

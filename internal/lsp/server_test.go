@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	lsp "github.com/formancehq/numscript/internal/lsp"
+	lsp "github.com/PagoPlus/numscriptex/internal/lsp"
 )
 
 func encodePayload(payload string) *strings.Reader {
