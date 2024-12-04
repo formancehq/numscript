@@ -618,6 +618,10 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		remainingAmount := new(big.Int).Set(amount)
 
 		handler := func(keptOrDest parser.KeptOrDestination, amountToReceive *big.Int) InterpreterError {
+			if amountToReceive.Cmp(big.NewInt(0)) == 0 {
+				return nil
+			}
+
 			err := s.receiveFromKeptOrDest(keptOrDest, amountToReceive)
 			if err != nil {
 				return err
