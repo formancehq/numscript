@@ -2659,6 +2659,30 @@ func TestZeroPostings(t *testing.T) {
 	test(t, tc)
 }
 
+func TestZeroPostingsDestination(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 100] (
+		source = @world
+		destination = {
+			max [COIN 0] to @d1
+			remaining to @d2
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				"world",
+				"d2",
+				big.NewInt(100),
+				"COIN",
+			},
+		},
+	}
+	test(t, tc)
+}
+
 func TestUnboundedOverdraftWhenNotEnoughFunds(t *testing.T) {
 	tc := NewTestCase()
 	tc.setBalance("users:2345:main", "USD/2", 8000)
