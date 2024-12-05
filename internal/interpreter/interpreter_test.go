@@ -1731,7 +1731,6 @@ func TestDestinationComplex(t *testing.T) {
 // TODO TestNeededBalances, TestSetTxMeta, TestSetAccountMeta
 
 func TestSendZero(t *testing.T) {
-	// TODO double check
 	tc := NewTestCase()
 	tc.compile(t, `
 	send [COIN 0] (
@@ -1740,6 +1739,7 @@ func TestSendZero(t *testing.T) {
 	)`)
 	tc.expected = CaseResult{
 		Postings: []Posting{
+			// Zero posting is omitted
 			// {
 			// 	Asset:       "COIN",
 			// 	Amount:      big.NewInt(0),
@@ -1815,7 +1815,6 @@ func TestNegativeBalanceLiteral(t *testing.T) {
 }
 
 func TestBalanceNotFound(t *testing.T) {
-	// TODO double check
 	tc := NewTestCase()
 	tc.compile(t, `
 	vars {
@@ -1828,6 +1827,7 @@ func TestBalanceNotFound(t *testing.T) {
 	)`)
 	tc.expected = CaseResult{
 		Postings: []Posting{
+			// Zero posting is omitted
 			// {
 			// 	Asset:       "EUR/2",
 			// 	Amount:      big.NewInt(0),
@@ -2679,6 +2679,41 @@ func TestZeroPostingsDestination(t *testing.T) {
 				"COIN",
 			},
 		},
+	}
+	test(t, tc)
+}
+
+func TestZeroPostingsExplicitInorder(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 0] (
+		source = {
+			@a
+			@b
+			@c
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{},
+	}
+	test(t, tc)
+}
+
+func TestZeroPostingsExplicitAllotment(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 0] (
+		source = {
+			1/2 from @a
+			1/2 from @b
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{},
 	}
 	test(t, tc)
 }

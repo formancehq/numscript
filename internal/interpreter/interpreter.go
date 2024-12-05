@@ -247,6 +247,20 @@ type programState struct {
 	CurrentBalanceQuery BalanceQuery
 }
 
+func (st *programState) pushSender(name string, monetary *big.Int) {
+	if monetary.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary})
+}
+
+func (st *programState) pushReceiver(name string, monetary *big.Int) {
+	if monetary.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+	st.Receivers = append(st.Receivers, Receiver{Name: name, Monetary: monetary})
+}
+
 func (st *programState) runStatement(statement parser.Statement) ([]Posting, InterpreterError) {
 	st.Senders = nil
 	st.Receivers = nil
@@ -413,10 +427,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 
 	// we sent balance+overdraft
 	sentAmt := new(big.Int).Add(balance, ovedraft)
-	s.Senders = append(s.Senders, Sender{
-		Name:     *account,
-		Monetary: sentAmt,
-	})
+	s.pushSender(*account, sentAmt)
 	return sentAmt, nil
 }
 
@@ -506,10 +517,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
 
-	s.Senders = append(s.Senders, Sender{
-		Name:     *account,
-		Monetary: actuallySentAmt,
-	})
+	s.pushSender(*account, actuallySentAmt)
 	return actuallySentAmt, nil
 }
 
@@ -585,10 +593,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		if err != nil {
 			return err
 		}
-		s.Receivers = append(s.Receivers, Receiver{
-			Name:     *account,
-			Monetary: amount,
-		})
+		s.pushReceiver(*account, amount)
 		return nil
 
 	case *parser.DestinationAllotment:
@@ -659,13 +664,12 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 	}
 }
 
+const KEPT_ADDR = "<kept>"
+
 func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.Receivers = append(s.Receivers, Receiver{
-			Name:     "<kept>",
-			Monetary: amount,
-		})
+		s.pushReceiver(KEPT_ADDR, amount)
 		return nil
 
 	case *parser.DestinationTo:

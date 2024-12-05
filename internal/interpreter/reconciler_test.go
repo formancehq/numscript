@@ -43,15 +43,14 @@ func TestReconcileSingletonExactMatch(t *testing.T) {
 }
 
 func TestReconcileZero(t *testing.T) {
-	// TODO double check
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency:  "COIN",
 		Senders:   []Sender{{"src", big.NewInt(0)}},
 		Receivers: []Receiver{{"dest", big.NewInt(0)}},
-		Expected:  nil,
-		// []Posting{
-		// 	// {"src", "dest", big.NewInt(0), "COIN"}
-		// },
+		Expected: []Posting{
+			{"src", "dest", big.NewInt(0), "COIN"},
+		},
+		ExpectedErr: nil,
 	})
 }
 
