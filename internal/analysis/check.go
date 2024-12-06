@@ -56,6 +56,7 @@ const FnSetAccountMeta = "set_account_meta"
 const FnVarOriginMeta = "meta"
 const FnVarOriginBalance = "balance"
 const FnVarOriginOverdraft = "overdraft"
+const FnVarOriginStringToAccount = "string_to_account"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{
@@ -80,6 +81,11 @@ var Builtins = map[string]FnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "get absolute amount of the overdraft of an account. Returns zero if balance is not negative",
+	},
+	FnVarOriginStringToAccount: VarOriginFnCallResolution{
+		Params: []string{TypeString},
+		Return: TypeAccount,
+		Docs:   "cast a string to an account",
 	},
 }
 

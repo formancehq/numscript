@@ -99,6 +99,10 @@ func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (V
 		expectMapped(expectNumber, func(bi big.Int) opAdd {
 			return MonetaryInt(bi)
 		}),
+
+		expectMapped(expectString, func(str string) opAdd {
+			return String(str)
+		}),
 	))
 
 	if err != nil {
