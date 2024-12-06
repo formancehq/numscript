@@ -3560,3 +3560,31 @@ func TestPlusStringOverload(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestToAccount(t *testing.T) {
+	script := `
+		vars {
+			account $acc = string_to_account("account_name")
+		}
+
+ 		send [COIN 10] (
+			source = @world
+			destination = $acc
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Source:      "world",
+				Destination: "account_name",
+				Amount:      big.NewInt(10),
+				Asset:       "COIN",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalStringToAccountFunctionFeatureFlag)
+}

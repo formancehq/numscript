@@ -147,6 +147,9 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 		}
 		return *monetary, nil
 
+	case analysis.FnVarOriginStringToAccount:
+		return stringToAccount(s, fnCall.Range, args)
+
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
 	}
@@ -179,7 +182,10 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 type FeatureFlag = string
 
-const ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
+const (
+	ExperimentalOverdraftFunctionFeatureFlag       FeatureFlag = "experimental-overdraft-function"
+	ExperimentalStringToAccountFunctionFeatureFlag FeatureFlag = "experimental-string-to-account-function"
+)
 
 func RunProgram(
 	ctx context.Context,
@@ -202,6 +208,10 @@ func RunProgram(
 
 	if _, ok := featureFlags[ExperimentalOverdraftFunctionFeatureFlag]; ok {
 		st.OverdraftFunctionFeatureFlag = true
+	}
+
+	if _, ok := featureFlags[ExperimentalStringToAccountFunctionFeatureFlag]; ok {
+		st.StringToAccountFunctionFeatureFlag = true
 	}
 
 	err := st.parseVars(program.Vars, vars)
@@ -261,7 +271,8 @@ type programState struct {
 
 	CurrentBalanceQuery BalanceQuery
 
-	OverdraftFunctionFeatureFlag bool
+	OverdraftFunctionFeatureFlag       bool
+	StringToAccountFunctionFeatureFlag bool
 }
 
 func (st *programState) pushSender(name string, monetary *big.Int) {

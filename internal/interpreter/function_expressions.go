@@ -6,6 +6,26 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+func stringToAccount(
+	s *programState,
+	rng parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	if !s.StringToAccountFunctionFeatureFlag {
+		return nil, ExperimentalFeature{FlagName: ExperimentalStringToAccountFunctionFeatureFlag}
+	}
+
+	// TODO more precise location
+	p := NewArgsParser(args)
+	accountStr := parseArg(p, rng, expectString)
+	err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return AccountAddress(*accountStr), nil
+}
+
 func meta(
 	s *programState,
 	rng parser.Range,
