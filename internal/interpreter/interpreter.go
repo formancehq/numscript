@@ -83,9 +83,23 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	return mon, nil
 }
 
+func parseBool(source string) (Bool, InterpreterError) {
+	switch source {
+	case "true":
+		return Bool(true), nil
+	case "false":
+		return Bool(false), nil
+
+	default:
+		return Bool(false), InvalidBoolLiteral{Source: source}
+	}
+}
+
 func parseVar(type_ string, rawValue string, r parser.Range) (Value, InterpreterError) {
 	switch type_ {
 	// TODO why should the runtime depend on the static analysis module?
+	case analysis.TypeBool:
+		return parseBool(rawValue)
 	case analysis.TypeMonetary:
 		return parseMonetary(rawValue)
 	case analysis.TypeAccount:
@@ -473,6 +487,18 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
 
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.sendAll(source.IfBranch)
+		} else {
+			return s.sendAll(source.ElseBranch)
+		}
+
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
 		return nil, nil
@@ -578,6 +604,18 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		}
 		return s.trySendingUpTo(source.From, cappedAmount)
 
+	case *parser.IfExpr[parser.Source]:
+		cond, err := evaluateExprAs(s, source.Condition, expectBool)
+		if err != nil {
+			return nil, err
+		}
+
+		if *cond {
+			return s.trySendingUpTo(source.IfBranch, amount)
+		} else {
+			return s.trySendingUpTo(source.ElseBranch, amount)
+		}
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
 		return nil, nil
@@ -657,6 +695,18 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		remainingAmountCopy := new(big.Int).Set(remainingAmount)
 		// passing "remainingAmount" directly breaks the code
 		return handler(destination.Remaining, remainingAmountCopy)
+
+	case *parser.IfExpr[parser.Destination]:
+		cond, err := evaluateExprAs(s, destination.Condition, expectBool)
+		if err != nil {
+			return err
+		}
+
+		if *cond {
+			return s.receiveFrom(destination.IfBranch, amount)
+		} else {
+			return s.receiveFrom(destination.ElseBranch, amount)
+		}
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)

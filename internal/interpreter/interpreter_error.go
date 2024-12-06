@@ -27,6 +27,15 @@ func (e InvalidMonetaryLiteral) Error() string {
 	return fmt.Sprintf("invalid monetary literal: '%s'", e.Source)
 }
 
+type InvalidBoolLiteral struct {
+	parser.Range
+	Source string
+}
+
+func (e InvalidBoolLiteral) Error() string {
+	return fmt.Sprintf("invalid bool literal: '%s'", e.Source)
+}
+
 type InvalidNumberLiteral struct {
 	parser.Range
 	Source string

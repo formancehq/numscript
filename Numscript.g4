@@ -18,6 +18,8 @@ REMAINING: 'remaining';
 ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
+IF: 'if';
+ELSE: 'else';
 KEPT: 'kept';
 SAVE: 'save';
 LPARENS: '(';
@@ -50,14 +52,20 @@ portion:
 	| PERCENTAGE_PORTION_LITERAL	# percentage;
 
 valueExpr:
-	VARIABLE_NAME											# variableExpr
-	| ASSET													# assetLiteral
-	| STRING												# stringLiteral
-	| ACCOUNT												# accountLiteral
-	| NUMBER												# numberLiteral
-	| monetaryLit											# monetaryLiteral
-	| portion												# portionLiteral
-	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
+	VARIABLE_NAME														# variableExpr
+	| ASSET																# assetLiteral
+	| STRING															# stringLiteral
+	| ACCOUNT															# accountLiteral
+	| NUMBER															# numberLiteral
+	| monetaryLit														# monetaryLiteral
+	| portion															# portionLiteral
+	| '!' valueExpr														# notExpr
+	| left = valueExpr op = ('+' | '-') right = valueExpr				# infixAddSubExpr
+	| left = valueExpr op = ('==' | '!=') right = valueExpr				# infixEqExpr
+	| left = valueExpr op = ('<' | '<=' | '>' | '>=') right = valueExpr	# infixCompExpr
+	| left = valueExpr op = '||' right = valueExpr						# infixOrExpr
+	| left = valueExpr op = '&&' right = valueExpr						# infixAndExpr
+	| '(' valueExpr ')'													# parensExpr;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall: IDENTIFIER LPARENS functionCallArgs? RPARENS;
@@ -78,6 +86,7 @@ allotment:
 
 source:
 	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| ifBranch = source IF valueExpr ELSE elseBranch = source				# sourceIf
 	| address = valueExpr ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
 		srcAccountBoundedOverdraft
 	| valueExpr							# srcAccount
@@ -93,6 +102,7 @@ destinationInOrderClause: MAX valueExpr keptOrDestination;
 
 destination:
 	valueExpr																# destAccount
+	| ifBranch = destination IF valueExpr ELSE elseBranch = destination		# destIf
 	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
 	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
 allotmentClauseDest: allotment keptOrDestination;
