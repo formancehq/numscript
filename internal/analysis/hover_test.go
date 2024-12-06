@@ -365,8 +365,6 @@ func TestHoverOnFnOriginDocs(t *testing.T) {
 }
 
 func TestHoverFaultTolerance(t *testing.T) {
-	t.Skip()
-
 	t.Run("missing lit", func(t *testing.T) {
 		input := `
 			send [COIN 10] (
