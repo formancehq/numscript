@@ -12,6 +12,7 @@ type opAdd interface {
 
 var _ opAdd = (*MonetaryInt)(nil)
 var _ opAdd = (*Monetary)(nil)
+var _ opAdd = (*String)(nil)
 
 func (m MonetaryInt) evalAdd(st *programState, other parser.ValueExpr) (Value, InterpreterError) {
 	m1 := big.Int(m)
@@ -22,6 +23,15 @@ func (m MonetaryInt) evalAdd(st *programState, other parser.ValueExpr) (Value, I
 
 	sum := new(big.Int).Add(&m1, m2)
 	return MonetaryInt(*sum), nil
+}
+
+func (m String) evalAdd(st *programState, other parser.ValueExpr) (Value, InterpreterError) {
+	m1 := string(m)
+	m2, err := evaluateExprAs(st, other, expectString)
+	if err != nil {
+		return nil, err
+	}
+	return String(string(m1) + *m2), nil
 }
 
 func (m Monetary) evalAdd(st *programState, other parser.ValueExpr) (Value, InterpreterError) {
