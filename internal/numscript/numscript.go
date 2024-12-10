@@ -61,15 +61,10 @@ func check() {
 		if d.Kind.Severity() == analysis.ErrorSeverity {
 			hasErrors = true
 		}
-		errLevel := SeverityToString(d.Kind.Severity())
 
-		subJsonObj := gabs.New()
-		subJsonObj.Set(d.Range.Start.Line, "line")
-		subJsonObj.Set(d.Range.Start.Character, "character")
-		subJsonObj.Set(errLevel, "level")
-		subJsonObj.Set(d.Kind.Message(), "error")
+		logLevel := SeverityToString(d.Kind.Severity())
 
-		jsonObj.ArrayAppend(subJsonObj, "errors")
+        buildCheckDetails(d, jsonObj, logLevel)
 	}
 
 	if hasErrors {
@@ -79,6 +74,19 @@ func check() {
 	}
 
 	fmt.Println(jsonObj.String())
+}
+
+
+func buildCheckDetails(diagnostic analysis.Diagnostic, jsonObj *gabs.Container, logLevel string) {
+	logLevelKey := logLevel + "s"
+    subJsonObj := gabs.New()
+
+    subJsonObj.Set(diagnostic.Range.Start.Line, "line")
+    subJsonObj.Set(diagnostic.Range.Start.Character, "character")
+    subJsonObj.Set(logLevel, "level")
+    subJsonObj.Set(diagnostic.Kind.Message(), logLevel)
+
+    jsonObj.ArrayAppend(subJsonObj, logLevelKey)
 }
 
 var checkCmd = &cobra.Command{
