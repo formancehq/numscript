@@ -56,13 +56,14 @@ func check() {
 
 	hasErrors := false
 	jsonObj := gabs.New()
-	jsonObj.Array("errors")
 	for _, d := range res.Diagnostics {
 		if d.Kind.Severity() == analysis.ErrorSeverity {
 			hasErrors = true
 		}
 
 		logLevel := SeverityToString(d.Kind.Severity())
+
+        fmt.Println(logLevel)
 
         buildCheckDetails(d, jsonObj, logLevel)
 	}
