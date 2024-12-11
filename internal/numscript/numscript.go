@@ -63,8 +63,6 @@ func check() {
 
 		logLevel := SeverityToString(d.Kind.Severity())
 
-        fmt.Println(logLevel)
-
         buildCheckDetails(d, jsonObj, logLevel)
 	}
 
