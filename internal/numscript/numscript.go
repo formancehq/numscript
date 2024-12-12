@@ -42,8 +42,7 @@ func SeverityToString(s analysis.Severity) string {
 func check() {
 	dat, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		os.Exit(1)
+		panic(err)
 	}
 
 	res := analysis.CheckSource(string(dat))
@@ -106,7 +105,7 @@ func run() {
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		panic(err)
+	panic(err)
 	}
 
 	err = json.Unmarshal(bytes, &opt)
@@ -166,8 +165,12 @@ func main() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		os.Exit(1)
-	}
+    defer func() {
+        if err := recover(); err != nil {
+            fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
+            os.Exit(1)
+        }
+    }()
+
+	rootCmd.Execute()
 }
