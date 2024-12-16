@@ -207,6 +207,14 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Bounded: &varMon,
 		}
 
+	case *parser.SourceIfContext:
+		return &IfExpr[Source]{
+			Range:      ctxToRange(sourceCtx),
+			Condition:  parseValueExpr(sourceCtx.ValueExpr()),
+			IfBranch:   parseSource(sourceCtx.GetIfBranch()),
+			ElseBranch: parseSource(sourceCtx.GetElseBranch()),
+		}
+
 	case *parser.SourceContext:
 		return nil
 
@@ -332,19 +340,52 @@ func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
 	case *parser.StringLiteralContext:
 		return parseStringLiteralCtx(valueExprCtx)
 
-	case *parser.InfixExprContext:
-		return &BinaryInfix{
-			Range:    ctxToRange(valueExprCtx),
-			Operator: InfixOperator(valueExprCtx.GetOp().GetText()),
-			Left:     parseValueExpr(valueExprCtx.GetLeft()),
-			Right:    parseValueExpr(valueExprCtx.GetRight()),
+	case *parser.ParensExprContext:
+		return parseValueExpr(valueExprCtx.ValueExpr())
+
+	case *parser.NotExprContext:
+		return &NotExpr{
+			Range: ctxToRange(valueExprCtx),
+			Expr:  parseValueExpr(valueExprCtx.ValueExpr()),
 		}
+
+	case *parser.InfixAddSubExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixEqExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixCompExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixOrExprContext:
+		return parseInfixNode(valueExprCtx)
+
+	case *parser.InfixAndExprContext:
+		return parseInfixNode(valueExprCtx)
 
 	case nil, *parser.ValueExprContext:
 		return nil
 
 	default:
 		return utils.NonExhaustiveMatchPanic[ValueExpr](valueExprCtx.GetText())
+	}
+}
+
+type infixNode interface {
+	antlr.ParserRuleContext
+
+	GetOp() antlr.Token
+	GetLeft() parser.IValueExprContext
+	GetRight() parser.IValueExprContext
+}
+
+func parseInfixNode(expr infixNode) *BinaryInfix {
+	return &BinaryInfix{
+		Range:    ctxToRange(expr),
+		Operator: InfixOperator(expr.GetOp().GetText()),
+		Left:     parseValueExpr(expr.GetLeft()),
+		Right:    parseValueExpr(expr.GetRight()),
 	}
 }
 
@@ -412,6 +453,14 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		return &DestinationAllotment{
 			Range: range_,
 			Items: items,
+		}
+
+	case *parser.DestIfContext:
+		return &IfExpr[Destination]{
+			Range:      ctxToRange(destCtx),
+			Condition:  parseValueExpr(destCtx.ValueExpr()),
+			IfBranch:   parseDestination(destCtx.GetIfBranch()),
+			ElseBranch: parseDestination(destCtx.GetElseBranch()),
 		}
 
 	case *parser.DestinationContext:

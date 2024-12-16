@@ -4,6 +4,13 @@ import (
 	"math/big"
 )
 
+type IfExpr[Value Ranged] struct {
+	Range
+	Condition  ValueExpr
+	IfBranch   Value
+	ElseBranch Value
+}
+
 type ValueExpr interface {
 	Ranged
 	valueExpr()
@@ -16,6 +23,7 @@ func (*AccountLiteral) valueExpr()  {}
 func (*RatioLiteral) valueExpr()    {}
 func (*NumberLiteral) valueExpr()   {}
 func (*StringLiteral) valueExpr()   {}
+func (*NotExpr) valueExpr()         {}
 func (*BinaryInfix) valueExpr()     {}
 
 type InfixOperator string
@@ -23,6 +31,14 @@ type InfixOperator string
 const (
 	InfixOperatorPlus  InfixOperator = "+"
 	InfixOperatorMinus InfixOperator = "-"
+	InfixOperatorEq    InfixOperator = "=="
+	InfixOperatorNeq   InfixOperator = "!="
+	InfixOperatorLt    InfixOperator = "<"
+	InfixOperatorLte   InfixOperator = "<="
+	InfixOperatorGt    InfixOperator = ">"
+	InfixOperatorGte   InfixOperator = ">="
+	InfixOperatorAnd   InfixOperator = "&&"
+	InfixOperatorOr    InfixOperator = "||"
 )
 
 type (
@@ -63,6 +79,11 @@ type (
 		Name string
 	}
 
+	NotExpr struct {
+		Range
+		Expr ValueExpr
+	}
+
 	BinaryInfix struct {
 		Range
 		Operator InfixOperator
@@ -82,8 +103,8 @@ func (a *AccountLiteral) IsWorld() bool {
 // Source exprs
 
 type Source interface {
+	Ranged
 	source()
-	GetRange() Range
 }
 
 func (*SourceInorder) source()   {}
@@ -91,6 +112,7 @@ func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
+func (*IfExpr[Source]) source()  {}
 
 type (
 	SourceAccount struct {
@@ -144,6 +166,7 @@ type Destination interface {
 func (*DestinationAccount) destination()   {}
 func (*DestinationInorder) destination()   {}
 func (*DestinationAllotment) destination() {}
+func (*IfExpr[Destination]) destination()  {}
 
 type (
 	DestinationAccount struct {
