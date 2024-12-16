@@ -105,7 +105,7 @@ func run() {
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-	panic(err)
+	    panic(err)
 	}
 
 	err = json.Unmarshal(bytes, &opt)
@@ -132,12 +132,12 @@ func run() {
 	)
 
 	if err != nil {
-		os.Exit(1)
+        panic(err)
 	}
 
 	out, err := json.Marshal(result)
 	if err != nil {
-		os.Exit(1)
+        panic(err)
 	}
 
 	os.Stdout.Write(out)
