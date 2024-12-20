@@ -37,7 +37,7 @@ PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 STRING: '"' ('\\"' | ~[\r\n"])* '"';
 
 IDENTIFIER: [a-z]+ [a-z_]*;
-NUMBER: MINUS? [0-9]+;
+NUMBER: MINUS? [0-9][0-9_]*;
 VARIABLE_NAME: '$' [a-z_]+ [a-z0-9_]*;
 ACCOUNT: '@' [a-zA-Z0-9_-]+ (':' [a-zA-Z0-9_-]+)*;
 ASSET: [A-Z/0-9]+;

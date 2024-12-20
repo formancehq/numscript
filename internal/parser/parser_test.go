@@ -43,6 +43,14 @@ func TestVariable(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestNumberSyntaxUnderscore(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta("k1", 1_2_34_567)
+`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestVariableMonetary(t *testing.T) {
 	p := parser.Parse(`send $example (
   source = @a
