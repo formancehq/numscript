@@ -42,7 +42,8 @@ func SeverityToString(s analysis.Severity) string {
 func check() {
 	dat, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		panic(err)
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
 	}
 
 	res := analysis.CheckSource(string(dat))
@@ -62,7 +63,7 @@ func check() {
 
 		logLevel := SeverityToString(d.Kind.Severity())
 
-        buildCheckDetails(d, jsonObj, logLevel)
+		buildCheckDetails(d, jsonObj, logLevel)
 	}
 
 	if hasErrors {
@@ -74,17 +75,16 @@ func check() {
 	fmt.Println(jsonObj.String())
 }
 
-
 func buildCheckDetails(diagnostic analysis.Diagnostic, jsonObj *gabs.Container, logLevel string) {
 	logLevelKey := logLevel + "s"
-    subJsonObj := gabs.New()
+	subJsonObj := gabs.New()
 
-    subJsonObj.Set(diagnostic.Range.Start.Line, "line")
-    subJsonObj.Set(diagnostic.Range.Start.Character, "character")
-    subJsonObj.Set(logLevel, "level")
-    subJsonObj.Set(diagnostic.Kind.Message(), logLevel)
+	subJsonObj.Set(diagnostic.Range.Start.Line, "line")
+	subJsonObj.Set(diagnostic.Range.Start.Character, "character")
+	subJsonObj.Set(logLevel, "level")
+	subJsonObj.Set(diagnostic.Kind.Message(), logLevel)
 
-    jsonObj.ArrayAppend(subJsonObj, logLevelKey)
+	jsonObj.ArrayAppend(subJsonObj, logLevelKey)
 }
 
 var checkCmd = &cobra.Command{
@@ -105,7 +105,8 @@ func run() {
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-	    panic(err)
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
 	}
 
 	err = json.Unmarshal(bytes, &opt)
@@ -132,12 +133,12 @@ func run() {
 	)
 
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 
 	out, err := json.Marshal(result)
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 
 	os.Stdout.Write(out)
@@ -162,15 +163,15 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
-
-    defer func() {
-        if err := recover(); err != nil {
-            fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
-            os.Exit(1)
-        }
-    }()
 
 	rootCmd.Execute()
 }
