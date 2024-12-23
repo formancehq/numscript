@@ -42,7 +42,7 @@ func SeverityToString(s analysis.Severity) string {
 func check() {
 	dat, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		os.Stderr.WriteString(err.Error() + "\n")
 		os.Exit(1)
 	}
 
@@ -105,13 +105,14 @@ func run() {
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		os.Stderr.WriteString(err.Error() + "\n")
 		os.Exit(1)
 	}
 
 	err = json.Unmarshal(bytes, &opt)
 	if err != nil {
-		panic(err)
+		os.Stderr.WriteString(err.Error() + "\n")
+        os.Exit(1)
 	}
 
 	parseResult := parser.Parse(opt.Script)
@@ -133,12 +134,14 @@ func run() {
 	)
 
 	if err != nil {
-		panic(err)
+		os.Stderr.WriteString(err.Error() + "\n")
+        os.Exit(1)
 	}
 
 	out, err := json.Marshal(result)
 	if err != nil {
-		panic(err)
+		os.Stderr.WriteString(err.Error() + "\n")
+        os.Exit(1)
 	}
 
 	os.Stdout.Write(out)
