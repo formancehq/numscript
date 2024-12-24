@@ -32,3 +32,26 @@ jobs:
         with:
           file: ./coverage.txt
           verbose: true
+
+      - name: Install TinyGo
+        if: github.ref == 'refs/heads/main'  # Only on main branch
+        run: |
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.30.0/tinygo_0.30.0_amd64.deb
+          sudo dpkg -i tinygo_0.30.0_amd64.deb
+
+      - name: Build WASM
+        if: github.ref == 'refs/heads/main'  # Only on main branch
+        run: |
+          mkdir -p build
+          tinygo build -o build/numscript.wasm -target wasm ./
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'  # Only on main branch
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ github.run_number }} \
+            --title "NumScript WASM v${{ github.run_number }}" \
+            --notes "Automated WASM build release" \
+            build/numscript.wasm
