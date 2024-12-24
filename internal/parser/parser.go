@@ -585,6 +585,7 @@ func parseSendStatement(statementCtx *parser.SendStatementContext) *SendStatemen
 
 func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 	amtStr := numNode.GetText()
+	amtStr = strings.ReplaceAll(amtStr, "_", "")
 
 	amt, err := strconv.Atoi(amtStr)
 	if err != nil {

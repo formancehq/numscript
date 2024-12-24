@@ -43,6 +43,28 @@ func TestVariable(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestNumberSyntaxUnderscore(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta("k1", 1_2_34_567)
+`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestForbidInvalidNumberUnderscores(t *testing.T) {
+	require.Len(t, parser.Parse(`
+	set_tx_meta("k1", _123)
+	`).Errors, 1)
+
+	require.Len(t, parser.Parse(`
+	set_tx_meta("k1", 123_)
+	`).Errors, 1)
+
+	require.Len(t, parser.Parse(`
+	set_tx_meta("k1", 1__23)
+	`).Errors, 3)
+}
+
 func TestVariableMonetary(t *testing.T) {
 	p := parser.Parse(`send $example (
   source = @a
