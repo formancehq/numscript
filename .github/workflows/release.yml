@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.22"
+          go-version: "1.21"  # Changed to 1.21 for TinyGo compatibility
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
@@ -20,12 +20,30 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
+      - name: Install TinyGo
+        run: |
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.30.0/tinygo_0.30.0_amd64.deb
+          sudo dpkg -i tinygo_0.30.0_amd64.deb
+
+      - name: Build WASM
+        run: |
+          mkdir -p build
+          tinygo build -o build/numscript.wasm -target wasm ./
+
       - name: get deps
         run: go mod download
+
       - name: Run GoReleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release
+          args: release --rm-dist
+
+      - name: Upload WASM artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} build/numscript.wasm
