@@ -56,20 +56,14 @@ func check() {
 
 	hasErrors := false
 	jsonObj := gabs.New()
-	jsonObj.Array("errors")
 	for _, d := range res.Diagnostics {
 		if d.Kind.Severity() == analysis.ErrorSeverity {
 			hasErrors = true
 		}
-		errLevel := SeverityToString(d.Kind.Severity())
 
-		subJsonObj := gabs.New()
-		subJsonObj.Set(d.Range.Start.Line, "line")
-		subJsonObj.Set(d.Range.Start.Character, "character")
-		subJsonObj.Set(errLevel, "level")
-		subJsonObj.Set(d.Kind.Message(), "error")
+		logLevel := SeverityToString(d.Kind.Severity())
 
-		jsonObj.ArrayAppend(subJsonObj, "errors")
+		buildCheckDetails(d, jsonObj, logLevel)
 	}
 
 	if hasErrors {
@@ -79,6 +73,18 @@ func check() {
 	}
 
 	fmt.Println(jsonObj.String())
+}
+
+func buildCheckDetails(diagnostic analysis.Diagnostic, jsonObj *gabs.Container, logLevel string) {
+	logLevelKey := logLevel + "s"
+	subJsonObj := gabs.New()
+
+	subJsonObj.Set(diagnostic.Range.Start.Line, "line")
+	subJsonObj.Set(diagnostic.Range.Start.Character, "character")
+	subJsonObj.Set(logLevel, "level")
+	subJsonObj.Set(diagnostic.Kind.Message(), logLevel)
+
+	jsonObj.ArrayAppend(subJsonObj, logLevelKey)
 }
 
 var checkCmd = &cobra.Command{
@@ -99,12 +105,14 @@ func run() {
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		panic(err)
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
 	}
 
 	err = json.Unmarshal(bytes, &opt)
 	if err != nil {
-		panic(err)
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
 	}
 
 	parseResult := parser.Parse(opt.Script)
@@ -126,11 +134,13 @@ func run() {
 	)
 
 	if err != nil {
+		os.Stderr.Write([]byte(err.Error()))
 		os.Exit(1)
 	}
 
 	out, err := json.Marshal(result)
 	if err != nil {
+		os.Stderr.Write([]byte(err.Error()))
 		os.Exit(1)
 	}
 
@@ -156,11 +166,15 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		os.Exit(1)
-	}
+	rootCmd.Execute()
 }
