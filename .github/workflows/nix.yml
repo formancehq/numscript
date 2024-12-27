@@ -1,0 +1,14 @@
+name: Nix CI
+
+on: [push, pull_request]
+
+jobs:
+  nix-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v23
+      - name: Test Nix build
+        run: |
+          nix develop --command echo "Nix environment works"
+          nix flake check
