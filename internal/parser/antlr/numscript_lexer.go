@@ -1,6 +1,6 @@
-// Code generated from Numscript.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from Numscript.g4 by ANTLR 4.13.0. DO NOT EDIT.
 
-package parser
+package antlr
 
 import (
 	"fmt"

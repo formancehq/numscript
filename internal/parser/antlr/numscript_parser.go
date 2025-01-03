@@ -1,7 +1,6 @@
-// Code generated from Numscript.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from Numscript.g4 by ANTLR 4.13.0. DO NOT EDIT.
 
-package parser // Numscript
-
+package antlr // Numscript
 import (
 	"fmt"
 	"strconv"
@@ -2960,7 +2959,7 @@ func (s *SrcInorderContext) ExitRule(listener antlr.ParseTreeListener) {
 
 type SrcCappedContext struct {
 	SourceContext
-	cap_ IValueExprContext
+	limit IValueExprContext
 }
 
 func NewSrcCappedContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcCappedContext {
@@ -2973,9 +2972,9 @@ func NewSrcCappedContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *SrcC
 	return p
 }
 
-func (s *SrcCappedContext) GetCap_() IValueExprContext { return s.cap_ }
+func (s *SrcCappedContext) GetLimit() IValueExprContext { return s.limit }
 
-func (s *SrcCappedContext) SetCap_(v IValueExprContext) { s.cap_ = v }
+func (s *SrcCappedContext) SetLimit(v IValueExprContext) { s.limit = v }
 
 func (s *SrcCappedContext) GetRuleContext() antlr.RuleContext {
 	return s
@@ -3280,7 +3279,7 @@ func (p *NumscriptParser) Source() (localctx ISourceContext) {
 
 			var _x = p.valueExpr(0)
 
-			localctx.(*SrcCappedContext).cap_ = _x
+			localctx.(*SrcCappedContext).limit = _x
 		}
 		{
 			p.SetState(150)

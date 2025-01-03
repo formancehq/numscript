@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 # Default version (can be overridden by environment variable)
 VERSION=${VERSION:-latest}
-REPO="formancehq/numscript"
+REPO="PagoPlus/numscript-wasm"
 
 if [ "$VERSION" = "latest" ]; then
   VERSION=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
