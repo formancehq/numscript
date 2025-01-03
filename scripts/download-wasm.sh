@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -e -o pipefail
 
 # Default version (can be overridden by environment variable)
 VERSION=${VERSION:-latest}
