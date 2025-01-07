@@ -24,9 +24,15 @@ type RunInputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-var Version string = "dev"
+var Version string
 
-func version() { fmt.Print(Version) }
+func version() { 
+	if Version == "" {
+        fmt.Print("dev")
+	} else {
+        fmt.Print(Version)
+	}
+}
 
 var versionCmd = &cobra.Command{
     Use:   "version",
