@@ -26,21 +26,21 @@ type RunInputOpts struct {
 
 var Version string
 
-func version() { 
+func version() {
 	if Version == "" {
-        fmt.Print("dev")
+		fmt.Print("dev")
 	} else {
-        fmt.Print(Version)
+		fmt.Print(Version)
 	}
 }
 
 var versionCmd = &cobra.Command{
-    Use:   "version",
-    Short: "Shows the app version",
-    Args:  cobra.NoArgs,
-    Run: func(cmd *cobra.Command, args []string) {
-        version()
-    },
+	Use:   "version",
+	Short: "Shows the app version",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		version()
+	},
 }
 
 func SeverityToString(s analysis.Severity) string {
