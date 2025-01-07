@@ -24,6 +24,19 @@ type RunInputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
+var Version string = "dev"
+
+func version() { fmt.Print(Version) }
+
+var versionCmd = &cobra.Command{
+    Use:   "version",
+    Short: "Shows the app version",
+    Args:  cobra.NoArgs,
+    Run: func(cmd *cobra.Command, args []string) {
+        version()
+    },
+}
+
 func SeverityToString(s analysis.Severity) string {
 	switch s {
 	case analysis.ErrorSeverity:
@@ -175,6 +188,7 @@ func main() {
 
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	rootCmd.Execute()
 }
