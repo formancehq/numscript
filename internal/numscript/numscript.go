@@ -24,6 +24,25 @@ type RunInputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
+var Version string
+
+func version() string {
+	if Version == "" {
+		return "dev"
+	} else {
+		return Version
+	}
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Shows the app version",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Print(version())
+	},
+}
+
 func SeverityToString(s analysis.Severity) string {
 	switch s {
 	case analysis.ErrorSeverity:
@@ -157,9 +176,10 @@ var runCmd = &cobra.Command{
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "numscript",
-	Short: "Numscript cli",
-	Long:  "Numscript cli",
+	Use:     "numscript",
+	Short:   "Numscript cli",
+	Long:    "Numscript cli",
+	Version: version(),
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
@@ -173,8 +193,11 @@ func main() {
 		}
 	}()
 
+	rootCmd.SetVersionTemplate(rootCmd.Version)
+
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	rootCmd.Execute()
 }
