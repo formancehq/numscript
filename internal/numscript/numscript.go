@@ -26,11 +26,11 @@ type RunInputOpts struct {
 
 var Version string
 
-func version() {
+func version() string {
 	if Version == "" {
-		fmt.Print("dev")
+		return "dev"
 	} else {
-		fmt.Print(Version)
+		return Version
 	}
 }
 
@@ -39,7 +39,7 @@ var versionCmd = &cobra.Command{
 	Short: "Shows the app version",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		version()
+		fmt.Print(version())
 	},
 }
 
@@ -176,12 +176,16 @@ var runCmd = &cobra.Command{
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "numscript",
-	Short: "Numscript cli",
-	Long:  "Numscript cli",
+	Use:     "numscript",
+	Short:   "Numscript cli",
+	Long:    "Numscript cli",
+	Version: version(),
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
+}
+
+func init() {
 }
 
 func main() {
@@ -191,6 +195,8 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	rootCmd.SetVersionTemplate(rootCmd.Version)
 
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
