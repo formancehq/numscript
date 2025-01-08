@@ -24,6 +24,10 @@ builds:
     goarch:
       - amd64
       - arm64
+    tool: "tinygo"
+    hooks:
+      pre: 
+        - mkdir -p {{ dir .Path }}
     binary: numscript
     ldflags:
       - -X main.Version=v{{ .Version }}
