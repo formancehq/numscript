@@ -185,9 +185,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func init() {
-}
-
 func main() {
 	defer func() {
 		if err := recover(); err != nil {
