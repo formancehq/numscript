@@ -1,8 +1,8 @@
 package analysis
 
 import (
-	"github.com/PagoPlus/numscriptex/internal/parser"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 )
 
 type Hover interface{ hover() }

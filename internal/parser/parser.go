@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	parser "github.com/PagoPlus/numscriptex/internal/parser/antlr"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	parser "github.com/PagoPlus/numscript-wasm/internal/parser/antlr"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 
 	"github.com/antlr4-go/antlr/v4"
 )

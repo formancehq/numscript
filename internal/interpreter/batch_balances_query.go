@@ -3,8 +3,8 @@ package interpreter
 import (
 	"slices"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 	"golang.org/x/exp/maps"
 )
 

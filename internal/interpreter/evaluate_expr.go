@@ -3,8 +3,8 @@ package interpreter
 import (
 	"math/big"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 )
 
 func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterError) {

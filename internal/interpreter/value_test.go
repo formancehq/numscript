@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/PagoPlus/numscriptex/internal/interpreter"
+	"github.com/PagoPlus/numscript-wasm/internal/interpreter"
 
 	"github.com/stretchr/testify/require"
 )

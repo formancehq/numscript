@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/PagoPlus/numscriptex/internal/analysis"
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/analysis"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 )
 
 type Value interface {

@@ -11,10 +11,10 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/PagoPlus/numscriptex/internal/analysis"
-	"github.com/PagoPlus/numscriptex/internal/interpreter"
-	"github.com/PagoPlus/numscriptex/internal/parser"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	"github.com/PagoPlus/numscript-wasm/internal/analysis"
+	"github.com/PagoPlus/numscript-wasm/internal/interpreter"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 )
 
 type RunInputOpts struct {

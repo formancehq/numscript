@@ -1,7 +1,7 @@
 package analysis
 
 import (
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 )
 
 type DocumentSymbolKind = float64

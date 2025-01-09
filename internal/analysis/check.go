@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"slices"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
-	"github.com/PagoPlus/numscriptex/internal/utils"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/utils"
 )
 
 const TypeMonetary = "monetary"
