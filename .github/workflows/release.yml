@@ -25,36 +25,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: "1.22"
           cache: true
       
       - name: Install TinyGo
         run: |
-          wget https://github.com/tinygo-org/tinygo/releases/download/v0.30.0/tinygo_0.30.0_amd64.deb
-          sudo dpkg -i tinygo_0.30.0_amd64.deb
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.34.0/tinygo_0.34.0_amd64.deb
+          sudo dpkg -i tinygo_0.34.0_amd64.deb
 
       - name: Get dependencies
         run: |
           go mod download
           go mod verify
       
-      - name: Build WASM
-        run: |
-          mkdir -p build
-          tinygo build -o build/numscript.wasm -target wasm -no-debug ./ 
-          # Added -no-debug to reduce binary size
-      
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Upload WASM artifact
-        run: |
-          gh release upload ${{ github.event.release.tag_name }} build/numscript.wasm --clobber
+          args: release --snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

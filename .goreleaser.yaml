@@ -18,12 +18,9 @@ builds:
       - CGO_ENABLED=0
     main: ./internal/numscript/numscript.go
     goos:
-      - linux
-      - windows
-      - darwin
+      - wasip1
     goarch:
-      - amd64
-      - arm64
+      - wasm
     tool: "tinygo"
     hooks:
       pre: 
