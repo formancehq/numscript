@@ -13,38 +13,28 @@ jobs:
       image: nixos/nix:latest
       options: --privileged
     steps:
-      - name: Prepare environment
-        run: |
-          # Install required packages
-          nix-env -iA nixpkgs.git nixpkgs.nodejs nixpkgs.go nixpkgs.tinygo
-
       - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install dependencies
         run: |
-          git clone https://github.com/$GITHUB_REPOSITORY .
-          git checkout $GITHUB_SHA
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
-      
+          nix-shell --run "go mod download"
+          nix-shell --run "go mod tidy"
+
       - name: Build
         run: |
           mkdir -p build
-          go mod download
-          go mod tidy
-          tinygo build -o build/numscript.wasm -target wasm -no-debug ./
+          nix-shell --run "tinygo build -o build/numscript.wasm -target wasm -no-debug ./"
 
-      # Only run on GitHub Actions, not locally
-      - if: ${{ !env.ACT }}
-        name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Test
+        run: |
+          nix-shell --run "go test ./..."
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
           name: numscript-wasm
           path: build/numscript.wasm
-
-      # Local testing step
-      - if: ${{ env.ACT }}
-        name: Copy artifact locally
-        run: |
-          mkdir -p /tmp/artifacts
-          cp build/numscript.wasm /tmp/artifacts/
-          echo "Artifact copied to /tmp/artifacts/numscript.wasm"
