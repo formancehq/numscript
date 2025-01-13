@@ -16,6 +16,11 @@
           go
           tinygo
           git
+          act
+          antlr4
+          just
+          nodejs_20
+          tree
         ] ++ optional stdenv.isLinux inotify-tools
           ++ optionals stdenv.isDarwin
             (with darwin.apple_sdk.frameworks; [ CoreFoundation CoreServices ]);
