@@ -7,36 +7,34 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  configure:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Install Nix
-        run: |
-          curl -L https://nixos.org/nix/install | sh
-          . /home/runner/.nix-profile/etc/profile.d/nix.sh
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: echo "matrix=$(nixci gh-matrix --systems=x86_64-linux,aarch64-darwin | jq -c .)" >> $GITHUB_OUTPUT
 
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Install dependencies
-        run: |
-          nix-shell --run "go mod download"
-          nix-shell --run "go mod tidy"
-
-      - name: Build
-        run: |
-          mkdir -p build
-          nix-shell --run "tinygo build -o build/numscript.wasm -target wasm -no-debug ./"
-
-      - name: Test
-        run: |
-          nix-shell --run "go test ./..."
+  nix:
+    runs-on: ${{ matrix.system }}
+    permissions:
+      contents: read
+    needs: configure
+    strategy:
+      matrix: ${{ fromJson(needs.configure.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          nixci \
+            --extra-access-tokens "github.com=${{ secrets.GITHUB_TOKEN }}" \
+            build \
+            --systems "${{ matrix.system }}" \
+            .#default.${{ matrix.subflake}}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: numscript-wasm
+          name: numscript-wasm-${{ matrix.system }}
           path: build/numscript.wasm
