@@ -25,15 +25,14 @@ builds:
     hooks:
       pre: 
         - mkdir -p {{ dir .Path }}
-    binary: numscript-v{{ .Version }}
+    binary: numscript
     ldflags:
       - -X main.Version=v{{ .Version }}
 
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of `uname`.
-    name_template: >-
-      {{ .ProjectName }}-v{{ .Version }}
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{- title .Os }}_{{ .Arch }}{{- if .Arm }}v{{ .Arm }}{{ end }}'
     # use zip for windows archives
     format_overrides:
       - goos: windows
