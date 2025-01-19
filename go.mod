@@ -4,9 +4,10 @@ go 1.22.1
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
-	github.com/PagoPlus/numscriptex v0.0.0-20241202135701-b8e89d0f3967
 	github.com/gkampitakis/go-snaps v0.5.4
 )
+
+require github.com/gorilla/websocket v1.5.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

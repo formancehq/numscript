@@ -1,7 +1,5 @@
 github.com/Jeffail/gabs/v2 v2.7.0 h1:Y2edYaTcE8ZpRsR2AtmPu5xQdFDIthFG0jYhu5PY8kg=
 github.com/Jeffail/gabs/v2 v2.7.0/go.mod h1:dp5ocw1FvBBQYssgHsG7I1WYsiLRtkUaB1FEtSwvNUw=
-github.com/PagoPlus/numscriptex v0.0.0-20241202135701-b8e89d0f3967 h1:iuQUuW29c6uoGAqp+E00theAYKHr6HcCYIdk5vBEIkM=
-github.com/PagoPlus/numscriptex v0.0.0-20241202135701-b8e89d0f3967/go.mod h1:Y+ymNQhXxoeBhueWQOpePyYrPUff0CgNpgbv5LVmI0w=
 github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYWrPrQ=
 github.com/antlr4-go/antlr/v4 v4.13.1/go.mod h1:GKmUxMtwp6ZgGwZSva4eWPC5mS6vUAmOABFgjdkM7Nw=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
