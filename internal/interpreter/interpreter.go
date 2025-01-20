@@ -198,10 +198,7 @@ func RunProgram(
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
-	}
-
-	if _, ok := featureFlags[ExperimentalOverdraftFunctionFeatureFlag]; ok {
-		st.OverdraftFunctionFeatureFlag = true
+		FeatureFlags:        featureFlags,
 	}
 
 	err := st.parseVars(program.Vars, vars)
@@ -261,7 +258,7 @@ type programState struct {
 
 	CurrentBalanceQuery BalanceQuery
 
-	OverdraftFunctionFeatureFlag bool
+	FeatureFlags map[string]struct{}
 }
 
 func (st *programState) pushSender(name string, monetary *big.Int) {
@@ -853,15 +850,16 @@ func overdraft(
 	r parser.Range,
 	args []Value,
 ) (*Monetary, InterpreterError) {
-	if !s.OverdraftFunctionFeatureFlag {
-		return nil, ExperimentalFeature{FlagName: ExperimentalOverdraftFunctionFeatureFlag}
+	err := s.checkFeatureFlag(ExperimentalOverdraftFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
 	}
 
 	// TODO more precise args range location
 	p := NewArgsParser(args)
 	account := parseArg(p, r, expectAccount)
 	asset := parseArg(p, r, expectAsset)
-	err := p.parse()
+	err = p.parse()
 	if err != nil {
 		return nil, err
 	}
@@ -981,4 +979,13 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	}
 
 	return res, nil
+}
+
+func (s programState) checkFeatureFlag(flag string) InterpreterError {
+	_, ok := s.FeatureFlags[flag]
+	if ok {
+		return nil
+	} else {
+		return ExperimentalFeature{FlagName: flag}
+	}
 }

@@ -85,7 +85,7 @@ source:
 	| valueExpr							# srcAccount
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
 	| LBRACE source* RBRACE				# srcInorder
-	| 'oneof' LBRACE source* RBRACE		# srcOneof
+	| 'oneof' LBRACE source+ RBRACE		# srcOneof
 	| MAX cap = valueExpr FROM source	# srcCapped;
 allotmentClauseSrc: allotment FROM source;
 
