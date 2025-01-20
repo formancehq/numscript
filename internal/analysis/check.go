@@ -576,6 +576,13 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 		}
 		res.checkKeptOrDestination(destination.Remaining)
 
+	case *parser.DestinationOneof:
+		for _, clause := range destination.Clauses {
+			res.checkExpression(clause.Cap, TypeMonetary)
+			res.checkKeptOrDestination(clause.To)
+		}
+		res.checkKeptOrDestination(destination.Remaining)
+
 	case *parser.DestinationAllotment:
 		var remainingAllotment *parser.RemainingAllotment
 		var variableLiterals []parser.Variable
