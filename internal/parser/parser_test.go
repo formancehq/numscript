@@ -82,6 +82,15 @@ func TestInorderSource(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestOneofSource(t *testing.T) {
+	p := parser.Parse(`send $amt (
+  source = oneof { @s1 @s2 }
+  destination = @d
+)`)
+	require.Empty(t, p.Errors)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestNegativeNumberLit(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 -100] (
   source = @src

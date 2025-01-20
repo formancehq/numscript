@@ -89,6 +89,9 @@ type NumscriptListener interface {
 	// EnterSrcInorder is called when entering the srcInorder production.
 	EnterSrcInorder(c *SrcInorderContext)
 
+	// EnterSrcOneof is called when entering the srcOneof production.
+	EnterSrcOneof(c *SrcOneofContext)
+
 	// EnterSrcCapped is called when entering the srcCapped production.
 	EnterSrcCapped(c *SrcCappedContext)
 
@@ -211,6 +214,9 @@ type NumscriptListener interface {
 
 	// ExitSrcInorder is called when exiting the srcInorder production.
 	ExitSrcInorder(c *SrcInorderContext)
+
+	// ExitSrcOneof is called when exiting the srcOneof production.
+	ExitSrcOneof(c *SrcOneofContext)
 
 	// ExitSrcCapped is called when exiting the srcCapped production.
 	ExitSrcCapped(c *SrcCappedContext)

@@ -187,6 +187,12 @@ func (s *BaseNumscriptListener) EnterSrcInorder(ctx *SrcInorderContext) {}
 // ExitSrcInorder is called when production srcInorder is exited.
 func (s *BaseNumscriptListener) ExitSrcInorder(ctx *SrcInorderContext) {}
 
+// EnterSrcOneof is called when production srcOneof is entered.
+func (s *BaseNumscriptListener) EnterSrcOneof(ctx *SrcOneofContext) {}
+
+// ExitSrcOneof is called when production srcOneof is exited.
+func (s *BaseNumscriptListener) ExitSrcOneof(ctx *SrcOneofContext) {}
+
 // EnterSrcCapped is called when production srcCapped is entered.
 func (s *BaseNumscriptListener) EnterSrcCapped(ctx *SrcCappedContext) {}
 

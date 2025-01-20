@@ -87,6 +87,7 @@ type Source interface {
 }
 
 func (*SourceInorder) source()   {}
+func (*SourceOneof) source()     {}
 func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
@@ -101,6 +102,12 @@ type (
 		Range
 		Sources []Source
 	}
+
+	SourceOneof struct {
+		Range
+		Sources []Source
+	}
+
 	SourceAllotment struct {
 		Range
 		Items []SourceAllotmentItem

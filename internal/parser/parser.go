@@ -170,6 +170,16 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Sources: sources,
 		}
 
+	case *parser.SrcOneofContext:
+		var sources []Source
+		for _, sourceCtx := range sourceCtx.AllSource() {
+			sources = append(sources, parseSource(sourceCtx))
+		}
+		return &SourceOneof{
+			Range:   range_,
+			Sources: sources,
+		}
+
 	case *parser.SrcAllotmentContext:
 		var items []SourceAllotmentItem
 		for _, itemCtx := range sourceCtx.AllAllotmentClauseSrc() {
