@@ -150,6 +150,7 @@ type Destination interface {
 
 func (*DestinationAccount) destination()   {}
 func (*DestinationInorder) destination()   {}
+func (*DestinationOneof) destination()     {}
 func (*DestinationAllotment) destination() {}
 
 type (
@@ -159,11 +160,17 @@ type (
 
 	DestinationInorder struct {
 		Range
-		Clauses   []DestinationInorderClause
+		Clauses   []CappedKeptOrDestination
 		Remaining KeptOrDestination
 	}
 
-	DestinationInorderClause struct {
+	DestinationOneof struct {
+		Range
+		Clauses   []CappedKeptOrDestination
+		Remaining KeptOrDestination
+	}
+
+	CappedKeptOrDestination struct {
 		Range
 		Cap ValueExpr
 		To  KeptOrDestination

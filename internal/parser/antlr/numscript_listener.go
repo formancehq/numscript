@@ -116,6 +116,9 @@ type NumscriptListener interface {
 	// EnterDestInorder is called when entering the destInorder production.
 	EnterDestInorder(c *DestInorderContext)
 
+	// EnterDestOneof is called when entering the destOneof production.
+	EnterDestOneof(c *DestOneofContext)
+
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
 
@@ -241,6 +244,9 @@ type NumscriptListener interface {
 
 	// ExitDestInorder is called when exiting the destInorder production.
 	ExitDestInorder(c *DestInorderContext)
+
+	// ExitDestOneof is called when exiting the destOneof production.
+	ExitDestOneof(c *DestOneofContext)
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)

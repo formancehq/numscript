@@ -95,9 +95,10 @@ keptOrDestination:
 destinationInOrderClause: MAX valueExpr keptOrDestination;
 
 destination:
-	valueExpr																# destAccount
-	| LBRACE allotmentClauseDest+ RBRACE									# destAllotment
-	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destInorder;
+	valueExpr																		# destAccount
+	| LBRACE allotmentClauseDest+ RBRACE											# destAllotment
+	| LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE			# destInorder
+	| 'oneof' LBRACE destinationInOrderClause* REMAINING keptOrDestination RBRACE	# destOneof;
 allotmentClauseDest: allotment keptOrDestination;
 
 sentValue: valueExpr # sentLiteral | sentAllLit # sentAll;

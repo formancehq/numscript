@@ -113,6 +113,19 @@ func TestInorderDestination(t *testing.T) {
 	assert.Empty(t, p.Errors)
 }
 
+func TestOneofDestination(t *testing.T) {
+	p := parser.Parse(`send $amt (
+	source = @s
+	destination = oneof {
+		max $m1 to @d1
+		max $m2 kept
+		remaining to @d3
+  }
+	)`)
+	require.Empty(t, p.Errors)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestAllotment(t *testing.T) {
 	p := parser.Parse(`send [EUR/2 100] (
   source = { 1/3 from @s1 }

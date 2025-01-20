@@ -1903,7 +1903,7 @@ mismatched input 'err' expecting {'oneof', 'max', '(', '[', '{', RATIO_PORTION_L
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'oneof', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -2422,6 +2422,104 @@ parser.Program{
                         End:   parser.Position{Character:18, Line:2},
                     },
                     Name: "d",
+                },
+            },
+        },
+    },
+}
+---
+
+[TestOneofDestination - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:2, Line:7},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:9, Line:0},
+                },
+                Monetary: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:9, Line:0},
+                    },
+                    Name: "amt",
+                },
+            },
+            Source: &parser.SourceAccount{
+                ValueExpr: &parser.AccountLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:10, Line:1},
+                        End:   parser.Position{Character:12, Line:1},
+                    },
+                    Name: "s",
+                },
+            },
+            Destination: &parser.DestinationOneof{
+                Range: parser.Range{
+                    Start: parser.Position{Character:15, Line:2},
+                    End:   parser.Position{Character:3, Line:6},
+                },
+                Clauses: {
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:2, Line:3},
+                            End:   parser.Position{Character:16, Line:3},
+                        },
+                        Cap: &parser.Variable{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:6, Line:3},
+                                End:   parser.Position{Character:9, Line:3},
+                            },
+                            Name: "m1",
+                        },
+                        To: &parser.DestinationTo{
+                            Destination: &parser.DestinationAccount{
+                                ValueExpr: &parser.AccountLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:13, Line:3},
+                                        End:   parser.Position{Character:16, Line:3},
+                                    },
+                                    Name: "d1",
+                                },
+                            },
+                        },
+                    },
+                    {
+                        Range: parser.Range{
+                            Start: parser.Position{Character:2, Line:4},
+                            End:   parser.Position{Character:14, Line:4},
+                        },
+                        Cap: &parser.Variable{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:6, Line:4},
+                                End:   parser.Position{Character:9, Line:4},
+                            },
+                            Name: "m2",
+                        },
+                        To: &parser.DestinationKept{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:10, Line:4},
+                                End:   parser.Position{Character:14, Line:4},
+                            },
+                        },
+                    },
+                },
+                Remaining: &parser.DestinationTo{
+                    Destination: &parser.DestinationAccount{
+                        ValueExpr: &parser.AccountLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:15, Line:5},
+                                End:   parser.Position{Character:18, Line:5},
+                            },
+                            Name: "d3",
+                        },
+                    },
                 },
             },
         },
