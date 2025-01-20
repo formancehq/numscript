@@ -715,6 +715,27 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		// passing "remainingAmount" directly breaks the code
 		return handler(destination.Remaining, remainingAmountCopy)
 
+	case *parser.DestinationOneof:
+		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		if err != nil {
+			return err
+		}
+		for _, destinationClause := range destination.Clauses {
+			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			if err != nil {
+				return err
+			}
+
+			// if the clause cap is >= the amount we're trying to receive, only go through this branch
+			switch cap.Cmp(amount) {
+			case 0, 1:
+				return s.receiveFromKeptOrDest(destinationClause.To, amount)
+			}
+
+			// otherwise try next clause (keep looping)
+		}
+		return s.receiveFromKeptOrDest(destination.Remaining, amount)
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
 		return nil

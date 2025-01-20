@@ -3705,3 +3705,80 @@ func TestOneofSingleton(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
 }
+
+func TestOneofDestinationFirstClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 10] (
+		source = @world
+		destination = oneof {
+			max [GEM 99999] to @a
+			remaining to @b
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofDestinationSecondClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 10] (
+		source = @world
+		destination = oneof {
+			max [GEM 9] to @a
+			max [GEM 10] to @b
+			remaining to @rem
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofDestinationRemainingClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 100] (
+		source = @world
+		destination = oneof {
+			max [GEM 9] to @a
+			max [GEM 10] to @b
+			remaining to @rem
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "rem",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
