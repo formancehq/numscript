@@ -179,7 +179,10 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 type FeatureFlag = string
 
-const ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
+const (
+	ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
+	ExperimentalOneofFeatureFlag             FeatureFlag = "experimental-oneof"
+)
 
 func RunProgram(
 	ctx context.Context,
@@ -473,6 +476,16 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		}
 		return totalSent, nil
 
+	case *parser.SourceOneof:
+		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		if err != nil {
+			return nil, err
+		}
+
+		// we can safely access the first one because empty oneof is parsing err
+		first := source.Sources[0]
+		return s.sendAll(first)
+
 	case *parser.SourceCapped:
 		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
@@ -563,6 +576,36 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			totalLeft.Sub(totalLeft, sentAmt)
 		}
 		return new(big.Int).Sub(amount, totalLeft), nil
+
+	case *parser.SourceOneof:
+		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		if err != nil {
+			return nil, err
+		}
+
+		// empty oneof is parsing err
+		leadingSources := source.Sources[0 : len(source.Sources)-1]
+
+		for _, source := range leadingSources {
+
+			// do not move this line below (as .trySendingUpTo() will mutate senders' length)
+			backtrackingIndex := len(s.Senders)
+
+			sentAmt, err := s.trySendingUpTo(source, amount)
+			if err != nil {
+				return nil, err
+			}
+
+			// if this branch managed to sent all the required amount, return now
+			if sentAmt.Cmp(amount) == 0 {
+				return amount, nil
+			}
+
+			// else, backtrack to remove this branch's sendings
+			s.Senders = s.Senders[0:backtrackingIndex]
+		}
+
+		return s.trySendingUpTo(source.Sources[len(source.Sources)-1], amount)
 
 	case *parser.SourceAllotment:
 		var items []parser.AllotmentValue
