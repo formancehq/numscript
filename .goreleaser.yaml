@@ -25,18 +25,16 @@ builds:
     hooks:
       pre:
         - mkdir -p {{ dir .Path }}
-    binary: numscript
+    binary: ../numscript
     ldflags:
       - -X main.Version=v{{ .Version }}
 
+checksum:
+  name_template: "numscript_checksums.txt"
+
 archives:
-  - format: tar.gz
-    # this name template makes the OS and Arch compatible with the results of `uname`.
-    name_template: "{{ .ProjectName }}_{{ .Version }}"
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        format: zip
+  - format: binary
+    name_template: "numscript"
 
 changelog:
   sort: asc
