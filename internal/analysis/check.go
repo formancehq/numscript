@@ -503,6 +503,11 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.checkSource(source)
 		}
 
+	case *parser.SourceOneof:
+		for _, source := range source.Sources {
+			res.checkSource(source)
+		}
+
 	case *parser.SourceCapped:
 		onExit := res.enterCappedSource()
 

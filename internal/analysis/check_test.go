@@ -197,6 +197,31 @@ func TestUnboundVarInSource(t *testing.T) {
 	)
 }
 
+func TestUnboundVarInSourceOneof(t *testing.T) {
+	t.Parallel()
+
+	input := `send [C 1] (
+  source = oneof { $unbound_var }
+  destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+	require.Len(t, diagnostics, 1)
+
+	assert.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
+				Kind:  &analysis.UnboundVariable{Name: "unbound_var"},
+			},
+		},
+		diagnostics,
+	)
+
+}
+
 func TestUnboundVarInDest(t *testing.T) {
 	t.Parallel()
 
