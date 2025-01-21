@@ -189,7 +189,7 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 		return &SourceCapped{
 			Range: range_,
 			From:  parseSource(sourceCtx.Source()),
-			Cap:   parseValueExpr(sourceCtx.GetLimit()), // Change to GetLimit()
+			Cap:   parseValueExpr(sourceCtx.GetCap_()),
 		}
 
 	case *parser.SrcAccountUnboundedOverdraftContext:
