@@ -31,16 +31,16 @@ func nest(srcs ...string) string {
 	return ret
 }
 
-func fmtLit(lit parser.Literal) string {
+func fmtExpr(lit parser.ValueExpr) string {
 	switch lit := lit.(type) {
-	case *parser.VariableLiteral:
+	case *parser.Variable:
 		return "$" + lit.Name
 
 	case *parser.AccountLiteral:
 		return "@" + lit.Name
 
 	case *parser.MonetaryLiteral:
-		return fmt.Sprintf("[%s %s]", fmtLit(lit.Asset), fmtLit(lit.Amount))
+		return fmt.Sprintf("[%s %s]", fmtExpr(lit.Asset), fmtExpr(lit.Amount))
 
 	case *parser.AssetLiteral:
 		return lit.Asset
@@ -66,10 +66,10 @@ func fmtLit(lit parser.Literal) string {
 func fmtSentValue(sentValue parser.SentValue) string {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		return fmt.Sprintf("[%s *]", fmtLit(sentValue.Asset))
+		return fmt.Sprintf("[%s *]", fmtExpr(sentValue.Asset))
 
 	case *parser.SentValueLiteral:
-		return fmtLit(sentValue.Monetary)
+		return fmtExpr(sentValue.Monetary)
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](sentValue)
@@ -79,10 +79,10 @@ func fmtSentValue(sentValue parser.SentValue) string {
 func fmtAllotmentValue(allot parser.AllotmentValue) string {
 	switch allot := allot.(type) {
 	case *parser.RatioLiteral:
-		return fmtLit(allot)
+		return fmtExpr(allot)
 
-	case *parser.VariableLiteral:
-		return fmtLit(allot)
+	case *parser.Variable:
+		return fmtExpr(allot)
 
 	case *parser.RemainingAllotment:
 		return "remaining"
@@ -95,7 +95,7 @@ func fmtAllotmentValue(allot parser.AllotmentValue) string {
 func fmtSrc(src parser.Source) string {
 	switch src := src.(type) {
 	case *parser.SourceAccount:
-		return fmtLit(src.Literal)
+		return fmtExpr(src.ValueExpr)
 
 	case *parser.SourceInorder:
 		var lines []string
@@ -107,7 +107,7 @@ func fmtSrc(src parser.Source) string {
 		)
 
 	case *parser.SourceCapped:
-		return fmt.Sprintf("max %s from %s", fmtLit(src.Cap), fmtSrc(src.From))
+		return fmt.Sprintf("max %s from %s", fmtExpr(src.Cap), fmtSrc(src.From))
 
 	case *parser.SourceAllotment:
 		var lines []string
@@ -119,10 +119,10 @@ func fmtSrc(src parser.Source) string {
 
 	case *parser.SourceOverdraft:
 		if src.Bounded == nil {
-			return fmt.Sprintf("%s allowing unbounded overdraft", fmtLit(src.Address))
+			return fmt.Sprintf("%s allowing unbounded overdraft", fmtExpr(src.Address))
 		}
 
-		return fmt.Sprintf("%s allowing overdraft up to %s", fmtLit(src.Address), fmtLit(*src.Bounded))
+		return fmt.Sprintf("%s allowing overdraft up to %s", fmtExpr(src.Address), fmtExpr(*src.Bounded))
 
 	default:
 		return utils.NonExhaustiveMatchPanic[string](src)
@@ -145,12 +145,12 @@ func fmtKeptorDest(keptOrDest parser.KeptOrDestination) string {
 func fmtDest(dest parser.Destination) string {
 	switch dest := dest.(type) {
 	case *parser.DestinationAccount:
-		return fmtLit(dest.Literal)
+		return fmtExpr(dest.ValueExpr)
 
 	case *parser.DestinationInorder:
 		var lines []string
 		for _, subDest := range dest.Clauses {
-			s := fmt.Sprintf("max %s %s", fmtLit(subDest.Cap), fmtKeptorDest(subDest.To))
+			s := fmt.Sprintf("max %s %s", fmtExpr(subDest.Cap), fmtKeptorDest(subDest.To))
 			lines = append(lines, s)
 		}
 
@@ -236,7 +236,7 @@ func fmtStatement(statement parser.Statement) string {
 func fmtFnCall(fnCall parser.FnCall) string {
 	var args []string
 	for _, arg := range fnCall.Args {
-		args = append(args, fmtLit(arg))
+		args = append(args, fmtExpr(arg))
 	}
 	return fmt.Sprintf("%s(%s)", fnCall.Caller.Name, strings.Join(args, ", "))
 }
