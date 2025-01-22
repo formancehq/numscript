@@ -120,6 +120,75 @@ func (state *State) handleHover(params HoverParams) *Hover {
 	}
 }
 
+func (state *State) handleCodeAction(params CodeActionParams) *CodeAction {
+
+	// position := fromLspPosition(params.Position)
+
+	// doc, ok := state.documents[params.TextDocument.URI]
+	// if !ok {
+	// 	return nil
+	// }
+
+	// hoverable := analysis.HoverOn(doc.CheckResult.Program, position)
+
+	// switch hoverable := hoverable.(type) {
+	// case *analysis.VariableHover:
+
+	// 	varLit := hoverable.Node
+	// 	resolution := doc.CheckResult.ResolveVar(varLit)
+
+	// os.Stderr.Write([]byte("HI!"))
+
+	// bs, _ := json.Marshal(params)
+	// os.Stderr.Write(bs)
+	return &CodeAction{
+		Title: "EXAMPLE code action",
+		Kind:  Refactor,
+		Edit: WorkspaceEdit{
+
+			// DocumentChanges: []TextDocumentEdit{
+			// 	{
+			// 		Edits: []TextEdit{
+			// 			{
+			// 				NewText: "HELLO!",
+			// 				Range: Range{
+			// 					Start: Position{0, 0},
+			// 					End:   Position{0, 1},
+			// 				},
+			// 			},
+			// 		},
+			// 		TextDocument: OptionalVersionedTextDocumentIdentifier{
+			// 			TextDocumentIdentifier: TextDocumentIdentifier{
+			// 				URI: params.TextDocument.URI,
+			// 			},
+			// 		},
+			// 	},
+
+			// string(params.TextDocument.URI): {
+			// 	{
+			// 		NewText: "HELLO!",
+			// 		Range: Range{
+			// 			Start: Position{0, 0},
+			// 			End:   Position{0, 1},
+			// 		},
+			// 	},
+			// },
+			// },
+			Changes: map[string][]TextEdit{
+				string(params.TextDocument.URI): {
+					{
+						NewText: "HELLO!",
+						Range: Range{
+							Start: Position{0, 0},
+							End:   Position{0, 10},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 	doc, ok := state.documents[params.TextDocument.URI]
 	if !ok {
@@ -170,6 +239,7 @@ func Handle(r jsonrpc2.Request, state *State) any {
 				HoverProvider:          true,
 				DefinitionProvider:     true,
 				DocumentSymbolProvider: true,
+				CodeActionProvider:     true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -198,6 +268,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		var p HoverParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleHover(p)
+
+	case "textDocument/codeAction":
+		var p CodeActionParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleCodeAction(p)
 
 	case "textDocument/definition":
 		var p DefinitionParams

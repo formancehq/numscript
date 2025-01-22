@@ -28,7 +28,6 @@ func SendNotification(method string, params interface{}) {
 		Method: method,
 		Params: &rawParams,
 	})
-	os.Stderr.Write([]byte(encoded))
 	_, err = fmt.Print(encoded)
 	if err != nil {
 		panic(err)
