@@ -31,6 +31,7 @@ builds:
     flags:
       - -scheduler=none
       - -no-debug
+      - -target=wasi
 
 checksum:
   name_template: "numscript_checksums.txt"
