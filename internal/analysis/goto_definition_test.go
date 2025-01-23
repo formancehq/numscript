@@ -3,8 +3,8 @@ package analysis_test
 import (
 	"testing"
 
-	"github.com/PagoPlus/numscriptex/internal/analysis"
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/analysis"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

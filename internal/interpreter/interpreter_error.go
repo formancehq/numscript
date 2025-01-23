@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 )
 
 type MissingFundsErr struct {

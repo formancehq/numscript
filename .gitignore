@@ -8,3 +8,14 @@ coverage.*
 
 numscript
 numscript.wasm
+
+
+# WASM builds
+build/
+*.wasm
+
+# Go specific
+/vendor/
+/bin/
+*.test
+/coverage.txt

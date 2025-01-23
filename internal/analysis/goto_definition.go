@@ -1,6 +1,6 @@
 package analysis
 
-import "github.com/PagoPlus/numscriptex/internal/parser"
+import "github.com/PagoPlus/numscript-wasm/internal/parser"
 
 type GotoDefinitionResult struct {
 	Range parser.Range

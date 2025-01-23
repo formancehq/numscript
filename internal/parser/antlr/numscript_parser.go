@@ -1,7 +1,6 @@
 // Code generated from Numscript.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package parser // Numscript
-
 import (
 	"fmt"
 	"strconv"

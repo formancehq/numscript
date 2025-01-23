@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/assert"
 )

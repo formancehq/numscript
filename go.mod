@@ -1,8 +1,6 @@
-module github.com/PagoPlus/numscriptex
+module github.com/PagoPlus/numscript-wasm
 
 go 1.22.1
-
-replace github.com/PagoPlus/numscriptex => github.com/PagoPlus/numscriptex v0.0.0-20241202132127-f10ae2504bbc
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"math/big"
 
-	machine "github.com/PagoPlus/numscriptex/internal/interpreter"
+	machine "github.com/PagoPlus/numscript-wasm/internal/interpreter"
 
 	"testing"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

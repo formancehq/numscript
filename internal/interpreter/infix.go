@@ -3,7 +3,7 @@ package interpreter
 import (
 	"math/big"
 
-	"github.com/PagoPlus/numscriptex/internal/parser"
+	"github.com/PagoPlus/numscript-wasm/internal/parser"
 )
 
 type opAdd interface {
