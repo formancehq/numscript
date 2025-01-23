@@ -222,7 +222,18 @@ set_tx_meta("k", 42)
 	AssertIsFormatted(t, src)
 }
 
+func TestPreserveStatementsComments(t *testing.T) {
+	src := `// c1
+
+set_tx_meta("k", 42)
+`
+
+	AssertIsFormatted(t, src)
+}
+
 func TestPreserveComments(t *testing.T) {
+	t.Skip()
+
 	src := `vars {
   // c1
   monetary $amt

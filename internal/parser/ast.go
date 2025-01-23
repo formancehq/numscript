@@ -309,7 +309,13 @@ type VarDeclaration struct {
 	Origin *FnCall
 }
 
+type Comment struct {
+	Range
+	Content string
+}
+
 type Program struct {
 	Vars       []VarDeclaration
 	Statements []Statement
+	Comments   []Comment
 }
