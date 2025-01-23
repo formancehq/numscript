@@ -192,20 +192,31 @@ func fmtVars(vars []parser.VarDeclaration) string {
 	return fmt.Sprintf("vars %s\n", block(strings.Join(lines, "\n"))) + "\n"
 }
 
-func fmtStatements(statements []parser.Statement) string {
+func fmtStatements(comments []parser.Comment, statements []parser.Statement) string {
 	if len(statements) == 0 {
 		return ""
 	}
 
 	var statementsDocs []string
 	for _, statement := range statements {
+		if len(comments) != 0 {
+			lastComment := comments[len(comments)-1]
+
+			if !lastComment.End.GtEq(statement.GetRange().Start) {
+				cmt := strings.TrimRight(lastComment.Content, "\n")
+				statementsDocs = append(statementsDocs, cmt)
+				comments = comments[0 : len(comments)-1]
+			}
+
+		}
+
 		statementsDocs = append(statementsDocs, fmtStatement(statement))
 	}
 	return strings.Join(statementsDocs, "\n\n") + "\n"
 }
 
 func fmtProgram(program parser.Program) string {
-	return fmt.Sprint(fmtVars(program.Vars), fmtStatements(program.Statements))
+	return fmt.Sprint(fmtVars(program.Vars), fmtStatements(program.Comments, program.Statements))
 }
 
 func fmtStatement(statement parser.Statement) string {

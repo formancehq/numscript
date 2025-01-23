@@ -4,7 +4,7 @@ grammar Numscript;
 WS: [ \t\r\n]+ -> skip;
 NEWLINE: [\r\n]+;
 MULTILINE_COMMENT: '/*' (MULTILINE_COMMENT | .)*? '*/' -> skip;
-LINE_COMMENT: '//' .*? NEWLINE -> skip;
+LINE_COMMENT: '//' .*? NEWLINE -> channel(HIDDEN);
 
 VARS: 'vars';
 MAX: 'max';
