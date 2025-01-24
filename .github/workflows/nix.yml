@@ -2,39 +2,24 @@ name: Nix CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  configure:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: set-matrix
-        run: echo "matrix=$(nixci gh-matrix --systems=x86_64-linux,aarch64-darwin | jq -c .)" >> $GITHUB_OUTPUT
-
-  nix:
-    runs-on: ${{ matrix.system }}
-    permissions:
-      contents: read
-    needs: configure
+  tests:
+    runs-on: ${{ matrix.os }}
     strategy:
-      matrix: ${{ fromJson(needs.configure.outputs.matrix) }}
-      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        system: [x86_64-linux, aarch64-darwin]
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          nixci \
-            --extra-access-tokens "github.com=${{ secrets.GITHUB_TOKEN }}" \
-            build \
-            --systems "${{ matrix.system }}" \
-            .#default.${{ matrix.subflake}}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - uses: cachix/install-nix-action@v25
         with:
-          name: numscript-wasm-${{ matrix.system }}
-          path: build/numscript.wasm
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: DeterminateSystems/magic-nix-cache-action@v2
+      - run: |
+          nix build \
+            --extra-access-tokens "github.com=${{ secrets.GITHUB_TOKEN }}" \
+            .#default

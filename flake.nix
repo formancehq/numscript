@@ -22,7 +22,7 @@
             (with darwin.apple_sdk.frameworks; [ CoreFoundation CoreServices ]);
 
       in with pkgs; {
-        devShells.default = mkShell {
+        packages.default = mkShell {
           name = "numscript-wasm";
           packages = inputs;
 
