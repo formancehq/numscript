@@ -30,8 +30,8 @@ jobs:
 
       - name: Install TinyGo
         run: |
-          wget -P tmp/ https://github.com/tinygo-org/tinygo/releases/download/v0.34.0/tinygo_0.34.0_amd64.deb
-          sudo dpkg -i tmp/tinygo_0.34.0_amd64.deb
+          wget -P /tmp/ https://github.com/tinygo-org/tinygo/releases/download/v0.34.0/tinygo_0.34.0_amd64.deb
+          sudo dpkg -i /tmp/tinygo_0.34.0_amd64.deb
 
       - name: Get dependencies
         run: |
