@@ -37,7 +37,7 @@ checksum:
   name_template: "numscript_checksums.txt"
 
 archives:
-  - format: binary
+  - formats: binary
     name_template: "numscript"
 
 changelog:
