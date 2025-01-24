@@ -2,9 +2,9 @@ name: Nix CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   tests:
@@ -22,10 +22,4 @@ jobs:
       - run: |
           nix build \
             --extra-access-tokens "github.com=${{ secrets.GITHUB_TOKEN }}" \
-            .#default.${{ matrix.system }}
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: numscript-wasm-${{ matrix.system }}
-          path: build/numscript.wasm
+            .#default
