@@ -65,14 +65,14 @@ parser.Program{
                 Start: parser.Position{},
                 End:   parser.Position{Character:1, Line:5},
             },
-            SentValue: nil,
-            Source:    &parser.SourceInorder{
+            SentValue: &parser.SentValueLiteral{
                 Range: parser.Range{
-                    Start: parser.Position{Character:11, Line:1},
-                    End:   parser.Position{Character:3, Line:3},
+                    Start: parser.Position{Character:6, Line:0},
+                    End:   parser.Position{Character:1, Line:5},
                 },
-                Sources: nil,
+                Monetary: nil,
             },
+            Source:      nil,
             Destination: nil,
         },
     },

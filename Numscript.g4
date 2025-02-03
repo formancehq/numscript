@@ -57,7 +57,8 @@ valueExpr:
 	| NUMBER												# numberLiteral
 	| monetaryLit											# monetaryLiteral
 	| portion												# portionLiteral
-	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
+	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr
+	| '(' valueExpr ')'										# parenthesizedExpr;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall:

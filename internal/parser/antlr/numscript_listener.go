@@ -32,6 +32,9 @@ type NumscriptListener interface {
 	// EnterStringLiteral is called when entering the stringLiteral production.
 	EnterStringLiteral(c *StringLiteralContext)
 
+	// EnterParenthesizedExpr is called when entering the parenthesizedExpr production.
+	EnterParenthesizedExpr(c *ParenthesizedExprContext)
+
 	// EnterAccountLiteral is called when entering the accountLiteral production.
 	EnterAccountLiteral(c *AccountLiteralContext)
 
@@ -151,6 +154,9 @@ type NumscriptListener interface {
 
 	// ExitStringLiteral is called when exiting the stringLiteral production.
 	ExitStringLiteral(c *StringLiteralContext)
+
+	// ExitParenthesizedExpr is called when exiting the parenthesizedExpr production.
+	ExitParenthesizedExpr(c *ParenthesizedExprContext)
 
 	// ExitAccountLiteral is called when exiting the accountLiteral production.
 	ExitAccountLiteral(c *AccountLiteralContext)

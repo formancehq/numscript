@@ -1897,13 +1897,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'max', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'max', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -2295,6 +2295,71 @@ parser.Program{
                         End:   parser.Position{Character:28, Line:1},
                     },
                     Number: 1234567,
+                },
+            },
+        },
+    },
+}
+---
+
+[TestParensInfixPrec - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:30, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:1},
+                        End:   parser.Position{Character:29, Line:1},
+                    },
+                    Operator: "+",
+                    Left:     &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:1},
+                            End:   parser.Position{Character:19, Line:1},
+                        },
+                        Number: 1,
+                    },
+                    Right: &parser.BinaryInfix{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:23, Line:1},
+                            End:   parser.Position{Character:28, Line:1},
+                        },
+                        Operator: "-",
+                        Left:     &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:23, Line:1},
+                                End:   parser.Position{Character:24, Line:1},
+                            },
+                            Number: 2,
+                        },
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:27, Line:1},
+                                End:   parser.Position{Character:28, Line:1},
+                            },
+                            Number: 3,
+                        },
+                    },
                 },
             },
         },
