@@ -4,7 +4,7 @@ package parser // Numscript
 
 import "github.com/antlr4-go/antlr/v4"
 
-// NumscriptListener is a complete listener for a parse tree produced by NumscriptParser.
+// NumscriptListener is a complete listener for a parse tree produced by Numscript.
 type NumscriptListener interface {
 	antlr.ParseTreeListener
 

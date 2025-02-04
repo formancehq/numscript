@@ -55,7 +55,7 @@ func Parse(input string) ParseResult {
 
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 
-	parser := parser.NewNumscriptParser(stream)
+	parser := parser.NewNumscript(stream)
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(listener)
 
