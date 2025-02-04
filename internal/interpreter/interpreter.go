@@ -113,7 +113,16 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, InterpreterError) {
+func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+	// Special case for top-level meta() call
+	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+		return s.handleFnCall(&type_, *fnCall)
+	}
+
+	return s.evaluateExpr(expr)
+}
+
+func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
 	args, err := s.evaluateExpressions(fnCall.Args)
 	if err != nil {
 		return nil, err
@@ -121,17 +130,16 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 	switch fnCall.Caller.Name {
 	case analysis.FnVarOriginMeta:
+		if type_ == nil {
+			// TODO return error
+			panic("invalid nested meta() call")
+		}
+
 		rawValue, err := meta(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
-
-		parsed, err := parseVar(type_, rawValue, fnCall.Range)
-		if err != nil {
-			return nil, err
-		}
-
-		return parsed, nil
+		return parseVar(*type_, rawValue, fnCall.Range)
 
 	case analysis.FnVarOriginBalance:
 		monetary, err := balance(s, fnCall.Range, args)
@@ -167,7 +175,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			}
 			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value, err := s.handleOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			value, err := s.handleFnOrigin(varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}

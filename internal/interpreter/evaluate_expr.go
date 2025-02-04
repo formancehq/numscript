@@ -84,6 +84,9 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			return nil, nil
 		}
 
+	case *parser.FnCall:
+		return st.handleFnCall(nil, *expr)
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](expr)
 		return nil, nil

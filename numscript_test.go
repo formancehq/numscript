@@ -417,6 +417,57 @@ send [USD/2 30] (
 
 }
 
+func TestMidscriptBalance(t *testing.T) {
+	parseResult := numscript.Parse(`
+send [USD/2 100] (
+	source = @bob allowing unbounded overdraft
+	destination = @alice
+)
+
+set_tx_meta(
+	"k",
+	balance(@alice, USD/2)
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"alice": interpreter.AccountBalance{
+					"USD/2": big.NewInt(20),
+				},
+			},
+		},
+	}
+	res, err := parseResult.Run(context.Background(), nil, &store)
+	require.Nil(t, err)
+
+	require.Equal(t, interpreter.Metadata{
+		"k": interpreter.NewMonetary("USD/2", 10),
+	}, res.Metadata)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"alice": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"alice": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
 type ObservableStore struct {
 	StaticStore      interpreter.StaticStore
 	GetBalancesCalls []numscript.BalanceQuery

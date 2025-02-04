@@ -22,6 +22,9 @@ type NumscriptListener interface {
 	// EnterInfixExpr is called when entering the infixExpr production.
 	EnterInfixExpr(c *InfixExprContext)
 
+	// EnterApplication is called when entering the application production.
+	EnterApplication(c *ApplicationContext)
+
 	// EnterAssetLiteral is called when entering the assetLiteral production.
 	EnterAssetLiteral(c *AssetLiteralContext)
 
@@ -147,6 +150,9 @@ type NumscriptListener interface {
 
 	// ExitInfixExpr is called when exiting the infixExpr production.
 	ExitInfixExpr(c *InfixExprContext)
+
+	// ExitApplication is called when exiting the application production.
+	ExitApplication(c *ApplicationContext)
 
 	// ExitAssetLiteral is called when exiting the assetLiteral production.
 	ExitAssetLiteral(c *AssetLiteralContext)

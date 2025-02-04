@@ -161,12 +161,11 @@ func (res *CheckResult) check() {
 				res.checkDuplicateVars(*varDecl.Name, varDecl)
 			}
 
-			if varDecl.Origin != nil {
-				res.checkVarOrigin(*varDecl.Origin, varDecl)
-			}
+		if varDecl.Origin != nil {
+			res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+			// res.checkFnCall(*varDecl.Origin, varDecl)
 		}
 	}
-
 	for _, statement := range res.Program.Statements {
 		res.unboundedAccountInSend = nil
 		res.checkStatement(statement)
@@ -302,13 +301,13 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 	}
 }
 
-func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDeclaration) {
+func (res *CheckResult) checkFnCall(fnCall parser.FnCall, requiredType string) {
 	resolution, ok := Builtins[fnCall.Caller.Name]
 	if ok {
 		resolution, ok := resolution.(VarOriginFnCallResolution)
 		if ok {
-			res.fnCallResolution[decl.Origin.Caller] = resolution
-			res.assertHasType(decl.Name, resolution.Return, decl.Type.Name)
+			res.fnCallResolution[fnCall.Caller] = resolution
+			res.assertHasType(&fnCall, requiredType, resolution.Return)
 		}
 	}
 
