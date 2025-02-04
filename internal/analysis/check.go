@@ -327,9 +327,7 @@ func (res *CheckResult) checkFnCall(fnCall parser.FnCall, requiredType string) {
 	if ok {
 		resolution, ok := resolution.(VarOriginFnCallResolution)
 		if ok {
-			// TODO ?
-			// res.fnCallResolution[decl.Origin.Caller] = resolution
-			// TODO probably not right
+			res.fnCallResolution[fnCall.Caller] = resolution
 			res.assertHasType(&fnCall, requiredType, resolution.Return)
 		}
 	}
