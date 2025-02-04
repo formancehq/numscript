@@ -73,7 +73,7 @@ func hoverOnVar(varDecl parser.VarDeclaration, position parser.Position) Hover {
 	}
 
 	if varDecl.Origin != nil {
-		hover := hoverOnFnCall(*varDecl.Origin, position)
+		hover := hoverOnExpression(*varDecl.Origin, position)
 		if hover != nil {
 			return hover
 		}
@@ -171,6 +171,8 @@ func hoverOnExpression(lit parser.ValueExpr, position parser.Position) Hover {
 			return hover
 		}
 
+	case *parser.FnCall:
+		return hoverOnFnCall(*lit, position)
 	}
 
 	return nil

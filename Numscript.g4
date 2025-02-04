@@ -57,13 +57,14 @@ valueExpr:
 	| NUMBER												# numberLiteral
 	| monetaryLit											# monetaryLiteral
 	| portion												# portionLiteral
-	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr;
+	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr
+	| functionCall											# application;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall:
 	fnName = (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
 
-varOrigin: EQ functionCall;
+varOrigin: EQ valueExpr;
 varDeclaration:
 	type_ = IDENTIFIER name = VARIABLE_NAME varOrigin?;
 varsDeclaration: VARS LBRACE varDeclaration* RBRACE;

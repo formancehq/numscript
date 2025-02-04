@@ -17,6 +17,7 @@ func (*RatioLiteral) valueExpr()    {}
 func (*NumberLiteral) valueExpr()   {}
 func (*StringLiteral) valueExpr()   {}
 func (*BinaryInfix) valueExpr()     {}
+func (*FnCall) valueExpr()          {}
 
 type InfixOperator string
 
@@ -252,7 +253,7 @@ type VarDeclaration struct {
 	Range
 	Name   *Variable
 	Type   *TypeDecl
-	Origin *FnCall
+	Origin *ValueExpr
 }
 
 type Program struct {

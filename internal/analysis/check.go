@@ -158,7 +158,8 @@ func (res *CheckResult) check() {
 		}
 
 		if varDecl.Origin != nil {
-			res.checkVarOrigin(*varDecl.Origin, varDecl)
+			res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+			// res.checkFnCall(*varDecl.Origin, varDecl)
 		}
 	}
 	for _, statement := range res.Program.Statements {
@@ -321,13 +322,15 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 	}
 }
 
-func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDeclaration) {
+func (res *CheckResult) checkFnCall(fnCall parser.FnCall, requiredType string) {
 	resolution, ok := Builtins[fnCall.Caller.Name]
 	if ok {
 		resolution, ok := resolution.(VarOriginFnCallResolution)
 		if ok {
-			res.fnCallResolution[decl.Origin.Caller] = resolution
-			res.assertHasType(decl.Name, resolution.Return, decl.Type.Name)
+			// TODO ?
+			// res.fnCallResolution[decl.Origin.Caller] = resolution
+			// TODO probably not right
+			res.assertHasType(&fnCall, requiredType, resolution.Return)
 		}
 	}
 
@@ -371,6 +374,8 @@ func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType strin
 	case *parser.BinaryInfix:
 		res.checkExpression(lit.Left, TypeAny)
 		res.checkExpression(lit.Right, TypeAny)
+	case *parser.FnCall:
+		res.checkFnCall(*lit, requiredType)
 	}
 }
 
