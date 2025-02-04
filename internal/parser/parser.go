@@ -113,16 +113,17 @@ func parseVarDeclaration(varDecl antlrParser.IVarDeclarationContext) *VarDeclara
 		return nil
 	}
 
-	var fnCallStatement *FnCall
+	var origin *ValueExpr
 	if varDecl.VarOrigin() != nil {
-		fnCallStatement = parseFnCall(varDecl.VarOrigin().FunctionCall())
+		expr := parseValueExpr(varDecl.VarOrigin().ValueExpr())
+		origin = &expr
 	}
 
 	return &VarDeclaration{
 		Range:  ctxToRange(varDecl),
 		Type:   parseVarType(varDecl.GetType_()),
 		Name:   parseVarLiteral(varDecl.GetName()),
-		Origin: fnCallStatement,
+		Origin: origin,
 	}
 }
 
@@ -345,6 +346,9 @@ func parseValueExpr(valueExprCtx antlrParser.IValueExprContext) ValueExpr {
 
 	case nil, *antlrParser.ValueExprContext:
 		return nil
+
+	case *antlrParser.ApplicationContext:
+		return parseFnCall(valueExprCtx.FunctionCall())
 
 	default:
 		return utils.NonExhaustiveMatchPanic[ValueExpr](valueExprCtx.GetText())
