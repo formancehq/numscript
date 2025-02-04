@@ -145,6 +145,17 @@ func hoverOnExpression(lit parser.ValueExpr, position parser.Position) Hover {
 	}
 
 	switch lit := lit.(type) {
+	case *parser.AccountInterpLiteral:
+		for _, part := range lit.Parts {
+			if v, ok := part.(*parser.Variable); ok {
+
+				hover := hoverOnExpression(v, position)
+				if hover != nil {
+					return hover
+				}
+			}
+		}
+
 	case *parser.Variable:
 		return &VariableHover{
 			Range: lit.Range,

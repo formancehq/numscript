@@ -193,3 +193,12 @@ type ExperimentalFeature struct {
 func (e ExperimentalFeature) Error() string {
 	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
 }
+
+type CannotCastToString struct {
+	parser.Range
+	Value Value
+}
+
+func (e CannotCastToString) Error() string {
+	return fmt.Sprintf("Cannot cast this value to string: %s", e.Value)
+}

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"math/big"
+	"strings"
 )
 
 type ValueExpr interface {
@@ -9,14 +10,14 @@ type ValueExpr interface {
 	valueExpr()
 }
 
-func (*Variable) valueExpr()        {}
-func (*AssetLiteral) valueExpr()    {}
-func (*MonetaryLiteral) valueExpr() {}
-func (*AccountLiteral) valueExpr()  {}
-func (*RatioLiteral) valueExpr()    {}
-func (*NumberLiteral) valueExpr()   {}
-func (*StringLiteral) valueExpr()   {}
-func (*BinaryInfix) valueExpr()     {}
+func (*Variable) valueExpr()             {}
+func (*AssetLiteral) valueExpr()         {}
+func (*MonetaryLiteral) valueExpr()      {}
+func (*AccountInterpLiteral) valueExpr() {}
+func (*RatioLiteral) valueExpr()         {}
+func (*NumberLiteral) valueExpr()        {}
+func (*StringLiteral) valueExpr()        {}
+func (*BinaryInfix) valueExpr()          {}
 
 type InfixOperator string
 
@@ -47,9 +48,9 @@ type (
 		Amount ValueExpr
 	}
 
-	AccountLiteral struct {
+	AccountInterpLiteral struct {
 		Range
-		Name string
+		Parts []AccountNamePart
 	}
 
 	RatioLiteral struct {
@@ -71,12 +72,41 @@ type (
 	}
 )
 
+type AccountNamePart interface{ accountNamePart() }
+type AccountTextPart struct{ Name string }
+
+func (AccountTextPart) accountNamePart() {}
+func (*Variable) accountNamePart()       {}
+
 func (r RatioLiteral) ToRatio() *big.Rat {
 	return new(big.Rat).SetFrac(r.Numerator, r.Denominator)
 }
 
-func (a *AccountLiteral) IsWorld() bool {
-	return a.Name == "world"
+func (a AccountInterpLiteral) IsWorld() bool {
+	if len(a.Parts) != 1 {
+		return false
+	}
+	switch part := a.Parts[0].(type) {
+	case AccountTextPart:
+		return part.Name == "world"
+
+	default:
+		return false
+	}
+}
+
+func (expr AccountInterpLiteral) String() string {
+	// TODO we might want to parse this instead of computing it
+	var parts []string
+	for _, part := range expr.Parts {
+		switch part := part.(type) {
+		case AccountTextPart:
+			parts = append(parts, part.Name)
+		case *Variable:
+			parts = append(parts, "$"+part.Name)
+		}
+	}
+	return strings.Join(parts, ":")
 }
 
 // Source exprs

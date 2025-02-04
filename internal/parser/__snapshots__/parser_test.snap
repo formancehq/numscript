@@ -34,21 +34,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:15, Line:1},
                     },
-                    Name: "src",
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -175,24 +179,28 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:22, Line:1},
                                     End:   parser.Position{Character:25, Line:1},
                                 },
-                                Name: "s1",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"s1"},
+                                },
                             },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -261,12 +269,14 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:13, Line:2},
                                     End:   parser.Position{Character:16, Line:2},
                                 },
-                                Name: "s1",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"s1"},
+                                },
                             },
                         },
                     },
@@ -290,12 +300,14 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:10, Line:3},
                                     End:   parser.Position{Character:13, Line:3},
                                 },
-                                Name: "s2",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"s2"},
+                                },
                             },
                         },
                     },
@@ -311,24 +323,28 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:16, Line:4},
                                     End:   parser.Position{Character:19, Line:4},
                                 },
-                                Name: "s3",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"s3"},
+                                },
                             },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:6},
                         End:   parser.Position{Character:18, Line:6},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -397,24 +413,28 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:24, Line:1},
                                     End:   parser.Position{Character:26, Line:1},
                                 },
-                                Name: "s",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"s"},
+                                },
                             },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -458,12 +478,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "s",
+                    Parts: {
+                        parser.AccountTextPart{Name:"s"},
+                    },
                 },
             },
             Destination: &parser.DestinationAllotment{
@@ -493,12 +515,14 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                ValueExpr: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountInterpLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:25, Line:2},
                                         End:   parser.Position{Character:27, Line:2},
                                     },
-                                    Name: "d",
+                                    Parts: {
+                                        parser.AccountTextPart{Name:"d"},
+                                    },
                                 },
                             },
                         },
@@ -551,12 +575,14 @@ parser.Program{
                     End:   parser.Position{Character:35, Line:1},
                 },
                 From: &parser.SourceAccount{
-                    ValueExpr: &parser.AccountLiteral{
+                    ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:31, Line:1},
                             End:   parser.Position{Character:35, Line:1},
                         },
-                        Name: "src",
+                        Parts: {
+                            parser.AccountTextPart{Name:"src"},
+                        },
                     },
                 },
                 Cap: &parser.MonetaryLiteral{
@@ -581,12 +607,14 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -635,12 +663,14 @@ parser.Program{
                     End:   parser.Position{Character:32, Line:1},
                 },
                 From: &parser.SourceAccount{
-                    ValueExpr: &parser.AccountLiteral{
+                    ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:28, Line:1},
                             End:   parser.Position{Character:32, Line:1},
                         },
-                        Name: "src",
+                        Parts: {
+                            parser.AccountTextPart{Name:"src"},
+                        },
                     },
                 },
                 Cap: &parser.Variable{
@@ -652,12 +682,14 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -712,12 +744,14 @@ parser.Program{
                             End:   parser.Position{Character:27, Line:2},
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:23, Line:2},
                                     End:   parser.Position{Character:27, Line:2},
                                 },
-                                Name: "src",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"src"},
+                                },
                             },
                         },
                         Cap: &parser.MonetaryLiteral{
@@ -742,32 +776,38 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
-                        ValueExpr: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:1, Line:3},
                                 End:   parser.Position{Character:3, Line:3},
                             },
-                            Name: "a",
+                            Parts: {
+                                parser.AccountTextPart{Name:"a"},
+                            },
                         },
                     },
                     &parser.SourceAccount{
-                        ValueExpr: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:1, Line:4},
                                 End:   parser.Position{Character:3, Line:4},
                             },
-                            Name: "b",
+                            Parts: {
+                                parser.AccountTextPart{Name:"b"},
+                            },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:6},
                         End:   parser.Position{Character:21, Line:6},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -811,21 +851,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:27, Line:1},
                         End:   parser.Position{Character:31, Line:1},
                     },
-                    Name: "src",
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:46, Line:1},
                         End:   parser.Position{Character:51, Line:1},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -861,21 +905,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:27, Line:2},
                         End:   parser.Position{Character:31, Line:2},
                     },
-                    Name: "src",
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:46, Line:2},
                         End:   parser.Position{Character:51, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -938,21 +986,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "a",
+                    Parts: {
+                        parser.AccountTextPart{Name:"a"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
                     },
-                    Name: "b",
+                    Parts: {
+                        parser.AccountTextPart{Name:"b"},
+                    },
                 },
             },
         },
@@ -996,12 +1048,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "s",
+                    Parts: {
+                        parser.AccountTextPart{Name:"s"},
+                    },
                 },
             },
             Destination: &parser.DestinationAllotment{
@@ -1031,12 +1085,14 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                ValueExpr: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountInterpLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:10, Line:3},
                                         End:   parser.Position{Character:12, Line:3},
                                     },
-                                    Name: "d",
+                                    Parts: {
+                                        parser.AccountTextPart{Name:"d"},
+                                    },
                                 },
                             },
                         },
@@ -1054,12 +1110,14 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                ValueExpr: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountInterpLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:14, Line:4},
                                         End:   parser.Position{Character:17, Line:4},
                                     },
-                                    Name: "d2",
+                                    Parts: {
+                                        parser.AccountTextPart{Name:"d2"},
+                                    },
                                 },
                             },
                         },
@@ -1125,24 +1183,28 @@ parser.Program{
                             Name: "x",
                         },
                         From: &parser.SourceAccount{
-                            ValueExpr: &parser.AccountLiteral{
+                            ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:9, Line:2},
                                     End:   parser.Position{Character:11, Line:2},
                                 },
-                                Name: "a",
+                                Parts: {
+                                    parser.AccountTextPart{Name:"a"},
+                                },
                             },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:4},
                         End:   parser.Position{Character:18, Line:4},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -1177,22 +1239,26 @@ parser.Program{
                     Start: parser.Position{Character:10, Line:1},
                     End:   parser.Position{Character:43, Line:1},
                 },
-                Address: &parser.AccountLiteral{
+                Address: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:10, Line:1},
                         End:   parser.Position{Character:14, Line:1},
                     },
-                    Name: "src",
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
                 },
                 Bounded: (*parser.ValueExpr)(nil),
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -1237,12 +1303,14 @@ parser.Program{
                 Bounded: (*parser.ValueExpr)(nil),
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -1306,12 +1374,14 @@ parser.Program{
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:20, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -1358,12 +1428,14 @@ parser.Program{
                 Name: "example_fn",
             },
             Args: {
-                &parser.AccountLiteral{
+                &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:0},
                         End:   parser.Position{Character:19, Line:0},
                     },
-                    Name: "example",
+                    Parts: {
+                        parser.AccountTextPart{Name:"example"},
+                    },
                 },
             },
         },
@@ -1484,12 +1556,14 @@ parser.Program{
                     Name: "origin_fn",
                 },
                 Args: {
-                    &parser.AccountLiteral{
+                    &parser.AccountInterpLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:30, Line:2},
                             End:   parser.Position{Character:41, Line:2},
                         },
-                        Name: "my_account",
+                        Parts: {
+                            parser.AccountTextPart{Name:"my_account"},
+                        },
                     },
                     &parser.StringLiteral{
                         Range: parser.Range{
@@ -1548,32 +1622,38 @@ parser.Program{
                 },
                 Sources: {
                     &parser.SourceAccount{
-                        ValueExpr: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:13, Line:1},
                                 End:   parser.Position{Character:16, Line:1},
                             },
-                            Name: "s1",
+                            Parts: {
+                                parser.AccountTextPart{Name:"s1"},
+                            },
                         },
                     },
                     &parser.SourceAccount{
-                        ValueExpr: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:17, Line:1},
                                 End:   parser.Position{Character:20, Line:1},
                             },
-                            Name: "s2",
+                            Parts: {
+                                parser.AccountTextPart{Name:"s2"},
+                            },
                         },
                     },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:18, Line:2},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -1604,12 +1684,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "s",
+                    Parts: {
+                        parser.AccountTextPart{Name:"s"},
+                    },
                 },
             },
             Destination: &parser.DestinationInorder{
@@ -1632,12 +1714,14 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                ValueExpr: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountInterpLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:12, Line:3},
                                         End:   parser.Position{Character:15, Line:3},
                                     },
-                                    Name: "d1",
+                                    Parts: {
+                                        parser.AccountTextPart{Name:"d1"},
+                                    },
                                 },
                             },
                         },
@@ -1677,12 +1761,14 @@ parser.Program{
                 },
                 Remaining: &parser.DestinationTo{
                     Destination: &parser.DestinationAccount{
-                        ValueExpr: &parser.AccountLiteral{
+                        ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:14, Line:5},
                                 End:   parser.Position{Character:17, Line:5},
                             },
-                            Name: "d3",
+                            Parts: {
+                                parser.AccountTextPart{Name:"d3"},
+                            },
                         },
                     },
                 },
@@ -1715,21 +1801,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:10, Line:1},
                         End:   parser.Position{Character:12, Line:1},
                     },
-                    Name: "a",
+                    Parts: {
+                        parser.AccountTextPart{Name:"a"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:2},
                         End:   parser.Position{Character:17, Line:2},
                     },
-                    Name: "b",
+                    Parts: {
+                        parser.AccountTextPart{Name:"b"},
+                    },
                 },
             },
         },
@@ -1773,12 +1863,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "s",
+                    Parts: {
+                        parser.AccountTextPart{Name:"s"},
+                    },
                 },
             },
             Destination: &parser.DestinationAllotment{
@@ -1843,12 +1935,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:2},
                         End:   parser.Position{Character:17, Line:2},
                     },
-                    Name: "world",
+                    Parts: {
+                        parser.AccountTextPart{Name:"world"},
+                    },
                 },
             },
             Destination: &parser.DestinationAllotment{
@@ -1878,12 +1972,15 @@ parser.Program{
                         },
                         To: &parser.DestinationTo{
                             Destination: &parser.DestinationAccount{
-                                ValueExpr: &parser.AccountLiteral{
+                                ValueExpr: &parser.AccountInterpLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:13, Line:4},
                                         End:   parser.Position{Character:22, Line:4},
                                     },
-                                    Name: "player:1",
+                                    Parts: {
+                                        parser.AccountTextPart{Name:"player"},
+                                        parser.AccountTextPart{Name:"1"},
+                                    },
                                 },
                             },
                         },
@@ -1897,13 +1994,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'max', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'max', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME_DEFAULT}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME_DEFAULT}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -1948,21 +2045,25 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:15, Line:1},
                     },
-                    Name: "src",
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
                 },
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:2},
                         End:   parser.Position{Character:21, Line:2},
                     },
-                    Name: "dest",
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
                 },
             },
         },
@@ -2005,12 +2106,14 @@ parser.Program{
                     },
                 },
             },
-            Amount: &parser.AccountLiteral{
+            Amount: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:22, Line:1},
                     End:   parser.Position{Character:28, Line:1},
                 },
-                Name: "alice",
+                Parts: {
+                    parser.AccountTextPart{Name:"alice"},
+                },
             },
         },
     },
@@ -2039,12 +2142,14 @@ parser.Program{
                     Asset: "EUR/2",
                 },
             },
-            Amount: &parser.AccountLiteral{
+            Amount: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:20, Line:1},
                     End:   parser.Position{Character:26, Line:1},
                 },
-                Name: "alice",
+                Parts: {
+                    parser.AccountTextPart{Name:"alice"},
+                },
             },
         },
     },
@@ -2295,6 +2400,90 @@ parser.Program{
                         End:   parser.Position{Character:28, Line:1},
                     },
                     Number: 1234567,
+                },
+            },
+        },
+    },
+}
+---
+
+[TestStringTemplate - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:18, Line:0},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{},
+                    End:   parser.Position{Character:11, Line:0},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:0},
+                        End:   parser.Position{Character:13, Line:0},
+                    },
+                    Number: 0,
+                },
+                &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:15, Line:0},
+                        End:   parser.Position{Character:17, Line:0},
+                    },
+                    Number: 42,
+                },
+            },
+        },
+    },
+}
+---
+
+[TestInterpAccount - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:29, Line:0},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{},
+                    End:   parser.Position{Character:11, Line:0},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:0},
+                        End:   parser.Position{Character:24, Line:0},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"abc"},
+                        parser.AccountTextPart{Name:"cde"},
+                        &parser.Variable{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:21, Line:0},
+                                End:   parser.Position{Character:24, Line:0},
+                            },
+                            Name: "id",
+                        },
+                    },
+                },
+                &parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:26, Line:0},
+                        End:   parser.Position{Character:28, Line:0},
+                    },
+                    Number: 42,
                 },
             },
         },

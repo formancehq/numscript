@@ -1,7 +1,6 @@
 // Code generated from Numscript.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
-package parser // Numscript
-
+package antlrParser // Numscript
 import "github.com/antlr4-go/antlr/v4"
 
 // BaseNumscriptListener is a complete listener for a parse tree produced by NumscriptParser.
@@ -38,6 +37,18 @@ func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
 
 // ExitPercentage is called when production percentage is exited.
 func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
+
+// EnterAccountTextPart is called when production accountTextPart is entered.
+func (s *BaseNumscriptListener) EnterAccountTextPart(ctx *AccountTextPartContext) {}
+
+// ExitAccountTextPart is called when production accountTextPart is exited.
+func (s *BaseNumscriptListener) ExitAccountTextPart(ctx *AccountTextPartContext) {}
+
+// EnterAccountVarPart is called when production accountVarPart is entered.
+func (s *BaseNumscriptListener) EnterAccountVarPart(ctx *AccountVarPartContext) {}
+
+// ExitAccountVarPart is called when production accountVarPart is exited.
+func (s *BaseNumscriptListener) ExitAccountVarPart(ctx *AccountVarPartContext) {}
 
 // EnterVariableExpr is called when production variableExpr is entered.
 func (s *BaseNumscriptListener) EnterVariableExpr(ctx *VariableExprContext) {}

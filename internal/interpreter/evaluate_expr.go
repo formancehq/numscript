@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"math/big"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
@@ -11,8 +12,28 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
 		return Asset(expr.Asset), nil
-	case *parser.AccountLiteral:
-		return AccountAddress(expr.Name), nil
+	case *parser.AccountInterpLiteral:
+		var parts []string
+		for _, part := range expr.Parts {
+			switch part := part.(type) {
+			case parser.AccountTextPart:
+				parts = append(parts, part.Name)
+			case *parser.Variable:
+				value, err := st.evaluateExpr(part)
+				if err != nil {
+					return nil, err
+				}
+				strValue, err := castToString(value, expr.Range)
+				if err != nil {
+					return nil, err
+				}
+				parts = append(parts, strValue)
+			}
+		}
+		name := strings.Join(parts, ":")
+		// TODO validate valid names
+		return AccountAddress(name), nil
+
 	case *parser.StringLiteral:
 		return String(expr.String), nil
 	case *parser.RatioLiteral:
@@ -123,4 +144,19 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 	}
 
 	return (*leftValue).evalSub(st, right)
+}
+
+func castToString(v Value, rng parser.Range) (string, InterpreterError) {
+	switch v := v.(type) {
+	case AccountAddress:
+		return v.String(), nil
+	case String:
+		return v.String(), nil
+	case MonetaryInt:
+		return v.String(), nil
+
+	default:
+		// No asset nor ratio can be implicitly cast to string
+		return "", CannotCastToString{Value: v, Range: rng}
+	}
 }

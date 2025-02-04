@@ -3543,3 +3543,33 @@ func TestSubMonetaries(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestAccountInterp(t *testing.T) {
+	script := `
+		vars {
+			number $id
+			string $status
+			account $acc
+		}
+ 		set_tx_meta("k", @acc:$id:$status:$acc)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"id": "42",
+			"status": "pending",
+			"acc": "user:001"
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.AccountAddress("acc:42:pending:user:001"),
+		},
+	}
+	test(t, tc)
+}
