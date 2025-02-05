@@ -378,7 +378,7 @@ func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType strin
 }
 
 func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string, actualType string) {
-	if requiredType == TypeAny || requiredType == actualType {
+	if requiredType == TypeAny || actualType == TypeAny || requiredType == actualType {
 		return
 	}
 

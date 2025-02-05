@@ -1060,16 +1060,16 @@ func TestCheckTypesOriginFn(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	require.Len(t, diagnostics, 1)
 
-	d1 := diagnostics[0]
-	assert.Equal(t,
-		&analysis.TypeMismatch{
-			Expected: "account",
-			Got:      "number",
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.RangeOfIndexed(input, `42`, 0),
+			Kind: &analysis.TypeMismatch{
+				Expected: "account",
+				Got:      "number",
+			},
 		},
-		d1.Kind,
-	)
+	}, diagnostics)
 }
 
 func TestCheckReturnTypeOriginFn(t *testing.T) {
@@ -1089,16 +1089,17 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	require.Len(t, diagnostics, 1)
 
-	d1 := diagnostics[0]
-	assert.Equal(t,
-		&analysis.TypeMismatch{
-			Expected: "monetary",
-			Got:      "account",
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.RangeOfIndexed(input, "balance(@account, EUR/2)", 0),
+			Kind: &analysis.TypeMismatch{
+				Expected: "account",
+				Got:      "monetary",
+			},
 		},
-		d1.Kind,
-	)
+	}, diagnostics)
+
 }
 
 func TestWorldOverdraft(t *testing.T) {
