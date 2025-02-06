@@ -1557,3 +1557,127 @@ func TestAllowExprAfterBoundedOverdraft(t *testing.T) {
 	diagnostics := analysis.CheckSource(input).Diagnostics
 	require.Empty(t, diagnostics)
 }
+
+func TestCheckPlus(t *testing.T) {
+	t.Parallel()
+
+	t.Run("error in number+portion", func(t *testing.T) {
+		input := `set_tx_meta("k", 1 + 1/2)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/2", 0),
+				Kind: &analysis.TypeMismatch{
+					Expected: "number",
+					Got:      "portion",
+				},
+			},
+		}, diagnostics)
+	})
+
+	t.Run("allow number+number", func(t *testing.T) {
+		input := `set_tx_meta("k", 1 + 2)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Empty(t, diagnostics)
+	})
+
+	t.Run("allow monetary+monetary", func(t *testing.T) {
+		input := `set_tx_meta("k", [EUR/2 10] + [EUR/2 20])`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Empty(t, diagnostics)
+	})
+
+	t.Run("error when left side is invalid", func(t *testing.T) {
+		input := `set_tx_meta("k", @acc + @acc)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@acc", 0),
+				Kind: &analysis.TypeMismatch{
+					Expected: "number|monetary",
+					Got:      "account",
+				},
+			},
+		}, diagnostics)
+	})
+
+	t.Run("no type error when left side is any", func(t *testing.T) {
+		input := `set_tx_meta("k", $unbound_var + @acc)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
+				Kind: &analysis.UnboundVariable{
+					Name: "unbound_var",
+				},
+			},
+		}, diagnostics)
+	})
+}
+
+func TestCheckMinus(t *testing.T) {
+	t.Parallel()
+
+	t.Run("error in number-portion", func(t *testing.T) {
+		input := `set_tx_meta("k", 1 - 1/2)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/2", 0),
+				Kind: &analysis.TypeMismatch{
+					Expected: "number",
+					Got:      "portion",
+				},
+			},
+		}, diagnostics)
+	})
+
+	t.Run("allow number-number", func(t *testing.T) {
+		input := `set_tx_meta("k", 1 - 2)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Empty(t, diagnostics)
+	})
+
+	t.Run("allow monetary-monetary", func(t *testing.T) {
+		input := `set_tx_meta("k", [EUR/2 10] - [EUR/2 20])`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Empty(t, diagnostics)
+	})
+
+	t.Run("error when left side is invalid", func(t *testing.T) {
+		input := `set_tx_meta("k", @acc - @acc)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@acc", 0),
+				Kind: &analysis.TypeMismatch{
+					Expected: "number|monetary",
+					Got:      "account",
+				},
+			},
+		}, diagnostics)
+	})
+
+	t.Run("no type error when left side is any", func(t *testing.T) {
+		input := `set_tx_meta("k", $unbound_var - @acc)`
+
+		diagnostics := analysis.CheckSource(input).Diagnostics
+		require.Equal(t, []analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
+				Kind: &analysis.UnboundVariable{
+					Name: "unbound_var",
+				},
+			},
+		}, diagnostics)
+	})
+}
