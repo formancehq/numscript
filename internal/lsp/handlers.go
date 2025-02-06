@@ -120,7 +120,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 	}
 }
 
-func (state *State) handleCodeAction(params CodeActionParams) *CodeAction {
+func (state *State) handleCodeAction(params CodeActionParams) []CodeAction {
 
 	// position := fromLspPosition(params.Position)
 
@@ -141,46 +141,48 @@ func (state *State) handleCodeAction(params CodeActionParams) *CodeAction {
 
 	// bs, _ := json.Marshal(params)
 	// os.Stderr.Write(bs)
-	return &CodeAction{
-		Title: "EXAMPLE code action",
-		Kind:  Refactor,
-		Edit: WorkspaceEdit{
+	return []CodeAction{
+		{
+			Title: "ACTION",
+			Kind:  QuickFix,
+			Edit: WorkspaceEdit{
 
-			// DocumentChanges: []TextDocumentEdit{
-			// 	{
-			// 		Edits: []TextEdit{
-			// 			{
-			// 				NewText: "HELLO!",
-			// 				Range: Range{
-			// 					Start: Position{0, 0},
-			// 					End:   Position{0, 1},
-			// 				},
-			// 			},
-			// 		},
-			// 		TextDocument: OptionalVersionedTextDocumentIdentifier{
-			// 			TextDocumentIdentifier: TextDocumentIdentifier{
-			// 				URI: params.TextDocument.URI,
-			// 			},
-			// 		},
-			// 	},
+				// DocumentChanges: []TextDocumentEdit{
+				// 	{
+				// 		Edits: []TextEdit{
+				// 			{
+				// 				NewText: "HELLO!",
+				// 				Range: Range{
+				// 					Start: Position{0, 0},
+				// 					End:   Position{0, 1},
+				// 				},
+				// 			},
+				// 		},
+				// 		TextDocument: OptionalVersionedTextDocumentIdentifier{
+				// 			TextDocumentIdentifier: TextDocumentIdentifier{
+				// 				URI: params.TextDocument.URI,
+				// 			},
+				// 		},
+				// 	},
 
-			// string(params.TextDocument.URI): {
-			// 	{
-			// 		NewText: "HELLO!",
-			// 		Range: Range{
-			// 			Start: Position{0, 0},
-			// 			End:   Position{0, 1},
-			// 		},
-			// 	},
-			// },
-			// },
-			Changes: map[string][]TextEdit{
-				string(params.TextDocument.URI): {
-					{
-						NewText: "HELLO!",
-						Range: Range{
-							Start: Position{0, 0},
-							End:   Position{0, 10},
+				// string(params.TextDocument.URI): {
+				// 	{
+				// 		NewText: "HELLO!",
+				// 		Range: Range{
+				// 			Start: Position{0, 0},
+				// 			End:   Position{0, 1},
+				// 		},
+				// 	},
+				// },
+				// },
+				Changes: map[string][]TextEdit{
+					string(params.TextDocument.URI): {
+						{
+							NewText: "NEW_TEXT",
+							Range: Range{
+								Start: Position{0, 0},
+								End:   Position{5, 20},
+							},
 						},
 					},
 				},
@@ -232,10 +234,7 @@ func Handle(r jsonrpc2.Request, state *State) any {
 	case "initialize":
 		return InitializeResult{
 			Capabilities: ServerCapabilities{
-				TextDocumentSync: TextDocumentSyncOptions{
-					OpenClose: true,
-					Change:    Full,
-				},
+				TextDocumentSync:       Full,
 				HoverProvider:          true,
 				DefinitionProvider:     true,
 				DocumentSymbolProvider: true,
