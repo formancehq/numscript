@@ -304,6 +304,9 @@ func parseStringLiteralCtx(stringCtx *parser.StringLiteralContext) *StringLitera
 
 func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
 	switch valueExprCtx := valueExprCtx.(type) {
+	case *parser.ParenthesizedExprContext:
+		return parseValueExpr(valueExprCtx.ValueExpr())
+
 	case *parser.AccountLiteralContext:
 		return &AccountLiteral{
 			Range: ctxToRange(valueExprCtx),

@@ -69,6 +69,12 @@ func (s *BaseNumscriptListener) EnterStringLiteral(ctx *StringLiteralContext) {}
 // ExitStringLiteral is called when production stringLiteral is exited.
 func (s *BaseNumscriptListener) ExitStringLiteral(ctx *StringLiteralContext) {}
 
+// EnterParenthesizedExpr is called when production parenthesizedExpr is entered.
+func (s *BaseNumscriptListener) EnterParenthesizedExpr(ctx *ParenthesizedExprContext) {}
+
+// ExitParenthesizedExpr is called when production parenthesizedExpr is exited.
+func (s *BaseNumscriptListener) ExitParenthesizedExpr(ctx *ParenthesizedExprContext) {}
+
 // EnterAccountLiteral is called when production accountLiteral is entered.
 func (s *BaseNumscriptListener) EnterAccountLiteral(ctx *AccountLiteralContext) {}
 
