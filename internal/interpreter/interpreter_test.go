@@ -543,6 +543,45 @@ func TestSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+func TestSendAllWhenNegative(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [USD/2 *] (
+		source = @users:001
+		destination = @platform
+)
+`)
+	tc.setBalance("users:001", "USD/2", -100)
+	tc.expected = CaseResult{
+		Postings: []Posting{}, // zero posting is trimmed
+		Error:    nil,
+	}
+	test(t, tc)
+}
+
+func TestSendAllWhenNegativeWithOverdraft(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [USD/2 *] (
+		source = @users:001 allowing overdraft up to [USD/2 150]
+		destination = @platform
+)
+`)
+	tc.setBalance("users:001", "USD/2", -100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(150 - 100),
+				Source:      "users:001",
+				Destination: "platform",
+			},
+		}, // zero posting is trimmed
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAllVariable(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `

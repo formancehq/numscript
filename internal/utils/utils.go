@@ -20,3 +20,15 @@ func MinBigInt(a *big.Int, b *big.Int) *big.Int {
 
 	return &min
 }
+
+func MaxBigInt(a *big.Int, b *big.Int) *big.Int {
+	var max big.Int
+
+	if a.Cmp(b) == 1 {
+		max.Set(a)
+	} else {
+		max.Set(b)
+	}
+
+	return &max
+}
