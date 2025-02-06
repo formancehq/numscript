@@ -532,11 +532,30 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			isLast := i == len(source.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
-			case *parser.Variable:
-				variableLiterals = append(variableLiterals, *allotment)
-				res.checkExpression(allotment, TypePortion)
-			case *parser.RatioLiteral:
-				sum.Add(sum, allotment.ToRatio())
+			case *parser.ValueExprAllotment:
+				switch expr := allotment.ValueExpr.(type) {
+				case *parser.Variable:
+					variableLiterals = append(variableLiterals, *expr)
+
+				case *parser.PercentageLiteral:
+					sum.Add(sum, expr.ToRatio())
+
+				case *parser.BinaryInfix:
+					if expr.Operator == "/" {
+						left, okl := expr.Left.(*parser.NumberLiteral)
+						right, okr := expr.Right.(*parser.NumberLiteral)
+						if okl && okr {
+							rat := big.NewRat(int64(left.Number), int64(right.Number))
+							sum.Add(sum, rat)
+						}
+					}
+				}
+
+				if v, ok := allotment.ValueExpr.(*parser.Variable); ok {
+					variableLiterals = append(variableLiterals, *v)
+				}
+				res.checkExpression(allotment.ValueExpr, TypePortion)
+
 			case *parser.RemainingAllotment:
 				if isLast {
 					remainingAllotment = allotment
@@ -595,7 +614,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 			case *parser.Variable:
 				variableLiterals = append(variableLiterals, *allotment)
 				res.checkExpression(allotment, TypePortion)
-			case *parser.RatioLiteral:
+			case *parser.PortionLiteral:
 				sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
 				if isLast {

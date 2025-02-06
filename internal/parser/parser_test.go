@@ -391,3 +391,19 @@ func TestAllowValidAssetNames(t *testing.T) {
 		})
 	}
 }
+
+func TestDivInfix(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta("k1", $x / $y)
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestDivVariableDenominator(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta("k1",  10/$y)
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

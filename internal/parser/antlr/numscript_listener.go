@@ -11,17 +11,8 @@ type NumscriptListener interface {
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
 
-	// EnterRatio is called when entering the ratio production.
-	EnterRatio(c *RatioContext)
-
-	// EnterPercentage is called when entering the percentage production.
-	EnterPercentage(c *PercentageContext)
-
 	// EnterVariableExpr is called when entering the variableExpr production.
 	EnterVariableExpr(c *VariableExprContext)
-
-	// EnterPortionLiteral is called when entering the portionLiteral production.
-	EnterPortionLiteral(c *PortionLiteralContext)
 
 	// EnterInfixExpr is called when entering the infixExpr production.
 	EnterInfixExpr(c *InfixExprContext)
@@ -43,6 +34,9 @@ type NumscriptListener interface {
 
 	// EnterNumberLiteral is called when entering the numberLiteral production.
 	EnterNumberLiteral(c *NumberLiteralContext)
+
+	// EnterPercentagePortionLiteral is called when entering the percentagePortionLiteral production.
+	EnterPercentagePortionLiteral(c *PercentagePortionLiteralContext)
 
 	// EnterFunctionCallArgs is called when entering the functionCallArgs production.
 	EnterFunctionCallArgs(c *FunctionCallArgsContext)
@@ -67,9 +61,6 @@ type NumscriptListener interface {
 
 	// EnterPortionedAllotment is called when entering the portionedAllotment production.
 	EnterPortionedAllotment(c *PortionedAllotmentContext)
-
-	// EnterPortionVariable is called when entering the portionVariable production.
-	EnterPortionVariable(c *PortionVariableContext)
 
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
@@ -140,17 +131,8 @@ type NumscriptListener interface {
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
 
-	// ExitRatio is called when exiting the ratio production.
-	ExitRatio(c *RatioContext)
-
-	// ExitPercentage is called when exiting the percentage production.
-	ExitPercentage(c *PercentageContext)
-
 	// ExitVariableExpr is called when exiting the variableExpr production.
 	ExitVariableExpr(c *VariableExprContext)
-
-	// ExitPortionLiteral is called when exiting the portionLiteral production.
-	ExitPortionLiteral(c *PortionLiteralContext)
 
 	// ExitInfixExpr is called when exiting the infixExpr production.
 	ExitInfixExpr(c *InfixExprContext)
@@ -172,6 +154,9 @@ type NumscriptListener interface {
 
 	// ExitNumberLiteral is called when exiting the numberLiteral production.
 	ExitNumberLiteral(c *NumberLiteralContext)
+
+	// ExitPercentagePortionLiteral is called when exiting the percentagePortionLiteral production.
+	ExitPercentagePortionLiteral(c *PercentagePortionLiteralContext)
 
 	// ExitFunctionCallArgs is called when exiting the functionCallArgs production.
 	ExitFunctionCallArgs(c *FunctionCallArgsContext)
@@ -196,9 +181,6 @@ type NumscriptListener interface {
 
 	// ExitPortionedAllotment is called when exiting the portionedAllotment production.
 	ExitPortionedAllotment(c *PortionedAllotmentContext)
-
-	// ExitPortionVariable is called when exiting the portionVariable production.
-	ExitPortionVariable(c *PortionVariableContext)
 
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)

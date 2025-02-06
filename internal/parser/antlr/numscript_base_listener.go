@@ -27,29 +27,11 @@ func (s *BaseNumscriptListener) EnterMonetaryLit(ctx *MonetaryLitContext) {}
 // ExitMonetaryLit is called when production monetaryLit is exited.
 func (s *BaseNumscriptListener) ExitMonetaryLit(ctx *MonetaryLitContext) {}
 
-// EnterRatio is called when production ratio is entered.
-func (s *BaseNumscriptListener) EnterRatio(ctx *RatioContext) {}
-
-// ExitRatio is called when production ratio is exited.
-func (s *BaseNumscriptListener) ExitRatio(ctx *RatioContext) {}
-
-// EnterPercentage is called when production percentage is entered.
-func (s *BaseNumscriptListener) EnterPercentage(ctx *PercentageContext) {}
-
-// ExitPercentage is called when production percentage is exited.
-func (s *BaseNumscriptListener) ExitPercentage(ctx *PercentageContext) {}
-
 // EnterVariableExpr is called when production variableExpr is entered.
 func (s *BaseNumscriptListener) EnterVariableExpr(ctx *VariableExprContext) {}
 
 // ExitVariableExpr is called when production variableExpr is exited.
 func (s *BaseNumscriptListener) ExitVariableExpr(ctx *VariableExprContext) {}
-
-// EnterPortionLiteral is called when production portionLiteral is entered.
-func (s *BaseNumscriptListener) EnterPortionLiteral(ctx *PortionLiteralContext) {}
-
-// ExitPortionLiteral is called when production portionLiteral is exited.
-func (s *BaseNumscriptListener) ExitPortionLiteral(ctx *PortionLiteralContext) {}
 
 // EnterInfixExpr is called when production infixExpr is entered.
 func (s *BaseNumscriptListener) EnterInfixExpr(ctx *InfixExprContext) {}
@@ -92,6 +74,12 @@ func (s *BaseNumscriptListener) EnterNumberLiteral(ctx *NumberLiteralContext) {}
 
 // ExitNumberLiteral is called when production numberLiteral is exited.
 func (s *BaseNumscriptListener) ExitNumberLiteral(ctx *NumberLiteralContext) {}
+
+// EnterPercentagePortionLiteral is called when production percentagePortionLiteral is entered.
+func (s *BaseNumscriptListener) EnterPercentagePortionLiteral(ctx *PercentagePortionLiteralContext) {}
+
+// ExitPercentagePortionLiteral is called when production percentagePortionLiteral is exited.
+func (s *BaseNumscriptListener) ExitPercentagePortionLiteral(ctx *PercentagePortionLiteralContext) {}
 
 // EnterFunctionCallArgs is called when production functionCallArgs is entered.
 func (s *BaseNumscriptListener) EnterFunctionCallArgs(ctx *FunctionCallArgsContext) {}
@@ -140,12 +128,6 @@ func (s *BaseNumscriptListener) EnterPortionedAllotment(ctx *PortionedAllotmentC
 
 // ExitPortionedAllotment is called when production portionedAllotment is exited.
 func (s *BaseNumscriptListener) ExitPortionedAllotment(ctx *PortionedAllotmentContext) {}
-
-// EnterPortionVariable is called when production portionVariable is entered.
-func (s *BaseNumscriptListener) EnterPortionVariable(ctx *PortionVariableContext) {}
-
-// ExitPortionVariable is called when production portionVariable is exited.
-func (s *BaseNumscriptListener) ExitPortionVariable(ctx *PortionVariableContext) {}
 
 // EnterRemainingAllotment is called when production remainingAllotment is entered.
 func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentContext) {}

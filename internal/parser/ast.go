@@ -9,14 +9,14 @@ type ValueExpr interface {
 	valueExpr()
 }
 
-func (*Variable) valueExpr()        {}
-func (*AssetLiteral) valueExpr()    {}
-func (*MonetaryLiteral) valueExpr() {}
-func (*AccountLiteral) valueExpr()  {}
-func (*RatioLiteral) valueExpr()    {}
-func (*NumberLiteral) valueExpr()   {}
-func (*StringLiteral) valueExpr()   {}
-func (*BinaryInfix) valueExpr()     {}
+func (*Variable) valueExpr()          {}
+func (*AssetLiteral) valueExpr()      {}
+func (*MonetaryLiteral) valueExpr()   {}
+func (*AccountLiteral) valueExpr()    {}
+func (*PercentageLiteral) valueExpr() {}
+func (*NumberLiteral) valueExpr()     {}
+func (*StringLiteral) valueExpr()     {}
+func (*BinaryInfix) valueExpr()       {}
 
 type InfixOperator string
 
@@ -52,10 +52,10 @@ type (
 		Name string
 	}
 
-	RatioLiteral struct {
+	PercentageLiteral struct {
 		Range
-		Numerator   *big.Int
-		Denominator *big.Int
+		Amount         *big.Int
+		FloatingDigits uint16
 	}
 
 	Variable struct {
@@ -71,8 +71,8 @@ type (
 	}
 )
 
-func (r RatioLiteral) ToRatio() *big.Rat {
-	return new(big.Rat).SetFrac(r.Numerator, r.Denominator)
+func (r PercentageLiteral) ToRatio() *big.Rat {
+	return new(big.Rat).SetFrac(r.Amount, big.NewInt(100))
 }
 
 func (a *AccountLiteral) IsWorld() bool {
@@ -135,8 +135,11 @@ type (
 type AllotmentValue interface{ allotmentValue() }
 
 func (*RemainingAllotment) allotmentValue() {}
-func (*RatioLiteral) allotmentValue()       {}
-func (*Variable) allotmentValue()           {}
+func (*ValueExprAllotment) allotmentValue() {}
+
+type ValueExprAllotment struct {
+	ValueExpr
+}
 
 type RemainingAllotment struct {
 	Range
