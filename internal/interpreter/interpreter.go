@@ -443,7 +443,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 	balance := s.getCachedBalance(*account, s.CurrentAsset)
 
 	// we sent balance+overdraft
-	sentAmt := new(big.Int).Add(balance, ovedraft)
+	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
 	s.pushSender(*account, sentAmt)
 	return sentAmt, nil
 }
