@@ -3539,7 +3539,7 @@ func TestAddInvalidLeftType(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{},
 		Error: machine.TypeError{
-			Expected: "monetary|number",
+			Expected: "monetary|number|string",
 			Value:    machine.Asset("EUR/2"),
 		},
 	}
@@ -3581,4 +3581,49 @@ func TestSubMonetaries(t *testing.T) {
 		},
 	}
 	test(t, tc)
+}
+
+func TestPlusStringOverload(t *testing.T) {
+	script := `
+		set_tx_meta("k", "a" + "b")
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.String("ab"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestToAccount(t *testing.T) {
+	script := `
+		vars {
+			account $acc = string_to_account("account_name")
+		}
+
+ 		send [COIN 10] (
+			source = @world
+			destination = $acc
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Source:      "world",
+				Destination: "account_name",
+				Amount:      big.NewInt(10),
+				Asset:       "COIN",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalStringToAccountFunctionFeatureFlag)
 }
