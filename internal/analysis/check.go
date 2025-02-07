@@ -3,6 +3,7 @@ package analysis
 import (
 	"math/big"
 	"slices"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
@@ -336,6 +337,11 @@ func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDecl
 }
 
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
+	actualType := res.checkTypeOf(lit)
+	res.assertHasType(lit, requiredType, actualType)
+}
+
+func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -350,32 +356,67 @@ func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType strin
 
 		resolved := res.ResolveVar(lit)
 		if resolved == nil || resolved.Type == nil || !isTypeAllowed(resolved.Type.Name) {
-			return
+			return TypeAny
 		}
-		res.assertHasType(lit, requiredType, resolved.Type.Name)
+		return resolved.Type.Name
 
 	case *parser.MonetaryLiteral:
-		res.assertHasType(lit, requiredType, TypeMonetary)
 		res.checkExpression(lit.Asset, TypeAsset)
 		res.checkExpression(lit.Amount, TypeNumber)
-	case *parser.AccountLiteral:
-		res.assertHasType(lit, requiredType, TypeAccount)
-	case *parser.RatioLiteral:
-		res.assertHasType(lit, requiredType, TypePortion)
-	case *parser.AssetLiteral:
-		res.assertHasType(lit, requiredType, TypeAsset)
-	case *parser.NumberLiteral:
-		res.assertHasType(lit, requiredType, TypeNumber)
-	case *parser.StringLiteral:
-		res.assertHasType(lit, requiredType, TypeString)
+		return TypeMonetary
+
 	case *parser.BinaryInfix:
-		res.checkExpression(lit.Left, TypeAny)
-		res.checkExpression(lit.Right, TypeAny)
+		switch lit.Operator {
+		case parser.InfixOperatorPlus:
+			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
+
+		case parser.InfixOperatorMinus:
+			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
+
+		default:
+			// we should never get here
+			// but just to be sure
+			res.checkExpression(lit.Left, TypeAny)
+			res.checkExpression(lit.Right, TypeAny)
+			return TypeAny
+		}
+
+	case *parser.AccountLiteral:
+		return TypeAccount
+	case *parser.RatioLiteral:
+		return TypePortion
+	case *parser.AssetLiteral:
+		return TypeAsset
+	case *parser.NumberLiteral:
+		return TypeNumber
+	case *parser.StringLiteral:
+		return TypeString
+
+	default:
+		return TypeAny
 	}
 }
 
+func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []string) string {
+	leftType := res.checkTypeOf(bin.Left)
+
+	if leftType == TypeAny || slices.Contains(allowed, leftType) {
+		res.checkExpression(bin.Right, leftType)
+		return leftType
+	}
+
+	res.Diagnostics = append(res.Diagnostics, Diagnostic{
+		Range: bin.Left.GetRange(),
+		Kind: &TypeMismatch{
+			Expected: strings.Join(allowed, "|"),
+			Got:      leftType,
+		},
+	})
+	return TypeAny
+}
+
 func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string, actualType string) {
-	if requiredType == TypeAny || requiredType == actualType {
+	if requiredType == TypeAny || actualType == TypeAny || requiredType == actualType {
 		return
 	}
 
