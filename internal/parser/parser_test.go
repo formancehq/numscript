@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -343,4 +344,28 @@ set_tx_meta("k1", 1 + (2 - 3))
 	`)
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestForbidInvalidAssetNames(t *testing.T) {
+	for _, name := range []string{"", "/", "EUR/", "/42"} {
+		t.Run(name, func(t *testing.T) {
+			p := parser.Parse(fmt.Sprintf(
+				`set_tx_meta("k1", %s)`,
+				name,
+			))
+			require.NotEmpty(t, p.Errors)
+		})
+	}
+}
+
+func TestAllowValidAssetNames(t *testing.T) {
+	for _, name := range []string{"EUR", "EUR/2", "TK123", "TK123/2"} {
+		t.Run(name, func(t *testing.T) {
+			p := parser.Parse(fmt.Sprintf(
+				`set_tx_meta("k1", %s)`,
+				name,
+			))
+			require.Empty(t, p.Errors)
+		})
+	}
 }

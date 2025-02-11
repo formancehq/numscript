@@ -40,7 +40,7 @@ IDENTIFIER: [a-z]+ [a-z_]*;
 NUMBER: MINUS? [0-9]+ ('_' [0-9]+)*;
 VARIABLE_NAME: '$' [a-z_]+ [a-z0-9_]*;
 ACCOUNT: '@' [a-zA-Z0-9_-]+ (':' [a-zA-Z0-9_-]+)*;
-ASSET: [A-Z/0-9]+;
+ASSET: [A-Z][A-Z0-9]* ('/' [0-9]+)?;
 
 monetaryLit:
 	LBRACKET (asset = valueExpr) (amt = valueExpr) RBRACKET;
