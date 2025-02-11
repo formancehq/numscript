@@ -128,6 +128,15 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		return nil
 
+	case *parser.SourceOneof:
+		for _, subSource := range source.Sources {
+			err := st.findBalancesQueries(subSource)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
 	case *parser.SourceCapped:
 		// TODO can this be optimized in some cases?
 		return st.findBalancesQueries(source.From)

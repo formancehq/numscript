@@ -503,6 +503,11 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.checkSource(source)
 		}
 
+	case *parser.SourceOneof:
+		for _, source := range source.Sources {
+			res.checkSource(source)
+		}
+
 	case *parser.SourceCapped:
 		onExit := res.enterCappedSource()
 
@@ -565,6 +570,13 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 		res.checkExpression(destination.ValueExpr, TypeAccount)
 
 	case *parser.DestinationInorder:
+		for _, clause := range destination.Clauses {
+			res.checkExpression(clause.Cap, TypeMonetary)
+			res.checkKeptOrDestination(clause.To)
+		}
+		res.checkKeptOrDestination(destination.Remaining)
+
+	case *parser.DestinationOneof:
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
 			res.checkKeptOrDestination(clause.To)

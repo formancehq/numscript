@@ -87,6 +87,7 @@ type Source interface {
 }
 
 func (*SourceInorder) source()   {}
+func (*SourceOneof) source()     {}
 func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
@@ -101,6 +102,12 @@ type (
 		Range
 		Sources []Source
 	}
+
+	SourceOneof struct {
+		Range
+		Sources []Source
+	}
+
 	SourceAllotment struct {
 		Range
 		Items []SourceAllotmentItem
@@ -143,6 +150,7 @@ type Destination interface {
 
 func (*DestinationAccount) destination()   {}
 func (*DestinationInorder) destination()   {}
+func (*DestinationOneof) destination()     {}
 func (*DestinationAllotment) destination() {}
 
 type (
@@ -152,11 +160,17 @@ type (
 
 	DestinationInorder struct {
 		Range
-		Clauses   []DestinationInorderClause
+		Clauses   []CappedKeptOrDestination
 		Remaining KeptOrDestination
 	}
 
-	DestinationInorderClause struct {
+	DestinationOneof struct {
+		Range
+		Clauses   []CappedKeptOrDestination
+		Remaining KeptOrDestination
+	}
+
+	CappedKeptOrDestination struct {
 		Range
 		Cap ValueExpr
 		To  KeptOrDestination

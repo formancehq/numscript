@@ -3582,3 +3582,203 @@ func TestSubMonetaries(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestOneofInSourceSendFirstBranch(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 15] (
+		source = oneof {
+			@a allowing unbounded overdraft // this branch succeeded
+			@empty
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(15),
+				Source:      "a",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofInSource(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 15] (
+		source = oneof {
+			@a allowing overdraft up to [GEM 14] // this doesn't succeed
+			@world
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(15),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofAllFailing(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 1] (
+		source = oneof {
+			@empty1
+			@empty2
+			@empty3
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MissingFundsErr{
+			Asset:     "GEM",
+			Needed:    *big.NewInt(1),
+			Available: *big.NewInt(0),
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM *] (
+		source = oneof {
+			@s1 // only this is executed
+			@s2
+			@s3
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s1", "GEM", 10)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "s1",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofSingleton(t *testing.T) {
+	tc := NewTestCase()
+	tc.setBalance("a", "GEM", 10)
+	tc.compile(t, `
+	send [GEM 10] (
+		source = oneof { @a }
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "a",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofDestinationFirstClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 10] (
+		source = @world
+		destination = oneof {
+			max [GEM 99999] to @a
+			remaining to @b
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "a",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofDestinationSecondClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 10] (
+		source = @world
+		destination = oneof {
+			max [GEM 9] to @a
+			max [GEM 10] to @b
+			remaining to @rem
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}
+
+func TestOneofDestinationRemainingClause(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [GEM 100] (
+		source = @world
+		destination = oneof {
+			max [GEM 9] to @a
+			max [GEM 10] to @b
+			remaining to @rem
+		}
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "GEM",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "rem",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+}

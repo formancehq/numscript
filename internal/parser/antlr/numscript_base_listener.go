@@ -187,6 +187,12 @@ func (s *BaseNumscriptListener) EnterSrcInorder(ctx *SrcInorderContext) {}
 // ExitSrcInorder is called when production srcInorder is exited.
 func (s *BaseNumscriptListener) ExitSrcInorder(ctx *SrcInorderContext) {}
 
+// EnterSrcOneof is called when production srcOneof is entered.
+func (s *BaseNumscriptListener) EnterSrcOneof(ctx *SrcOneofContext) {}
+
+// ExitSrcOneof is called when production srcOneof is exited.
+func (s *BaseNumscriptListener) ExitSrcOneof(ctx *SrcOneofContext) {}
+
 // EnterSrcCapped is called when production srcCapped is entered.
 func (s *BaseNumscriptListener) EnterSrcCapped(ctx *SrcCappedContext) {}
 
@@ -234,6 +240,12 @@ func (s *BaseNumscriptListener) EnterDestInorder(ctx *DestInorderContext) {}
 
 // ExitDestInorder is called when production destInorder is exited.
 func (s *BaseNumscriptListener) ExitDestInorder(ctx *DestInorderContext) {}
+
+// EnterDestOneof is called when production destOneof is entered.
+func (s *BaseNumscriptListener) EnterDestOneof(ctx *DestOneofContext) {}
+
+// ExitDestOneof is called when production destOneof is exited.
+func (s *BaseNumscriptListener) ExitDestOneof(ctx *DestOneofContext) {}
 
 // EnterAllotmentClauseDest is called when production allotmentClauseDest is entered.
 func (s *BaseNumscriptListener) EnterAllotmentClauseDest(ctx *AllotmentClauseDestContext) {}

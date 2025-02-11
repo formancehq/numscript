@@ -89,6 +89,9 @@ type NumscriptListener interface {
 	// EnterSrcInorder is called when entering the srcInorder production.
 	EnterSrcInorder(c *SrcInorderContext)
 
+	// EnterSrcOneof is called when entering the srcOneof production.
+	EnterSrcOneof(c *SrcOneofContext)
+
 	// EnterSrcCapped is called when entering the srcCapped production.
 	EnterSrcCapped(c *SrcCappedContext)
 
@@ -112,6 +115,9 @@ type NumscriptListener interface {
 
 	// EnterDestInorder is called when entering the destInorder production.
 	EnterDestInorder(c *DestInorderContext)
+
+	// EnterDestOneof is called when entering the destOneof production.
+	EnterDestOneof(c *DestOneofContext)
 
 	// EnterAllotmentClauseDest is called when entering the allotmentClauseDest production.
 	EnterAllotmentClauseDest(c *AllotmentClauseDestContext)
@@ -212,6 +218,9 @@ type NumscriptListener interface {
 	// ExitSrcInorder is called when exiting the srcInorder production.
 	ExitSrcInorder(c *SrcInorderContext)
 
+	// ExitSrcOneof is called when exiting the srcOneof production.
+	ExitSrcOneof(c *SrcOneofContext)
+
 	// ExitSrcCapped is called when exiting the srcCapped production.
 	ExitSrcCapped(c *SrcCappedContext)
 
@@ -235,6 +244,9 @@ type NumscriptListener interface {
 
 	// ExitDestInorder is called when exiting the destInorder production.
 	ExitDestInorder(c *DestInorderContext)
+
+	// ExitDestOneof is called when exiting the destOneof production.
+	ExitDestOneof(c *DestOneofContext)
 
 	// ExitAllotmentClauseDest is called when exiting the allotmentClauseDest production.
 	ExitAllotmentClauseDest(c *AllotmentClauseDestContext)

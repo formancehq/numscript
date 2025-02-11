@@ -27,6 +27,7 @@ var runStdinFlag bool
 var runOutFormatOpt string
 
 var overdraftFeatureFlag bool
+var oneOfFeatureFlag bool
 
 type inputOpts struct {
 	Script    string                       `json:"script"`
@@ -121,6 +122,9 @@ func run(path string) {
 	if overdraftFeatureFlag {
 		featureFlags[interpreter.ExperimentalOverdraftFunctionFeatureFlag] = struct{}{}
 	}
+	if oneOfFeatureFlag {
+		featureFlags[interpreter.ExperimentalOneofFeatureFlag] = struct{}{}
+	}
 
 	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
@@ -201,6 +205,7 @@ func getRunCmd() *cobra.Command {
 
 	// Feature flag
 	cmd.Flags().BoolVar(&overdraftFeatureFlag, interpreter.ExperimentalOverdraftFunctionFeatureFlag, false, "feature flag to enable the overdraft() function")
+	cmd.Flags().BoolVar(&oneOfFeatureFlag, interpreter.ExperimentalOneofFeatureFlag, false, "feature flag to enable the oneof combinator")
 
 	// Output options
 	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")

@@ -97,6 +97,43 @@ send [COIN 100] (
 		store.GetBalancesCalls)
 }
 
+func TestGetBalancesOneof(t *testing.T) {
+	parseResult := numscript.Parse(`
+send [COIN 100] (
+	source = oneof {
+		@a
+		@b
+		@world
+	}
+  	destination = @dest
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	_, err := parseResult.RunWithFeatureFlags(context.Background(), numscript.VariablesMap{
+		"s1": "source1",
+	},
+		&store,
+		map[string]struct{}{"experimental-oneof": {}},
+	)
+	require.Nil(t, err)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"a": {"COIN"},
+				"b": {"COIN"},
+			},
+		},
+		store.GetBalancesCalls)
+}
+
 func TestDoNotGetBalancesTwice(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = {

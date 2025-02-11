@@ -170,6 +170,16 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 			Sources: sources,
 		}
 
+	case *parser.SrcOneofContext:
+		var sources []Source
+		for _, sourceCtx := range sourceCtx.AllSource() {
+			sources = append(sources, parseSource(sourceCtx))
+		}
+		return &SourceOneof{
+			Range:   range_,
+			Sources: sources,
+		}
+
 	case *parser.SrcAllotmentContext:
 		var items []SourceAllotmentItem
 		for _, itemCtx := range sourceCtx.AllAllotmentClauseSrc() {
@@ -391,12 +401,24 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 		}
 
 	case *parser.DestInorderContext:
-		var inorderClauses []DestinationInorderClause
+		var inorderClauses []CappedKeptOrDestination
 		for _, destInorderClause := range destCtx.AllDestinationInOrderClause() {
 			inorderClauses = append(inorderClauses, parseDestinationInorderClause(destInorderClause))
 		}
 
 		return &DestinationInorder{
+			Range:     range_,
+			Clauses:   inorderClauses,
+			Remaining: parseKeptOrDestination(destCtx.KeptOrDestination()),
+		}
+
+	case *parser.DestOneofContext:
+		var inorderClauses []CappedKeptOrDestination
+		for _, destInorderClause := range destCtx.AllDestinationInOrderClause() {
+			inorderClauses = append(inorderClauses, parseDestinationInorderClause(destInorderClause))
+		}
+
+		return &DestinationOneof{
 			Range:     range_,
 			Clauses:   inorderClauses,
 			Remaining: parseKeptOrDestination(destCtx.KeptOrDestination()),
@@ -426,8 +448,8 @@ func parseDestination(destCtx parser.IDestinationContext) Destination {
 
 }
 
-func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseContext) DestinationInorderClause {
-	return DestinationInorderClause{
+func parseDestinationInorderClause(clauseCtx parser.IDestinationInOrderClauseContext) CappedKeptOrDestination {
+	return CappedKeptOrDestination{
 		Range: ctxToRange(clauseCtx),
 		Cap:   parseValueExpr(clauseCtx.ValueExpr()),
 		To:    parseKeptOrDestination(clauseCtx.KeptOrDestination()),
