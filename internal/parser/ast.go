@@ -72,7 +72,13 @@ type (
 )
 
 func (r PercentageLiteral) ToRatio() *big.Rat {
-	return new(big.Rat).SetFrac(r.Amount, big.NewInt(100))
+	denom := new(big.Int).Exp(
+		big.NewInt(10),
+		big.NewInt(int64(2+r.FloatingDigits)),
+		nil,
+	)
+
+	return new(big.Rat).SetFrac(r.Amount, denom)
 }
 
 func (a *AccountLiteral) IsWorld() bool {
