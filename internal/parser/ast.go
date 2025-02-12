@@ -23,6 +23,7 @@ type InfixOperator string
 const (
 	InfixOperatorPlus  InfixOperator = "+"
 	InfixOperatorMinus InfixOperator = "-"
+	InfixOperatorDiv   InfixOperator = "/"
 )
 
 type (
