@@ -624,9 +624,9 @@ func TestBadRemainingInDest(t *testing.T) {
 	input := `send [COIN 100] (
   	source = @a
   	destination = {
-			1/2 from @a
-			remaining from @b
-			1/2 from @c
+			1/2 to @a
+			remaining to @b
+			1/2 to @c
     }
 )`
 
@@ -721,12 +721,13 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 	t.Parallel()
 
-	input := `send [COIN 100] (
-   source = @src
-  	destination = {
-		1/3 to @d1
-		1/3 to @d2
-    }
+	input := `
+send [COIN 100] (
+	source = @src
+		destination = {
+			1/3 to @d1
+			1/3 to @d2
+		}
 )`
 
 	program := parser.Parse(input).Value
