@@ -769,7 +769,7 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 	for i, item := range items {
 		switch allotment := item.(type) {
 		case *parser.ValueExprAllotment:
-			rat, err := evaluateExprAs(s, allotment.ValueExpr, expectPortion)
+			rat, err := evaluateExprAs(s, allotment.Value, expectPortion)
 			if err != nil {
 				return nil, err
 			}

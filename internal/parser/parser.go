@@ -445,7 +445,7 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) AllotmentV
 
 	case *parser.PortionedAllotmentContext:
 		expr := parseValueExpr(allotmentCtx.ValueExpr())
-		return &ValueExprAllotment{ValueExpr: expr}
+		return &ValueExprAllotment{Value: expr}
 
 	case *parser.AllotmentContext:
 		return nil

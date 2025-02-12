@@ -145,7 +145,7 @@ func (*RemainingAllotment) allotmentValue() {}
 func (*ValueExprAllotment) allotmentValue() {}
 
 type ValueExprAllotment struct {
-	ValueExpr
+	Value ValueExpr
 }
 
 type RemainingAllotment struct {
