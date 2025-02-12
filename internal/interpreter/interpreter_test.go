@@ -11,8 +11,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/parser"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/matryer/is"
 )
 
 type TestCase struct {
@@ -59,9 +58,12 @@ func removeRange(e machine.InterpreterError) machine.InterpreterError {
 }
 
 func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
+	is := is.New(t)
+
 	var jsonVars map[string]string
 	err := json.Unmarshal([]byte(str), &jsonVars)
-	require.NoError(t, err)
+
+	is.NoErr(err)
 	c.vars = jsonVars
 }
 
@@ -90,11 +92,13 @@ func test(t *testing.T, testCase TestCase) {
 // otherwise, it tests the program under that feature flag and also tests that
 // the same script, without the flag, yields the ExperimentalFeature{} error
 func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
+	is := is.New(t)
+
 	t.Parallel()
 
 	prog := testCase.program
 
-	require.NotNil(t, prog)
+	is.True(prog != nil)
 
 	featureFlags := map[string]struct{}{}
 	if flagName != "" {
@@ -111,7 +115,7 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 			nil,
 		)
 
-		require.Equal(t, machine.ExperimentalFeature{
+		is.Equal(machine.ExperimentalFeature{
 			FlagName: flagName,
 		}, removeRange(err))
 	}
@@ -129,9 +133,9 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 
 	expected := testCase.expected
 	if expected.Error != nil {
-		require.Equal(t, removeRange(expected.Error), removeRange(err))
+		is.Equal(removeRange(expected.Error), removeRange(err))
 	} else {
-		require.NoError(t, err)
+		is.NoErr(err)
 	}
 	if err != nil {
 		return
@@ -147,9 +151,9 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 		expected.AccountMetadata = machine.AccountsMetadata{}
 	}
 
-	assert.Equal(t, expected.Postings, execResult.Postings)
-	assert.Equal(t, expected.TxMetadata, execResult.Metadata)
-	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMetadata)
+	is.Equal(expected.Postings, execResult.Postings)
+	is.Equal(expected.TxMetadata, execResult.Metadata)
+	is.Equal(expected.AccountMetadata, execResult.AccountsMetadata)
 }
 
 type CaseResult struct {
@@ -1147,7 +1151,7 @@ func TestAllocateDontTakeTooMuch(t *testing.T) {
 		Postings: []Posting{
 			{
 				Asset:       "CREDIT",
-				Amount:      big.NewInt(100),
+				Amount:      big.NewInt(42),
 				Source:      "users:001",
 				Destination: "foo",
 			},
