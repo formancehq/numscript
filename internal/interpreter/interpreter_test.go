@@ -1424,6 +1424,46 @@ func TestSourceAllotment(t *testing.T) {
 	test(t, tc)
 }
 
+func TestVariablePortionPart(t *testing.T) {
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `{
+		"num": "1",
+		"den": "3"
+	}`)
+
+	tc.compile(t, `
+	vars {
+		number $num
+		number $den
+	}
+
+	send [COIN 9] (
+		source = @world
+		destination = {
+			$num/3 to @a // 1/3
+			2/$den to @b // 2/3
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(3),
+				Source:      "world",
+				Destination: "a",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(6),
+				Source:      "world",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
 func TestInvalidSourceAllotmentSum(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (
