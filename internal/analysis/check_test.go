@@ -624,9 +624,9 @@ func TestBadRemainingInDest(t *testing.T) {
 	input := `send [COIN 100] (
   	source = @a
   	destination = {
-		1/2 from @a
-		remaining from @b
-		1/2 from @c
+			1/2 from @a
+			remaining from @b
+			1/2 from @c
     }
 )`
 
@@ -778,10 +778,10 @@ func TestAllotmentGt1ErrIfVariable(t *testing.T) {
 send [COIN 100] (
    source = @src
   	destination = {
-		2/3 to @d1
-		2/3 to @d2
-		$portion1 to @d3
-		$portion2 to @d4
+			2/3 to @d1
+			2/3 to @d2
+			$portion1 to @d3
+			$portion2 to @d4
     }
 )`
 
