@@ -373,6 +373,11 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 		case parser.InfixOperatorMinus:
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
 
+		case parser.InfixOperatorDiv:
+			res.checkExpression(lit.Left, TypeNumber)
+			res.checkExpression(lit.Right, TypeNumber)
+			return TypePortion
+
 		default:
 			// we should never get here
 			// but just to be sure
