@@ -8,8 +8,8 @@ import (
 type Hover interface{ hover() }
 
 type VariableHover struct {
-	Range parser.Range
-	Node  *parser.Variable
+	parser.Range
+	Node *parser.Variable
 }
 
 func (*VariableHover) hover() {}
@@ -229,8 +229,9 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 			}
 
 			switch allot := item.Allotment.(type) {
-			case parser.ValueExpr:
-				hover := hoverOnExpression(allot, position)
+			case *parser.RemainingAllotment: // Do nothing here (no nested expr)
+			case *parser.ValueExprAllotment:
+				hover := hoverOnExpression(allot.Value, position)
 				if hover != nil {
 					return hover
 				}
@@ -301,8 +302,8 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 			}
 
 			switch allot := item.Allotment.(type) {
-			case parser.ValueExpr:
-				hover := hoverOnExpression(allot, position)
+			case *parser.ValueExprAllotment:
+				hover := hoverOnExpression(allot.Value, position)
 				if hover != nil {
 					return hover
 				}

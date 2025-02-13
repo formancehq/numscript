@@ -161,7 +161,7 @@ parser.Program{
                             End:   parser.Position{Character:25, Line:1},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:13, Line:1},
                                     End:   parser.Position{Character:16, Line:1},
@@ -256,7 +256,7 @@ parser.Program{
                             End:   parser.Position{Character:16, Line:2},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.PercentageLiteral{
+                            Value: &parser.PercentageLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:4, Line:2},
                                     End:   parser.Position{Character:7, Line:2},
@@ -284,7 +284,7 @@ parser.Program{
                             End:   parser.Position{Character:13, Line:3},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:1, Line:3},
                                     End:   parser.Position{Character:4, Line:3},
@@ -400,7 +400,7 @@ parser.Program{
                             End:   parser.Position{Character:26, Line:1},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.PercentageLiteral{
+                            Value: &parser.PercentageLiteral{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:13, Line:1},
                                     End:   parser.Position{Character:18, Line:1},
@@ -494,7 +494,7 @@ parser.Program{
                             End:   parser.Position{Character:27, Line:2},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:18, Line:2},
                                     End:   parser.Position{Character:21, Line:2},
@@ -1041,7 +1041,7 @@ parser.Program{
                             End:   parser.Position{Character:12, Line:3},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:3, Line:3},
                                     End:   parser.Position{Character:6, Line:3},
@@ -1152,7 +1152,7 @@ parser.Program{
                             End:   parser.Position{Character:11, Line:2},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.Variable{
+                            Value: &parser.Variable{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:1, Line:2},
                                     End:   parser.Position{Character:3, Line:2},
@@ -1836,7 +1836,7 @@ parser.Program{
                             End:   parser.Position{Character:26, Line:2},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:18, Line:2},
                                     End:   parser.Position{Character:21, Line:2},
@@ -1915,7 +1915,7 @@ parser.Program{
                             End:   parser.Position{Character:22, Line:4},
                         },
                         Allotment: &parser.ValueExprAllotment{
-                            ValueExpr: &parser.BinaryInfix{
+                            Value: &parser.BinaryInfix{
                                 Range: parser.Range{
                                     Start: parser.Position{Character:4, Line:4},
                                     End:   parser.Position{Character:9, Line:4},
