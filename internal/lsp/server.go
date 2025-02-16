@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -37,24 +38,31 @@ func SendNotification(method string, params interface{}) {
 
 func RunServer[State any](args ServerArgs[State]) {
 	buf := NewMessageBuffer(os.Stdin)
+	mu := sync.Mutex{}
 
 	for {
 		request := buf.Read()
 
-		bytes, err := json.Marshal(args.Handler(request, &args.InitialState))
-		if err != nil {
-			panic(err)
-		}
+		go func() {
+			bytes, err := json.Marshal(args.Handler(request, &args.InitialState))
+			if err != nil {
+				panic(err)
+			}
 
-		rawMsg := json.RawMessage(bytes)
-		encoded := encodeMessage(jsonrpc2.Response{
-			ID:     request.ID,
-			Result: &rawMsg,
-		})
-		_, err = fmt.Print(encoded)
-		if err != nil {
-			panic(err)
-		}
+			rawMsg := json.RawMessage(bytes)
+			encoded := encodeMessage(jsonrpc2.Response{
+				ID:     request.ID,
+				Result: &rawMsg,
+			})
+
+			mu.Lock()
+			_, err = fmt.Print(encoded)
+			mu.Unlock()
+
+			if err != nil {
+				panic(err)
+			}
+		}()
 	}
 }
 
