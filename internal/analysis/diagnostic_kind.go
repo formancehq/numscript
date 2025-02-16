@@ -89,6 +89,7 @@ func (*DuplicateVariable) Severity() Severity {
 
 type UnboundVariable struct {
 	Name string
+	Type string
 }
 
 // TODO evaluate suggestion using Levenshtein distance
