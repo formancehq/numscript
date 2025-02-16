@@ -337,11 +337,11 @@ func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDecl
 }
 
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
-	actualType := res.checkTypeOf(lit)
+	actualType := res.checkTypeOf(lit, requiredType)
 	res.assertHasType(lit, requiredType, actualType)
 }
 
-func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
+func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -349,7 +349,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 		} else {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: lit.Range,
-				Kind:  &UnboundVariable{Name: lit.Name},
+				Kind:  &UnboundVariable{Name: lit.Name, Type: typeHint},
 			})
 		}
 		delete(res.unusedVars, lit.Name)
@@ -408,7 +408,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 }
 
 func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []string) string {
-	leftType := res.checkTypeOf(bin.Left)
+	leftType := res.checkTypeOf(bin.Left, allowed[0])
 
 	if leftType == TypeAny || slices.Contains(allowed, leftType) {
 		res.checkExpression(bin.Right, leftType)

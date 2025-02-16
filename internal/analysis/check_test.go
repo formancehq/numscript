@@ -98,11 +98,11 @@ func TestUnboundVarInSaveAccount(t *testing.T) {
 	assert.Equal(t,
 		[]analysis.Diagnostic{
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon"},
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon", 0),
 			},
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_acc"},
+				Kind:  &analysis.UnboundVariable{Name: "unbound_acc", Type: analysis.TypeAccount},
 				Range: parser.RangeOfIndexed(input, "$unbound_acc", 0),
 			},
 		},
@@ -126,11 +126,11 @@ func TestUnboundVarInInfixOp(t *testing.T) {
 	assert.Equal(t,
 		[]analysis.Diagnostic{
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon1"},
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon1", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon1", 0),
 			},
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon2"},
+				Kind:  &analysis.UnboundVariable{Name: "unbound_mon2", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon2", 0),
 			},
 		},
@@ -192,7 +192,7 @@ func TestUnboundVarInSource(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		&analysis.UnboundVariable{Name: "unbound_var"},
+		&analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 		d1.Kind,
 	)
 }
@@ -214,7 +214,7 @@ func TestUnboundVarInSourceOneof(t *testing.T) {
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
-				Kind:  &analysis.UnboundVariable{Name: "unbound_var"},
+				Kind:  &analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 			},
 		},
 		diagnostics,
@@ -244,7 +244,7 @@ func TestUnboundVarInDest(t *testing.T) {
 		d1.Range,
 	)
 	assert.Equal(t,
-		&analysis.UnboundVariable{Name: "unbound_var"},
+		&analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 		d1.Kind,
 	)
 }
@@ -1723,6 +1723,7 @@ func TestCheckPlus(t *testing.T) {
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
 				Kind: &analysis.UnboundVariable{
 					Name: "unbound_var",
+					Type: analysis.TypeNumber,
 				},
 			},
 		}, diagnostics)
@@ -1785,6 +1786,7 @@ func TestCheckMinus(t *testing.T) {
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
 				Kind: &analysis.UnboundVariable{
 					Name: "unbound_var",
+					Type: analysis.TypeNumber,
 				},
 			},
 		}, diagnostics)
