@@ -30,10 +30,12 @@ type BuiltinFnHover struct {
 func (*BuiltinFnHover) hover() {}
 
 func HoverOn(program parser.Program, position parser.Position) Hover {
-	for _, varDecl := range program.Vars {
-		hover := hoverOnVar(varDecl, position)
-		if hover != nil {
-			return hover
+	if program.Vars != nil {
+		for _, varDecl := range program.Vars.Declarations {
+			hover := hoverOnVar(varDecl, position)
+			if hover != nil {
+				return hover
+			}
 		}
 	}
 

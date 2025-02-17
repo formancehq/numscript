@@ -50,7 +50,7 @@ send [USD/2 100] (
 
 func TestCreateVarWhenAlreadyExistingVars(t *testing.T) {
 	initial := `vars {
-  account $account
+  monetary $example
 }
 
 send [USD/2 100] (
@@ -66,6 +66,57 @@ send [USD/2 100] (
 
 send [USD/2 100] (
   source = max $example from $account
+  destination = @b
+)
+`
+
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+	})
+
+}
+
+func TestCreateVarWhenAlreadyExistingVarsSameLine(t *testing.T) {
+	initial := `vars { account $account }
+
+send [USD/2 100] (
+  source = max $example from $account
+  destination = @b
+)
+`
+
+	final := `vars { account $account
+  account $account
+}
+
+send [USD/2 100] (
+  source = max $example from $account
+  destination = @b
+)
+`
+
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+	})
+
+}
+
+func TestCreateVarWhenEmptyVarsBlock(t *testing.T) {
+	initial := `vars {
+}
+
+send [USD/2 100] (
+  source = max [USD/2 100] from $account
+  destination = @b
+)
+`
+
+	final := `vars {
+  account $account
+}
+
+send [USD/2 100] (
+  source = max [USD/2 100] from $account
   destination = @b
 )
 `

@@ -269,7 +269,12 @@ type VarDeclaration struct {
 	Origin *FnCall
 }
 
+type VarDeclarations struct {
+	Range
+	Declarations []VarDeclaration
+}
+
 type Program struct {
-	Vars       []VarDeclaration
+	Vars       *VarDeclarations
 	Statements []Statement
 }
