@@ -5,27 +5,26 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
-	"os"
 	"strconv"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-type messageBuffer struct{ reader *bufio.Reader }
+type MessageBuffer struct{ reader *bufio.Reader }
 
-func newMessageBuffer(r io.Reader) messageBuffer {
-	return messageBuffer{
+func NewMessageBuffer(r io.Reader) MessageBuffer {
+	return MessageBuffer{
 		reader: bufio.NewReader(r),
 	}
 }
 
-func (mb *messageBuffer) Read() jsonrpc2.Request {
+func (mb *MessageBuffer) Read() (jsonrpc2.Request, bool) {
 	tpr := textproto.NewReader(mb.reader)
 
 	headers, err := tpr.ReadMIMEHeader()
 	if err != nil {
 		if err.Error() == "EOF" {
-			os.Exit(0)
+			return jsonrpc2.Request{}, false
 		}
 		panic(err)
 	}
@@ -45,11 +44,13 @@ func (mb *messageBuffer) Read() jsonrpc2.Request {
 		panic(fmt.Sprint("Missing bytes to read. Read: ", readBytes, ", total: ", len))
 	}
 
+	// panic("GOT GOT BYTES: " + string(bytes))
+
 	var req jsonrpc2.Request
 	err1 := req.UnmarshalJSON(bytes)
 	if err1 != nil {
 		panic(err1)
 	}
 
-	return req
+	return req, true
 }

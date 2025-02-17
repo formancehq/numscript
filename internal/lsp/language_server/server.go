@@ -34,7 +34,7 @@ func sendNotification(out io.Writer, writeMutex *sync.Mutex, method string, para
 }
 
 func RunServer[State any](args ServerArgs[State]) {
-	buf := newMessageBuffer(args.In)
+	buf := NewMessageBuffer(args.In)
 	mu := sync.Mutex{}
 
 	state := args.InitialState(func(method string, params any) {
@@ -42,7 +42,10 @@ func RunServer[State any](args ServerArgs[State]) {
 	})
 
 	for {
-		request := buf.Read()
+		request, ok := buf.Read()
+		if !ok {
+			return
+		}
 
 		go func() {
 			bytes, err := json.Marshal(args.Handler(request, state))
