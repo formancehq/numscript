@@ -40,7 +40,7 @@ func (state *State) updateDocument(uri DocumentURI, text string) {
 	})
 }
 
-func InitialState(notify func(method string, params any)) State {
+func initialState(notify func(method string, params any)) State {
 	return State{
 		notify:    notify,
 		documents: NewDocumentsStore[InMemoryDocument](),
@@ -160,7 +160,7 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
-func Handle(r jsonrpc2.Request, state State) any {
+func handle(r jsonrpc2.Request, state State) any {
 	switch r.Method {
 	case "initialize":
 		return InitializeResult{

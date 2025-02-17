@@ -3,7 +3,7 @@ package language_server
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 	"sync"
 
 	"github.com/sourcegraph/jsonrpc2"
@@ -12,9 +12,11 @@ import (
 type ServerArgs[State any] struct {
 	InitialState func(notify func(method string, params any)) State
 	Handler      func(r jsonrpc2.Request, state State) any
+	In           io.Reader
+	Out          io.Writer
 }
 
-func sendNotification(writeMutex *sync.Mutex, method string, params any) {
+func sendNotification(out io.Writer, writeMutex *sync.Mutex, method string, params any) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		panic(err)
@@ -27,16 +29,16 @@ func sendNotification(writeMutex *sync.Mutex, method string, params any) {
 	})
 
 	writeMutex.Lock()
-	os.Stdout.Write([]byte(encoded))
+	out.Write([]byte(encoded))
 	writeMutex.Unlock()
 }
 
 func RunServer[State any](args ServerArgs[State]) {
-	buf := newMessageBuffer(os.Stdin)
+	buf := newMessageBuffer(args.In)
 	mu := sync.Mutex{}
 
 	state := args.InitialState(func(method string, params any) {
-		sendNotification(&mu, method, params)
+		sendNotification(args.Out, &mu, method, params)
 	})
 
 	for {
@@ -55,7 +57,7 @@ func RunServer[State any](args ServerArgs[State]) {
 			})
 
 			mu.Lock()
-			os.Stdout.Write([]byte(encoded))
+			args.Out.Write([]byte(encoded))
 			mu.Unlock()
 		}()
 	}
