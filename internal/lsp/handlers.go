@@ -3,7 +3,6 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -18,10 +17,11 @@ type InMemoryDocument struct {
 }
 
 type State struct {
+	notify    func(method string, params any)
 	documents map[DocumentURI]InMemoryDocument
 }
 
-func (state *State) updateDocument(uri DocumentURI, text string, writeMutex *sync.Mutex) {
+func (state *State) updateDocument(uri DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
 	state.documents[uri] = InMemoryDocument{
@@ -34,14 +34,15 @@ func (state *State) updateDocument(uri DocumentURI, text string, writeMutex *syn
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	SendNotification(writeMutex, "textDocument/publishDiagnostics", PublishDiagnosticsParams{
+	state.notify("textDocument/publishDiagnostics", PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
 	})
 }
 
-func InitialState() State {
+func InitialState(notify func(method string, params any)) State {
 	return State{
+		notify:    notify,
 		documents: make(map[DocumentURI]InMemoryDocument),
 	}
 }
@@ -159,7 +160,7 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
-func Handle(r jsonrpc2.Request, state *State, writeMutex *sync.Mutex) any {
+func Handle(r jsonrpc2.Request, state State) any {
 	switch r.Method {
 	case "initialize":
 		return InitializeResult{
@@ -185,14 +186,14 @@ func Handle(r jsonrpc2.Request, state *State, writeMutex *sync.Mutex) any {
 	case "textDocument/didOpen":
 		var p DidOpenTextDocumentParams
 		json.Unmarshal([]byte(*r.Params), &p)
-		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text, writeMutex)
+		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text)
 		return nil
 
 	case "textDocument/didChange":
 		var p DidChangeTextDocumentParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		text := p.ContentChanges[len(p.ContentChanges)-1].Text
-		state.updateDocument(p.TextDocument.URI, text, writeMutex)
+		state.updateDocument(p.TextDocument.URI, text)
 		return nil
 
 	case "textDocument/hover":

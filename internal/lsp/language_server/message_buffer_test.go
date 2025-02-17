@@ -1,11 +1,9 @@
-package lsp_test
+package language_server
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-
-	lsp "github.com/formancehq/numscript/internal/lsp"
 )
 
 func encodePayload(payload string) *strings.Reader {
@@ -18,7 +16,7 @@ const mockPayload = `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"pr
 func TestBuf(t *testing.T) {
 	t.Parallel()
 
-	buf := lsp.NewMessageBuffer(encodePayload(mockPayload))
+	buf := newMessageBuffer(encodePayload(mockPayload))
 
 	got := buf.Read()
 
