@@ -18,7 +18,7 @@ type ParseResult struct {
 func (p ParseResult) GetNeededVariables() map[string]string {
 	m := make(map[string]string)
 
-	for _, varDecl := range p.parseResult.Value.Vars {
+	for _, varDecl := range p.parseResult.Value.Vars.Declarations {
 		if varDecl.Name == nil || varDecl.Origin != nil {
 			continue
 		}

@@ -149,19 +149,22 @@ func newCheckResult(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) check() {
-	for _, varDecl := range res.Program.Vars {
-		if varDecl.Type != nil {
-			res.checkVarType(*varDecl.Type)
-		}
+	if res.Program.Vars != nil {
+		for _, varDecl := range res.Program.Vars.Declarations {
+			if varDecl.Type != nil {
+				res.checkVarType(*varDecl.Type)
+			}
 
-		if varDecl.Name != nil {
-			res.checkDuplicateVars(*varDecl.Name, varDecl)
-		}
+			if varDecl.Name != nil {
+				res.checkDuplicateVars(*varDecl.Name, varDecl)
+			}
 
-		if varDecl.Origin != nil {
-			res.checkVarOrigin(*varDecl.Origin, varDecl)
+			if varDecl.Origin != nil {
+				res.checkVarOrigin(*varDecl.Origin, varDecl)
+			}
 		}
 	}
+
 	for _, statement := range res.Program.Statements {
 		res.unboundedAccountInSend = nil
 		res.checkStatement(statement)

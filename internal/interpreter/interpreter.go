@@ -205,9 +205,11 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 	}
 
-	err := st.parseVars(program.Vars, vars)
-	if err != nil {
-		return nil, err
+	if program.Vars != nil {
+		err := st.parseVars(program.Vars.Declarations, vars)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// preload balances before executing the script

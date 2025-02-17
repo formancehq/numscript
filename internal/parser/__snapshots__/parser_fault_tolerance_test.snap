@@ -1,21 +1,27 @@
 
 [TestFaultToleranceVarName - 1]
 parser.Program{
-    Vars: {
-        {
-            Range: parser.Range{
-                Start: parser.Position{Character:7, Line:0},
-                End:   parser.Position{Character:18, Line:0},
-            },
-            Name: (*parser.Variable)(nil),
-            Type: &parser.TypeDecl{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{},
+            End:   parser.Position{Character:21, Line:0},
+        },
+        Declarations: {
+            {
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:0},
-                    End:   parser.Position{Character:15, Line:0},
+                    End:   parser.Position{Character:18, Line:0},
                 },
-                Name: "monetary",
+                Name: (*parser.Variable)(nil),
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:7, Line:0},
+                        End:   parser.Position{Character:15, Line:0},
+                    },
+                    Name: "monetary",
+                },
+                Origin: (*parser.FnCall)(nil),
             },
-            Origin: (*parser.FnCall)(nil),
         },
     },
     Statements: nil,
@@ -24,7 +30,7 @@ parser.Program{
 
 [TestFaultToleranceSend - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -41,7 +47,7 @@ parser.Program{
 
 [TestFaultToleranceMonetary - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -58,7 +64,7 @@ parser.Program{
 
 [TestFaultToleranceNoAddr - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -81,7 +87,7 @@ parser.Program{
 
 [TestFaultToleranceInvalidDest - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -133,7 +139,7 @@ parser.Program{
 
 [TestFaultToleranceInvalidSrcTk - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -192,7 +198,7 @@ parser.Program{
 
 [TestFaultToleranceTrailingComma - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -223,7 +229,7 @@ parser.Program{
 
 [TestFaultToleranceDestinationNoRemainingMispelledFrom - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -310,27 +316,33 @@ parser.Program{
 
 [TestFaultToleranceIncompleteOrigin - 1]
 parser.Program{
-    Vars: {
-        {
-            Range: parser.Range{
-                Start: parser.Position{Character:1, Line:2},
-                End:   parser.Position{Character:11, Line:2},
-            },
-            Name: &parser.Variable{
-                Range: parser.Range{
-                    Start: parser.Position{Character:7, Line:2},
-                    End:   parser.Position{Character:9, Line:2},
-                },
-                Name: "a",
-            },
-            Type: &parser.TypeDecl{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{Character:0, Line:1},
+            End:   parser.Position{Character:1, Line:3},
+        },
+        Declarations: {
+            {
                 Range: parser.Range{
                     Start: parser.Position{Character:1, Line:2},
-                    End:   parser.Position{Character:6, Line:2},
+                    End:   parser.Position{Character:11, Line:2},
                 },
-                Name: "asset",
+                Name: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:7, Line:2},
+                        End:   parser.Position{Character:9, Line:2},
+                    },
+                    Name: "a",
+                },
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:6, Line:2},
+                    },
+                    Name: "asset",
+                },
+                Origin: (*parser.FnCall)(nil),
             },
-            Origin: (*parser.FnCall)(nil),
         },
     },
     Statements: nil,
@@ -339,7 +351,7 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
@@ -355,7 +367,7 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave2 - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
@@ -396,7 +408,7 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave3 - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
