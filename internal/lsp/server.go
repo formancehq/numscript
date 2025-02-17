@@ -55,7 +55,7 @@ func RunServer[State any](args ServerArgs[State]) {
 			})
 
 			mu.Lock()
-			fmt.Print(encoded)
+			os.Stdout.Write([]byte(encoded))
 			mu.Unlock()
 		}()
 	}
