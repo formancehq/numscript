@@ -76,19 +76,22 @@ func ParseErrorsToString(errors []ParserError, source string) string {
 	return buf
 }
 
-func parseVarsDeclaration(varsCtx parser.IVarsDeclarationContext) []VarDeclaration {
+func parseVarsDeclaration(varsCtx parser.IVarsDeclarationContext) *VarDeclarations {
 	if varsCtx == nil {
 		return nil
 	}
 
-	var vars []VarDeclaration
+	varBlock := VarDeclarations{
+		Range: ctxToRange(varsCtx),
+	}
+
 	for _, varDecl := range varsCtx.AllVarDeclaration() {
 		decl := parseVarDeclaration(varDecl)
 		if decl != nil {
-			vars = append(vars, *decl)
+			varBlock.Declarations = append(varBlock.Declarations, *decl)
 		}
 	}
-	return vars
+	return &varBlock
 }
 
 func parseProgram(programCtx parser.IProgramContext) Program {

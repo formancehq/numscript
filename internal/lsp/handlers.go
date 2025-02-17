@@ -158,6 +158,31 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
+func (state *State) handleCodeAction(params CodeActionParams) []CodeAction {
+	doc, ok := state.documents[params.TextDocument.URI]
+	if !ok {
+		return nil
+	}
+
+	var actions []CodeAction
+	for _, d := range doc.CheckResult.Diagnostics {
+		switch kind := d.Kind.(type) {
+		case *analysis.UnboundVariable:
+			actions = append(actions, CodeAction{
+				Title: "Create variable",
+				Kind:  QuickFix,
+				Edit: WorkspaceEdit{
+					Changes: map[string][]TextEdit{
+						string(params.TextDocument.URI): {CreateVar(*kind, doc.CheckResult.Program)},
+					},
+				},
+			})
+		}
+	}
+
+	return actions
+}
+
 func Handle(r jsonrpc2.Request, state *State) any {
 	switch r.Method {
 	case "initialize":
@@ -170,6 +195,7 @@ func Handle(r jsonrpc2.Request, state *State) any {
 				HoverProvider:          true,
 				DefinitionProvider:     true,
 				DocumentSymbolProvider: true,
+				CodeActionProvider:     true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -208,6 +234,11 @@ func Handle(r jsonrpc2.Request, state *State) any {
 		var p DocumentSymbolParams
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleGetSymbols(p)
+
+	case "textDocument/codeAction":
+		var p CodeActionParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleCodeAction(p)
 
 	default:
 		// Unhandled method

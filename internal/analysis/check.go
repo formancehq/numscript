@@ -149,19 +149,22 @@ func newCheckResult(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) check() {
-	for _, varDecl := range res.Program.Vars {
-		if varDecl.Type != nil {
-			res.checkVarType(*varDecl.Type)
-		}
+	if res.Program.Vars != nil {
+		for _, varDecl := range res.Program.Vars.Declarations {
+			if varDecl.Type != nil {
+				res.checkVarType(*varDecl.Type)
+			}
 
-		if varDecl.Name != nil {
-			res.checkDuplicateVars(*varDecl.Name, varDecl)
-		}
+			if varDecl.Name != nil {
+				res.checkDuplicateVars(*varDecl.Name, varDecl)
+			}
 
-		if varDecl.Origin != nil {
-			res.checkVarOrigin(*varDecl.Origin, varDecl)
+			if varDecl.Origin != nil {
+				res.checkVarOrigin(*varDecl.Origin, varDecl)
+			}
 		}
 	}
+
 	for _, statement := range res.Program.Statements {
 		res.unboundedAccountInSend = nil
 		res.checkStatement(statement)
@@ -337,11 +340,11 @@ func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDecl
 }
 
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
-	actualType := res.checkTypeOf(lit)
+	actualType := res.checkTypeOf(lit, requiredType)
 	res.assertHasType(lit, requiredType, actualType)
 }
 
-func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
+func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
@@ -349,7 +352,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 		} else {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: lit.Range,
-				Kind:  &UnboundVariable{Name: lit.Name},
+				Kind:  &UnboundVariable{Name: lit.Name, Type: typeHint},
 			})
 		}
 		delete(res.unusedVars, lit.Name)
@@ -398,7 +401,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 }
 
 func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []string) string {
-	leftType := res.checkTypeOf(bin.Left)
+	leftType := res.checkTypeOf(bin.Left, allowed[0])
 
 	if leftType == TypeAny || slices.Contains(allowed, leftType) {
 		res.checkExpression(bin.Right, leftType)
