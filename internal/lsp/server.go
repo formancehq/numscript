@@ -56,12 +56,8 @@ func RunServer[State any](args ServerArgs[State]) {
 			})
 
 			mu.Lock()
-			_, err = fmt.Print(encoded)
+			fmt.Print(encoded)
 			mu.Unlock()
-
-			if err != nil {
-				panic(err)
-			}
 		}()
 	}
 }
