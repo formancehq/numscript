@@ -16,9 +16,8 @@ const mockPayload = `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"pr
 func TestBuf(t *testing.T) {
 	t.Parallel()
 
-	buf := newMessageBuffer(encodePayload(mockPayload))
-
-	got := buf.Read()
+	buf := NewMessageBuffer(encodePayload(mockPayload))
+	got, _ := buf.Read()
 
 	if got.Method != "initialize" {
 		t.Errorf("expected: %s, got: %s", "initialize", got.Method)
