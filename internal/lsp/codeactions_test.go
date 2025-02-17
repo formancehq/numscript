@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/analysis"
 	lsp "github.com/formancehq/numscript/internal/lsp"
+	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ import (
 func performAction(t *testing.T,
 	initial string,
 	expected string,
-	toEdit func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit,
+	toEdit func(kind analysis.DiagnosticKind, program parser.Program) lsp_types.TextEdit,
 ) {
 	res := analysis.CheckSource(initial)
 	require.Len(t, res.Diagnostics, 1)
@@ -42,7 +43,7 @@ send [USD/2 100] (
 )
 `
 
-	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp_types.TextEdit {
 		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
@@ -70,7 +71,7 @@ send [USD/2 100] (
 )
 `
 
-	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp_types.TextEdit {
 		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
@@ -95,7 +96,7 @@ send [USD/2 100] (
 )
 `
 
-	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp_types.TextEdit {
 		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
@@ -121,7 +122,7 @@ send [USD/2 100] (
 )
 `
 
-	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp_types.TextEdit {
 		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
@@ -132,7 +133,7 @@ func TestPositionToOffset(t *testing.T) {
 def
 ghi`
 
-	require.Equal(t, positionToOffset(strings.Split(str, "\n"), lsp.Position{
+	require.Equal(t, positionToOffset(strings.Split(str, "\n"), lsp_types.Position{
 		Line:      1,
 		Character: 1,
 	}), 5)
@@ -148,10 +149,10 @@ c
 	require.Equal(t, `a
 ins___here
 c
-`, performEdit(initial, lsp.TextEdit{
-		Range: lsp.Range{
-			Start: lsp.Position{Line: 1, Character: 3},
-			End:   lsp.Position{Line: 1, Character: 5},
+`, performEdit(initial, lsp_types.TextEdit{
+		Range: lsp_types.Range{
+			Start: lsp_types.Position{Line: 1, Character: 3},
+			End:   lsp_types.Position{Line: 1, Character: 5},
 		},
 		NewText: "___",
 	}))
@@ -164,7 +165,7 @@ func TestPerformEdit2(t *testing.T) {
 	require.Equal(t, `LINE1
 LINE2
 
-abc`, performEdit(initial, lsp.TextEdit{
+abc`, performEdit(initial, lsp_types.TextEdit{
 		// Empty range
 		NewText: `LINE1
 LINE2
@@ -174,7 +175,7 @@ LINE2
 
 }
 
-func positionToOffset(lines []string, position lsp.Position) int {
+func positionToOffset(lines []string, position lsp_types.Position) int {
 	// TODO: check indexes are 0-based
 
 	offset := 0
@@ -188,7 +189,7 @@ func positionToOffset(lines []string, position lsp.Position) int {
 	return offset
 }
 
-func performEdit(initial string, textEdit lsp.TextEdit) string {
+func performEdit(initial string, textEdit lsp_types.TextEdit) string {
 	lines := strings.Split(initial, "\n")
 
 	startOffset := positionToOffset(lines, textEdit.Range.Start)
