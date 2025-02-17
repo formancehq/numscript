@@ -15,10 +15,10 @@ import (
 
 type ServerArgs[State any] struct {
 	InitialState State
-	Handler      func(r jsonrpc2.Request, state *State) any
+	Handler      func(r jsonrpc2.Request, state *State, writeMutex *sync.Mutex) any
 }
 
-func SendNotification(method string, params interface{}) {
+func SendNotification(writeMutex *sync.Mutex, method string, params interface{}) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		panic(err)
@@ -29,11 +29,10 @@ func SendNotification(method string, params interface{}) {
 		Method: method,
 		Params: &rawParams,
 	})
+
+	writeMutex.Lock()
 	os.Stderr.Write([]byte(encoded))
-	_, err = fmt.Print(encoded)
-	if err != nil {
-		panic(err)
-	}
+	writeMutex.Unlock()
 }
 
 func RunServer[State any](args ServerArgs[State]) {
@@ -44,7 +43,7 @@ func RunServer[State any](args ServerArgs[State]) {
 		request := buf.Read()
 
 		go func() {
-			bytes, err := json.Marshal(args.Handler(request, &args.InitialState))
+			bytes, err := json.Marshal(args.Handler(request, &args.InitialState, &mu))
 			if err != nil {
 				panic(err)
 			}
