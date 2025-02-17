@@ -18,16 +18,16 @@ type InMemoryDocument struct {
 
 type State struct {
 	notify    func(method string, params any)
-	documents map[DocumentURI]InMemoryDocument
+	documents documentStore[InMemoryDocument]
 }
 
 func (state *State) updateDocument(uri DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
-	state.documents[uri] = InMemoryDocument{
+	state.documents.Set(uri, InMemoryDocument{
 		Text:        text,
 		CheckResult: checkResult,
-	}
+	})
 
 	var diagnostics []Diagnostic = make([]Diagnostic, 0)
 	for _, diagnostic := range checkResult.Diagnostics {
@@ -43,14 +43,14 @@ func (state *State) updateDocument(uri DocumentURI, text string) {
 func InitialState(notify func(method string, params any)) State {
 	return State{
 		notify:    notify,
-		documents: make(map[DocumentURI]InMemoryDocument),
+		documents: NewDocumentsStore[InMemoryDocument](),
 	}
 }
 
 func (state *State) handleHover(params HoverParams) *Hover {
 	position := fromLspPosition(params.Position)
 
-	doc, ok := state.documents[params.TextDocument.URI]
+	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
 	}
@@ -123,7 +123,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 }
 
 func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
-	doc, ok := state.documents[params.TextDocument.URI]
+	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
 	}
@@ -141,7 +141,7 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 }
 
 func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymbol {
-	doc, ok := state.documents[params.TextDocument.URI]
+	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
 	}
