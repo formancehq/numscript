@@ -1,6 +1,7 @@
 package jsonrpc2_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/jsonrpc2"
@@ -13,16 +14,18 @@ func TestHandleRequest(t *testing.T) {
 		Y int `json:"y"`
 	}
 
-	server, client := newClientServer()
+	client := newClient(
+		jsonrpc2.NewRequestHandler("sum", func(p SumParams, conn *jsonrpc2.Conn) any {
+			return p.X + p.Y
+		}),
+	)
 
-	jsonrpc2.HandleRequest(server, "sum", func(p SumParams) any {
-		return p.X + p.Y
-	})
-
-	res, err := jsonrpc2.SendRequest[int](client, "sum", SumParams{X: 100, Y: 42})
+	raw, err := client.SendRequest("sum", SumParams{X: 100, Y: 42})
 	require.Nil(t, err)
 
-	require.Equal(t, 142, *res)
+	var res int
+	json.Unmarshal(raw, &res)
+	require.Equal(t, 142, res)
 }
 
 func TestHandleNotification(t *testing.T) {
@@ -30,14 +33,15 @@ func TestHandleNotification(t *testing.T) {
 		Value string `json:"value"`
 	}
 
-	server, client := newClientServer()
-
 	ch := make(chan string)
-	jsonrpc2.HandleNotification(server, "greet", func(p NotifParams) {
-		ch <- p.Value
-	})
 
-	err := jsonrpc2.SendNotification(client, "greet", NotifParams{
+	client := newClient(
+		jsonrpc2.NewNotificationHandler("greet", func(p NotifParams, conn *jsonrpc2.Conn) {
+			ch <- p.Value
+		}),
+	)
+
+	err := client.SendNotification("greet", NotifParams{
 		Value: "Hello!",
 	})
 	require.Nil(t, err)
@@ -45,16 +49,12 @@ func TestHandleNotification(t *testing.T) {
 	require.Equal(t, "Hello!", <-ch)
 }
 
-func newClientServer() (*jsonrpc2.Server, *jsonrpc2.Server) {
+func newClient(serverHandlers ...jsonrpc2.Handler) *jsonrpc2.Conn {
 	in := make(chan jsonrpc2.Message)
 	out := make(chan jsonrpc2.Message)
 
-	server := jsonrpc2.NewServer(jsonrpc2.NewChanObjStream(in, out))
+	jsonrpc2.NewConn(jsonrpc2.NewChanObjStream(in, out), serverHandlers...)
+	client := jsonrpc2.NewConn(jsonrpc2.NewChanObjStream(out, in))
 
-	client := jsonrpc2.NewServer(jsonrpc2.NewChanObjStream(out, in))
-
-	go server.Listen()
-	go client.Listen()
-
-	return server, client
+	return client
 }
