@@ -8,8 +8,8 @@ type ChanObjStream struct {
 
 var _ MessageStream = (*ChanObjStream)(nil)
 
-func NewChanObjStream(in <-chan Message, out chan<- Message) ChanObjStream {
-	return ChanObjStream{
+func NewChanObjStream(in <-chan Message, out chan<- Message) *ChanObjStream {
+	return &ChanObjStream{
 		in:  in,
 		out: out,
 	}
