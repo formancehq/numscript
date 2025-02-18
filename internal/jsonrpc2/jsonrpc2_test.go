@@ -21,11 +21,9 @@ func TestHandleRequest(t *testing.T) {
 		return p.X + p.Y
 	})
 	go server.Listen()
-	defer server.Close()
 
 	client := jsonrpc2.NewServer(jsonrpc2.NewChanObjStream(out, in))
 	go client.Listen()
-	defer server.Close()
 
 	res, err := jsonrpc2.SendRequest[int](client, "sum", SumParams{X: 100, Y: 42})
 	require.Nil(t, err)
