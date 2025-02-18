@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/json_rpc"
+	"github.com/formancehq/numscript/internal/jsonrpc2"
 	"github.com/formancehq/numscript/internal/lsp"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestObjectStreamWrite(t *testing.T) {
 
 	stream := lsp.NewLsObjectStream(NewRwCloser(), out)
 
-	msg := json_rpc.Request{
+	msg := jsonrpc2.Request{
 		Method: "updatedateConfig",
 		Params: []byte("{}"),
 	}
@@ -39,7 +39,7 @@ func TestObjectStreamRead(t *testing.T) {
 
 	stream := lsp.NewLsObjectStream(in, NewRwCloser())
 
-	sentMsg := json_rpc.Request{
+	sentMsg := jsonrpc2.Request{
 		Method: "updatedateConfig",
 		Params: []byte("{}"),
 	}
@@ -60,7 +60,7 @@ func TestObjectStreamSimmetric(t *testing.T) {
 	serverStream := lsp.NewLsObjectStream(in, out)
 	clientStream := lsp.NewLsObjectStream(out, in)
 
-	msg := json_rpc.Request{Method: "got-data", Params: []byte("{}")}
+	msg := jsonrpc2.Request{Method: "got-data", Params: []byte("{}")}
 
 	err := serverStream.WriteMessage(msg)
 	require.Nil(t, err)
