@@ -46,7 +46,7 @@ func (s *LsObjectStream) Close() error {
 	return nil
 }
 
-func (s *LsObjectStream) WriteObject(obj any) error {
+func (s *LsObjectStream) WriteMessage(obj json_rpc.Message) error {
 	bytes, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (s *LsObjectStream) WriteObject(obj any) error {
 	return nil
 }
 
-func (s *LsObjectStream) ReadObject() (*json.RawMessage, error) {
+func (s *LsObjectStream) ReadMessage() (json_rpc.Message, error) {
 	tpr := textproto.NewReader(s.reader)
 
 	headers, err := tpr.ReadMIMEHeader()
@@ -85,6 +85,5 @@ func (s *LsObjectStream) ReadObject() (*json.RawMessage, error) {
 		return nil, fmt.Errorf("missing bytes to read. Read: %d, total: %d", len, readBytes)
 	}
 
-	raw := json.RawMessage(bytes)
-	return &raw, nil
+	return json_rpc.UnmarshalMessage(bytes)
 }

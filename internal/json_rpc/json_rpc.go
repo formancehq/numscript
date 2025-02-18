@@ -2,17 +2,19 @@ package json_rpc
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 
+	"github.com/formancehq/numscript/internal/utils"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 type MessageStream interface {
 	io.Closer
-	WriteObject(obj any) error
-	ReadObject() (*json.RawMessage, error)
+	WriteMessage(obj Message) error
+	ReadMessage() (Message, error)
 }
 
 type requestHandler func(raw json.RawMessage) any
@@ -25,7 +27,7 @@ type Server struct {
 	requestsHandlers     map[string]requestHandler
 	notificationHandlers map[string]notificationHandler
 	pendingRequestMu     sync.RWMutex
-	pendingRequests      map[uint64](chan jsonrpc2.Response)
+	pendingRequests      map[uint64](chan Response)
 }
 
 // Create a new Server
@@ -37,7 +39,7 @@ func NewServer(objStream MessageStream) *Server {
 		stream:               objStream,
 		requestsHandlers:     map[string]requestHandler{},
 		notificationHandlers: map[string]notificationHandler{},
-		pendingRequests:      map[uint64](chan jsonrpc2.Response){},
+		pendingRequests:      map[uint64](chan Response){},
 	}
 }
 
@@ -70,18 +72,15 @@ func SendRequest(s *Server, method string, params any) (any, error) {
 		return nil, err
 	}
 
-	rawParams := json.RawMessage(bytes)
-
 	freshId := atomic.AddUint64(&s.currentId, 1)
 
-	s.stream.WriteObject(jsonrpc2.Request{
-		ID:     jsonrpc2.ID{Num: freshId},
-		Notif:  false,
+	s.stream.WriteMessage(Request{
+		ID:     &jsonrpc2.ID{Num: freshId},
 		Method: method,
-		Params: &rawParams,
+		Params: bytes,
 	})
 
-	ch := make(chan jsonrpc2.Response)
+	ch := make(chan Response)
 
 	s.pendingRequestMu.Lock()
 	s.pendingRequests[freshId] = ch
@@ -103,11 +102,9 @@ func SendNotification(s *Server, method string, params any) error {
 		return err
 	}
 
-	rawParams := json.RawMessage(bytes)
-	err = s.stream.WriteObject(jsonrpc2.Request{
-		Notif:  true,
+	err = s.stream.WriteMessage(Request{
 		Method: method,
-		Params: &rawParams,
+		Params: bytes,
 	})
 
 	return err
@@ -119,14 +116,14 @@ func (s *Server) Close() {
 	s.opened = false
 }
 
-func (s *Server) handleRequest(request jsonrpc2.Request) error {
-	if request.Notif {
+func (s *Server) handleRequest(request Request) error {
+	if request.IsNotification() {
 		handler, ok := s.notificationHandlers[request.Method]
 		if !ok {
 			return nil
 		}
 
-		go handler(*request.Params)
+		go handler(request.Params)
 	} else {
 		handler, ok := s.requestsHandlers[request.Method]
 		if !ok {
@@ -134,22 +131,20 @@ func (s *Server) handleRequest(request jsonrpc2.Request) error {
 		}
 
 		go func() {
-			out := handler(*request.Params)
+			out := handler(request.Params)
 
 			bytes, _ := json.Marshal(out)
 
-			var jsonRaw json.RawMessage = bytes
-
-			s.stream.WriteObject(jsonrpc2.Response{
-				ID:     request.ID,
-				Result: &jsonRaw,
+			s.stream.WriteMessage(Response{
+				ID:     *request.ID,
+				Result: bytes,
 			})
 		}()
 	}
 	return nil
 }
 
-func (s *Server) handleResponse(response jsonrpc2.Response) error {
+func (s *Server) handleResponse(response Response) error {
 	s.pendingRequestMu.RLock()
 	request := s.pendingRequests[response.ID.Num]
 	s.pendingRequestMu.RUnlock()
@@ -161,21 +156,17 @@ func (s *Server) handleResponse(response jsonrpc2.Response) error {
 	return nil
 }
 
-func (s *Server) handleRawMessage(raw json.RawMessage) error {
-	var request jsonrpc2.Request
-	err := json.Unmarshal([]byte(raw), &request)
+func (s *Server) handleMessage(msg Message) error {
+	switch msg := msg.(type) {
+	case Request:
+		return s.handleRequest(msg)
+	case Response:
+		return s.handleResponse(msg)
+	default:
 
-	if err == nil && request.Method != "" {
-		return s.handleRequest(request)
+		// This should never happen
+		return utils.NonExhaustiveMatchPanic[error](fmt.Sprintf("Invalid msg: %#v", msg))
 	}
-
-	var response jsonrpc2.Response
-	err = json.Unmarshal([]byte(raw), &response)
-	if err == nil {
-		return s.handleResponse(response)
-	}
-
-	return nil
 }
 
 // blocks while listening to incoming requests, until Close() is called
@@ -183,12 +174,12 @@ func (s *Server) handleRawMessage(raw json.RawMessage) error {
 // returns an error, if any
 func (s *Server) Listen() error {
 	for s.opened {
-		raw, err := s.stream.ReadObject()
+		msg, err := s.stream.ReadMessage()
 		if err != nil {
 			return err
 		}
 
-		err = s.handleRawMessage(*raw)
+		err = s.handleMessage(msg)
 		if err != nil {
 			return err
 		}

@@ -53,6 +53,10 @@ type Request struct {
 
 func (Request) message() {}
 
+func (r Request) IsNotification() bool {
+	return r.ID == nil
+}
+
 var _ Message = (*Request)(nil)
 
 const versionTag = "2.0"
@@ -60,7 +64,7 @@ const versionTag = "2.0"
 func (r Response) MarshalJSON() ([]byte, error) {
 	combined := messageCombined{
 		VersionTag: versionTag,
-		ID:         r.ID,
+		ID:         &r.ID,
 	}
 
 	if r.Error != nil {
@@ -81,14 +85,14 @@ func UnmarshalMessage(data []byte) (Message, error) {
 
 	if combined.Method != "" {
 		req := Request{
-			ID:     &combined.ID,
+			ID:     combined.ID,
 			Method: combined.Method,
 			Params: combined.Params,
 		}
 		return req, nil
 	} else {
 		res := Response{
-			ID:     combined.ID,
+			ID:     *combined.ID,
 			Result: combined.Result,
 			Error:  combined.Error,
 		}
@@ -98,7 +102,7 @@ func UnmarshalMessage(data []byte) (Message, error) {
 
 type messageCombined struct {
 	VersionTag string          `json:"jsonrpc"`
-	ID         jsonrpc2.ID     `json:"id,omitempty"`
+	ID         *jsonrpc2.ID    `json:"id,omitempty"`
 	Method     string          `json:"method,omitempty"`
 	Params     json.RawMessage `json:"params,omitempty"`
 	Result     json.RawMessage `json:"result,omitempty"`

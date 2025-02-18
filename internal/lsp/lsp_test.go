@@ -12,22 +12,18 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	in := make(chan any)
-	out := make(chan any)
+	in := make(chan json_rpc.Message)
+	out := make(chan json_rpc.Message)
 	objStream := NewChanObjStream(in, out)
 	go lsp.RunServerWith(&objStream)
 
-	empyParams := json.RawMessage("{}")
-
-	in <- jsonrpc2.Request{
-		ID:     jsonrpc2.ID{Num: 0},
+	in <- json_rpc.Request{
+		ID:     &jsonrpc2.ID{Num: 0},
 		Method: "initialize",
-		Params: &empyParams,
+		Params: []byte("{}"),
 	}
 
-	res := <-out
-
-	response := res.(jsonrpc2.Response)
+	response := (<-out).(json_rpc.Response)
 
 	require.Equal(t,
 		jsonrpc2.ID{Num: 0},
@@ -35,20 +31,20 @@ func TestExample(t *testing.T) {
 	)
 
 	var init lsp_types.InitializeResult
-	err := json.Unmarshal(*response.Result, &init)
+	err := json.Unmarshal(response.Result, &init)
 	require.Nil(t, err)
 
 	require.True(t, init.Capabilities.HoverProvider)
 }
 
 type ChanObjStream struct {
-	in  <-chan any
-	out chan<- any
+	in  <-chan json_rpc.Message
+	out chan<- json_rpc.Message
 }
 
 var _ json_rpc.MessageStream = (*ChanObjStream)(nil)
 
-func NewChanObjStream(in <-chan any, out chan<- any) ChanObjStream {
+func NewChanObjStream(in <-chan json_rpc.Message, out chan<- json_rpc.Message) ChanObjStream {
 	return ChanObjStream{
 		in:  in,
 		out: out,
@@ -60,16 +56,12 @@ func (c *ChanObjStream) Close() error {
 	return nil
 }
 
-func (c *ChanObjStream) ReadObject() (*json.RawMessage, error) {
-	x := <-c.in
-	bytes, err := json.Marshal(x)
-	if err != nil {
-		return nil, err
-	}
-	return (*json.RawMessage)(&bytes), nil
+func (c *ChanObjStream) ReadMessage() (json_rpc.Message, error) {
+	msg := <-c.in
+	return msg, nil
 }
 
-func (c *ChanObjStream) WriteObject(obj any) error {
+func (c *ChanObjStream) WriteMessage(obj json_rpc.Message) error {
 	c.out <- obj
 	return nil
 }
