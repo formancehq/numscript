@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/json_rpc"
 	"github.com/formancehq/numscript/internal/lsp"
+	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +34,7 @@ func TestExample(t *testing.T) {
 		response.ID,
 	)
 
-	var init lsp.InitializeResult
+	var init lsp_types.InitializeResult
 	err := json.Unmarshal(*response.Result, &init)
 	require.Nil(t, err)
 
