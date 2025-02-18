@@ -3,6 +3,7 @@ package json_rpc
 import (
 	"encoding/json"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"github.com/sourcegraph/jsonrpc2"
@@ -23,6 +24,7 @@ type Server struct {
 	stream               ObjectStream
 	requestsHandlers     map[string]requestHandler
 	notificationHandlers map[string]notificationHandler
+	pendingRequestMu     sync.RWMutex
 	pendingRequests      map[uint64](chan jsonrpc2.Response)
 }
 
@@ -80,9 +82,16 @@ func SendRequest(s *Server, method string, params any) (any, error) {
 	})
 
 	ch := make(chan jsonrpc2.Response)
+
+	s.pendingRequestMu.Lock()
 	s.pendingRequests[freshId] = ch
+	s.pendingRequestMu.Unlock()
+
 	response := <-ch
+
+	s.pendingRequestMu.Lock()
 	delete(s.pendingRequests, freshId)
+	s.pendingRequestMu.Unlock()
 
 	return response, nil
 }
@@ -141,7 +150,9 @@ func (s *Server) handleRequest(request jsonrpc2.Request) error {
 }
 
 func (s *Server) handleResponse(response jsonrpc2.Response) error {
+	s.pendingRequestMu.RLock()
 	request := s.pendingRequests[response.ID.Num]
+	s.pendingRequestMu.RUnlock()
 
 	go func() {
 		request <- response
