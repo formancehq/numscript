@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/formancehq/numscript/internal/json_rpc"
+	"github.com/formancehq/numscript/internal/jsonrpc2"
 )
 
 type LsObjectStream struct {
@@ -20,7 +20,7 @@ type LsObjectStream struct {
 	out io.WriteCloser
 }
 
-var _ json_rpc.MessageStream = (*LsObjectStream)(nil)
+var _ jsonrpc2.MessageStream = (*LsObjectStream)(nil)
 
 func NewLsObjectStream(in io.ReadCloser, out io.WriteCloser) LsObjectStream {
 	reader := bufio.NewReader(in)
@@ -46,7 +46,7 @@ func (s *LsObjectStream) Close() error {
 	return nil
 }
 
-func (s *LsObjectStream) WriteMessage(obj json_rpc.Message) error {
+func (s *LsObjectStream) WriteMessage(obj jsonrpc2.Message) error {
 	bytes, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (s *LsObjectStream) WriteMessage(obj json_rpc.Message) error {
 	return nil
 }
 
-func (s *LsObjectStream) ReadMessage() (json_rpc.Message, error) {
+func (s *LsObjectStream) ReadMessage() (jsonrpc2.Message, error) {
 	tpr := textproto.NewReader(s.reader)
 
 	headers, err := tpr.ReadMIMEHeader()
@@ -85,5 +85,5 @@ func (s *LsObjectStream) ReadMessage() (json_rpc.Message, error) {
 		return nil, fmt.Errorf("missing bytes to read. Read: %d, total: %d", len, readBytes)
 	}
 
-	return json_rpc.UnmarshalMessage(bytes)
+	return jsonrpc2.UnmarshalMessage(bytes)
 }

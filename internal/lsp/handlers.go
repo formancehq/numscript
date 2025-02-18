@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/formancehq/numscript/internal/analysis"
-	"github.com/formancehq/numscript/internal/json_rpc"
+	"github.com/formancehq/numscript/internal/jsonrpc2"
 	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
@@ -20,7 +20,7 @@ type State struct {
 	documents documentStore[InMemoryDocument]
 }
 
-func (state *State) updateDocument(server *json_rpc.Server, uri lsp_types.DocumentURI, text string) {
+func (state *State) updateDocument(server *jsonrpc2.Server, uri lsp_types.DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
 	state.documents.Set(uri, InMemoryDocument{
@@ -33,7 +33,7 @@ func (state *State) updateDocument(server *json_rpc.Server, uri lsp_types.Docume
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	json_rpc.SendNotification(server, "textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
+	jsonrpc2.SendNotification(server, "textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
 	})
@@ -206,35 +206,35 @@ func RunServer() error {
 	return RunServerWith(&stream)
 }
 
-func RunServerWith(objStream json_rpc.MessageStream) error {
-	s := json_rpc.NewServer(objStream)
+func RunServerWith(objStream jsonrpc2.MessageStream) error {
+	s := jsonrpc2.NewServer(objStream)
 
 	state := State{
 		documents: NewDocumentsStore[InMemoryDocument](),
 	}
 
-	json_rpc.HandleRequest(s, "initialize", func(_ any) any {
+	jsonrpc2.HandleRequest(s, "initialize", func(_ any) any {
 		return initializeResult
 	})
 
-	json_rpc.HandleNotification(s, "textDocument/didOpen", func(p lsp_types.DidOpenTextDocumentParams) {
+	jsonrpc2.HandleNotification(s, "textDocument/didOpen", func(p lsp_types.DidOpenTextDocumentParams) {
 		state.updateDocument(s, p.TextDocument.URI, p.TextDocument.Text)
 	})
 
-	json_rpc.HandleNotification(s, "textDocument/didChange", func(p lsp_types.DidChangeTextDocumentParams) {
+	jsonrpc2.HandleNotification(s, "textDocument/didChange", func(p lsp_types.DidChangeTextDocumentParams) {
 		text := p.ContentChanges[len(p.ContentChanges)-1].Text
 		state.updateDocument(s, p.TextDocument.URI, text)
 	})
 
-	json_rpc.HandleRequest(s, "textDocument/hover", func(p lsp_types.HoverParams) any {
+	jsonrpc2.HandleRequest(s, "textDocument/hover", func(p lsp_types.HoverParams) any {
 		return state.handleHover(p)
 	})
 
-	json_rpc.HandleRequest(s, "textDocument/definition", func(p lsp_types.DefinitionParams) any {
+	jsonrpc2.HandleRequest(s, "textDocument/definition", func(p lsp_types.DefinitionParams) any {
 		return state.handleGotoDefinition(p)
 	})
 
-	json_rpc.HandleRequest(s, "textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams) any {
+	jsonrpc2.HandleRequest(s, "textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams) any {
 		sm := state.handleGetSymbols(p)
 		return sm
 	})
