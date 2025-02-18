@@ -15,20 +15,20 @@ import (
 func TestDiagnostics(t *testing.T) {
 	client := newTestClient()
 
-	client.OpenFile("example.num", `
+	_, _, diagnostics := client.OpenFile("example.num", `
 		send [COIN 100] (
 			source = @world
 			destination = $unbound_var
 		)
 	`)
 
-	snaps.MatchJSON(t, <-client.diagnostics)
+	snaps.MatchJSON(t, diagnostics)
 }
 
 func TestHoverVariable(t *testing.T) {
 	client := newTestClient()
 
-	doc, input := client.OpenFile("example.num", `
+	doc, input, _ := client.OpenFile("example.num", `
 		vars {
 			account $acc
 		}
@@ -38,9 +38,34 @@ func TestHoverVariable(t *testing.T) {
 			destination = @dest
 		)
 	`)
-	<-client.diagnostics
 
 	hover, err := client.Hover(doc, *parser.PositionOfIndexed(input, "$acc", 1))
+	require.Nil(t, err)
+	snaps.MatchJSON(t, hover)
+}
+
+func TestHoverFnOrigin(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `
+		vars {
+			monetary $acc = balance(@acc, USD/2)
+		}
+	`)
+
+	hover, err := client.Hover(doc, *parser.PositionOfIndexed(input, "balance", 0))
+	require.Nil(t, err)
+	snaps.MatchJSON(t, hover)
+}
+
+func TestHoverFnStatement(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `
+		set_tx_meta(@acc, "k", 1 + 2)
+	`)
+
+	hover, err := client.Hover(doc, *parser.PositionOfIndexed(input, "set_tx_meta", 0))
 	require.Nil(t, err)
 	snaps.MatchJSON(t, hover)
 }
@@ -48,14 +73,13 @@ func TestHoverVariable(t *testing.T) {
 func TestGetSymbols(t *testing.T) {
 	client := newTestClient()
 
-	doc, _ := client.OpenFile("example.num", `
+	doc, _, _ := client.OpenFile("example.num", `
 		vars {
 			account $acc
 			monetary $mon
 		}
 	`)
 
-	<-client.diagnostics
 	raw, err := client.GetSymbols(doc)
 	require.Nil(t, err)
 	snaps.MatchJSON(t, raw)
@@ -67,7 +91,7 @@ type TestClient struct {
 	diagnostics chan json.RawMessage
 }
 
-func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentIdentifier, string) {
+func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentIdentifier, string, json.RawMessage) {
 	c.conn.SendNotification("textDocument/didOpen", lsp_types.DidOpenTextDocumentParams{
 		TextDocument: lsp_types.TextDocumentItem{
 			URI:        lsp_types.DocumentURI(uri),
@@ -80,7 +104,7 @@ func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentId
 		URI: lsp_types.DocumentURI(uri),
 	}
 
-	return docIdent, text
+	return docIdent, text, <-c.diagnostics
 }
 
 func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, error) {
