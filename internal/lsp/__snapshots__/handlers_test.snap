@@ -21,7 +21,7 @@
 }
 ---
 
-[TestHover - 1]
+[TestHoverVariable - 1]
 {
  "contents": {
   "kind": "markdown",
