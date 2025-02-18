@@ -1,4 +1,4 @@
-package lsp
+package lsp_types
 
 // Taken from gopls internal lsp package
 // and fixed to make omitempty work
