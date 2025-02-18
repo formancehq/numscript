@@ -7,7 +7,6 @@ import (
 	"github.com/formancehq/numscript/internal/json_rpc"
 	"github.com/formancehq/numscript/internal/lsp"
 	"github.com/formancehq/numscript/internal/lsp/lsp_types"
-	"github.com/sourcegraph/jsonrpc2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +17,7 @@ func TestExample(t *testing.T) {
 	go lsp.RunServerWith(&objStream)
 
 	in <- json_rpc.Request{
-		ID:     &jsonrpc2.ID{Num: 0},
+		ID:     json_rpc.NewIntId(0),
 		Method: "initialize",
 		Params: []byte("{}"),
 	}
@@ -26,7 +25,7 @@ func TestExample(t *testing.T) {
 	response := (<-out).(json_rpc.Response)
 
 	require.Equal(t,
-		jsonrpc2.ID{Num: 0},
+		json_rpc.NewIntId(0),
 		response.ID,
 	)
 
