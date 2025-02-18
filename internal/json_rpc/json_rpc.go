@@ -41,7 +41,7 @@ func NewServer(objStream ObjectStream) *Server {
 	}
 }
 
-// Add a request handler for the given method
+// Add a request handler for the given method. Not thread-safe: only add handlers synchronously before server.Listen() call
 //
 // The handler will be called asynchronously
 func HandleRequest[Params any](s *Server, method string, handler func(params Params) any) {
@@ -52,7 +52,7 @@ func HandleRequest[Params any](s *Server, method string, handler func(params Par
 	}
 }
 
-// Add a notification handler for the given method
+// Add a notification handler for the given method. Not thread-safe: only add handlers synchronously before server.Listen() call
 //
 // The handler will be called asynchronously
 func HandleNotification[Params any](s *Server, method string, handler func(params Params)) {
@@ -63,7 +63,7 @@ func HandleNotification[Params any](s *Server, method string, handler func(param
 	}
 }
 
-// Send a json rpc request and wait for the response
+// Send a json rpc request and wait for the response. Thread safe.
 func SendRequest(s *Server, method string, params any) (any, error) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
@@ -96,7 +96,7 @@ func SendRequest(s *Server, method string, params any) (any, error) {
 	return response, nil
 }
 
-// Send a json rpc request and wait for the message to be sent
+// Send a json rpc request and wait for the message to be sent. Thread safe
 func SendNotification(s *Server, method string, params any) error {
 	bytes, err := json.Marshal(params)
 	if err != nil {
