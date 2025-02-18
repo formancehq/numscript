@@ -1,0 +1,41 @@
+
+[TestDiagnostics - 1]
+{
+ "diagnostics": [
+  {
+   "message": "The variable '$unbound_var' was not declared",
+   "range": {
+    "end": {
+     "character": 29,
+     "line": 3
+    },
+    "start": {
+     "character": 17,
+     "line": 3
+    }
+   },
+   "severity": 1
+  }
+ ],
+ "uri": "example.num"
+}
+---
+
+[TestHover - 1]
+{
+ "contents": {
+  "kind": "markdown",
+  "value": "```numscript\n$acc: account\n```"
+ },
+ "range": {
+  "end": {
+   "character": 16,
+   "line": 6
+  },
+  "start": {
+   "character": 12,
+   "line": 6
+  }
+ }
+}
+---
