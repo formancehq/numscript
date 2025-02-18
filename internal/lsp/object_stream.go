@@ -20,7 +20,7 @@ type LsObjectStream struct {
 	out io.WriteCloser
 }
 
-var _ json_rpc.ObjectStream = (*LsObjectStream)(nil)
+var _ json_rpc.MessageStream = (*LsObjectStream)(nil)
 
 func NewLsObjectStream(in io.ReadCloser, out io.WriteCloser) LsObjectStream {
 	reader := bufio.NewReader(in)

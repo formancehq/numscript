@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-type ObjectStream interface {
+type MessageStream interface {
 	io.Closer
 	WriteObject(obj any) error
 	ReadObject() (*json.RawMessage, error)
@@ -21,7 +21,7 @@ type notificationHandler func(raw json.RawMessage)
 type Server struct {
 	currentId            uint64
 	opened               bool
-	stream               ObjectStream
+	stream               MessageStream
 	requestsHandlers     map[string]requestHandler
 	notificationHandlers map[string]notificationHandler
 	pendingRequestMu     sync.RWMutex
@@ -31,7 +31,7 @@ type Server struct {
 // Create a new Server
 //
 // By default, the server will try write concurrently to the ObjectStream
-func NewServer(objStream ObjectStream) *Server {
+func NewServer(objStream MessageStream) *Server {
 	return &Server{
 		opened:               true,
 		stream:               objStream,

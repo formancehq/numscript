@@ -206,7 +206,7 @@ func RunServer() error {
 	return RunServerWith(&stream)
 }
 
-func RunServerWith(objStream json_rpc.ObjectStream) error {
+func RunServerWith(objStream json_rpc.MessageStream) error {
 	s := json_rpc.NewServer(objStream)
 
 	state := State{
