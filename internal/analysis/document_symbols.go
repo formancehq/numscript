@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"slices"
+
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -20,7 +22,7 @@ type DocumentSymbol struct {
 	Kind           DocumentSymbolKind
 }
 
-// Note: Results are not sorted
+// results are sorted by start position
 func (r *CheckResult) GetSymbols() []DocumentSymbol {
 	var symbols []DocumentSymbol
 	for k, v := range r.declaredVars {
@@ -31,8 +33,15 @@ func (r *CheckResult) GetSymbols() []DocumentSymbol {
 			Range:          v.Name.Range,
 			SelectionRange: v.Name.Range,
 		})
-
 	}
+
+	slices.SortFunc(symbols, func(a, b DocumentSymbol) int {
+		if a.Range.Start.GtEq(b.Range.Start) {
+			return 1
+		} else {
+			return -1
+		}
+	})
 
 	return symbols
 }
