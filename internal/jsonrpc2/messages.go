@@ -80,6 +80,7 @@ func (r Request) IsNotification() bool {
 
 var _ Message = (*Request)(nil)
 
+// Marshaling
 const versionTag = "2.0"
 
 func (r Response) MarshalJSON() ([]byte, error) {
@@ -92,6 +93,17 @@ func (r Response) MarshalJSON() ([]byte, error) {
 		combined.Error = r.Error
 	} else {
 		combined.Result = r.Result
+	}
+
+	return json.Marshal(combined)
+}
+
+func (r Request) MarshalJSON() ([]byte, error) {
+	combined := messageCombined{
+		VersionTag: versionTag,
+		ID:         r.ID,
+		Method:     r.Method,
+		Params:     r.Params,
 	}
 
 	return json.Marshal(combined)

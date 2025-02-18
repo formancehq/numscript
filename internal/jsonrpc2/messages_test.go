@@ -89,3 +89,39 @@ func TestMarshalRequests(t *testing.T) {
 
 	snaps.MatchJSON(t, bytes)
 }
+
+func TestMarshalNotifications(t *testing.T) {
+	req := jsonrpc2.Request{
+		Method: "updateCounter",
+		Params: json.RawMessage("42"),
+	}
+
+	bytes, err := json.Marshal(req)
+	require.Nil(t, err)
+
+	snaps.MatchJSON(t, bytes)
+}
+
+func TestMarshalOkResponse(t *testing.T) {
+	req := jsonrpc2.Response{
+		ID:     jsonrpc2.NewIntId(42),
+		Result: json.RawMessage(`{"x": 42}`),
+	}
+
+	bytes, err := json.Marshal(req)
+	require.Nil(t, err)
+
+	snaps.MatchJSON(t, bytes)
+}
+
+func TestMarshalErrResponse(t *testing.T) {
+	req := jsonrpc2.Response{
+		ID:    jsonrpc2.NewIntId(42),
+		Error: &jsonrpc2.ErrInvalidRequest,
+	}
+
+	bytes, err := json.Marshal(req)
+	require.Nil(t, err)
+
+	snaps.MatchJSON(t, bytes)
+}
