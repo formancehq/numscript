@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"github.com/formancehq/numscript/internal/utils"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 type MessageStream interface {
@@ -21,13 +20,13 @@ type requestHandler func(raw json.RawMessage) any
 type notificationHandler func(raw json.RawMessage)
 
 type Server struct {
-	currentId            uint64
+	currentId            int64
 	opened               bool
 	stream               MessageStream
 	requestsHandlers     map[string]requestHandler
 	notificationHandlers map[string]notificationHandler
 	pendingRequestMu     sync.RWMutex
-	pendingRequests      map[uint64](chan Response)
+	pendingRequests      map[ID](chan Response)
 }
 
 // Create a new Server
@@ -39,7 +38,7 @@ func NewServer(objStream MessageStream) *Server {
 		stream:               objStream,
 		requestsHandlers:     map[string]requestHandler{},
 		notificationHandlers: map[string]notificationHandler{},
-		pendingRequests:      map[uint64](chan Response){},
+		pendingRequests:      map[ID](chan Response){},
 	}
 }
 
@@ -72,10 +71,10 @@ func SendRequest(s *Server, method string, params any) (any, error) {
 		return nil, err
 	}
 
-	freshId := atomic.AddUint64(&s.currentId, 1)
+	freshId := NewIntId(atomic.AddInt64(&s.currentId, 1))
 
 	s.stream.WriteMessage(Request{
-		ID:     &jsonrpc2.ID{Num: freshId},
+		ID:     freshId,
 		Method: method,
 		Params: bytes,
 	})
@@ -136,7 +135,7 @@ func (s *Server) handleRequest(request Request) error {
 			bytes, _ := json.Marshal(out)
 
 			s.stream.WriteMessage(Response{
-				ID:     *request.ID,
+				ID:     request.ID,
 				Result: bytes,
 			})
 		}()
@@ -146,7 +145,7 @@ func (s *Server) handleRequest(request Request) error {
 
 func (s *Server) handleResponse(response Response) error {
 	s.pendingRequestMu.RLock()
-	request := s.pendingRequests[response.ID.Num]
+	request := s.pendingRequests[response.ID]
 	s.pendingRequestMu.RUnlock()
 
 	go func() {
