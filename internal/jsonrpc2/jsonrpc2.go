@@ -65,8 +65,6 @@ func HandleNotification[Params any](s *Server, method string, handler func(param
 }
 
 // Send a json rpc request and wait for the response. Thread safe.
-//
-// TODO change the API in order to make sure SendRequest is never called before .Listen() is called
 func SendRequest[Res any](s *Server, method string, params any) (*Res, error) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
@@ -114,7 +112,7 @@ func SendNotification(s *Server, method string, params any) error {
 }
 
 func (s *Server) Close() {
-	// TODO also stop reading input stream
+	s.stream.Close()
 	// TODO should also close the pendingRequests channels
 	s.opened = false
 }
@@ -165,6 +163,8 @@ func (s *Server) handleMessage(msg Message) error {
 		return s.handleRequest(msg)
 	case Response:
 		return s.handleResponse(msg)
+	case nil:
+		return nil
 	default:
 
 		// This should never happen
