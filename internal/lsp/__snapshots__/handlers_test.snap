@@ -132,3 +132,19 @@
  }
 }
 ---
+
+[TestGotoDef - 1]
+{
+ "range": {
+  "end": {
+   "character": 15,
+   "line": 2
+  },
+  "start": {
+   "character": 11,
+   "line": 2
+  }
+ },
+ "uri": "example.num"
+}
+---
