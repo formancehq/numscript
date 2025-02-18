@@ -13,7 +13,7 @@ import (
 func TestServerReadWrite(t *testing.T) {
 	in := make(chan jsonrpc2.Message)
 	out := make(chan jsonrpc2.Message)
-	go lsp.RunServerWith(jsonrpc2.NewChanObjStream(in, out))
+	lsp.NewConn(jsonrpc2.NewChanObjStream(in, out))
 
 	in <- jsonrpc2.Request{
 		ID:     jsonrpc2.NewIntId(0),

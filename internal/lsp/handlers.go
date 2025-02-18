@@ -159,7 +159,7 @@ func fromLspPosition(p lsp_types.Position) parser.Position {
 	}
 }
 
-func toLspPosition(p parser.Position) lsp_types.Position {
+func ParserToLspPosition(p parser.Position) lsp_types.Position {
 	return lsp_types.Position{
 		Line:      uint32(p.Line),
 		Character: uint32(p.Character),
@@ -168,8 +168,8 @@ func toLspPosition(p parser.Position) lsp_types.Position {
 
 func toLspRange(p parser.Range) lsp_types.Range {
 	return lsp_types.Range{
-		Start: toLspPosition(p.Start),
-		End:   toLspPosition(p.End),
+		Start: ParserToLspPosition(p.Start),
+		End:   ParserToLspPosition(p.End),
 	}
 }
 
@@ -203,15 +203,15 @@ var initializeResult lsp_types.InitializeResult = lsp_types.InitializeResult{
 
 func RunServer() error {
 	stream := NewLsObjectStream(os.Stdin, os.Stdout)
-	return RunServerWith(&stream)
+	return NewConn(&stream).Wait()
 }
 
-func RunServerWith(objStream jsonrpc2.MessageStream) error {
+func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 	state := State{
 		documents: NewDocumentsStore[InMemoryDocument](),
 	}
 
-	conn := jsonrpc2.NewConn(objStream,
+	return jsonrpc2.NewConn(objStream,
 		jsonrpc2.NewRequestHandler("initialize", func(_ any, conn *jsonrpc2.Conn) any {
 			return initializeResult
 		}),
@@ -233,6 +233,4 @@ func RunServerWith(objStream jsonrpc2.MessageStream) error {
 			return sm
 		}),
 	)
-
-	return conn.Wait()
 }
