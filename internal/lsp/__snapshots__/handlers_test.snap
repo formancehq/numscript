@@ -39,3 +39,58 @@
  }
 }
 ---
+
+[TestGetSymbols - 1]
+[
+ {
+  "detail": "account",
+  "kind": 13,
+  "name": "acc",
+  "range": {
+   "end": {
+    "character": 15,
+    "line": 2
+   },
+   "start": {
+    "character": 11,
+    "line": 2
+   }
+  },
+  "selectionRange": {
+   "end": {
+    "character": 15,
+    "line": 2
+   },
+   "start": {
+    "character": 11,
+    "line": 2
+   }
+  }
+ },
+ {
+  "detail": "monetary",
+  "kind": 13,
+  "name": "mon",
+  "range": {
+   "end": {
+    "character": 16,
+    "line": 3
+   },
+   "start": {
+    "character": 12,
+    "line": 3
+   }
+  },
+  "selectionRange": {
+   "end": {
+    "character": 16,
+    "line": 3
+   },
+   "start": {
+    "character": 12,
+    "line": 3
+   }
+  }
+ }
+]
+---

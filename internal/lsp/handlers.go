@@ -229,8 +229,7 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 			return state.handleGotoDefinition(p)
 		}),
 		jsonrpc2.NewRequestHandler("textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams, conn *jsonrpc2.Conn) any {
-			sm := state.handleGetSymbols(p)
-			return sm
+			return state.handleGetSymbols(p)
 		}),
 	)
 }
