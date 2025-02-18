@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/formancehq/numscript/internal/lsp"
 
 	"github.com/spf13/cobra"
@@ -14,9 +12,6 @@ var lspCmd = &cobra.Command{
 	Long:   "Run the lsp server. This command is usually meant to be used for editors integration.",
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		lsp.RunServer(lsp.ServerOptions{
-			In:  os.Stdin,
-			Out: os.Stdout,
-		})
+		lsp.RunServer()
 	},
 }
