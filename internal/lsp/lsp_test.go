@@ -46,7 +46,7 @@ type ChanObjStream struct {
 	out chan<- any
 }
 
-var _ json_rpc.ObjectStream = (*ChanObjStream)(nil)
+var _ json_rpc.MessageStream = (*ChanObjStream)(nil)
 
 func NewChanObjStream(in <-chan any, out chan<- any) ChanObjStream {
 	return ChanObjStream{
