@@ -65,7 +65,9 @@ func HandleNotification[Params any](s *Server, method string, handler func(param
 }
 
 // Send a json rpc request and wait for the response. Thread safe.
-func SendRequest(s *Server, method string, params any) (any, error) {
+//
+// TODO change the API in order to make sure SendRequest is never called before .Listen() is called
+func SendRequest[Res any](s *Server, method string, params any) (*Res, error) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		return nil, err
@@ -91,7 +93,9 @@ func SendRequest(s *Server, method string, params any) (any, error) {
 	delete(s.pendingRequests, freshId)
 	s.pendingRequestMu.Unlock()
 
-	return response, nil
+	var res Res
+	json.Unmarshal(response.Result, &res)
+	return &res, nil
 }
 
 // Send a json rpc request and wait for the message to be sent. Thread safe
