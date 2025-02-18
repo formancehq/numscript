@@ -25,7 +25,7 @@ func TestDiagnostics(t *testing.T) {
 	snaps.MatchJSON(t, <-client.diagnostics)
 }
 
-func TestHover(t *testing.T) {
+func TestHoverVariable(t *testing.T) {
 	client := newTestClient()
 
 	doc, input := client.OpenFile("example.num", `
