@@ -7,6 +7,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/json_rpc"
 	"github.com/formancehq/numscript/internal/lsp"
 	"github.com/stretchr/testify/require"
 )
@@ -16,12 +17,16 @@ func TestObjectStreamWrite(t *testing.T) {
 
 	stream := lsp.NewLsObjectStream(NewRwCloser(), out)
 
-	outmsg := `{}`
-	expectedMsg := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(outmsg), outmsg)
+	msg := json_rpc.Request{
+		Method: "updatedateConfig",
+		Params: []byte("{}"),
+	}
+	strMsg, _ := json.Marshal(msg)
 
-	err := stream.WriteObject(json.RawMessage(outmsg))
+	err := stream.WriteMessage(msg)
 	require.Nil(t, err)
 
+	expectedMsg := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(strMsg), strMsg)
 	bs := make([]byte, len(expectedMsg))
 	_, err = out.Read(bs)
 	require.Nil(t, err)
@@ -34,19 +39,18 @@ func TestObjectStreamRead(t *testing.T) {
 
 	stream := lsp.NewLsObjectStream(in, NewRwCloser())
 
-	outmsg := `{"x": 42}`
-	msg := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(outmsg), outmsg)
+	sentMsg := json_rpc.Request{
+		Method: "updatedateConfig",
+		Params: []byte("{}"),
+	}
+	strMsg, _ := json.Marshal(sentMsg)
 
-	in.Write([]byte(msg))
+	in.Write([]byte(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(strMsg), strMsg)))
 
-	raw, err := stream.ReadObject()
+	receivedMsg, err := stream.ReadMessage()
 	require.Nil(t, err)
 
-	var m any
-	err = json.Unmarshal(*raw, &m)
-	require.Nil(t, err)
-
-	require.Equal(t, map[string]any{"x": float64(42)}, m)
+	require.Equal(t, receivedMsg, sentMsg)
 }
 
 func TestObjectStreamSimmetric(t *testing.T) {
@@ -56,15 +60,15 @@ func TestObjectStreamSimmetric(t *testing.T) {
 	serverStream := lsp.NewLsObjectStream(in, out)
 	clientStream := lsp.NewLsObjectStream(out, in)
 
-	err := serverStream.WriteObject(42)
+	msg := json_rpc.Request{Method: "got-data", Params: []byte("{}")}
+
+	err := serverStream.WriteMessage(msg)
 	require.Nil(t, err)
 
-	obj, err := clientStream.ReadObject()
+	obj, err := clientStream.ReadMessage()
 	require.Nil(t, err)
 
-	var decoded float64
-	json.Unmarshal(*obj, &decoded)
-	require.Equal(t, float64(42), decoded)
+	require.Equal(t, msg, obj)
 
 }
 
