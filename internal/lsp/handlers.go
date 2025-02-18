@@ -17,11 +17,10 @@ type InMemoryDocument struct {
 }
 
 type State struct {
-	notify    func(method string, params any)
 	documents documentStore[InMemoryDocument]
 }
 
-func (state *State) updateDocument(uri lsp_types.DocumentURI, text string) {
+func (state *State) updateDocument(server *json_rpc.Server, uri lsp_types.DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
 	state.documents.Set(uri, InMemoryDocument{
@@ -34,17 +33,10 @@ func (state *State) updateDocument(uri lsp_types.DocumentURI, text string) {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	state.notify("textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
+	json_rpc.SendNotification(server, "textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
 	})
-}
-
-func initialState(notify func(method string, params any)) State {
-	return State{
-		notify:    notify,
-		documents: NewDocumentsStore[InMemoryDocument](),
-	}
 }
 
 func (state *State) handleHover(params lsp_types.HoverParams) *lsp_types.Hover {
@@ -217,21 +209,21 @@ func RunServer() error {
 func RunServerWith(objStream json_rpc.ObjectStream) error {
 	s := json_rpc.NewServer(objStream)
 
-	state := initialState(func(method string, params any) {
-		json_rpc.SendNotification(s, method, params)
-	})
+	state := State{
+		documents: NewDocumentsStore[InMemoryDocument](),
+	}
 
 	json_rpc.HandleRequest(s, "initialize", func(_ any) any {
 		return initializeResult
 	})
 
 	json_rpc.HandleNotification(s, "textDocument/didOpen", func(p lsp_types.DidOpenTextDocumentParams) {
-		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text)
+		state.updateDocument(s, p.TextDocument.URI, p.TextDocument.Text)
 	})
 
 	json_rpc.HandleNotification(s, "textDocument/didChange", func(p lsp_types.DidChangeTextDocumentParams) {
 		text := p.ContentChanges[len(p.ContentChanges)-1].Text
-		state.updateDocument(p.TextDocument.URI, text)
+		state.updateDocument(s, p.TextDocument.URI, text)
 	})
 
 	json_rpc.HandleRequest(s, "textDocument/hover", func(p lsp_types.HoverParams) any {
