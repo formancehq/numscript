@@ -1,14 +1,13 @@
 package lsp
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/json_rpc"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
-
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 type InMemoryDocument struct {
@@ -160,64 +159,6 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
-func handle(r jsonrpc2.Request, state State) any {
-	switch r.Method {
-	case "initialize":
-		return InitializeResult{
-			Capabilities: ServerCapabilities{
-				TextDocumentSync: TextDocumentSyncOptions{
-					OpenClose: true,
-					Change:    Full,
-				},
-				HoverProvider:          true,
-				DefinitionProvider:     true,
-				DocumentSymbolProvider: true,
-			},
-			// This is ugly. Is there a shortcut?
-			ServerInfo: struct {
-				Name    string "json:\"name\""
-				Version string "json:\"version,omitempty\""
-			}{
-				Name:    "numscript-ls",
-				Version: "0.0.1",
-			},
-		}
-
-	case "textDocument/didOpen":
-		var p DidOpenTextDocumentParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text)
-		return nil
-
-	case "textDocument/didChange":
-		var p DidChangeTextDocumentParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		text := p.ContentChanges[len(p.ContentChanges)-1].Text
-		state.updateDocument(p.TextDocument.URI, text)
-		return nil
-
-	case "textDocument/hover":
-		var p HoverParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleHover(p)
-
-	case "textDocument/definition":
-		var p DefinitionParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleGotoDefinition(p)
-
-	case "textDocument/documentSymbol":
-		var p DocumentSymbolParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleGetSymbols(p)
-
-	default:
-		// Unhandled method
-		// TODO should it panic?
-		return nil
-	}
-}
-
 func fromLspPosition(p Position) parser.Position {
 	return parser.Position{
 		Line:      int(p.Line),
@@ -245,4 +186,65 @@ func toLspDiagnostic(d analysis.Diagnostic) Diagnostic {
 		Severity: DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
 	}
+}
+
+var initializeResult InitializeResult = InitializeResult{
+	Capabilities: ServerCapabilities{
+		TextDocumentSync: TextDocumentSyncOptions{
+			OpenClose: true,
+			Change:    Full,
+		},
+		HoverProvider:          true,
+		DefinitionProvider:     true,
+		DocumentSymbolProvider: true,
+	},
+	// This is ugly. Is there a shortcut?
+	ServerInfo: struct {
+		Name    string "json:\"name\""
+		Version string "json:\"version,omitempty\""
+	}{
+		Name:    "numscript-ls",
+		Version: "0.0.1",
+	},
+}
+
+func RunServer() error {
+	stream := NewLsObjectStream(os.Stdin, os.Stdout)
+	return RunServerWith(&stream)
+}
+
+func RunServerWith(objStream json_rpc.ObjectStream) error {
+	s := json_rpc.NewServer(objStream)
+
+	state := initialState(func(method string, params any) {
+		json_rpc.SendNotification(s, method, params)
+	})
+
+	json_rpc.HandleRequest(s, "initialize", func(_ any) any {
+		return initializeResult
+	})
+
+	json_rpc.HandleNotification(s, "textDocument/didOpen", func(p DidOpenTextDocumentParams) {
+		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text)
+	})
+
+	json_rpc.HandleNotification(s, "textDocument/didChange", func(p DidChangeTextDocumentParams) {
+		text := p.ContentChanges[len(p.ContentChanges)-1].Text
+		state.updateDocument(p.TextDocument.URI, text)
+	})
+
+	json_rpc.HandleRequest(s, "textDocument/hover", func(p HoverParams) any {
+		return state.handleHover(p)
+	})
+
+	json_rpc.HandleRequest(s, "textDocument/definition", func(p DefinitionParams) any {
+		return state.handleGotoDefinition(p)
+	})
+
+	json_rpc.HandleRequest(s, "textDocument/documentSymbol", func(p DocumentSymbolParams) any {
+		sm := state.handleGetSymbols(p)
+		return sm
+	})
+
+	return s.Listen()
 }
