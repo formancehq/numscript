@@ -19,7 +19,8 @@ type MessageStream interface {
 type requestHandler func(raw json.RawMessage) any
 type notificationHandler func(raw json.RawMessage)
 
-type Server struct {
+type Conn struct {
+	listenErr            chan error
 	currentId            int64
 	opened               bool
 	stream               MessageStream
@@ -29,43 +30,80 @@ type Server struct {
 	pendingRequests      map[ID](chan Response)
 }
 
-// Create a new Server
+type Handler struct {
+	register func(*Conn)
+}
+
+// Create a request handler for the given method
+//
+// The handler will be called asynchronously
+func NewRequestHandler[Params any](method string, handler func(params Params, conn *Conn) any) Handler {
+	return Handler{
+		register: func(conn *Conn) {
+			conn.requestsHandlers[method] = func(raw json.RawMessage) any {
+				var payload Params
+				json.Unmarshal([]byte(raw), &payload)
+				return handler(payload, conn)
+			}
+		},
+	}
+}
+
+// Create a notification handler for the given method
+//
+// The handler will be called asynchronously
+func NewNotificationHandler[Params any](method string, handler func(params Params, conn *Conn)) Handler {
+	return Handler{
+		register: func(conn *Conn) {
+			conn.notificationHandlers[method] = func(raw json.RawMessage) {
+				var payload Params
+				json.Unmarshal([]byte(raw), &payload)
+				handler(payload, conn)
+			}
+		},
+	}
+}
+
+// Starts listening asynchronously to the MessageStream and returns the connection.
 //
 // By default, the server will try write concurrently to the ObjectStream
-func NewServer(objStream MessageStream) *Server {
-	return &Server{
+func NewConn(objStream MessageStream, handlers ...Handler) *Conn {
+	conn := Conn{
+		listenErr:            make(chan error),
 		opened:               true,
 		stream:               objStream,
 		requestsHandlers:     map[string]requestHandler{},
 		notificationHandlers: map[string]notificationHandler{},
 		pendingRequests:      map[ID](chan Response){},
 	}
-}
 
-// Add a request handler for the given method. Not thread-safe: only add handlers synchronously before server.Listen() call
-//
-// The handler will be called asynchronously
-func HandleRequest[Params any](s *Server, method string, handler func(params Params) any) {
-	s.requestsHandlers[method] = func(raw json.RawMessage) any {
-		var payload Params
-		json.Unmarshal([]byte(raw), &payload)
-		return handler(payload)
+	// Register the handlers BEFORE listening to the messages stream
+	for _, handler := range handlers {
+		handler.register(&conn)
 	}
-}
 
-// Add a notification handler for the given method. Not thread-safe: only add handlers synchronously before server.Listen() call
-//
-// The handler will be called asynchronously
-func HandleNotification[Params any](s *Server, method string, handler func(params Params)) {
-	s.notificationHandlers[method] = func(raw json.RawMessage) {
-		var payload Params
-		json.Unmarshal([]byte(raw), &payload)
-		handler(payload)
-	}
+	// listen to the incoming messages
+	go func() {
+		for conn.opened {
+			msg, err := conn.stream.ReadMessage()
+			if err != nil {
+				conn.listenErr <- err
+				return
+			}
+
+			err = conn.handleMessage(msg)
+			if err != nil {
+				conn.listenErr <- err
+				return
+			}
+		}
+	}()
+
+	return &conn
 }
 
 // Send a json rpc request and wait for the response. Thread safe.
-func SendRequest[Res any](s *Server, method string, params any) (*Res, error) {
+func (s *Conn) SendRequest(method string, params any) (json.RawMessage, error) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		return nil, err
@@ -91,13 +129,11 @@ func SendRequest[Res any](s *Server, method string, params any) (*Res, error) {
 	delete(s.pendingRequests, freshId)
 	s.pendingRequestMu.Unlock()
 
-	var res Res
-	json.Unmarshal(response.Result, &res)
-	return &res, nil
+	return response.Result, nil
 }
 
 // Send a json rpc request and wait for the message to be sent. Thread safe
-func SendNotification(s *Server, method string, params any) error {
+func (s *Conn) SendNotification(method string, params any) error {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		return err
@@ -111,13 +147,13 @@ func SendNotification(s *Server, method string, params any) error {
 	return err
 }
 
-func (s *Server) Close() {
+func (s *Conn) Close() {
 	s.stream.Close()
 	// TODO should also close the pendingRequests channels
 	s.opened = false
 }
 
-func (s *Server) handleRequest(request Request) error {
+func (s *Conn) handleRequest(request Request) error {
 	if request.IsNotification() {
 		handler, ok := s.notificationHandlers[request.Method]
 		if !ok {
@@ -145,7 +181,7 @@ func (s *Server) handleRequest(request Request) error {
 	return nil
 }
 
-func (s *Server) handleResponse(response Response) error {
+func (s *Conn) handleResponse(response Response) error {
 	s.pendingRequestMu.RLock()
 	request := s.pendingRequests[response.ID]
 	s.pendingRequestMu.RUnlock()
@@ -157,7 +193,7 @@ func (s *Server) handleResponse(response Response) error {
 	return nil
 }
 
-func (s *Server) handleMessage(msg Message) error {
+func (s *Conn) handleMessage(msg Message) error {
 	switch msg := msg.(type) {
 	case Request:
 		return s.handleRequest(msg)
@@ -172,21 +208,7 @@ func (s *Server) handleMessage(msg Message) error {
 	}
 }
 
-// blocks while listening to incoming requests, until Close() is called
-//
-// returns an error, if any
-func (s *Server) Listen() error {
-	for s.opened {
-		msg, err := s.stream.ReadMessage()
-		if err != nil {
-			return err
-		}
-
-		err = s.handleMessage(msg)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+// blocks until connections is closed, returning its error (or nil)
+func (c *Conn) Wait() error {
+	return <-c.listenErr
 }
