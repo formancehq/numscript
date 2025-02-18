@@ -85,6 +85,25 @@ func TestGetSymbols(t *testing.T) {
 	snaps.MatchJSON(t, raw)
 }
 
+func TestGotoDef(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `
+		vars {
+			account $acc
+		}
+
+		send [USD/2 100] (
+			source = $acc
+			destination = @dest
+		)
+ 	`)
+
+	raw, err := client.GotoDefinition(doc, *parser.PositionOfIndexed(input, "$acc", 1))
+	require.Nil(t, err)
+	snaps.MatchJSON(t, raw)
+}
+
 // Testing utilities
 type TestClient struct {
 	conn        *jsonrpc2.Conn
@@ -119,6 +138,15 @@ func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser
 func (c *TestClient) GetSymbols(doc lsp_types.TextDocumentIdentifier) (json.RawMessage, error) {
 	return c.conn.SendRequest("textDocument/documentSymbol", lsp_types.DocumentSymbolParams{
 		TextDocument: doc,
+	})
+}
+
+func (c *TestClient) GotoDefinition(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, error) {
+	return c.conn.SendRequest("textDocument/definition", lsp_types.DefinitionParams{
+		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
+			TextDocument: doc,
+			Position:     lsp.ParserToLspPosition(position),
+		},
 	})
 }
 
