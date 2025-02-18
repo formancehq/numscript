@@ -28,7 +28,7 @@ func TestDiagnostics(t *testing.T) {
 func TestHover(t *testing.T) {
 	client := newTestClient()
 
-	uri, input := client.OpenFile("example.num", `
+	doc, input := client.OpenFile("example.num", `
 		vars {
 			account $acc
 		}
@@ -38,11 +38,27 @@ func TestHover(t *testing.T) {
 			destination = @dest
 		)
 	`)
-
 	<-client.diagnostics
-	hover, err := client.Hover(uri, *parser.PositionOfIndexed(input, "$acc", 1))
+
+	hover, err := client.Hover(doc, *parser.PositionOfIndexed(input, "$acc", 1))
 	require.Nil(t, err)
 	snaps.MatchJSON(t, hover)
+}
+
+func TestGetSymbols(t *testing.T) {
+	client := newTestClient()
+
+	doc, _ := client.OpenFile("example.num", `
+		vars {
+			account $acc
+			monetary $mon
+		}
+	`)
+
+	<-client.diagnostics
+	raw, err := client.GetSymbols(doc)
+	require.Nil(t, err)
+	snaps.MatchJSON(t, raw)
 }
 
 // Testing utilities
@@ -51,7 +67,7 @@ type TestClient struct {
 	diagnostics chan json.RawMessage
 }
 
-func (c *TestClient) OpenFile(uri string, text string) (string, string) {
+func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentIdentifier, string) {
 	c.conn.SendNotification("textDocument/didOpen", lsp_types.DidOpenTextDocumentParams{
 		TextDocument: lsp_types.TextDocumentItem{
 			URI:        lsp_types.DocumentURI(uri),
@@ -59,17 +75,26 @@ func (c *TestClient) OpenFile(uri string, text string) (string, string) {
 			Text:       text,
 		},
 	})
-	return uri, text
+
+	docIdent := lsp_types.TextDocumentIdentifier{
+		URI: lsp_types.DocumentURI(uri),
+	}
+
+	return docIdent, text
 }
 
-func (c *TestClient) Hover(uri string, position parser.Position) (json.RawMessage, error) {
+func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, error) {
 	return c.conn.SendRequest("textDocument/hover", lsp_types.HoverParams{
 		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
-			TextDocument: lsp_types.TextDocumentIdentifier{
-				URI: lsp_types.DocumentURI(uri),
-			},
-			Position: lsp.ParserToLspPosition(position),
+			TextDocument: doc,
+			Position:     lsp.ParserToLspPosition(position),
 		},
+	})
+}
+
+func (c *TestClient) GetSymbols(doc lsp_types.TextDocumentIdentifier) (json.RawMessage, error) {
+	return c.conn.SendRequest("textDocument/documentSymbol", lsp_types.DocumentSymbolParams{
+		TextDocument: doc,
 	})
 }
 
