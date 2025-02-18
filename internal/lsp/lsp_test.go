@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExample(t *testing.T) {
+func TestServerReadWrite(t *testing.T) {
 	in := make(chan json_rpc.Message)
 	out := make(chan json_rpc.Message)
 	objStream := NewChanObjStream(in, out)
