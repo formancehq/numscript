@@ -65,13 +65,14 @@ func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 	c.vars = jsonVars
 }
 
-func (tc *TestCase) compile(t *testing.T, src string) {
+func (tc *TestCase) compile(t *testing.T, src string) string {
 	tc.source = src
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
 		t.Errorf("Got parsing errors: %v\n", parsed.Errors)
 	}
 	tc.program = &parsed.Value
+	return src
 }
 
 func (c *TestCase) setBalance(account string, asset string, amount int64) {
@@ -758,6 +759,18 @@ func TestInvalidAllotInSendAll(t *testing.T) {
 	)`)
 	tc.expected = CaseResult{
 		Error: machine.InvalidAllotmentInSendAll{},
+	}
+	test(t, tc)
+}
+
+func TestDivByZero(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `set_tx_meta("k", 3/0)`)
+	tc.expected = CaseResult{
+		Error: machine.DivideByZero{
+			Numerator: big.NewInt(3),
+			Range:     parser.RangeOfIndexed(src, "3/0", 0),
+		},
 	}
 	test(t, tc)
 }

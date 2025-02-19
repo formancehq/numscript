@@ -139,6 +139,15 @@ func (e InvalidAllotmentInSendAll) Error() string {
 	return "cannot take all balance of an allotment source"
 }
 
+type DivideByZero struct {
+	parser.Range
+	Numerator *big.Int
+}
+
+func (e DivideByZero) Error() string {
+	return fmt.Sprintf("cannot divide by zero (in %s/0)", e.Numerator.String())
+}
+
 type InvalidUnboundedInSendAll struct {
 	parser.Range
 	Name string
