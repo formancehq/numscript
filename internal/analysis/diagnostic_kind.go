@@ -157,6 +157,18 @@ func (*BadAllotmentSum) Severity() Severity {
 	return ErrorSeverity
 }
 
+type DivByZero struct {
+	Sum big.Rat
+}
+
+func (e *DivByZero) Message() string {
+	return "Cannot divide by zero"
+}
+
+func (*DivByZero) Severity() Severity {
+	return ErrorSeverity
+}
+
 type FixedPortionVariable struct {
 	Value big.Rat
 }

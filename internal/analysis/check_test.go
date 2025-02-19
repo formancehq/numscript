@@ -684,6 +684,28 @@ func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 	)
 }
 
+func TestDivByZero(t *testing.T) {
+	t.Parallel()
+
+	input := `send [COIN 100] (
+   source = {
+			4/0 from @world
+			remaining kept
+    }
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+	require.Equal(t, []analysis.Diagnostic{
+		{
+			Kind:  &analysis.DivByZero{},
+			Range: parser.RangeOfIndexed(input, "4/0", 0),
+		},
+	}, diagnostics)
+}
+
 func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 	t.Parallel()
 

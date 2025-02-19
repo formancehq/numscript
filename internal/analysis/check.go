@@ -618,7 +618,7 @@ func (res CheckResult) tryEvaluatingNumberExpr(expr parser.ValueExpr) *big.Int {
 }
 
 // Same as analysis.tryEvaluatingNumberExpr, for portion
-func (res CheckResult) tryEvaluatingPortionExpr(expr parser.ValueExpr) *big.Rat {
+func (res *CheckResult) tryEvaluatingPortionExpr(expr parser.ValueExpr) *big.Rat {
 	switch expr := expr.(type) {
 	case *parser.PercentageLiteral:
 		return expr.ToRatio()
@@ -626,14 +626,24 @@ func (res CheckResult) tryEvaluatingPortionExpr(expr parser.ValueExpr) *big.Rat 
 	case *parser.BinaryInfix:
 		switch expr.Operator {
 		case parser.InfixOperatorDiv:
-			left := res.tryEvaluatingNumberExpr(expr.Left)
-			if left == nil {
-				return nil
-			}
 			right := res.tryEvaluatingNumberExpr(expr.Right)
 			if right == nil {
 				return nil
 			}
+
+			if right.Cmp(big.NewInt(0)) == 0 {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Kind:  &DivByZero{},
+					Range: expr.Range,
+				})
+				return nil
+			}
+
+			left := res.tryEvaluatingNumberExpr(expr.Left)
+			if left == nil {
+				return nil
+			}
+
 			return new(big.Rat).SetFrac(left, right)
 
 		default:
