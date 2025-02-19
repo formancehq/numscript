@@ -162,7 +162,7 @@ type FixedPortionVariable struct {
 }
 
 func (e *FixedPortionVariable) Message() string {
-	return fmt.Sprintf("This variable always has the same value (%s)", e.Value.String())
+	return fmt.Sprintf("Using a variable expression can lead to a runtime error if the expression doesn't resolve to %s.\n\nConsider using a hard-coded value or adding a 'remaining' clause to prevent the error", e.Value.String())
 }
 func (*FixedPortionVariable) Severity() Severity {
 	return WarningSeverity
