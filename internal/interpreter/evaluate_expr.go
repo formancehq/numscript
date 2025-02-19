@@ -42,7 +42,6 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		}
 		return value, nil
 
-	// TypeError
 	case *parser.BinaryInfix:
 
 		switch expr.Operator {
