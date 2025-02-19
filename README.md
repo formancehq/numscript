@@ -1,6 +1,6 @@
 # Numscript CLI
 
-![GitHub Release](https://img.shields.io/github/v/release/formancehq/numscript)
+[![GitHub Release](https://img.shields.io/github/v/release/formancehq/numscript)](https://github.com/formancehq/numscript/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/formancehq/numscript.svg)](https://pkg.go.dev/github.com/formancehq/numscript)
 [![Go](https://github.com/formancehq/numscript/actions/workflows/checks.yml/badge.svg)](https://github.com/formancehq/numscript/actions/workflows/checks.yml)
 [![codecov](https://codecov.io/gh/formancehq/numscript/graph/badge.svg?token=njjqGhFQ2p)](https://codecov.io/gh/formancehq/numscript)
