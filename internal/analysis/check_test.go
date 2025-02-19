@@ -682,6 +682,37 @@ send [COIN 100] (
 
 }
 
+func TestBadAllotmentPerc(t *testing.T) {
+	t.Parallel()
+
+	input := `
+send [COIN 100] (
+	source = {
+		25% from @s1
+		50% from @s2
+	}
+	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	end := *parser.PositionOfIndexed(input, "}", 0)
+	end.Character++
+
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.Range{
+				Start: *parser.PositionOfIndexed(input, "{", 0),
+				End:   end,
+			},
+			Kind: &analysis.BadAllotmentSum{
+				Sum: *big.NewRat(75, 100),
+			},
+		},
+	}, analysis.CheckProgram(program).Diagnostics)
+
+}
+
 func TestBadAllotmentComplexExpr(t *testing.T) {
 	t.Parallel()
 
