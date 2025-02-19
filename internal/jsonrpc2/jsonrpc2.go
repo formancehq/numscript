@@ -16,7 +16,7 @@ type MessageStream interface {
 	ReadMessage() (Message, error)
 }
 
-type requestHandler func(raw json.RawMessage) any
+type requestHandler func(raw json.RawMessage) (any, *ResponseError)
 type notificationHandler func(raw json.RawMessage)
 
 type Conn struct {
@@ -40,10 +40,13 @@ type Handler struct {
 func NewRequestHandler[Params any](method string, handler func(params Params, conn *Conn) any) Handler {
 	return Handler{
 		register: func(conn *Conn) {
-			conn.requestsHandlers[method] = func(raw json.RawMessage) any {
+			conn.requestsHandlers[method] = func(raw json.RawMessage) (any, *ResponseError) {
 				var payload Params
-				json.Unmarshal([]byte(raw), &payload)
-				return handler(payload, conn)
+				err := json.Unmarshal([]byte(raw), &payload)
+				if err != nil {
+					return nil, &ErrInvalidParams
+				}
+				return handler(payload, conn), nil
 			}
 		},
 	}
@@ -103,10 +106,12 @@ func NewConn(objStream MessageStream, handlers ...Handler) *Conn {
 }
 
 // Send a json rpc request and wait for the response. Thread safe.
-func (s *Conn) SendRequest(method string, params any) (json.RawMessage, error) {
+//
+// Will panick whenever the params object fails json.Marshal-ing
+func (s *Conn) SendRequest(method string, params any) (json.RawMessage, *ResponseError) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	freshId := NewIntId(atomic.AddInt64(&s.currentId, 1))
@@ -129,22 +134,26 @@ func (s *Conn) SendRequest(method string, params any) (json.RawMessage, error) {
 	delete(s.pendingRequests, freshId)
 	s.pendingRequestMu.Unlock()
 
+	if response.Error != nil {
+		return nil, response.Error
+	}
+
 	return response.Result, nil
 }
 
 // Send a json rpc request and wait for the message to be sent. Thread safe
-func (s *Conn) SendNotification(method string, params any) error {
+//
+// Will panick whenever the params object fails json.Marshal-ing
+func (s *Conn) SendNotification(method string, params any) {
 	bytes, err := json.Marshal(params)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	err = s.stream.WriteMessage(Request{
+	s.stream.WriteMessage(Request{
 		Method: method,
 		Params: bytes,
 	})
-
-	return err
 }
 
 func (s *Conn) Close() {
@@ -164,11 +173,22 @@ func (s *Conn) handleRequest(request Request) error {
 	} else {
 		handler, ok := s.requestsHandlers[request.Method]
 		if !ok {
+			go s.stream.WriteMessage(Response{
+				ID:    request.ID,
+				Error: &ErrMethodNotFound,
+			})
 			return nil
 		}
 
 		go func() {
-			out := handler(request.Params)
+			out, err := handler(request.Params)
+			if err != nil {
+				s.stream.WriteMessage(Response{
+					ID:    request.ID,
+					Error: err,
+				})
+				return
+			}
 
 			bytes, _ := json.Marshal(out)
 

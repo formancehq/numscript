@@ -15,8 +15,8 @@ var (
 	ErrInternal       = NewError(-32603, "JSON RPC internal error")
 )
 
-func NewError(code int64, message string) responseError {
-	return responseError{
+func NewError(code int64, message string) ResponseError {
+	return ResponseError{
 		Code:    code,
 		Message: message,
 	}
@@ -53,7 +53,7 @@ type Response struct {
 	// result is the content of the response.
 	Result json.RawMessage
 	// err is set only if the call failed.
-	Error *responseError
+	Error *ResponseError
 	// id of the request this is a response to.
 	ID ID
 }
@@ -159,11 +159,11 @@ type messageCombined struct {
 	Method     string          `json:"method,omitempty"`
 	Params     json.RawMessage `json:"params,omitempty"`
 	Result     json.RawMessage `json:"result,omitempty"`
-	Error      *responseError  `json:"error,omitempty"`
+	Error      *ResponseError  `json:"error,omitempty"`
 }
 
 // https://www.jsonrpc.org/specification#error_object
-type responseError struct {
+type ResponseError struct {
 	Code    int64           `json:"code"`
 	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data,omitempty"`

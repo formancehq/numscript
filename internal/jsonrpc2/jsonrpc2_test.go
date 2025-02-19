@@ -41,12 +41,28 @@ func TestHandleNotification(t *testing.T) {
 		}),
 	)
 
-	err := client.SendNotification("greet", NotifParams{
+	client.SendNotification("greet", NotifParams{
 		Value: "Hello!",
 	})
-	require.Nil(t, err)
 
 	require.Equal(t, "Hello!", <-ch)
+}
+
+func TestErrMethodNotFound(t *testing.T) {
+	client := newClient()
+	_, err := client.SendRequest("notImplementedMethod", nil)
+	require.Equal(t, &jsonrpc2.ErrMethodNotFound, err)
+}
+
+func TestErrIvalidParam(t *testing.T) {
+	client := newClient(
+		jsonrpc2.NewRequestHandler("capitalize", func(name string, conn *jsonrpc2.Conn) any {
+			return name + "!"
+		}),
+	)
+
+	_, err := client.SendRequest("capitalize", 42)
+	require.Equal(t, &jsonrpc2.ErrInvalidParams, err)
 }
 
 func newClient(serverHandlers ...jsonrpc2.Handler) *jsonrpc2.Conn {
