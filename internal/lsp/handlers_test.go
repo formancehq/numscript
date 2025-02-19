@@ -126,7 +126,7 @@ func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentId
 	return docIdent, text, <-c.diagnostics
 }
 
-func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, error) {
+func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
 	return c.conn.SendRequest("textDocument/hover", lsp_types.HoverParams{
 		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
 			TextDocument: doc,
@@ -135,13 +135,13 @@ func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser
 	})
 }
 
-func (c *TestClient) GetSymbols(doc lsp_types.TextDocumentIdentifier) (json.RawMessage, error) {
+func (c *TestClient) GetSymbols(doc lsp_types.TextDocumentIdentifier) (json.RawMessage, *jsonrpc2.ResponseError) {
 	return c.conn.SendRequest("textDocument/documentSymbol", lsp_types.DocumentSymbolParams{
 		TextDocument: doc,
 	})
 }
 
-func (c *TestClient) GotoDefinition(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, error) {
+func (c *TestClient) GotoDefinition(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
 	return c.conn.SendRequest("textDocument/definition", lsp_types.DefinitionParams{
 		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
 			TextDocument: doc,
