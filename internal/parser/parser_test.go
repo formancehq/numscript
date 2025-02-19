@@ -368,6 +368,17 @@ set_tx_meta("k1", 1 + (2 - 3))
 	snaps.MatchSnapshot(t, p.Value)
 }
 
+func TestInfixSumDiv(t *testing.T) {
+	// 1 + 2 / 3
+	// should be the same as
+	// 1 + (2/3)
+	p := parser.Parse(`
+set_tx_meta("k1", 1 + 2 / 3)
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
 func TestForbidInvalidAssetNames(t *testing.T) {
 	for _, name := range []string{"", "/", "EUR/", "/42"} {
 		t.Run(name, func(t *testing.T) {
