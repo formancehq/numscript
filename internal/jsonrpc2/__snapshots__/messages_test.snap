@@ -1,0 +1,41 @@
+
+[TestMarshalRequests - 1]
+{
+ "id": 1,
+ "jsonrpc": "2.0",
+ "method": "subtract",
+ "params": [
+  42,
+  23
+ ]
+}
+---
+
+[TestMarshalNotifications - 1]
+{
+ "jsonrpc": "2.0",
+ "method": "updateCounter",
+ "params": 42
+}
+---
+
+[TestMarshalOkResponse - 1]
+{
+ "id": 42,
+ "jsonrpc": "2.0",
+ "result": {
+  "x": 42
+ }
+}
+---
+
+[TestMarshalErrResponse - 1]
+{
+ "error": {
+  "code": -32600,
+  "message": "JSON RPC invalid request"
+ },
+ "id": 42,
+ "jsonrpc": "2.0"
+}
+---

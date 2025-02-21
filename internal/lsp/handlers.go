@@ -1,14 +1,14 @@
 package lsp
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/jsonrpc2"
+	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
-
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 type InMemoryDocument struct {
@@ -17,11 +17,10 @@ type InMemoryDocument struct {
 }
 
 type State struct {
-	notify    func(method string, params any)
 	documents documentStore[InMemoryDocument]
 }
 
-func (state *State) updateDocument(uri DocumentURI, text string) {
+func (state *State) updateDocument(conn *jsonrpc2.Conn, uri lsp_types.DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
 	state.documents.Set(uri, InMemoryDocument{
@@ -29,25 +28,18 @@ func (state *State) updateDocument(uri DocumentURI, text string) {
 		CheckResult: checkResult,
 	})
 
-	var diagnostics []Diagnostic = make([]Diagnostic, 0)
+	var diagnostics []lsp_types.Diagnostic = make([]lsp_types.Diagnostic, 0)
 	for _, diagnostic := range checkResult.Diagnostics {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	state.notify("textDocument/publishDiagnostics", PublishDiagnosticsParams{
+	conn.SendNotification("textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
 	})
 }
 
-func InitialState(notify func(method string, params any)) State {
-	return State{
-		notify:    notify,
-		documents: NewDocumentsStore[InMemoryDocument](),
-	}
-}
-
-func (state *State) handleHover(params HoverParams) *Hover {
+func (state *State) handleHover(params lsp_types.HoverParams) *lsp_types.Hover {
 	position := fromLspPosition(params.Position)
 
 	doc, ok := state.documents.Get(params.TextDocument.URI)
@@ -69,8 +61,8 @@ func (state *State) handleHover(params HoverParams) *Hover {
 
 		msg := fmt.Sprintf("```numscript\n$%s: %s\n```", varLit.Name, resolution.Type.Name)
 
-		return &Hover{
-			Contents: MarkupContent{
+		return &lsp_types.Hover{
+			Contents: lsp_types.MarkupContent{
 				Value: msg,
 				Kind:  "markdown",
 			},
@@ -109,8 +101,8 @@ func (state *State) handleHover(params HoverParams) *Hover {
 			utils.NonExhaustiveMatchPanic[any](resolved)
 		}
 
-		return &Hover{
-			Contents: MarkupContent{
+		return &lsp_types.Hover{
+			Contents: lsp_types.MarkupContent{
 				Value: msg,
 				Kind:  "markdown",
 			},
@@ -122,7 +114,7 @@ func (state *State) handleHover(params HoverParams) *Hover {
 	}
 }
 
-func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
+func (state *State) handleGotoDefinition(params lsp_types.DefinitionParams) *lsp_types.Location {
 	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
@@ -134,24 +126,24 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 		return nil
 	}
 
-	return &Location{
+	return &lsp_types.Location{
 		Range: toLspRange(res.Range),
 		URI:   params.TextDocument.URI,
 	}
 }
 
-func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymbol {
+func (state *State) handleGetSymbols(params lsp_types.DocumentSymbolParams) []lsp_types.DocumentSymbol {
 	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
 	}
 
-	var lspDocumentSymbols []DocumentSymbol
+	var lspDocumentSymbols []lsp_types.DocumentSymbol
 	for _, sym := range doc.CheckResult.GetSymbols() {
-		lspDocumentSymbols = append(lspDocumentSymbols, DocumentSymbol{
+		lspDocumentSymbols = append(lspDocumentSymbols, lsp_types.DocumentSymbol{
 			Name:           sym.Name,
 			Detail:         sym.Detail,
-			Kind:           SymbolKind(sym.Kind),
+			Kind:           lsp_types.SymbolKind(sym.Kind),
 			Range:          toLspRange(sym.Range),
 			SelectionRange: toLspRange(sym.SelectionRange),
 		})
@@ -160,89 +152,84 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
-func Handle(r jsonrpc2.Request, state State) any {
-	switch r.Method {
-	case "initialize":
-		return InitializeResult{
-			Capabilities: ServerCapabilities{
-				TextDocumentSync: TextDocumentSyncOptions{
-					OpenClose: true,
-					Change:    Full,
-				},
-				HoverProvider:          true,
-				DefinitionProvider:     true,
-				DocumentSymbolProvider: true,
-			},
-			// This is ugly. Is there a shortcut?
-			ServerInfo: struct {
-				Name    string "json:\"name\""
-				Version string "json:\"version,omitempty\""
-			}{
-				Name:    "numscript-ls",
-				Version: "0.0.1",
-			},
-		}
-
-	case "textDocument/didOpen":
-		var p DidOpenTextDocumentParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		state.updateDocument(p.TextDocument.URI, p.TextDocument.Text)
-		return nil
-
-	case "textDocument/didChange":
-		var p DidChangeTextDocumentParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		text := p.ContentChanges[len(p.ContentChanges)-1].Text
-		state.updateDocument(p.TextDocument.URI, text)
-		return nil
-
-	case "textDocument/hover":
-		var p HoverParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleHover(p)
-
-	case "textDocument/definition":
-		var p DefinitionParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleGotoDefinition(p)
-
-	case "textDocument/documentSymbol":
-		var p DocumentSymbolParams
-		json.Unmarshal([]byte(*r.Params), &p)
-		return state.handleGetSymbols(p)
-
-	default:
-		// Unhandled method
-		// TODO should it panic?
-		return nil
-	}
-}
-
-func fromLspPosition(p Position) parser.Position {
+func fromLspPosition(p lsp_types.Position) parser.Position {
 	return parser.Position{
 		Line:      int(p.Line),
 		Character: int(p.Character),
 	}
 }
 
-func toLspPosition(p parser.Position) Position {
-	return Position{
+func ParserToLspPosition(p parser.Position) lsp_types.Position {
+	return lsp_types.Position{
 		Line:      uint32(p.Line),
 		Character: uint32(p.Character),
 	}
 }
 
-func toLspRange(p parser.Range) Range {
-	return Range{
-		Start: toLspPosition(p.Start),
-		End:   toLspPosition(p.End),
+func toLspRange(p parser.Range) lsp_types.Range {
+	return lsp_types.Range{
+		Start: ParserToLspPosition(p.Start),
+		End:   ParserToLspPosition(p.End),
 	}
 }
 
-func toLspDiagnostic(d analysis.Diagnostic) Diagnostic {
-	return Diagnostic{
+func toLspDiagnostic(d analysis.Diagnostic) lsp_types.Diagnostic {
+	return lsp_types.Diagnostic{
 		Range:    toLspRange(d.Range),
-		Severity: DiagnosticSeverity(d.Kind.Severity()),
+		Severity: lsp_types.DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
 	}
+}
+
+var initializeResult lsp_types.InitializeResult = lsp_types.InitializeResult{
+	Capabilities: lsp_types.ServerCapabilities{
+		TextDocumentSync: lsp_types.TextDocumentSyncOptions{
+			OpenClose: true,
+			Change:    lsp_types.Full,
+		},
+		HoverProvider:          true,
+		DefinitionProvider:     true,
+		DocumentSymbolProvider: true,
+	},
+	// This is ugly. Is there a shortcut?
+	ServerInfo: struct {
+		Name    string "json:\"name\""
+		Version string "json:\"version,omitempty\""
+	}{
+		Name:    "numscript-ls",
+		Version: "0.0.1",
+	},
+}
+
+func RunServer() error {
+	stream := NewLsObjectStream(os.Stdin, os.Stdout)
+	return NewConn(&stream).Wait()
+}
+
+func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
+	state := State{
+		documents: NewDocumentsStore[InMemoryDocument](),
+	}
+
+	return jsonrpc2.NewConn(objStream,
+		jsonrpc2.NewRequestHandler("initialize", func(_ any, conn *jsonrpc2.Conn) any {
+			return initializeResult
+		}),
+		jsonrpc2.NewNotificationHandler("textDocument/didOpen", func(p lsp_types.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
+			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)
+		}),
+		jsonrpc2.NewNotificationHandler("textDocument/didChange", func(p lsp_types.DidChangeTextDocumentParams, conn *jsonrpc2.Conn) {
+			text := p.ContentChanges[len(p.ContentChanges)-1].Text
+			state.updateDocument(conn, p.TextDocument.URI, text)
+		}),
+		jsonrpc2.NewRequestHandler("textDocument/hover", func(p lsp_types.HoverParams, conn *jsonrpc2.Conn) any {
+			return state.handleHover(p)
+		}),
+		jsonrpc2.NewRequestHandler("textDocument/definition", func(p lsp_types.DefinitionParams, conn *jsonrpc2.Conn) any {
+			return state.handleGotoDefinition(p)
+		}),
+		jsonrpc2.NewRequestHandler("textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams, conn *jsonrpc2.Conn) any {
+			return state.handleGetSymbols(p)
+		}),
+	)
 }
