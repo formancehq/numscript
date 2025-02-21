@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -225,74 +224,48 @@ func parseSource(sourceCtx parser.ISourceContext) Source {
 	}
 }
 
-func unsafeParseBigInt(s string) *big.Int {
-	s = strings.TrimSpace(s)
-	i, ok := new(big.Int).SetString(s, 10)
-	if !ok {
-		panic("invalid int: " + s)
-	}
-	return i
-}
-
-func parseRatio(source string, range_ Range) *RatioLiteral {
-	split := strings.Split(source, "/")
-
-	num := unsafeParseBigInt(split[0])
-	den := unsafeParseBigInt(split[1])
-
-	return &RatioLiteral{
-		Range:       range_,
-		Numerator:   num,
-		Denominator: den,
-	}
-}
-
 // TODO actually handle big int
-func ParsePercentageRatio(source string) (*big.Int, *big.Int, error) {
+func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
 	str := strings.TrimSuffix(source, "%")
 	num, err := strconv.ParseUint(strings.Replace(str, ".", "", -1), 0, 64)
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, err
 	}
 
-	var denominator uint64
+	var floatingDigits uint16
 	split := strings.Split(str, ".")
 	if len(split) > 1 {
-		// TODO verify this is always correct
-		floatingDigits := len(split[1])
-		denominator = (uint64)(math.Pow10(2 + floatingDigits))
+		floatingDigits = uint16(len(split[1]))
 	} else {
-		denominator = 100
+		floatingDigits = 0
 	}
 
-	return big.NewInt(int64(num)), big.NewInt(int64(denominator)), nil
+	return big.NewInt(int64(num)), floatingDigits, nil
 }
 
-func parsePercentageRatio(source string, range_ Range) *RatioLiteral {
-	num, denominator, err := ParsePercentageRatio(source)
+func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
+	num, floatingDigits, err := ParsePercentageRatio(source)
 	if err != nil {
 		panic(err)
 	}
 
-	return &RatioLiteral{
-		Range:       range_,
-		Numerator:   num,
-		Denominator: denominator,
+	return &PercentageLiteral{
+		Range:          range_,
+		Amount:         num,
+		FloatingDigits: floatingDigits,
 	}
 }
 
 func parseAllotment(allotmentCtx parser.IAllotmentContext) AllotmentValue {
 	switch allotmentCtx := allotmentCtx.(type) {
 	case *parser.PortionedAllotmentContext:
-		return parsePortionSource(allotmentCtx.Portion())
+		expr := parseValueExpr(allotmentCtx.ValueExpr())
+		return &ValueExprAllotment{expr}
 
 	case *parser.RemainingAllotmentContext:
 		return &RemainingAllotment{
 			Range: ctxToRange(allotmentCtx),
 		}
-
-	case *parser.PortionVariableContext:
-		return variableLiteralFromCtx(allotmentCtx)
 
 	case *parser.AllotmentContext:
 		return nil
@@ -336,8 +309,8 @@ func parseValueExpr(valueExprCtx parser.IValueExprContext) ValueExpr {
 	case *parser.NumberLiteralContext:
 		return parseNumberLiteral(valueExprCtx.NUMBER())
 
-	case *parser.PortionLiteralContext:
-		return parsePortionSource(valueExprCtx.Portion())
+	case *parser.PercentagePortionLiteralContext:
+		return parsePercentageRatio(valueExprCtx.GetText(), ctxToRange(valueExprCtx))
 
 	case *parser.VariableExprContext:
 		return variableLiteralFromCtx(valueExprCtx)
@@ -368,22 +341,6 @@ func variableLiteralFromCtx(ctx antlr.ParserRuleContext) *Variable {
 	return &Variable{
 		Range: ctxToRange(ctx),
 		Name:  name,
-	}
-}
-
-func parsePortionSource(portionCtx parser.IPortionContext) *RatioLiteral {
-	switch portionCtx.(type) {
-	case *parser.RatioContext:
-		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
-
-	case *parser.PercentageContext:
-		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
-
-	case *parser.PortionContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[*RatioLiteral](portionCtx.GetText())
 	}
 }
 
@@ -487,32 +444,14 @@ func parseDestinationAllotment(allotmentCtx parser.IAllotmentContext) AllotmentV
 		}
 
 	case *parser.PortionedAllotmentContext:
-		return parseDestinationPortion(allotmentCtx.Portion())
-
-	case *parser.PortionVariableContext:
-		return variableLiteralFromCtx(allotmentCtx)
+		expr := parseValueExpr(allotmentCtx.ValueExpr())
+		return &ValueExprAllotment{Value: expr}
 
 	case *parser.AllotmentContext:
 		return nil
 
 	default:
 		return utils.NonExhaustiveMatchPanic[AllotmentValue](allotmentCtx.GetText())
-	}
-}
-
-func parseDestinationPortion(portionCtx parser.IPortionContext) AllotmentValue {
-	switch portionCtx.(type) {
-	case *parser.RatioContext:
-		return parseRatio(portionCtx.GetText(), ctxToRange(portionCtx))
-
-	case *parser.PercentageContext:
-		return parsePercentageRatio(portionCtx.GetText(), ctxToRange(portionCtx))
-
-	case *parser.PortionContext:
-		return nil
-
-	default:
-		return utils.NonExhaustiveMatchPanic[AllotmentValue](portionCtx.GetText())
 	}
 }
 

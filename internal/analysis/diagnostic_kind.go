@@ -157,12 +157,24 @@ func (*BadAllotmentSum) Severity() Severity {
 	return ErrorSeverity
 }
 
+type DivByZero struct {
+	Sum big.Rat
+}
+
+func (e *DivByZero) Message() string {
+	return "Cannot divide by zero"
+}
+
+func (*DivByZero) Severity() Severity {
+	return ErrorSeverity
+}
+
 type FixedPortionVariable struct {
 	Value big.Rat
 }
 
 func (e *FixedPortionVariable) Message() string {
-	return fmt.Sprintf("This variable always has the same value (%s)", e.Value.String())
+	return fmt.Sprintf("Using a variable expression can lead to a runtime error if the expression doesn't resolve to %s.\n\nConsider using a hard-coded value or adding a 'remaining' clause to prevent the error", e.Value.String())
 }
 func (*FixedPortionVariable) Severity() Severity {
 	return WarningSeverity

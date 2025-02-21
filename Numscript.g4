@@ -31,7 +31,6 @@ EQ: '=';
 STAR: '*';
 MINUS: '-';
 
-RATIO_PORTION_LITERAL: [0-9]+ [ ]? '/' [ ]? [0-9]+;
 PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 
 STRING: '"' ('\\"' | ~[\r\n"])* '"';
@@ -45,18 +44,15 @@ ASSET: [A-Z][A-Z0-9]* ('/' [0-9]+)?;
 monetaryLit:
 	LBRACKET (asset = valueExpr) (amt = valueExpr) RBRACKET;
 
-portion:
-	RATIO_PORTION_LITERAL			# ratio
-	| PERCENTAGE_PORTION_LITERAL	# percentage;
-
 valueExpr:
 	VARIABLE_NAME											# variableExpr
 	| ASSET													# assetLiteral
 	| STRING												# stringLiteral
 	| ACCOUNT												# accountLiteral
 	| NUMBER												# numberLiteral
+	| PERCENTAGE_PORTION_LITERAL							# percentagePortionLiteral
 	| monetaryLit											# monetaryLiteral
-	| portion												# portionLiteral
+	| left = valueExpr op = '/' right = valueExpr			# infixExpr
 	| left = valueExpr op = ('+' | '-') right = valueExpr	# infixExpr
 	| '(' valueExpr ')'										# parenthesizedExpr;
 
@@ -74,9 +70,8 @@ program: varsDeclaration? statement* EOF;
 sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 
 allotment:
-	portion			# portionedAllotment
-	| VARIABLE_NAME	# portionVariable
-	| REMAINING		# remainingAllotment;
+	valueExpr	# portionedAllotment
+	| REMAINING	# remainingAllotment;
 
 source:
 	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft

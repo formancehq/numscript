@@ -373,6 +373,11 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 		case parser.InfixOperatorMinus:
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
 
+		case parser.InfixOperatorDiv:
+			res.checkExpression(lit.Left, TypeNumber)
+			res.checkExpression(lit.Right, TypeNumber)
+			return TypePortion
+
 		default:
 			// we should never get here
 			// but just to be sure
@@ -383,7 +388,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 
 	case *parser.AccountLiteral:
 		return TypeAccount
-	case *parser.RatioLiteral:
+	case *parser.PercentageLiteral:
 		return TypePortion
 	case *parser.AssetLiteral:
 		return TypeAsset
@@ -525,18 +530,22 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 		var remainingAllotment *parser.RemainingAllotment = nil
-		var variableLiterals []parser.Variable
+		var variableLiterals []parser.ValueExpr
 
 		sum := big.NewRat(0, 1)
 		for i, allottedItem := range source.Items {
 			isLast := i == len(source.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
-			case *parser.Variable:
-				variableLiterals = append(variableLiterals, *allotment)
-				res.checkExpression(allotment, TypePortion)
-			case *parser.RatioLiteral:
-				sum.Add(sum, allotment.ToRatio())
+			case *parser.ValueExprAllotment:
+				res.checkExpression(allotment.Value, TypePortion)
+				rat := res.tryEvaluatingPortionExpr(allotment.Value)
+				if rat == nil {
+					variableLiterals = append(variableLiterals, allotment.Value)
+				} else {
+					sum.Add(sum, rat)
+				}
+
 			case *parser.RemainingAllotment:
 				if isLast {
 					remainingAllotment = allotment
@@ -557,6 +566,92 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
+	}
+}
+
+// Try evaluating an expression, if it can be done statically.
+//
+// Returns nil when the expression contains variables, fn calls, or anything
+// that cannot be computed statically.
+//
+// For example:
+//
+//	1 + 2 => 3
+//	1 + $x => nil
+func (res CheckResult) tryEvaluatingNumberExpr(expr parser.ValueExpr) *big.Int {
+	switch expr := expr.(type) {
+
+	case *parser.NumberLiteral:
+		return big.NewInt(int64(expr.Number))
+
+	case *parser.BinaryInfix:
+		switch expr.Operator {
+		case parser.InfixOperatorPlus:
+			left := res.tryEvaluatingNumberExpr(expr.Left)
+			if left == nil {
+				return nil
+			}
+			right := res.tryEvaluatingNumberExpr(expr.Right)
+			if right == nil {
+				return nil
+			}
+			return new(big.Int).Add(left, right)
+
+		case parser.InfixOperatorMinus:
+			left := res.tryEvaluatingNumberExpr(expr.Left)
+			if left == nil {
+				return nil
+			}
+			right := res.tryEvaluatingNumberExpr(expr.Right)
+			if right == nil {
+				return nil
+			}
+			return new(big.Int).Sub(left, right)
+
+		default:
+			return nil
+		}
+
+	default:
+		return nil
+	}
+}
+
+// Same as analysis.tryEvaluatingNumberExpr, for portion
+func (res *CheckResult) tryEvaluatingPortionExpr(expr parser.ValueExpr) *big.Rat {
+	switch expr := expr.(type) {
+	case *parser.PercentageLiteral:
+		return expr.ToRatio()
+
+	case *parser.BinaryInfix:
+		switch expr.Operator {
+		case parser.InfixOperatorDiv:
+			right := res.tryEvaluatingNumberExpr(expr.Right)
+			if right == nil {
+				return nil
+			}
+
+			if right.Cmp(big.NewInt(0)) == 0 {
+				res.Diagnostics = append(res.Diagnostics, Diagnostic{
+					Kind:  &DivByZero{},
+					Range: expr.Range,
+				})
+				return nil
+			}
+
+			left := res.tryEvaluatingNumberExpr(expr.Left)
+			if left == nil {
+				return nil
+			}
+
+			return new(big.Rat).SetFrac(left, right)
+
+		default:
+			return nil
+		}
+
+	default:
+		return nil
 	}
 }
 
@@ -585,18 +680,25 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 	case *parser.DestinationAllotment:
 		var remainingAllotment *parser.RemainingAllotment
-		var variableLiterals []parser.Variable
+		var variableLiterals []parser.ValueExpr
 		sum := big.NewRat(0, 1)
 
 		for i, allottedItem := range destination.Items {
 			isLast := i == len(destination.Items)-1
 
 			switch allotment := allottedItem.Allotment.(type) {
-			case *parser.Variable:
-				variableLiterals = append(variableLiterals, *allotment)
-				res.checkExpression(allotment, TypePortion)
-			case *parser.RatioLiteral:
-				sum.Add(sum, allotment.ToRatio())
+			case *parser.ValueExprAllotment:
+				res.checkExpression(allotment.Value, TypePortion)
+				rat := res.tryEvaluatingPortionExpr(allotment.Value)
+				if rat == nil {
+					variableLiterals = append(variableLiterals, allotment.Value)
+				} else {
+					sum.Add(sum, rat)
+				}
+
+			// 	res.checkExpression(allotment, TypePortion)
+			// case *parser.PortionLiteral:
+			// 	sum.Add(sum, allotment.ToRatio())
 			case *parser.RemainingAllotment:
 				if isLast {
 					remainingAllotment = allotment
@@ -628,7 +730,7 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 	sum big.Rat,
 	rng parser.Range,
 	remaining *parser.RemainingAllotment,
-	variableLiterals []parser.Variable,
+	variableLiterals []parser.ValueExpr,
 ) {
 	cmp := sum.Cmp(big.NewRat(1, 1))
 	switch cmp {
@@ -640,7 +742,7 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 		if cmp == -1 && len(variableLiterals) == 1 {
 			var value big.Rat
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: variableLiterals[0].Range,
+				Range: variableLiterals[0].GetRange(),
 				Kind: &FixedPortionVariable{
 					Value: *value.Sub(big.NewRat(1, 1), &sum),
 				},
@@ -658,7 +760,7 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 	case 0:
 		for _, varLit := range variableLiterals {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: varLit.Range,
+				Range: varLit.GetRange(),
 				Kind: &FixedPortionVariable{
 					Value: *big.NewRat(0, 1),
 				},

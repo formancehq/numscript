@@ -98,6 +98,39 @@ send [COIN 10] + [COIN $amt] (
 	require.NotNil(t, hover)
 }
 
+func TestHoverOnNestedAllotmentExpr(t *testing.T) {
+	input := `vars {
+  number $denom
+}
+
+send [COIN 100] (
+  source = {
+    2/3 from @s1
+    1/3 from @s2
+    1/(1 + $denom) from @s3
+  }
+  destination = @dest
+)
+`
+
+	rng := parser.RangeOfIndexed(input, "$denom", 1)
+
+	parsed := parser.Parse(input)
+	require.Empty(t, parsed.Errors)
+
+	program := parsed.Value
+
+	hover := analysis.HoverOn(program, rng.Start)
+	require.NotNil(t, hover)
+	require.Equal(t, &analysis.VariableHover{
+		Range: rng,
+		Node: &parser.Variable{
+			Range: rng,
+			Name:  "denom",
+		},
+	}, hover)
+}
+
 func TestHoverOnMonetaryVarAsset(t *testing.T) {
 	input := `vars { asset $asset }
 
@@ -237,7 +270,10 @@ func TestHoverOnDestVariableAllotment(t *testing.T) {
 
 send [C 10] (
 	source = @s
-	destination = { $portion to @a }
+	destination = {
+		$portion to @a
+		remaining kept
+	}
 )`
 
 	rng := parser.RangeOfIndexed(input, "$portion", 1)

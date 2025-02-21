@@ -768,12 +768,8 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 
 	for i, item := range items {
 		switch allotment := item.(type) {
-		case *parser.RatioLiteral:
-			rat := allotment.ToRatio()
-			totalAllotment.Add(totalAllotment, rat)
-			allotments = append(allotments, rat)
-		case *parser.Variable:
-			rat, err := evaluateExprAs(s, allotment, expectPortion)
+		case *parser.ValueExprAllotment:
+			rat, err := evaluateExprAs(s, allotment.Value, expectPortion)
 			if err != nil {
 				return nil, err
 			}

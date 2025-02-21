@@ -65,13 +65,14 @@ func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 	c.vars = jsonVars
 }
 
-func (tc *TestCase) compile(t *testing.T, src string) {
+func (tc *TestCase) compile(t *testing.T, src string) string {
 	tc.source = src
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
 		t.Errorf("Got parsing errors: %v\n", parsed.Errors)
 	}
 	tc.program = &parsed.Value
+	return src
 }
 
 func (c *TestCase) setBalance(account string, asset string, amount int64) {
@@ -762,6 +763,18 @@ func TestInvalidAllotInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+func TestDivByZero(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `set_tx_meta("k", 3/0)`)
+	tc.expected = CaseResult{
+		Error: machine.DivideByZero{
+			Numerator: big.NewInt(3),
+			Range:     parser.RangeOfIndexed(src, "3/0", 0),
+		},
+	}
+	test(t, tc)
+}
+
 func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
@@ -1424,6 +1437,46 @@ func TestSourceAllotment(t *testing.T) {
 	test(t, tc)
 }
 
+func TestVariablePortionPart(t *testing.T) {
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `{
+		"num": "1",
+		"den": "3"
+	}`)
+
+	tc.compile(t, `
+	vars {
+		number $num
+		number $den
+	}
+
+	send [COIN 9] (
+		source = @world
+		destination = {
+			$num/3 to @a // 1/3
+			2/$den to @b // 2/3
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(3),
+				Source:      "world",
+				Destination: "a",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(6),
+				Source:      "world",
+				Destination: "b",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
 func TestInvalidSourceAllotmentSum(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (

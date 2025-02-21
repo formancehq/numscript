@@ -160,18 +160,27 @@ parser.Program{
                             Start: parser.Position{Character:13, Line:1},
                             End:   parser.Position{Character:25, Line:1},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:13, Line:1},
-                                End:   parser.Position{Character:16, Line:1},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x3},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:13, Line:1},
+                                    End:   parser.Position{Character:16, Line:1},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:13, Line:1},
+                                        End:   parser.Position{Character:14, Line:1},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:15, Line:1},
+                                        End:   parser.Position{Character:16, Line:1},
+                                    },
+                                    Number: 3,
+                                },
                             },
                         },
                         From: &parser.SourceAccount{
@@ -246,18 +255,17 @@ parser.Program{
                             Start: parser.Position{Character:4, Line:2},
                             End:   parser.Position{Character:16, Line:2},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:4, Line:2},
-                                End:   parser.Position{Character:7, Line:2},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x2a},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x64},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.PercentageLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:4, Line:2},
+                                    End:   parser.Position{Character:7, Line:2},
+                                },
+                                Amount: &big.Int{
+                                    neg: false,
+                                    abs: {0x2a},
+                                },
+                                FloatingDigits: 0x0,
                             },
                         },
                         From: &parser.SourceAccount{
@@ -275,18 +283,27 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:3},
                             End:   parser.Position{Character:13, Line:3},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:1, Line:3},
-                                End:   parser.Position{Character:4, Line:3},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x2},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:1, Line:3},
+                                    End:   parser.Position{Character:4, Line:3},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:1, Line:3},
+                                        End:   parser.Position{Character:2, Line:3},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:3, Line:3},
+                                        End:   parser.Position{Character:4, Line:3},
+                                    },
+                                    Number: 2,
+                                },
                             },
                         },
                         From: &parser.SourceAccount{
@@ -382,18 +399,17 @@ parser.Program{
                             Start: parser.Position{Character:13, Line:1},
                             End:   parser.Position{Character:26, Line:1},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:13, Line:1},
-                                End:   parser.Position{Character:18, Line:1},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0xf2},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x2710},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.PercentageLiteral{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:13, Line:1},
+                                    End:   parser.Position{Character:18, Line:1},
+                                },
+                                Amount: &big.Int{
+                                    neg: false,
+                                    abs: {0xf2},
+                                },
+                                FloatingDigits: 0x2,
                             },
                         },
                         From: &parser.SourceAccount{
@@ -477,18 +493,27 @@ parser.Program{
                             Start: parser.Position{Character:18, Line:2},
                             End:   parser.Position{Character:27, Line:2},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:18, Line:2},
-                                End:   parser.Position{Character:21, Line:2},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x2},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:18, Line:2},
+                                    End:   parser.Position{Character:21, Line:2},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:18, Line:2},
+                                        End:   parser.Position{Character:19, Line:2},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:20, Line:2},
+                                        End:   parser.Position{Character:21, Line:2},
+                                    },
+                                    Number: 2,
+                                },
                             },
                         },
                         To: &parser.DestinationTo{
@@ -1015,18 +1040,27 @@ parser.Program{
                             Start: parser.Position{Character:3, Line:3},
                             End:   parser.Position{Character:12, Line:3},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:3, Line:3},
-                                End:   parser.Position{Character:6, Line:3},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x2},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:3, Line:3},
+                                    End:   parser.Position{Character:6, Line:3},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:3, Line:3},
+                                        End:   parser.Position{Character:4, Line:3},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:5, Line:3},
+                                        End:   parser.Position{Character:6, Line:3},
+                                    },
+                                    Number: 2,
+                                },
                             },
                         },
                         To: &parser.DestinationTo{
@@ -1117,12 +1151,14 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:2},
                             End:   parser.Position{Character:11, Line:2},
                         },
-                        Allotment: &parser.Variable{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:1, Line:2},
-                                End:   parser.Position{Character:3, Line:2},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.Variable{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:1, Line:2},
+                                    End:   parser.Position{Character:3, Line:2},
+                                },
+                                Name: "x",
                             },
-                            Name: "x",
                         },
                         From: &parser.SourceAccount{
                             ValueExpr: &parser.AccountLiteral{
@@ -1415,18 +1451,25 @@ parser.Program{
                     },
                     Number: 100,
                 },
-                &parser.RatioLiteral{
+                &parser.BinaryInfix{
                     Range: parser.Range{
                         Start: parser.Position{Character:1, Line:4},
                         End:   parser.Position{Character:4, Line:4},
                     },
-                    Numerator: &big.Int{
-                        neg: false,
-                        abs: {0x1},
+                    Operator: "/",
+                    Left:     &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:4},
+                            End:   parser.Position{Character:2, Line:4},
+                        },
+                        Number: 1,
                     },
-                    Denominator: &big.Int{
-                        neg: false,
-                        abs: {0x2},
+                    Right: &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:3, Line:4},
+                            End:   parser.Position{Character:4, Line:4},
+                        },
+                        Number: 2,
                     },
                 },
                 &parser.Variable{
@@ -1792,18 +1835,27 @@ parser.Program{
                             Start: parser.Position{Character:18, Line:2},
                             End:   parser.Position{Character:26, Line:2},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:18, Line:2},
-                                End:   parser.Position{Character:21, Line:2},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x2},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:18, Line:2},
+                                    End:   parser.Position{Character:21, Line:2},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:18, Line:2},
+                                        End:   parser.Position{Character:19, Line:2},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:20, Line:2},
+                                        End:   parser.Position{Character:21, Line:2},
+                                    },
+                                    Number: 2,
+                                },
                             },
                         },
                         To: &parser.DestinationKept{
@@ -1862,18 +1914,27 @@ parser.Program{
                             Start: parser.Position{Character:4, Line:4},
                             End:   parser.Position{Character:22, Line:4},
                         },
-                        Allotment: &parser.RatioLiteral{
-                            Range: parser.Range{
-                                Start: parser.Position{Character:4, Line:4},
-                                End:   parser.Position{Character:9, Line:4},
-                            },
-                            Numerator: &big.Int{
-                                neg: false,
-                                abs: {0x1},
-                            },
-                            Denominator: &big.Int{
-                                neg: false,
-                                abs: {0x6},
+                        Allotment: &parser.ValueExprAllotment{
+                            Value: &parser.BinaryInfix{
+                                Range: parser.Range{
+                                    Start: parser.Position{Character:4, Line:4},
+                                    End:   parser.Position{Character:9, Line:4},
+                                },
+                                Operator: "/",
+                                Left:     &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:4, Line:4},
+                                        End:   parser.Position{Character:5, Line:4},
+                                    },
+                                    Number: 1,
+                                },
+                                Right: &parser.NumberLiteral{
+                                    Range: parser.Range{
+                                        Start: parser.Position{Character:8, Line:4},
+                                        End:   parser.Position{Character:9, Line:4},
+                                    },
+                                    Number: 6,
+                                },
                             },
                         },
                         To: &parser.DestinationTo{
@@ -1897,13 +1958,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'oneof', 'max', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'oneof', 'max', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'oneof', '(', '[', '{', RATIO_PORTION_LITERAL, PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
   1 |   source = err
   2 |   destination = ee
     |                 ~
@@ -2158,18 +2219,25 @@ parser.Program{
                         End:   parser.Position{Character:33, Line:2},
                     },
                     Operator: "-",
-                    Left:     &parser.RatioLiteral{
+                    Left:     &parser.BinaryInfix{
                         Range: parser.Range{
                             Start: parser.Position{Character:18, Line:2},
                             End:   parser.Position{Character:21, Line:2},
                         },
-                        Numerator: &big.Int{
-                            neg: false,
-                            abs: {0x1},
+                        Operator: "/",
+                        Left:     &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:18, Line:2},
+                                End:   parser.Position{Character:19, Line:2},
+                            },
+                            Number: 1,
                         },
-                        Denominator: &big.Int{
-                            neg: false,
-                            abs: {0x2},
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:20, Line:2},
+                                End:   parser.Position{Character:21, Line:2},
+                            },
+                            Number: 2,
                         },
                     },
                     Right: &parser.MonetaryLiteral{
@@ -2518,6 +2586,173 @@ parser.Program{
                                 End:   parser.Position{Character:18, Line:5},
                             },
                             Name: "d3",
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestDivInfix - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:26, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:1},
+                        End:   parser.Position{Character:25, Line:1},
+                    },
+                    Operator: "/",
+                    Left:     &parser.Variable{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:1},
+                            End:   parser.Position{Character:20, Line:1},
+                        },
+                        Name: "x",
+                    },
+                    Right: &parser.Variable{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:23, Line:1},
+                            End:   parser.Position{Character:25, Line:1},
+                        },
+                        Name: "y",
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestDivVariableDenominator - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:25, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:19, Line:1},
+                        End:   parser.Position{Character:24, Line:1},
+                    },
+                    Operator: "/",
+                    Left:     &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:19, Line:1},
+                            End:   parser.Position{Character:21, Line:1},
+                        },
+                        Number: 10,
+                    },
+                    Right: &parser.Variable{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:22, Line:1},
+                            End:   parser.Position{Character:24, Line:1},
+                        },
+                        Name: "y",
+                    },
+                },
+            },
+        },
+    },
+}
+---
+
+[TestInfixSumDiv - 1]
+parser.Program{
+    Vars:       nil,
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:28, Line:1},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:12, Line:1},
+                        End:   parser.Position{Character:16, Line:1},
+                    },
+                    String: "k1",
+                },
+                &parser.BinaryInfix{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:18, Line:1},
+                        End:   parser.Position{Character:27, Line:1},
+                    },
+                    Operator: "+",
+                    Left:     &parser.NumberLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:18, Line:1},
+                            End:   parser.Position{Character:19, Line:1},
+                        },
+                        Number: 1,
+                    },
+                    Right: &parser.BinaryInfix{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:22, Line:1},
+                            End:   parser.Position{Character:27, Line:1},
+                        },
+                        Operator: "/",
+                        Left:     &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:22, Line:1},
+                                End:   parser.Position{Character:23, Line:1},
+                            },
+                            Number: 2,
+                        },
+                        Right: &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:26, Line:1},
+                                End:   parser.Position{Character:27, Line:1},
+                            },
+                            Number: 3,
                         },
                     },
                 },

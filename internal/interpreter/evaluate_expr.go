@@ -15,7 +15,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		return AccountAddress(expr.Name), nil
 	case *parser.StringLiteral:
 		return String(expr.String), nil
-	case *parser.RatioLiteral:
+	case *parser.PercentageLiteral:
 		return Portion(*expr.ToRatio()), nil
 	case *parser.NumberLiteral:
 		return MonetaryInt(*big.NewInt(int64(expr.Number))), nil
@@ -42,7 +42,6 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		}
 		return value, nil
 
-	// TypeError
 	case *parser.BinaryInfix:
 
 		switch expr.Operator {
@@ -51,6 +50,9 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 
 		case parser.InfixOperatorMinus:
 			return st.subOp(expr.Left, expr.Right)
+
+		case parser.InfixOperatorDiv:
+			return st.divOp(expr.Range, expr.Left, expr.Right)
 
 		default:
 			utils.NonExhaustiveMatchPanic[any](expr.Operator)
@@ -123,4 +125,27 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 	}
 
 	return (*leftValue).evalSub(st, right)
+}
+
+func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+	leftValue, err := evaluateExprAs(st, left, expectNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	rightValue, err := evaluateExprAs(st, right, expectNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if rightValue.Cmp(big.NewInt(0)) == 0 {
+		return nil, DivideByZero{
+			Range:     rng,
+			Numerator: leftValue,
+		}
+	}
+
+	rat := new(big.Rat).SetFrac(leftValue, rightValue)
+
+	return Portion(*rat), nil
 }

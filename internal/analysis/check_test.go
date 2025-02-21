@@ -624,9 +624,9 @@ func TestBadRemainingInDest(t *testing.T) {
 	input := `send [COIN 100] (
   	source = @a
   	destination = {
-		1/2 from @a
-		remaining from @b
-		1/2 from @c
+			1/2 to @a
+			remaining to @b
+			1/2 to @c
     }
 )`
 
@@ -654,10 +654,104 @@ func TestBadRemainingInDest(t *testing.T) {
 func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 	t.Parallel()
 
-	input := `send [COIN 100] (
-   source = {
+	input := `
+send [COIN 100] (
+	source = {
 		1/3 from @s1
 		1/3 from @s2
+	}
+	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	end := *parser.PositionOfIndexed(input, "}", 0)
+	end.Character++
+
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.Range{
+				Start: *parser.PositionOfIndexed(input, "{", 0),
+				End:   end,
+			},
+			Kind: &analysis.BadAllotmentSum{
+				Sum: *big.NewRat(2, 3),
+			},
+		},
+	}, analysis.CheckProgram(program).Diagnostics)
+
+}
+
+func TestBadAllotmentPerc(t *testing.T) {
+	t.Parallel()
+
+	input := `
+send [COIN 100] (
+	source = {
+		25% from @s1
+		50% from @s2
+	}
+	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	end := *parser.PositionOfIndexed(input, "}", 0)
+	end.Character++
+
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.Range{
+				Start: *parser.PositionOfIndexed(input, "{", 0),
+				End:   end,
+			},
+			Kind: &analysis.BadAllotmentSum{
+				Sum: *big.NewRat(75, 100),
+			},
+		},
+	}, analysis.CheckProgram(program).Diagnostics)
+
+}
+
+func TestBadAllotmentComplexExpr(t *testing.T) {
+	t.Parallel()
+
+	// same test as the previous one, with nested expr
+	input := `
+send [COIN 100] (
+	source = {
+		(10 - 9)/(2 + 1) from @s1
+		((1 + 1) - 1)/3 from @s2
+	}
+	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	end := *parser.PositionOfIndexed(input, "}", 0)
+	end.Character++
+
+	assert.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.Range{
+				Start: *parser.PositionOfIndexed(input, "{", 0),
+				End:   end,
+			},
+			Kind: &analysis.BadAllotmentSum{
+				Sum: *big.NewRat(2, 3),
+			},
+		},
+	}, analysis.CheckProgram(program).Diagnostics)
+
+}
+
+func TestDivByZero(t *testing.T) {
+	t.Parallel()
+
+	input := `send [COIN 100] (
+   source = {
+			4/0 from @world
+			remaining kept
     }
   	destination = @dest
 )`
@@ -665,23 +759,12 @@ func TestBadAllotmentSumInSourceLessThanOne(t *testing.T) {
 	program := parser.Parse(input).Value
 
 	diagnostics := analysis.CheckProgram(program).Diagnostics
-	require.Lenf(t, diagnostics, 1, "wrong diagnostics len")
-
-	d1 := diagnostics[0]
-	assert.Equal(t,
-		&analysis.BadAllotmentSum{
-			Sum: *big.NewRat(2, 3),
+	require.Equal(t, []analysis.Diagnostic{
+		{
+			Kind:  &analysis.DivByZero{},
+			Range: parser.RangeOfIndexed(input, "4/0", 0),
 		},
-		d1.Kind,
-	)
-
-	assert.Equal(t,
-		parser.Range{
-			Start: parser.Position{Line: 1, Character: 12},
-			End:   parser.Position{Line: 4, Character: 5},
-		},
-		d1.Range,
-	)
+	}, diagnostics)
 }
 
 func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
@@ -721,12 +804,13 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 func TestBadAllotmentSumInDestinationLessThanOne(t *testing.T) {
 	t.Parallel()
 
-	input := `send [COIN 100] (
-   source = @src
-  	destination = {
-		1/3 to @d1
-		1/3 to @d2
-    }
+	input := `
+send [COIN 100] (
+	source = @src
+		destination = {
+			1/3 to @d1
+			1/3 to @d2
+		}
 )`
 
 	program := parser.Parse(input).Value
@@ -778,10 +862,10 @@ func TestAllotmentGt1ErrIfVariable(t *testing.T) {
 send [COIN 100] (
    source = @src
   	destination = {
-		2/3 to @d1
-		2/3 to @d2
-		$portion1 to @d3
-		$portion2 to @d4
+			2/3 to @d1
+			2/3 to @d2
+			$portion1 to @d3
+			$portion2 to @d4
     }
 )`
 
