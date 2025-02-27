@@ -231,5 +231,9 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 		jsonrpc2.NewRequestHandler("textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams, conn *jsonrpc2.Conn) any {
 			return state.handleGetSymbols(p)
 		}),
+		jsonrpc2.NewRequestHandler("shutdown", func(_ any, conn *jsonrpc2.Conn) any {
+			conn.SendNotification("exit", nil)
+			return nil
+		}),
 	)
 }

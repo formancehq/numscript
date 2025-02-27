@@ -42,9 +42,11 @@ func NewRequestHandler[Params any](method string, handler func(params Params, co
 		register: func(conn *Conn) {
 			conn.requestsHandlers[method] = func(raw json.RawMessage) (any, *ResponseError) {
 				var payload Params
-				err := json.Unmarshal([]byte(raw), &payload)
-				if err != nil {
-					return nil, &ErrInvalidParams
+				if raw != nil {
+					err := json.Unmarshal([]byte(raw), &payload)
+					if err != nil {
+						return nil, &ErrInvalidParams
+					}
 				}
 				return handler(payload, conn), nil
 			}
