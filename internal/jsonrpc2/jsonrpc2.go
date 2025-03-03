@@ -160,7 +160,9 @@ func (s *Conn) SendNotification(method string, params any) {
 
 func (s *Conn) Close() {
 	s.stream.Close()
-	// TODO should also close the pendingRequests channels
+	for _, ch := range s.pendingRequests {
+		close(ch)
+	}
 	s.opened = false
 }
 
