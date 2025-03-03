@@ -205,8 +205,12 @@ func (s *Conn) handleRequest(request Request) error {
 
 func (s *Conn) handleResponse(response Response) error {
 	s.pendingRequestMu.RLock()
-	request := s.pendingRequests[response.ID]
+	request, ok := s.pendingRequests[response.ID]
 	s.pendingRequestMu.RUnlock()
+
+	if !ok {
+		return nil
+	}
 
 	go func() {
 		request <- response
