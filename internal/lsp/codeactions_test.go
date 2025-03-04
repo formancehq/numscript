@@ -43,7 +43,7 @@ send [USD/2 100] (
 `
 
 	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
-		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
 }
@@ -71,7 +71,7 @@ send [USD/2 100] (
 `
 
 	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
-		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
 }
@@ -96,7 +96,7 @@ send [USD/2 100] (
 `
 
 	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
-		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
 }
@@ -122,7 +122,7 @@ send [USD/2 100] (
 `
 
 	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) lsp.TextEdit {
-		return lsp.CreateVar(*kind.(*analysis.UnboundVariable), program)
+		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
 	})
 
 }

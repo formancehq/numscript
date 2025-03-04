@@ -33,7 +33,7 @@ send [C 10] (
 	)
 
 	assert.Equal(t,
-		&analysis.InvalidType{Name: "invalid"},
+		analysis.InvalidType{Name: "invalid"},
 		d1.Kind,
 	)
 }
@@ -80,7 +80,7 @@ func TestDuplicateVariable(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		&analysis.DuplicateVariable{Name: "x"},
+		analysis.DuplicateVariable{Name: "x"},
 		d1.Kind,
 	)
 }
@@ -98,11 +98,11 @@ func TestUnboundVarInSaveAccount(t *testing.T) {
 	assert.Equal(t,
 		[]analysis.Diagnostic{
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon", Type: analysis.TypeMonetary},
+				Kind:  analysis.UnboundVariable{Name: "unbound_mon", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon", 0),
 			},
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_acc", Type: analysis.TypeAccount},
+				Kind:  analysis.UnboundVariable{Name: "unbound_acc", Type: analysis.TypeAccount},
 				Range: parser.RangeOfIndexed(input, "$unbound_acc", 0),
 			},
 		},
@@ -126,11 +126,11 @@ func TestUnboundVarInInfixOp(t *testing.T) {
 	assert.Equal(t,
 		[]analysis.Diagnostic{
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon1", Type: analysis.TypeMonetary},
+				Kind:  analysis.UnboundVariable{Name: "unbound_mon1", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon1", 0),
 			},
 			{
-				Kind:  &analysis.UnboundVariable{Name: "unbound_mon2", Type: analysis.TypeMonetary},
+				Kind:  analysis.UnboundVariable{Name: "unbound_mon2", Type: analysis.TypeMonetary},
 				Range: parser.RangeOfIndexed(input, "$unbound_mon2", 0),
 			},
 		},
@@ -157,11 +157,11 @@ save $str from $n
 	assert.Equal(t,
 		[]analysis.Diagnostic{
 			{
-				Kind:  &analysis.TypeMismatch{Expected: "monetary", Got: "string"},
+				Kind:  analysis.TypeMismatch{Expected: "monetary", Got: "string"},
 				Range: parser.RangeOfIndexed(input, "$str", 1),
 			},
 			{
-				Kind:  &analysis.TypeMismatch{Expected: "account", Got: "number"},
+				Kind:  analysis.TypeMismatch{Expected: "account", Got: "number"},
 				Range: parser.RangeOfIndexed(input, "$n", 1),
 			},
 		},
@@ -192,7 +192,7 @@ func TestUnboundVarInSource(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		&analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
+		analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 		d1.Kind,
 	)
 }
@@ -214,7 +214,7 @@ func TestUnboundVarInSourceOneof(t *testing.T) {
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
-				Kind:  &analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
+				Kind:  analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 			},
 		},
 		diagnostics,
@@ -244,7 +244,7 @@ func TestUnboundVarInDest(t *testing.T) {
 		d1.Range,
 	)
 	assert.Equal(t,
-		&analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
+		analysis.UnboundVariable{Name: "unbound_var", Type: analysis.TypeAccount},
 		d1.Kind,
 	)
 }
@@ -304,7 +304,7 @@ func TestUnusedVarInSource(t *testing.T) {
 	)
 
 	assert.Equal(t,
-		&analysis.UnusedVar{Name: "unused_var"},
+		analysis.UnusedVar{Name: "unused_var"},
 		d1.Kind,
 	)
 }
@@ -326,7 +326,7 @@ send [$a 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "asset",
 			Got:      "account",
 		},
@@ -356,7 +356,7 @@ send [EUR/2 $n] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "number",
 			Got:      "account",
 		},
@@ -386,7 +386,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "monetary",
 			Got:      "account",
 		},
@@ -416,7 +416,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "account",
 			Got:      "portion",
 		},
@@ -446,7 +446,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "account",
 			Got:      "portion",
 		},
@@ -476,7 +476,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "account",
 			Got:      "portion",
 		},
@@ -506,7 +506,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "monetary",
 			Got:      "portion",
 		},
@@ -539,7 +539,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "portion",
 			Got:      "string",
 		},
@@ -572,7 +572,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "portion",
 			Got:      "string",
 		},
@@ -604,7 +604,7 @@ func TestBadRemainingInSource(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.RemainingIsNotLast{},
+		analysis.RemainingIsNotLast{},
 		d1.Kind,
 	)
 
@@ -637,7 +637,7 @@ func TestBadRemainingInDest(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.RemainingIsNotLast{},
+		analysis.RemainingIsNotLast{},
 		d1.Kind,
 	)
 
@@ -674,7 +674,7 @@ send [COIN 100] (
 				Start: *parser.PositionOfIndexed(input, "{", 0),
 				End:   end,
 			},
-			Kind: &analysis.BadAllotmentSum{
+			Kind: analysis.BadAllotmentSum{
 				Sum: *big.NewRat(2, 3),
 			},
 		},
@@ -705,7 +705,7 @@ send [COIN 100] (
 				Start: *parser.PositionOfIndexed(input, "{", 0),
 				End:   end,
 			},
-			Kind: &analysis.BadAllotmentSum{
+			Kind: analysis.BadAllotmentSum{
 				Sum: *big.NewRat(75, 100),
 			},
 		},
@@ -737,7 +737,7 @@ send [COIN 100] (
 				Start: *parser.PositionOfIndexed(input, "{", 0),
 				End:   end,
 			},
-			Kind: &analysis.BadAllotmentSum{
+			Kind: analysis.BadAllotmentSum{
 				Sum: *big.NewRat(2, 3),
 			},
 		},
@@ -761,7 +761,7 @@ func TestDivByZero(t *testing.T) {
 	diagnostics := analysis.CheckProgram(program).Diagnostics
 	require.Equal(t, []analysis.Diagnostic{
 		{
-			Kind:  &analysis.DivByZero{},
+			Kind:  analysis.DivByZero{},
 			Range: parser.RangeOfIndexed(input, "4/0", 0),
 		},
 	}, diagnostics)
@@ -785,7 +785,7 @@ func TestBadAllotmentSumInSourceMoreThanOne(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.BadAllotmentSum{
+		analysis.BadAllotmentSum{
 			Sum: *big.NewRat(4, 3),
 		},
 		d1.Kind,
@@ -820,7 +820,7 @@ send [COIN 100] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.BadAllotmentSum{
+		analysis.BadAllotmentSum{
 			Sum: *big.NewRat(2, 3),
 		},
 		d1.Kind,
@@ -874,7 +874,7 @@ send [COIN 100] (
 	diagnostics := analysis.CheckProgram(program).Diagnostics
 	require.Len(t, diagnostics, 1)
 
-	assert.IsType(t, diagnostics[0].Kind, &analysis.BadAllotmentSum{})
+	assert.IsType(t, diagnostics[0].Kind, analysis.BadAllotmentSum{})
 }
 
 func TestAllotmentErrOnlyOneVar(t *testing.T) {
@@ -896,7 +896,7 @@ send [COIN 100] (
 	require.Len(t, diagnostics, 1)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
-		Kind: &analysis.FixedPortionVariable{
+		Kind: analysis.FixedPortionVariable{
 			Value: *big.NewRat(1, 3),
 		},
 		Range: parser.RangeOfIndexed(input, "$portion", 1),
@@ -927,14 +927,14 @@ send [COIN 100] (
 	require.Len(t, diagnostics, 2)
 
 	assert.Equal(t, diagnostics[0], analysis.Diagnostic{
-		Kind: &analysis.FixedPortionVariable{
+		Kind: analysis.FixedPortionVariable{
 			Value: *big.NewRat(0, 1),
 		},
 		Range: parser.RangeOfIndexed(input, "$portion1", 1),
 	})
 
 	assert.Equal(t, diagnostics[1], analysis.Diagnostic{
-		Kind: &analysis.FixedPortionVariable{
+		Kind: analysis.FixedPortionVariable{
 			Value: *big.NewRat(0, 1),
 		},
 		Range: parser.RangeOfIndexed(input, "$portion2", 1),
@@ -978,7 +978,7 @@ func TestBadAllotmentWhenRemainingButGt1(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.BadAllotmentSum{
+		analysis.BadAllotmentSum{
 			Sum: *big.NewRat(4, 3),
 		},
 		d1.Kind,
@@ -1004,7 +1004,7 @@ func TestRedundantRemainingWhenSumIsOne(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.RedundantRemaining{},
+		analysis.RedundantRemaining{},
 		d1.Kind,
 	)
 
@@ -1045,7 +1045,7 @@ func TestCheckNoUnboundFunctionCall(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.UnknownFunction{Name: "invalid_fn_call"},
+		analysis.UnknownFunction{Name: "invalid_fn_call"},
 		d1.Kind,
 	)
 
@@ -1078,7 +1078,7 @@ func TestCheckFnCallTypesWrongType(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "string",
 			Got:      "account",
 		},
@@ -1103,7 +1103,7 @@ func TestTooFewFnArgs(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.BadArity{
+		analysis.BadArity{
 			Expected: 2,
 			Actual:   1,
 		},
@@ -1128,7 +1128,7 @@ func TestTooManyFnArgs(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.BadArity{
+		analysis.BadArity{
 			Expected: 2,
 			Actual:   4,
 		},
@@ -1173,7 +1173,7 @@ func TestCheckTypesOriginFn(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "account",
 			Got:      "number",
 		},
@@ -1202,7 +1202,7 @@ func TestCheckReturnTypeOriginFn(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "monetary",
 			Got:      "account",
 		},
@@ -1228,7 +1228,7 @@ func TestWorldOverdraft(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.InvalidWorldOverdraft{},
+		analysis.InvalidWorldOverdraft{},
 		d1.Kind,
 	)
 
@@ -1253,7 +1253,7 @@ func TestForbidAllotmentInSendAll(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.NoAllotmentInSendAll{},
+		analysis.NoAllotmentInSendAll{},
 		d1.Kind,
 	)
 }
@@ -1298,7 +1298,7 @@ func TestDisallowAllotmentInCappedSendAllOutsideMax(t *testing.T) {
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.NoAllotmentInSendAll{},
+		analysis.NoAllotmentInSendAll{},
 		d1.Kind,
 	)
 }
@@ -1344,7 +1344,7 @@ func TestForbidUnboundedSrcInSendAll(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.InvalidUnboundedAccount{},
+		analysis.InvalidUnboundedAccount{},
 	)
 
 	require.Equal(t,
@@ -1403,7 +1403,7 @@ func TestForbidEmptiedAccount(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.EmptiedAccount{Name: "a"},
+		analysis.EmptiedAccount{Name: "a"},
 	)
 
 	require.Equal(t,
@@ -1455,7 +1455,7 @@ func TestEmptiedAccountInMax(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.EmptiedAccount{Name: "emptied"},
+		analysis.EmptiedAccount{Name: "emptied"},
 	)
 
 	require.Equal(t,
@@ -1505,7 +1505,7 @@ func TestDoNotEmptyAccountInMax(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.EmptiedAccount{Name: "emptied"},
+		analysis.EmptiedAccount{Name: "emptied"},
 	)
 
 	require.Equal(t,
@@ -1549,7 +1549,7 @@ func TestDoNotAllowExprAfterWorld(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.UnboundedAccountIsNotLast{},
+		analysis.UnboundedAccountIsNotLast{},
 	)
 
 	require.Equal(t,
@@ -1614,7 +1614,7 @@ func TestDoNotAllowExprAfterWorldInsideMaxed(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.UnboundedAccountIsNotLast{},
+		analysis.UnboundedAccountIsNotLast{},
 	)
 
 	require.Equal(t,
@@ -1641,7 +1641,7 @@ func TestDoNotAllowExprAfterUnbounded(t *testing.T) {
 
 	require.Equal(t,
 		diagnostics[0].Kind,
-		&analysis.UnboundedAccountIsNotLast{},
+		analysis.UnboundedAccountIsNotLast{},
 	)
 
 	require.Equal(t,
@@ -1677,7 +1677,7 @@ func TestCheckPlus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "1/2", 0),
-				Kind: &analysis.TypeMismatch{
+				Kind: analysis.TypeMismatch{
 					Expected: "number",
 					Got:      "portion",
 				},
@@ -1706,7 +1706,7 @@ func TestCheckPlus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "@acc", 0),
-				Kind: &analysis.TypeMismatch{
+				Kind: analysis.TypeMismatch{
 					Expected: "number|monetary",
 					Got:      "account",
 				},
@@ -1721,7 +1721,7 @@ func TestCheckPlus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
-				Kind: &analysis.UnboundVariable{
+				Kind: analysis.UnboundVariable{
 					Name: "unbound_var",
 					Type: analysis.TypeNumber,
 				},
@@ -1740,7 +1740,7 @@ func TestCheckMinus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "1/2", 0),
-				Kind: &analysis.TypeMismatch{
+				Kind: analysis.TypeMismatch{
 					Expected: "number",
 					Got:      "portion",
 				},
@@ -1769,7 +1769,7 @@ func TestCheckMinus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "@acc", 0),
-				Kind: &analysis.TypeMismatch{
+				Kind: analysis.TypeMismatch{
 					Expected: "number|monetary",
 					Got:      "account",
 				},
@@ -1784,7 +1784,7 @@ func TestCheckMinus(t *testing.T) {
 		require.Equal(t, []analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$unbound_var", 0),
-				Kind: &analysis.UnboundVariable{
+				Kind: analysis.UnboundVariable{
 					Name: "unbound_var",
 					Type: analysis.TypeNumber,
 				},

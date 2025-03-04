@@ -172,10 +172,7 @@ func (res *CheckResult) check() {
 
 	// after static AST traversal is complete, check for unused vars
 	for name, rng := range res.unusedVars {
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: rng,
-			Kind:  &UnusedVar{Name: name},
-		})
+		res.pushDiagnostic(rng, UnusedVar{Name: name})
 	}
 }
 
@@ -217,17 +214,10 @@ func CheckSource(source string) CheckResult {
 	result := parser.Parse(source)
 	res := newCheckResult(result.Value)
 	for _, parserError := range result.Errors {
-		res.Diagnostics = append(res.Diagnostics, parsingErrorToDiagnostic(parserError))
+		res.pushDiagnostic(parserError.Range, Parsing{Description: parserError.Msg})
 	}
 	res.check()
 	return res
-}
-
-func parsingErrorToDiagnostic(parserError parser.ParserError) Diagnostic {
-	return Diagnostic{
-		Range: parserError.Range,
-		Kind:  &Parsing{Description: parserError.Msg},
-	}
 }
 
 func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
@@ -247,12 +237,9 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 
 		if actualArgs < expectedArgs {
 			// Too few args
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: fnCall.Range,
-				Kind: &BadArity{
-					Expected: expectedArgs,
-					Actual:   actualArgs,
-				},
+			res.pushDiagnostic(fnCall.Range, BadArity{
+				Expected: expectedArgs,
+				Actual:   actualArgs,
 			})
 		} else if actualArgs > expectedArgs {
 			// Too many args
@@ -265,12 +252,9 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 					End:   lastIllegalArg.GetRange().End,
 				}
 
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Range: rng,
-					Kind: &BadArity{
-						Expected: expectedArgs,
-						Actual:   actualArgs,
-					},
+				res.pushDiagnostic(rng, BadArity{
+					Expected: expectedArgs,
+					Actual:   actualArgs,
 				})
 			}
 
@@ -290,11 +274,8 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			res.checkExpression(arg, TypeAny)
 		}
 
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: fnCall.Caller.Range,
-			Kind: &UnknownFunction{
-				Name: fnCall.Caller.Name,
-			},
+		res.pushDiagnostic(fnCall.Caller.Range, UnknownFunction{
+			Name: fnCall.Caller.Name,
 		})
 	}
 }
@@ -305,20 +286,14 @@ func isTypeAllowed(typeName string) bool {
 
 func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
 	if !isTypeAllowed(typeDecl.Name) {
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: typeDecl.Range,
-			Kind:  &InvalidType{Name: typeDecl.Name},
-		})
+		res.pushDiagnostic(typeDecl.Range, InvalidType{Name: typeDecl.Name})
 	}
 }
 
 func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
 	// check there aren't duplicate variables
 	if _, ok := res.declaredVars[variableName.Name]; ok {
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: variableName.Range,
-			Kind:  &DuplicateVariable{Name: variableName.Name},
-		})
+		res.pushDiagnostic(variableName.Range, DuplicateVariable{Name: variableName.Name})
 	} else {
 		res.declaredVars[variableName.Name] = decl
 		res.unusedVars[variableName.Name] = variableName.Range
@@ -350,10 +325,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
 		} else {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: lit.Range,
-				Kind:  &UnboundVariable{Name: lit.Name, Type: typeHint},
-			})
+			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
 		delete(res.unusedVars, lit.Name)
 
@@ -418,12 +390,9 @@ func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []st
 		return leftType
 	}
 
-	res.Diagnostics = append(res.Diagnostics, Diagnostic{
-		Range: bin.Left.GetRange(),
-		Kind: &TypeMismatch{
-			Expected: strings.Join(allowed, "|"),
-			Got:      leftType,
-		},
+	res.pushDiagnostic(bin.Left.GetRange(), TypeMismatch{
+		Expected: strings.Join(allowed, "|"),
+		Got:      leftType,
 	})
 	return TypeAny
 }
@@ -433,14 +402,10 @@ func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string,
 		return
 	}
 
-	res.Diagnostics = append(res.Diagnostics, Diagnostic{
-		Range: lit.GetRange(),
-		Kind: &TypeMismatch{
-			Expected: requiredType,
-			Got:      actualType,
-		},
+	res.pushDiagnostic(lit.GetRange(), TypeMismatch{
+		Expected: requiredType,
+		Got:      actualType,
 	})
-
 }
 
 func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
@@ -458,10 +423,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	}
 
 	if res.unboundedAccountInSend != nil {
-		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Range: source.GetRange(),
-			Kind:  &UnboundedAccountIsNotLast{},
-		})
+		res.pushDiagnostic(source.GetRange(), UnboundedAccountIsNotLast{})
 	}
 
 	switch source := source.(type) {
@@ -469,19 +431,13 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkExpression(source.ValueExpr, TypeAccount)
 		if account, ok := source.ValueExpr.(*parser.AccountInterpLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Range: source.GetRange(),
-					Kind:  &InvalidUnboundedAccount{},
-				})
+				res.pushDiagnostic(source.GetRange(), InvalidUnboundedAccount{})
 			} else if account.IsWorld() {
 				res.unboundedAccountInSend = account
 			}
 
 			if _, emptied := res.emptiedAccount[account.String()]; emptied && !account.IsWorld() {
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Kind:  &EmptiedAccount{Name: account.String()},
-					Range: account.Range,
-				})
+				res.pushDiagnostic(account.Range, EmptiedAccount{Name: account.String()})
 			}
 
 			res.emptiedAccount[account.String()] = struct{}{}
@@ -500,10 +456,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 		if res.unboundedSend {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: source.Address.GetRange(),
-				Kind:  &InvalidUnboundedAccount{},
-			})
+			res.pushDiagnostic(source.Address.GetRange(), InvalidUnboundedAccount{})
 		}
 
 		res.checkExpression(source.Address, TypeAccount)
@@ -531,10 +484,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	case *parser.SourceAllotment:
 		if res.unboundedSend {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Kind:  &NoAllotmentInSendAll{},
-				Range: source.Range,
-			})
+			res.pushDiagnostic(source.Range, NoAllotmentInSendAll{})
 		}
 
 		var remainingAllotment *parser.RemainingAllotment = nil
@@ -558,10 +508,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				if isLast {
 					remainingAllotment = allotment
 				} else {
-					res.Diagnostics = append(res.Diagnostics, Diagnostic{
-						Range: source.Range,
-						Kind:  &RemainingIsNotLast{},
-					})
+					res.pushDiagnostic(source.Range, RemainingIsNotLast{})
 				}
 			}
 
@@ -640,10 +587,7 @@ func (res *CheckResult) tryEvaluatingPortionExpr(expr parser.ValueExpr) *big.Rat
 			}
 
 			if right.Cmp(big.NewInt(0)) == 0 {
-				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Kind:  &DivByZero{},
-					Range: expr.Range,
-				})
+				res.pushDiagnostic(expr.Range, DivByZero{})
 				return nil
 			}
 
@@ -711,10 +655,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 				if isLast {
 					remainingAllotment = allotment
 				} else {
-					res.Diagnostics = append(res.Diagnostics, Diagnostic{
-						Range: destination.Range,
-						Kind:  &RemainingIsNotLast{},
-					})
+					res.pushDiagnostic(destination.Range, RemainingIsNotLast{})
 				}
 			}
 
@@ -749,36 +690,22 @@ func (res *CheckResult) checkHasBadAllotmentSum(
 
 		if cmp == -1 && len(variableLiterals) == 1 {
 			var value big.Rat
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: variableLiterals[0].GetRange(),
-				Kind: &FixedPortionVariable{
-					Value: *value.Sub(big.NewRat(1, 1), &sum),
-				},
+			res.pushDiagnostic(variableLiterals[0].GetRange(), FixedPortionVariable{
+				Value: *value.Sub(big.NewRat(1, 1), &sum),
 			})
 		} else {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: rng,
-				Kind: &BadAllotmentSum{
-					Sum: sum,
-				},
-			})
+			res.pushDiagnostic(rng, BadAllotmentSum{Sum: sum})
 		}
 
 	// sum == 1
 	case 0:
 		for _, varLit := range variableLiterals {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: varLit.GetRange(),
-				Kind: &FixedPortionVariable{
-					Value: *big.NewRat(0, 1),
-				},
+			res.pushDiagnostic(varLit.GetRange(), FixedPortionVariable{
+				Value: *big.NewRat(0, 1),
 			})
 		}
 		if remaining != nil {
-			res.Diagnostics = append(res.Diagnostics, Diagnostic{
-				Range: remaining.Range,
-				Kind:  &RedundantRemaining{},
-			})
+			res.pushDiagnostic(remaining.Range, RedundantRemaining{})
 		}
 	}
 }
@@ -822,4 +749,11 @@ func (res *CheckResult) enterCappedSource() func() {
 		exitCloneUnboundeAccountInSend()
 		exitCloneUnboundedSend()
 	}
+}
+
+func (res *CheckResult) pushDiagnostic(rng parser.Range, kind DiagnosticKind) {
+	res.Diagnostics = append(res.Diagnostics, Diagnostic{
+		Range: rng,
+		Kind:  kind,
+	})
 }
