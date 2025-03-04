@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"math/big"
+	"math/rand"
 	"slices"
 	"strings"
 
@@ -87,6 +88,7 @@ var Builtins = map[string]FnCallResolution{
 type Diagnostic struct {
 	Range parser.Range
 	Kind  DiagnosticKind
+	Id    int32
 }
 
 type CheckResult struct {
@@ -755,5 +757,6 @@ func (res *CheckResult) pushDiagnostic(rng parser.Range, kind DiagnosticKind) {
 	res.Diagnostics = append(res.Diagnostics, Diagnostic{
 		Range: rng,
 		Kind:  kind,
+		Id:    rand.Int31(),
 	})
 }

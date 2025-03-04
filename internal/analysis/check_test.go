@@ -12,6 +12,9 @@ import (
 
 func checkSource(input string) []analysis.Diagnostic {
 	res := analysis.CheckSource(input)
+	for i := range res.Diagnostics {
+		res.Diagnostics[i].Id = 0
+	}
 	return res.Diagnostics
 }
 

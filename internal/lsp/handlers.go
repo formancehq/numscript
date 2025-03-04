@@ -3,6 +3,7 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -168,14 +169,25 @@ func (state *State) handleCodeAction(params CodeActionParams) []CodeAction {
 
 	var actions []CodeAction
 	for _, d := range doc.CheckResult.Diagnostics {
+		index := slices.IndexFunc(params.Context.Diagnostics, func(lspDiagnostic Diagnostic) bool {
+			id, ok := lspDiagnostic.Data.(float64)
+			return ok && int32(id) == d.Id
+		})
+
+		var fixedDiagnostics []Diagnostic
+		if index != -1 {
+			fixedDiagnostics = append(fixedDiagnostics, params.Context.Diagnostics[index])
+		}
+
 		switch kind := d.Kind.(type) {
-		case *analysis.UnboundVariable:
+		case analysis.UnboundVariable:
 			actions = append(actions, CodeAction{
-				Title: "Create variable",
-				Kind:  QuickFix,
+				Title:       "Create variable",
+				Kind:        QuickFix,
+				Diagnostics: fixedDiagnostics,
 				Edit: WorkspaceEdit{
 					Changes: map[string][]TextEdit{
-						string(params.TextDocument.URI): {CreateVar(*kind, doc.CheckResult.Program)},
+						string(params.TextDocument.URI): {CreateVar(kind, doc.CheckResult.Program)},
 					},
 				},
 			})
@@ -275,5 +287,6 @@ func toLspDiagnostic(d analysis.Diagnostic) Diagnostic {
 		Range:    toLspRange(d.Range),
 		Severity: DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
+		Data:     d.Id,
 	}
 }
