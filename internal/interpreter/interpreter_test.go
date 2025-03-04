@@ -3835,3 +3835,63 @@ func TestOneofDestinationRemainingClause(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
 }
+
+func TestAccountInterp(t *testing.T) {
+	script := `
+		vars {
+			number $id
+			string $status
+			account $acc
+		}
+ 		set_tx_meta("k", @acc:$id:$status:$acc)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"id": "42",
+			"status": "pending",
+			"acc": "user:001"
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.AccountAddress("acc:42:pending:user:001"),
+		},
+	}
+	test(t, tc)
+}
+
+func TestAccountInvalidString(t *testing.T) {
+	script := `
+		vars {
+			monetary $m
+		}
+ 		set_tx_meta("k", @acc:$m)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"m": "USD/2 10"
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.CannotCastToString{
+			Range: parser.RangeOfIndexed(script, "@acc:$m", 0),
+			Value: machine.Monetary{
+				Amount: machine.NewMonetaryInt(10),
+				Asset:  machine.Asset("USD/2"),
+			},
+		},
+	}
+	test(t, tc)
+}
