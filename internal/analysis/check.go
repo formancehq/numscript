@@ -387,6 +387,11 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 		}
 
 	case *parser.AccountInterpLiteral:
+		for _, part := range lit.Parts {
+			if v, ok := part.(*parser.Variable); ok {
+				res.checkExpression(v, TypeAny)
+			}
+		}
 		return TypeAccount
 	case *parser.PercentageLiteral:
 		return TypePortion
