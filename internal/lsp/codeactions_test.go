@@ -86,7 +86,7 @@ send [USD/2 100] (
 `
 
 	final := `vars { account $account
-  account $account
+  monetary $example
 }
 
 send [USD/2 100] (

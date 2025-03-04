@@ -2733,7 +2733,7 @@ parser.Program{
 
 [TestDivInfix - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2784,7 +2784,7 @@ parser.Program{
 
 [TestDivVariableDenominator - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2835,7 +2835,7 @@ parser.Program{
 
 [TestInfixSumDiv - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{

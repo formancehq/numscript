@@ -8,25 +8,35 @@ import (
 )
 
 func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) TextEdit {
-	declarationLine := fmt.Sprintf("  %s $%s\n", diagnostic.Type, diagnostic.Name)
+	declarationLine := fmt.Sprintf("\n  %s $%s\n", diagnostic.Type, diagnostic.Name)
 
-	if program.Vars == nil {
+	if program.Vars == nil || len(program.Vars.Declarations) == 0 {
+		var rng Range
+		text := fmt.Sprintf("vars {%s}", declarationLine)
+
+		if program.Vars != nil {
+			rng = toLspRange(program.Vars.Range)
+		} else {
+			text += "\n\n"
+		}
+
 		return TextEdit{
-			NewText: fmt.Sprintf("vars {\n%s}\n\n", declarationLine),
+			NewText: text,
+			Range:   rng,
 		}
 	}
 
-	varsEndPosition := program.Vars.Range.End
+	lastVarEnd := program.Vars.Declarations[len(program.Vars.Declarations)-1].End
 
-	// firstVar := program.Vars[0]
-	editPosition := Position{
-		Line:      uint32(varsEndPosition.Line),
-		Character: 0,
-	}
+	varsEndPosition := program.Vars.Range.End
+	varsEndPosition.Character--
 
 	return TextEdit{
 		NewText: declarationLine,
-		Range:   Range{Start: editPosition, End: editPosition},
+		Range: Range{
+			Start: toLspPosition(lastVarEnd),
+			End:   toLspPosition(varsEndPosition),
+		},
 	}
 
 }
