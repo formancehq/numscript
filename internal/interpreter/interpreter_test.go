@@ -3863,7 +3863,7 @@ func TestAccountInterp(t *testing.T) {
 			"k": machine.AccountAddress("acc:42:pending:user:001"),
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
 }
 
 func TestAccountInvalidString(t *testing.T) {
@@ -3893,5 +3893,5 @@ func TestAccountInvalidString(t *testing.T) {
 			},
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
 }

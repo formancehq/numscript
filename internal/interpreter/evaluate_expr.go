@@ -19,6 +19,11 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			case parser.AccountTextPart:
 				parts = append(parts, part.Name)
 			case *parser.Variable:
+				err := st.checkFeatureFlag(ExperimentalAccountInterpolationFlag)
+				if err != nil {
+					return nil, err
+				}
+
 				value, err := st.evaluateExpr(part)
 				if err != nil {
 					return nil, err
