@@ -11,8 +11,9 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
 		return Asset(expr.Asset), nil
-	case *parser.AccountLiteral:
-		return AccountAddress(expr.Name), nil
+	case *parser.AccountInterpLiteral:
+		// TODO evaluate vars
+		return AccountAddress(expr.String()), nil
 	case *parser.StringLiteral:
 		return String(expr.String), nil
 	case *parser.PercentageLiteral:

@@ -386,7 +386,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr) string {
 			return TypeAny
 		}
 
-	case *parser.AccountLiteral:
+	case *parser.AccountInterpLiteral:
 		return TypeAccount
 	case *parser.PercentageLiteral:
 		return TypePortion
@@ -459,7 +459,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		res.checkExpression(source.ValueExpr, TypeAccount)
-		if account, ok := source.ValueExpr.(*parser.AccountLiteral); ok {
+		if account, ok := source.ValueExpr.(*parser.AccountInterpLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
 				res.Diagnostics = append(res.Diagnostics, Diagnostic{
 					Range: source.GetRange(),
@@ -469,18 +469,18 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				res.unboundedAccountInSend = account
 			}
 
-			if _, emptied := res.emptiedAccount[account.Name]; emptied && !account.IsWorld() {
+			if _, emptied := res.emptiedAccount[account.String()]; emptied && !account.IsWorld() {
 				res.Diagnostics = append(res.Diagnostics, Diagnostic{
-					Kind:  &EmptiedAccount{Name: account.Name},
+					Kind:  &EmptiedAccount{Name: account.String()},
 					Range: account.Range,
 				})
 			}
 
-			res.emptiedAccount[account.Name] = struct{}{}
+			res.emptiedAccount[account.String()] = struct{}{}
 		}
 
 	case *parser.SourceOverdraft:
-		if accountLiteral, ok := source.Address.(*parser.AccountLiteral); ok && accountLiteral.IsWorld() {
+		if accountLiteral, ok := source.Address.(*parser.AccountInterpLiteral); ok && accountLiteral.IsWorld() {
 			res.Diagnostics = append(res.Diagnostics, Diagnostic{
 				Range: accountLiteral.Range,
 				Kind:  &InvalidWorldOverdraft{},

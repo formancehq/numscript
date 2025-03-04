@@ -291,10 +291,23 @@ func parseValueExpr(valueExprCtx antlrParser.IValueExprContext) ValueExpr {
 		return parseValueExpr(valueExprCtx.ValueExpr())
 
 	case *antlrParser.AccountLiteralContext:
-		return &AccountLiteral{
-			Range: ctxToRange(valueExprCtx),
-			// Discard the '@'
-			Name: valueExprCtx.GetText()[1:],
+		litRng := ctxToRange(valueExprCtx)
+
+		var parts []AccountNamePart
+		for _, accLit := range valueExprCtx.AllAccountLiteralPart() {
+			varPartText := accLit.GetText()
+			switch accLit := accLit.(type) {
+			case *antlrParser.AccountTextPartContext:
+				parts = append(parts, AccountTextPart{Name: varPartText})
+			case *antlrParser.AccountVarPartContext:
+				v := parseVarLiteral(accLit.VARIABLE_NAME_ACC().GetSymbol())
+				parts = append(parts, v)
+			}
+		}
+
+		return &AccountInterpLiteral{
+			Range: litRng,
+			Parts: parts,
 		}
 
 	case *antlrParser.MonetaryLiteralContext:

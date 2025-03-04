@@ -115,12 +115,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:13, Line:1},
                         End:   parser.Position{Character:15, Line:1},
                     },
-                    Name: "a",
+                    Parts: {
+                        parser.AccountTextPart{Name:"a"},
+                    },
                 },
             },
             Destination: nil,
@@ -173,12 +175,14 @@ parser.Program{
                 Cap:  nil,
             },
             Destination: &parser.DestinationAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:18, Line:2},
                         End:   parser.Position{Character:20, Line:2},
                     },
-                    Name: "d",
+                    Parts: {
+                        parser.AccountTextPart{Name:"d"},
+                    },
                 },
             },
         },
@@ -253,12 +257,14 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
-                ValueExpr: &parser.AccountLiteral{
+                ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
                         End:   parser.Position{Character:13, Line:1},
                     },
-                    Name: "a",
+                    Parts: {
+                        parser.AccountTextPart{Name:"a"},
+                    },
                 },
             },
             Destination: &parser.DestinationInorder{
