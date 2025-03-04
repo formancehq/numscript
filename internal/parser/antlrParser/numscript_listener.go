@@ -1,7 +1,6 @@
 // Code generated from Numscript.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
-package parser // Numscript
-
+package antlrParser // Numscript
 import "github.com/antlr4-go/antlr/v4"
 
 // NumscriptListener is a complete listener for a parse tree produced by NumscriptParser.
@@ -10,6 +9,12 @@ type NumscriptListener interface {
 
 	// EnterMonetaryLit is called when entering the monetaryLit production.
 	EnterMonetaryLit(c *MonetaryLitContext)
+
+	// EnterAccountTextPart is called when entering the accountTextPart production.
+	EnterAccountTextPart(c *AccountTextPartContext)
+
+	// EnterAccountVarPart is called when entering the accountVarPart production.
+	EnterAccountVarPart(c *AccountVarPartContext)
 
 	// EnterVariableExpr is called when entering the variableExpr production.
 	EnterVariableExpr(c *VariableExprContext)
@@ -130,6 +135,12 @@ type NumscriptListener interface {
 
 	// ExitMonetaryLit is called when exiting the monetaryLit production.
 	ExitMonetaryLit(c *MonetaryLitContext)
+
+	// ExitAccountTextPart is called when exiting the accountTextPart production.
+	ExitAccountTextPart(c *AccountTextPartContext)
+
+	// ExitAccountVarPart is called when exiting the accountVarPart production.
+	ExitAccountVarPart(c *AccountVarPartContext)
 
 	// ExitVariableExpr is called when exiting the variableExpr production.
 	ExitVariableExpr(c *VariableExprContext)

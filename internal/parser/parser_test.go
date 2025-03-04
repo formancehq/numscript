@@ -25,6 +25,7 @@ func TestPlainAddress(t *testing.T) {
   source = @src
   destination = @dest
 )`)
+	require.Empty(t, p.Errors)
 	snaps.MatchSnapshot(t, p.Value)
 }
 

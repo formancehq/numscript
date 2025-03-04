@@ -1958,13 +1958,13 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'oneof', 'max', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'err' expecting {'max', 'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME}
   0 | send [EUR/2 100] (
   1 |   source = err
     |            ~~
   2 |   destination = ee
 
-mismatched input 'ee' expecting {'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, VARIABLE_NAME, ACCOUNT, ASSET}
+mismatched input 'ee' expecting {'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME}
   1 |   source = err
   2 |   destination = ee
     |                 ~

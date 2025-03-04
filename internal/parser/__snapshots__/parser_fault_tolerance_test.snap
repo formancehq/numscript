@@ -63,12 +63,12 @@ parser.Program{
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
-                End:   parser.Position{Character:1, Line:5},
+                End:   parser.Position{Character:17, Line:4},
             },
             SentValue: &parser.SentValueLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:6, Line:0},
-                    End:   parser.Position{Character:1, Line:5},
+                    End:   parser.Position{Character:17, Line:4},
                 },
                 Monetary: nil,
             },
