@@ -150,6 +150,16 @@ func hoverOnExpression(lit parser.ValueExpr, position parser.Position) Hover {
 			Range: lit.Range,
 			Node:  lit,
 		}
+	case *parser.AccountInterpLiteral:
+		for _, part := range lit.Parts {
+			if v, ok := part.(*parser.Variable); ok {
+
+				hover := hoverOnExpression(v, position)
+				if hover != nil {
+					return hover
+				}
+			}
+		}
 	case *parser.MonetaryLiteral:
 		hover := hoverOnExpression(lit.Amount, position)
 		if hover != nil {

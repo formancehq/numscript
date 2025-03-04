@@ -496,3 +496,30 @@ func TestHoverFaultTolerance(t *testing.T) {
 		require.Nil(t, hover)
 	})
 }
+
+func TestHoverOnStringInterp(t *testing.T) {
+
+	input := `vars { number $id }
+send [ASSET *] (
+	source = @world
+	destination = @user:$id
+)
+`
+
+	rng := parser.RangeOfIndexed(input, "$id", 1)
+
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+	require.NotNil(t, hover)
+
+	variableHover, ok := hover.(*analysis.VariableHover)
+	require.True(t, ok, "Expected VariableHover")
+
+	require.Equal(t, rng, variableHover.Range)
+
+	checkResult := analysis.CheckProgram(program)
+	require.NotNil(t, variableHover.Node)
+
+	resolved := checkResult.ResolveVar(variableHover.Node)
+	require.NotNil(t, resolved)
+}
