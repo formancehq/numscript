@@ -2,7 +2,6 @@ package format
 
 import (
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -36,8 +35,8 @@ func fmtExpr(lit parser.ValueExpr) string {
 	case *parser.Variable:
 		return "$" + lit.Name
 
-	case *parser.AccountLiteral:
-		return "@" + lit.Name
+	case *parser.AccountInterpLiteral:
+		return "@" + lit.String()
 
 	case *parser.MonetaryLiteral:
 		return fmt.Sprintf("[%s %s]", fmtExpr(lit.Asset), fmtExpr(lit.Amount))
@@ -45,11 +44,9 @@ func fmtExpr(lit parser.ValueExpr) string {
 	case *parser.AssetLiteral:
 		return lit.Asset
 
-	case *parser.RatioLiteral:
-		if lit.Denominator.Cmp(big.NewInt(100)) == 0 {
-			return lit.Numerator.String() + "%"
-		}
-		return fmt.Sprintf("%s/%s", lit.Numerator.String(), lit.Denominator.String())
+	case *parser.PercentageLiteral:
+		// TODO handle floating digits
+		return fmt.Sprintf("%s%s", lit.Amount.String(), "%")
 
 	case *parser.NumberLiteral:
 		return fmt.Sprint(lit.Number)
@@ -57,10 +54,40 @@ func fmtExpr(lit parser.ValueExpr) string {
 	case *parser.StringLiteral:
 		return fmt.Sprintf(`"%s"`, lit.String)
 
+	case *parser.BinaryInfix:
+		fmtLeft := fmtExpr(lit.Left)
+		fmtRight := fmtExpr(lit.Right)
+
+		leftPrec := operatorPrec[lit.Operator]
+		var rightPrec uint8 = 255
+		if right, ok := lit.Right.(*parser.BinaryInfix); ok {
+			rightPrec = operatorPrec[right.Operator]
+		}
+
+		if leftPrec > rightPrec {
+			fmtRight = fmt.Sprintf("(%s)", fmtRight)
+		}
+
+		// Do not use whitespace when formatting ratios, e.g. 1/2
+		if lit.Operator == parser.InfixOperatorDiv {
+			return fmt.Sprintf("%s%s%s", fmtLeft, lit.Operator, fmtRight)
+		}
+
+		return fmt.Sprintf("%s %s %s", fmtLeft, lit.Operator, fmtRight)
+
 	default:
 		return utils.NonExhaustiveMatchPanic[string](lit)
 	}
 
+}
+
+// Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence#table
+var operatorPrec = map[parser.InfixOperator]uint8{
+	"+": 11,
+	"-": 11,
+
+	"/": 12,
+	"*": 12,
 }
 
 func fmtSentValue(sentValue parser.SentValue) string {
@@ -78,11 +105,8 @@ func fmtSentValue(sentValue parser.SentValue) string {
 
 func fmtAllotmentValue(allot parser.AllotmentValue) string {
 	switch allot := allot.(type) {
-	case *parser.RatioLiteral:
-		return fmtExpr(allot)
-
-	case *parser.Variable:
-		return fmtExpr(allot)
+	case *parser.ValueExprAllotment:
+		return fmtExpr(allot.Value)
 
 	case *parser.RemainingAllotment:
 		return "remaining"

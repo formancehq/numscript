@@ -143,7 +143,7 @@ func (state *State) handleGotoDefinition(params DefinitionParams) *Location {
 }
 
 func (state *State) handleFormat(params DocumentFormattingParams) []TextEdit {
-	doc, ok := state.documents[params.TextDocument.URI]
+	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
 		return nil
 	}

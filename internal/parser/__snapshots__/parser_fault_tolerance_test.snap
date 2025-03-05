@@ -19,6 +19,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -36,6 +37,7 @@ parser.Program{
             Destination: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -53,6 +55,7 @@ parser.Program{
             Destination: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -76,6 +79,7 @@ parser.Program{
             Destination: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -128,6 +132,7 @@ parser.Program{
             Destination: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -187,6 +192,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -218,6 +224,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -305,6 +312,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -334,6 +342,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -350,6 +359,7 @@ parser.Program{
             Amount:    nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -391,6 +401,7 @@ parser.Program{
             Amount: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -432,5 +443,6 @@ parser.Program{
             Amount: nil,
         },
     },
+    Comments: nil,
 }
 ---

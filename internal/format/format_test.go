@@ -261,3 +261,34 @@ func AssertIsFormatted(t *testing.T, src string) {
 	formatted := format.Format(parsed.Value)
 	require.Equal(t, src, formatted)
 }
+
+func TestFmtInfixNotNested(t *testing.T) {
+	src := `set_tx_meta("k", 1 + 2)
+
+set_tx_meta("k", 1/2)
+
+set_tx_meta("k", 2 - 3)
+`
+
+	AssertIsFormatted(t, src)
+}
+
+func TestHandleInfixNoGrouping(t *testing.T) {
+	src := `set_tx_meta("k", 1 + 2 - 3)
+
+set_tx_meta("k", 1 + 2/3)
+`
+
+	AssertIsFormatted(t, src)
+}
+
+func TestHandleInfixPrec(t *testing.T) {
+	src := `set_tx_meta("k", 1 + 2 - 3)
+
+set_tx_meta("k", 1/(2 + 3))
+
+set_tx_meta("k", 1/2 + 3)
+`
+
+	AssertIsFormatted(t, src)
+}
