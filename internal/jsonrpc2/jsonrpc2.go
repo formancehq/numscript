@@ -16,7 +16,7 @@ type MessageStream interface {
 	ReadMessage() (Message, error)
 }
 
-type requestHandler func(raw json.RawMessage) (any, *ResponseError)
+type requestHandler func(id ID, raw json.RawMessage)
 type notificationHandler func(raw json.RawMessage)
 
 type Conn struct {
@@ -40,15 +40,28 @@ type Handler struct {
 func NewRequestHandler[Params any](method string, handler func(params Params, conn *Conn) any) Handler {
 	return Handler{
 		register: func(conn *Conn) {
-			conn.requestsHandlers[method] = func(raw json.RawMessage) (any, *ResponseError) {
+			conn.requestsHandlers[method] = func(id ID, raw json.RawMessage) {
 				var payload Params
 				if raw != nil {
 					err := json.Unmarshal([]byte(raw), &payload)
 					if err != nil {
-						return nil, &ErrInvalidParams
+						conn.stream.WriteMessage(Response{
+							ID:    id,
+							Error: &ErrInvalidParams,
+						})
+						return
 					}
 				}
-				return handler(payload, conn), nil
+
+				out := handler(payload, conn)
+
+				bytes, _ := json.Marshal(out)
+
+				conn.stream.WriteMessage(Response{
+					ID:     id,
+					Result: bytes,
+				})
+
 			}
 		},
 	}
@@ -184,23 +197,7 @@ func (s *Conn) handleRequest(request Request) error {
 			return nil
 		}
 
-		go func() {
-			out, err := handler(request.Params)
-			if err != nil {
-				s.stream.WriteMessage(Response{
-					ID:    request.ID,
-					Error: err,
-				})
-				return
-			}
-
-			bytes, _ := json.Marshal(out)
-
-			s.stream.WriteMessage(Response{
-				ID:     request.ID,
-				Result: bytes,
-			})
-		}()
+		go handler(request.ID, request.Params)
 	}
 	return nil
 }
