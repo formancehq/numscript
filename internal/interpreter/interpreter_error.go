@@ -202,3 +202,21 @@ type ExperimentalFeature struct {
 func (e ExperimentalFeature) Error() string {
 	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
 }
+
+type CannotCastToString struct {
+	parser.Range
+	Value Value
+}
+
+func (e CannotCastToString) Error() string {
+	return fmt.Sprintf("Cannot cast this value to string: %s", e.Value)
+}
+
+type InvalidAccountName struct {
+	parser.Range
+	Name string
+}
+
+func (e InvalidAccountName) Error() string {
+	return fmt.Sprintf("Invalid account name: @%s", e.Name)
+}

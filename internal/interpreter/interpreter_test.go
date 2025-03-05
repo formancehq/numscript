@@ -3835,3 +3835,115 @@ func TestOneofDestinationRemainingClause(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
 }
+
+func TestInvalidAccount(t *testing.T) {
+	script := `
+		vars {
+			account $acc
+		}
+ 		set_tx_meta("k", $acc)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"acc": "!invalid acc.."
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.InvalidAccountName{
+			Name: "!invalid acc..",
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidInterpAccount(t *testing.T) {
+	script := `
+		vars {
+			string $status
+		}
+ 		set_tx_meta("k", @user:$status)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"status": "!invalid acc.."
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.InvalidAccountName{
+			Name: "user:!invalid acc..",
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+}
+
+func TestAccountInterp(t *testing.T) {
+	script := `
+		vars {
+			number $id
+			string $status
+			account $acc
+		}
+ 		set_tx_meta("k", @acc:$id:$status:$acc)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"id": "42",
+			"status": "pending",
+			"acc": "user:001"
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"k": machine.AccountAddress("acc:42:pending:user:001"),
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+}
+
+func TestAccountInvalidString(t *testing.T) {
+	script := `
+		vars {
+			monetary $m
+		}
+ 		set_tx_meta("k", @acc:$m)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"m": "USD/2 10"
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.CannotCastToString{
+			Range: parser.RangeOfIndexed(script, "@acc:$m", 0),
+			Value: machine.Monetary{
+				Amount: machine.NewMonetaryInt(10),
+				Asset:  machine.Asset("USD/2"),
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+}

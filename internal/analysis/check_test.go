@@ -1790,3 +1790,51 @@ func TestCheckMinus(t *testing.T) {
 		}, diagnostics)
 	})
 }
+
+func TestNoUnusedOnStringInterp(t *testing.T) {
+	t.Parallel()
+
+	input := `vars { number $id }
+send [EUR/2 *] (
+  	source = @user:$id:pending
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+	require.Empty(t, diagnostics)
+
+}
+
+func TestWrongTypeInsideAccountInterp(t *testing.T) {
+	t.Skip("TODO formalize a better type system to model this easy")
+
+	t.Parallel()
+
+	input := `vars { monetary $m }
+send [EUR/2 *] (
+  	source = @user:$m
+  	destination = @dest
+)`
+
+	program := parser.Parse(input).Value
+
+	diagnostics := analysis.CheckProgram(program).Diagnostics
+
+	require.Len(t, diagnostics, 1, "diagnostics=%#v\n", diagnostics)
+
+	d1 := diagnostics[0]
+	assert.Equal(t,
+		&analysis.TypeMismatch{
+			Expected: "number|account|string",
+			Got:      "monetary",
+		},
+		d1.Kind,
+	)
+
+	assert.Equal(t,
+		parser.RangeOfIndexed(input, "$m", 1),
+		d1.Range,
+	)
+}

@@ -25,6 +25,7 @@ func TestPlainAddress(t *testing.T) {
   source = @src
   destination = @dest
 )`)
+	require.Empty(t, p.Errors)
 	snaps.MatchSnapshot(t, p.Value)
 }
 
@@ -415,6 +416,24 @@ func TestDivVariableDenominator(t *testing.T) {
 	p := parser.Parse(`
 set_tx_meta("k1",  10/$y)
 	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestStringTemplate(t *testing.T) {
+	p := parser.Parse(
+		"set_tx_meta(0, 42)",
+	)
+
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestInterpAccount(t *testing.T) {
+	p := parser.Parse(
+		"set_tx_meta(@abc:cde:$id, 42)",
+	)
+
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
