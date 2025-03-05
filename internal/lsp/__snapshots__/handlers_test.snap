@@ -1,0 +1,150 @@
+
+[TestDiagnostics - 1]
+{
+ "diagnostics": [
+  {
+   "message": "The variable '$unbound_var' was not declared",
+   "range": {
+    "end": {
+     "character": 29,
+     "line": 3
+    },
+    "start": {
+     "character": 17,
+     "line": 3
+    }
+   },
+   "severity": 1
+  }
+ ],
+ "uri": "example.num"
+}
+---
+
+[TestHoverVariable - 1]
+{
+ "contents": {
+  "kind": "markdown",
+  "value": "```numscript\n$acc: account\n```"
+ },
+ "range": {
+  "end": {
+   "character": 16,
+   "line": 6
+  },
+  "start": {
+   "character": 12,
+   "line": 6
+  }
+ }
+}
+---
+
+[TestGetSymbols - 1]
+[
+ {
+  "detail": "account",
+  "kind": 13,
+  "name": "acc",
+  "range": {
+   "end": {
+    "character": 15,
+    "line": 2
+   },
+   "start": {
+    "character": 11,
+    "line": 2
+   }
+  },
+  "selectionRange": {
+   "end": {
+    "character": 15,
+    "line": 2
+   },
+   "start": {
+    "character": 11,
+    "line": 2
+   }
+  }
+ },
+ {
+  "detail": "monetary",
+  "kind": 13,
+  "name": "mon",
+  "range": {
+   "end": {
+    "character": 16,
+    "line": 3
+   },
+   "start": {
+    "character": 12,
+    "line": 3
+   }
+  },
+  "selectionRange": {
+   "end": {
+    "character": 16,
+    "line": 3
+   },
+   "start": {
+    "character": 12,
+    "line": 3
+   }
+  }
+ }
+]
+---
+
+[TestHoverFnOrigin - 1]
+{
+ "contents": {
+  "kind": "markdown",
+  "value": "`balance(account, asset) -\u003e monetary`\n\nfetch account balance"
+ },
+ "range": {
+  "end": {
+   "character": 26,
+   "line": 2
+  },
+  "start": {
+   "character": 19,
+   "line": 2
+  }
+ }
+}
+---
+
+[TestHoverFnStatement - 1]
+{
+ "contents": {
+  "kind": "markdown",
+  "value": "`set_tx_meta(string, any)`\n\nset transaction metadata"
+ },
+ "range": {
+  "end": {
+   "character": 13,
+   "line": 1
+  },
+  "start": {
+   "character": 2,
+   "line": 1
+  }
+ }
+}
+---
+
+[TestGotoDef - 1]
+{
+ "range": {
+  "end": {
+   "character": 15,
+   "line": 2
+  },
+  "start": {
+   "character": 11,
+   "line": 2
+  }
+ },
+ "uri": "example.num"
+}
+---
