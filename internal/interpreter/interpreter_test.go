@@ -3836,6 +3836,58 @@ func TestOneofDestinationRemainingClause(t *testing.T) {
 	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
 }
 
+func TestInvalidAccount(t *testing.T) {
+	script := `
+		vars {
+			account $acc
+		}
+ 		set_tx_meta("k", $acc)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"acc": "!invalid acc.."
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.InvalidAccountName{
+			Name: "!invalid acc..",
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidInterpAccount(t *testing.T) {
+	script := `
+		vars {
+			string $status
+		}
+ 		set_tx_meta("k", @user:$status)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `
+		{
+			"status": "!invalid acc.."
+		}
+	`)
+
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.InvalidAccountName{
+			Name: "user:!invalid acc..",
+		},
+	}
+	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+}
+
 func TestAccountInterp(t *testing.T) {
 	script := `
 		vars {

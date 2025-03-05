@@ -36,8 +36,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			}
 		}
 		name := strings.Join(parts, ":")
-		// TODO validate valid names
-		return AccountAddress(name), nil
+		return NewAccountAddress(name)
 
 	case *parser.StringLiteral:
 		return String(expr.String), nil

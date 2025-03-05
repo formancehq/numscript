@@ -89,7 +89,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeMonetary:
 		return parseMonetary(rawValue)
 	case analysis.TypeAccount:
-		return AccountAddress(rawValue), nil
+		return NewAccountAddress(rawValue)
 	case analysis.TypePortion:
 		bi, err := ParsePortionSpecific(rawValue)
 		if err != nil {
