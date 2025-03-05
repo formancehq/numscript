@@ -148,6 +148,10 @@ func (state *State) handleFormat(params DocumentFormattingParams) []TextEdit {
 		return nil
 	}
 
+	if doc.CheckResult.HasParsingErrs() {
+		return nil
+	}
+
 	formatted := format.Format(doc.CheckResult.Program)
 
 	lines := strings.Split(doc.Text, "\n")

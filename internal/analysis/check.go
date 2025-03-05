@@ -101,6 +101,13 @@ type CheckResult struct {
 	Program                parser.Program
 }
 
+func (r CheckResult) HasParsingErrs() bool {
+	return slices.ContainsFunc(r.Diagnostics, func(d Diagnostic) bool {
+		_, isParsing := d.Kind.(*Parsing)
+		return isParsing
+	})
+}
+
 func (r CheckResult) GetErrorsCount() int {
 	c := 0
 	for _, d := range r.Diagnostics {
