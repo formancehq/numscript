@@ -12,8 +12,23 @@ type ParseResult struct {
 	parseResult parser.ParseResult
 }
 
-// ---- TODO useful for the playground
-// func (*ParseResult) GetNeededVariables() map[string]ValueType {}
+// Returns a map from a variable's name to its type.
+//
+// doesn't include variables whose value is already defined within the script
+func (p ParseResult) GetNeededVariables() map[string]string {
+	m := make(map[string]string)
+
+	for _, varDecl := range p.parseResult.Value.Vars {
+		if varDecl.Name == nil || varDecl.Origin != nil {
+			continue
+		}
+
+		m[varDecl.Name.Name] = varDecl.Type.Name
+	}
+
+	return m
+}
+
 // func (*ParseResult) GetDiagnostics() []Diagnostic {}
 
 type ParserError = parser.ParserError
