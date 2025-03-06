@@ -11,6 +11,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetVars(t *testing.T) {
+	parseResult := numscript.Parse(`
+	vars {
+		monetary $mon
+		account $acc
+		account $acc2
+		
+		monetary $do_not_include_in_output = balance(@acc, USD/2)
+	}
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	require.Equal(t,
+		map[string]string{
+			"mon":  "monetary",
+			"acc":  "account",
+			"acc2": "account",
+		},
+		parseResult.GetNeededVariables(),
+	)
+
+}
+
 func TestDoNotGetWorldBalance(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = @world
