@@ -995,7 +995,7 @@ parser.Program{
                     },
                     Name: "monetary",
                 },
-                Origin: (*parser.FnCall)(nil),
+                Origin: (*parser.ValueExpr)(nil),
             },
         },
     },
@@ -1606,7 +1606,7 @@ parser.Program{
                     },
                     Name: "monetary",
                 },
-                Origin: &parser.FnCall{
+                Origin: &&parser.FnCall{
                     Range: parser.Range{
                         Start: parser.Position{Character:20, Line:2},
                         End:   parser.Position{Character:49, Line:2},
@@ -2076,18 +2076,20 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-mismatched input 'err' expecting {'max', 'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME}
-  0 | send [EUR/2 100] (
-  1 |   source = err
-    |            ~~
-  2 |   destination = ee
-
-mismatched input 'ee' expecting {'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITERAL, STRING, NUMBER, ASSET, '@', VARIABLE_NAME}
+no viable alternative at input 'errdestination'
   1 |   source = err
   2 |   destination = ee
-    |                 ~
+    |   ~~~~~~~~~~
   3 | )
 
+missing '(' at ')'
+  2 |   destination = ee
+  3 | )
+    | 
+missing ')' at '<EOF>'
+  2 |   destination = ee
+  3 | )
+    |  ~~~~
 
 ---
 
@@ -2977,6 +2979,115 @@ parser.Program{
                         End:   parser.Position{Character:28, Line:0},
                     },
                     Number: 42,
+                },
+            },
+        },
+    },
+}
+---
+
+[TestExprInVarOrigin - 1]
+parser.Program{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{Character:0, Line:1},
+            End:   parser.Position{Character:1, Line:3},
+        },
+        Declarations: {
+            {
+                Range: parser.Range{
+                    Start: parser.Position{Character:1, Line:2},
+                    End:   parser.Position{Character:16, Line:2},
+                },
+                Name: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:8, Line:2},
+                        End:   parser.Position{Character:11, Line:2},
+                    },
+                    Name: "id",
+                },
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:7, Line:2},
+                    },
+                    Name: "number",
+                },
+                Origin: &&parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:14, Line:2},
+                        End:   parser.Position{Character:16, Line:2},
+                    },
+                    Number: 42,
+                },
+            },
+        },
+    },
+    Statements: nil,
+}
+---
+
+[TestMidScriptFnCall - 1]
+parser.Program{
+    Vars:       (*parser.VarDeclarations)(nil),
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:1, Line:5},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:0, Line:1},
+                    End:   parser.Position{Character:11, Line:1},
+                },
+                Name: "set_tx_meta",
+            },
+            Args: {
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:4, Line:2},
+                    },
+                    String: "k",
+                },
+                &parser.StringLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:3},
+                        End:   parser.Position{Character:4, Line:3},
+                    },
+                    String: "v",
+                },
+                &parser.FnCall{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:4},
+                        End:   parser.Position{Character:22, Line:4},
+                    },
+                    Caller: &parser.FnCallIdentifier{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:4},
+                            End:   parser.Position{Character:8, Line:4},
+                        },
+                        Name: "balance",
+                    },
+                    Args: {
+                        &parser.AccountInterpLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:9, Line:4},
+                                End:   parser.Position{Character:14, Line:4},
+                            },
+                            Parts: {
+                                parser.AccountTextPart{Name:"user"},
+                            },
+                        },
+                        &parser.AssetLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:16, Line:4},
+                                End:   parser.Position{Character:21, Line:4},
+                            },
+                            Asset: "EUR/2",
+                        },
+                    },
                 },
             },
         },

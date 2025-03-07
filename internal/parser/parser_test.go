@@ -437,3 +437,25 @@ func TestInterpAccount(t *testing.T) {
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestExprInVarOrigin(t *testing.T) {
+	p := parser.Parse(`
+vars {
+	number $id = 42
+}
+	`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestMidScriptFnCall(t *testing.T) {
+	p := parser.Parse(`
+set_tx_meta(
+	"k",
+	"v",
+	balance(@user, EUR/2)
+)
+`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

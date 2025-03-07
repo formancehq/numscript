@@ -215,6 +215,13 @@ func expectMapped[T any, U any](
 	}
 }
 
+func NewMonetary(asset string, n int64) Monetary {
+	return Monetary{
+		Asset:  Asset(asset),
+		Amount: NewMonetaryInt(n),
+	}
+}
+
 func NewMonetaryInt(n int64) MonetaryInt {
 	bi := big.NewInt(n)
 	return MonetaryInt(*bi)
