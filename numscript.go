@@ -18,6 +18,10 @@ type ParseResult struct {
 func (p ParseResult) GetNeededVariables() map[string]string {
 	m := make(map[string]string)
 
+	if p.parseResult.Value.Vars == nil {
+		return m
+	}
+
 	for _, varDecl := range p.parseResult.Value.Vars.Declarations {
 		if varDecl.Name == nil || varDecl.Origin != nil {
 			continue
