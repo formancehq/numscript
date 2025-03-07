@@ -166,16 +166,18 @@ func (res *CheckResult) check() {
 				// res.checkFnCall(*varDecl.Origin, varDecl)
 			}
 		}
-		for _, statement := range res.Program.Statements {
-			res.unboundedAccountInSend = nil
-			res.checkStatement(statement)
-		}
-
-		// after static AST traversal is complete, check for unused vars
-		for name, rng := range res.unusedVars {
-			res.pushDiagnostic(rng, UnusedVar{Name: name})
-		}
 	}
+
+	for _, statement := range res.Program.Statements {
+		res.unboundedAccountInSend = nil
+		res.checkStatement(statement)
+	}
+
+	// after static AST traversal is complete, check for unused vars
+	for name, rng := range res.unusedVars {
+		res.pushDiagnostic(rng, UnusedVar{Name: name})
+	}
+
 }
 
 func (res *CheckResult) checkStatement(statement parser.Statement) {

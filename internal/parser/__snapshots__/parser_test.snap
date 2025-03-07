@@ -995,7 +995,7 @@ parser.Program{
                     },
                     Name: "monetary",
                 },
-                Origin: (*parser.FnCall)(nil),
+                Origin: (*parser.ValueExpr)(nil),
             },
         },
     },
@@ -1606,7 +1606,7 @@ parser.Program{
                     },
                     Name: "monetary",
                 },
-                Origin: &parser.FnCall{
+                Origin: &&parser.FnCall{
                     Range: parser.Range{
                         Start: parser.Position{Character:20, Line:2},
                         End:   parser.Position{Character:49, Line:2},
@@ -2988,32 +2988,38 @@ parser.Program{
 
 [TestExprInVarOrigin - 1]
 parser.Program{
-    Vars: {
-        {
-            Range: parser.Range{
-                Start: parser.Position{Character:1, Line:2},
-                End:   parser.Position{Character:16, Line:2},
-            },
-            Name: &parser.Variable{
-                Range: parser.Range{
-                    Start: parser.Position{Character:8, Line:2},
-                    End:   parser.Position{Character:11, Line:2},
-                },
-                Name: "id",
-            },
-            Type: &parser.TypeDecl{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{Character:0, Line:1},
+            End:   parser.Position{Character:1, Line:3},
+        },
+        Declarations: {
+            {
                 Range: parser.Range{
                     Start: parser.Position{Character:1, Line:2},
-                    End:   parser.Position{Character:7, Line:2},
-                },
-                Name: "number",
-            },
-            Origin: &&parser.NumberLiteral{
-                Range: parser.Range{
-                    Start: parser.Position{Character:14, Line:2},
                     End:   parser.Position{Character:16, Line:2},
                 },
-                Number: 42,
+                Name: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:8, Line:2},
+                        End:   parser.Position{Character:11, Line:2},
+                    },
+                    Name: "id",
+                },
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:7, Line:2},
+                    },
+                    Name: "number",
+                },
+                Origin: &&parser.NumberLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:14, Line:2},
+                        End:   parser.Position{Character:16, Line:2},
+                    },
+                    Number: 42,
+                },
             },
         },
     },
@@ -3023,7 +3029,7 @@ parser.Program{
 
 [TestMidScriptFnCall - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
