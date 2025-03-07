@@ -161,19 +161,20 @@ func (res *CheckResult) check() {
 				res.checkDuplicateVars(*varDecl.Name, varDecl)
 			}
 
-		if varDecl.Origin != nil {
-			res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
-			// res.checkFnCall(*varDecl.Origin, varDecl)
+			if varDecl.Origin != nil {
+				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+				// res.checkFnCall(*varDecl.Origin, varDecl)
+			}
 		}
-	}
-	for _, statement := range res.Program.Statements {
-		res.unboundedAccountInSend = nil
-		res.checkStatement(statement)
-	}
+		for _, statement := range res.Program.Statements {
+			res.unboundedAccountInSend = nil
+			res.checkStatement(statement)
+		}
 
-	// after static AST traversal is complete, check for unused vars
-	for name, rng := range res.unusedVars {
-		res.pushDiagnostic(rng, UnusedVar{Name: name})
+		// after static AST traversal is complete, check for unused vars
+		for name, rng := range res.unusedVars {
+			res.pushDiagnostic(rng, UnusedVar{Name: name})
+		}
 	}
 }
 
