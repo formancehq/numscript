@@ -1619,12 +1619,14 @@ parser.Program{
                         Name: "origin_fn",
                     },
                     Args: {
-                        &parser.AccountLiteral{
+                        &parser.AccountInterpLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:30, Line:2},
                                 End:   parser.Position{Character:41, Line:2},
                             },
-                            Name: "my_account",
+                            Parts: {
+                                parser.AccountTextPart{Name:"my_account"},
+                            },
                         },
                         &parser.StringLiteral{
                             Range: parser.Range{
@@ -2900,7 +2902,7 @@ parser.Program{
 
 [TestStringTemplate - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2937,7 +2939,7 @@ parser.Program{
 
 [TestInterpAccount - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
