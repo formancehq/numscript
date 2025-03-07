@@ -3,6 +3,7 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -160,6 +161,42 @@ func (state *State) handleGetSymbols(params DocumentSymbolParams) []DocumentSymb
 	return lspDocumentSymbols
 }
 
+func (state *State) handleCodeAction(params CodeActionParams) []CodeAction {
+	doc, ok := state.documents.Get(params.TextDocument.URI)
+	if !ok {
+		return nil
+	}
+
+	var actions []CodeAction
+	for _, d := range doc.CheckResult.Diagnostics {
+		index := slices.IndexFunc(params.Context.Diagnostics, func(lspDiagnostic Diagnostic) bool {
+			id, ok := lspDiagnostic.Data.(float64)
+			return ok && int32(id) == d.Id
+		})
+
+		var fixedDiagnostics []Diagnostic
+		if index != -1 {
+			fixedDiagnostics = append(fixedDiagnostics, params.Context.Diagnostics[index])
+		}
+
+		switch kind := d.Kind.(type) {
+		case analysis.UnboundVariable:
+			actions = append(actions, CodeAction{
+				Title:       "Create variable",
+				Kind:        QuickFix,
+				Diagnostics: fixedDiagnostics,
+				Edit: WorkspaceEdit{
+					Changes: map[string][]TextEdit{
+						string(params.TextDocument.URI): {CreateVar(kind, doc.CheckResult.Program)},
+					},
+				},
+			})
+		}
+	}
+
+	return actions
+}
+
 func Handle(r jsonrpc2.Request, state State) any {
 	switch r.Method {
 	case "initialize":
@@ -172,6 +209,7 @@ func Handle(r jsonrpc2.Request, state State) any {
 				HoverProvider:          true,
 				DefinitionProvider:     true,
 				DocumentSymbolProvider: true,
+				CodeActionProvider:     true,
 			},
 			// This is ugly. Is there a shortcut?
 			ServerInfo: struct {
@@ -211,6 +249,11 @@ func Handle(r jsonrpc2.Request, state State) any {
 		json.Unmarshal([]byte(*r.Params), &p)
 		return state.handleGetSymbols(p)
 
+	case "textDocument/codeAction":
+		var p CodeActionParams
+		json.Unmarshal([]byte(*r.Params), &p)
+		return state.handleCodeAction(p)
+
 	default:
 		// Unhandled method
 		// TODO should it panic?
@@ -244,5 +287,6 @@ func toLspDiagnostic(d analysis.Diagnostic) Diagnostic {
 		Range:    toLspRange(d.Range),
 		Severity: DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
+		Data:     d.Id,
 	}
 }

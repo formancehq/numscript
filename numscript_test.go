@@ -35,6 +35,28 @@ func TestGetVars(t *testing.T) {
 
 }
 
+func TestGetVarsEmpty(t *testing.T) {
+	parseResult := numscript.Parse(`
+	vars {}
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	require.Equal(t,
+		map[string]string{},
+		parseResult.GetNeededVariables(),
+	)
+}
+
+func TestGetVarsNovars(t *testing.T) {
+	parseResult := numscript.Parse(``)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	require.Equal(t,
+		map[string]string{},
+		parseResult.GetNeededVariables(),
+	)
+}
+
 func TestDoNotGetWorldBalance(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = @world

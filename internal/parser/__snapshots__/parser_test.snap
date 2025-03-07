@@ -1,6 +1,6 @@
 [TestPlainAddress - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -62,7 +62,7 @@ parser.Program{
 
 [TestVariable - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -120,7 +120,7 @@ parser.Program{
 
 [TestAllotment - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -219,7 +219,7 @@ parser.Program{
 
 [TestAllotmentPerc - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -371,7 +371,7 @@ parser.Program{
 
 [TestAllotmentPercFloating - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -460,7 +460,7 @@ parser.Program{
 
 [TestAllotmentDest - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -561,7 +561,7 @@ parser.Program{
 
 [TestCapped - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -649,7 +649,7 @@ parser.Program{
 
 [TestCappedVariable - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -724,7 +724,7 @@ parser.Program{
 
 [TestNested - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -842,7 +842,7 @@ parser.Program{
 
 [TestMultipleSends - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -956,32 +956,47 @@ parser.Program{
 }
 ---
 [TestEmptyVars - 1]
-parser.Program{}
+parser.Program{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{},
+            End:   parser.Position{Character:8, Line:0},
+        },
+        Declarations: nil,
+    },
+    Statements: nil,
+}
 ---
 
 [TestSingleVar - 1]
 parser.Program{
-    Vars: {
-        {
-            Range: parser.Range{
-                Start: parser.Position{Character:7, Line:0},
-                End:   parser.Position{Character:23, Line:0},
-            },
-            Name: &parser.Variable{
-                Range: parser.Range{
-                    Start: parser.Position{Character:16, Line:0},
-                    End:   parser.Position{Character:23, Line:0},
-                },
-                Name: "my_var",
-            },
-            Type: &parser.TypeDecl{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{},
+            End:   parser.Position{Character:25, Line:0},
+        },
+        Declarations: {
+            {
                 Range: parser.Range{
                     Start: parser.Position{Character:7, Line:0},
-                    End:   parser.Position{Character:15, Line:0},
+                    End:   parser.Position{Character:23, Line:0},
                 },
-                Name: "monetary",
+                Name: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:16, Line:0},
+                        End:   parser.Position{Character:23, Line:0},
+                    },
+                    Name: "my_var",
+                },
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:7, Line:0},
+                        End:   parser.Position{Character:15, Line:0},
+                    },
+                    Name: "monetary",
+                },
+                Origin: (*parser.FnCall)(nil),
             },
-            Origin: (*parser.FnCall)(nil),
         },
     },
     Statements: nil,
@@ -990,7 +1005,7 @@ parser.Program{
 
 [TestVariableMonetary - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1039,7 +1054,7 @@ parser.Program{
 
 [TestAllotmentDestRemaining - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1165,7 +1180,7 @@ parser.Program{
 
 [TestAllotmentVariableSource - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1250,7 +1265,7 @@ parser.Program{
 
 [TestOverdraftUnbounded - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1304,7 +1319,7 @@ parser.Program{
 
 [TestOverdraftUnboundedVariable - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1356,7 +1371,7 @@ parser.Program{
 
 [TestBoundedOverdraft - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1427,7 +1442,7 @@ parser.Program{
 
 [TestFunctionCallNoArgs - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -1449,7 +1464,7 @@ parser.Program{
 
 [TestFunctionCallOneArg - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -1481,7 +1496,7 @@ parser.Program{
 
 [TestFunctionCallManyArgs - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -1566,54 +1581,60 @@ parser.Program{
 
 [TestVarOrigin - 1]
 parser.Program{
-    Vars: {
-        {
-            Range: parser.Range{
-                Start: parser.Position{Character:1, Line:2},
-                End:   parser.Position{Character:49, Line:2},
-            },
-            Name: &parser.Variable{
-                Range: parser.Range{
-                    Start: parser.Position{Character:10, Line:2},
-                    End:   parser.Position{Character:17, Line:2},
-                },
-                Name: "my_var",
-            },
-            Type: &parser.TypeDecl{
+    Vars: &parser.VarDeclarations{
+        Range: parser.Range{
+            Start: parser.Position{Character:0, Line:1},
+            End:   parser.Position{Character:1, Line:3},
+        },
+        Declarations: {
+            {
                 Range: parser.Range{
                     Start: parser.Position{Character:1, Line:2},
-                    End:   parser.Position{Character:9, Line:2},
-                },
-                Name: "monetary",
-            },
-            Origin: &parser.FnCall{
-                Range: parser.Range{
-                    Start: parser.Position{Character:20, Line:2},
                     End:   parser.Position{Character:49, Line:2},
                 },
-                Caller: &parser.FnCallIdentifier{
+                Name: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:10, Line:2},
+                        End:   parser.Position{Character:17, Line:2},
+                    },
+                    Name: "my_var",
+                },
+                Type: &parser.TypeDecl{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:1, Line:2},
+                        End:   parser.Position{Character:9, Line:2},
+                    },
+                    Name: "monetary",
+                },
+                Origin: &parser.FnCall{
                     Range: parser.Range{
                         Start: parser.Position{Character:20, Line:2},
-                        End:   parser.Position{Character:29, Line:2},
+                        End:   parser.Position{Character:49, Line:2},
                     },
-                    Name: "origin_fn",
-                },
-                Args: {
-                    &parser.AccountInterpLiteral{
+                    Caller: &parser.FnCallIdentifier{
                         Range: parser.Range{
-                            Start: parser.Position{Character:30, Line:2},
-                            End:   parser.Position{Character:41, Line:2},
+                            Start: parser.Position{Character:20, Line:2},
+                            End:   parser.Position{Character:29, Line:2},
                         },
-                        Parts: {
-                            parser.AccountTextPart{Name:"my_account"},
-                        },
+                        Name: "origin_fn",
                     },
-                    &parser.StringLiteral{
-                        Range: parser.Range{
-                            Start: parser.Position{Character:43, Line:2},
-                            End:   parser.Position{Character:48, Line:2},
+                    Args: {
+                        &parser.AccountInterpLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:30, Line:2},
+                                End:   parser.Position{Character:41, Line:2},
+                            },
+                            Parts: {
+                                parser.AccountTextPart{Name:"my_account"},
+                            },
                         },
-                        String: "str",
+                        &parser.StringLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:43, Line:2},
+                                End:   parser.Position{Character:48, Line:2},
+                            },
+                            String: "str",
+                        },
                     },
                 },
             },
@@ -1625,7 +1646,7 @@ parser.Program{
 
 [TestInorderSource - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1706,7 +1727,7 @@ parser.Program{
 
 [TestInorderDestination - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1823,7 +1844,7 @@ parser.Program{
 
 [TestSendAll - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1872,7 +1893,7 @@ parser.Program{
 
 [TestAllotmentDestKept - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -1966,7 +1987,7 @@ parser.Program{
 
 [TestWhitespaceInRatio - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -2072,7 +2093,7 @@ mismatched input 'ee' expecting {'oneof', '(', '[', '{', PERCENTAGE_PORTION_LITE
 
 [TestNegativeNumberLit - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -2134,7 +2155,7 @@ parser.Program{
 
 [TestSaveStatementSimple - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
@@ -2183,7 +2204,7 @@ parser.Program{
 
 [TestSaveAllStatement - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
@@ -2219,7 +2240,7 @@ parser.Program{
 
 [TestSaveStatementVar - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
             Range: parser.Range{
@@ -2253,7 +2274,7 @@ parser.Program{
 
 [TestInfix - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2375,7 +2396,7 @@ parser.Program{
 
 [TestInfixPrec - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2440,7 +2461,7 @@ parser.Program{
 
 [TestNumberSyntaxUnderscore - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2477,7 +2498,7 @@ parser.Program{
 
 [TestParensInfixPrec - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2542,7 +2563,7 @@ parser.Program{
 
 [TestOneofSource - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -2610,7 +2631,7 @@ parser.Program{
 
 [TestOneofDestination - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
             Range: parser.Range{
@@ -2714,7 +2735,7 @@ parser.Program{
 
 [TestDivInfix - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2765,7 +2786,7 @@ parser.Program{
 
 [TestDivVariableDenominator - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2816,7 +2837,7 @@ parser.Program{
 
 [TestInfixSumDiv - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2881,7 +2902,7 @@ parser.Program{
 
 [TestStringTemplate - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
@@ -2918,7 +2939,7 @@ parser.Program{
 
 [TestInterpAccount - 1]
 parser.Program{
-    Vars:       nil,
+    Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
             Range: parser.Range{
