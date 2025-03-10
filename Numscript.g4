@@ -21,13 +21,14 @@ valueExpr:
 	| monetaryLit													# monetaryLiteral
 	| left = valueExpr op = DIV right = valueExpr					# infixExpr
 	| left = valueExpr op = (PLUS | MINUS) right = valueExpr		# infixExpr
-	| LPARENS valueExpr RPARENS										# parenthesizedExpr;
+	| LPARENS valueExpr RPARENS										# parenthesizedExpr
+	| functionCall													# application;
 
 functionCallArgs: valueExpr ( COMMA valueExpr)*;
 functionCall:
 	fnName = (OVERDRAFT | IDENTIFIER) LPARENS functionCallArgs? RPARENS;
 
-varOrigin: EQ functionCall;
+varOrigin: EQ valueExpr;
 varDeclaration:
 	type_ = IDENTIFIER name = VARIABLE_NAME varOrigin?;
 varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
