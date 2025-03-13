@@ -455,6 +455,76 @@ set_tx_meta(
 
 }
 
+func TestInterleavedBalanceBatching(t *testing.T) {
+	parseResult := numscript.Parse(`
+vars {
+	account $a2 = meta(@a, "k") // -> @a2
+}
+
+send [USD/2 10] (
+  source = {
+		// balance(@a2, USD/2) -> [USD/2 1]
+		max balance($a2, USD/2) from @a
+		@world
+	}
+  destination = @b
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Meta: interpreter.AccountsMetadata{
+				"a": interpreter.AccountMetadata{
+					"k": "a2",
+				},
+			},
+			Balances: interpreter.Balances{
+				"a": interpreter.AccountBalance{
+					"USD/2": big.NewInt(100),
+				},
+				"a2": interpreter.AccountBalance{
+					"USD/2": big.NewInt(1),
+				},
+			},
+		},
+	}
+	res, err := parseResult.Run(context.Background(), nil, &store)
+	require.Nil(t, err)
+
+	require.Equal(t,
+		[]interpreter.Posting{
+			{
+				Source:      "a",
+				Destination: "b",
+				Amount:      big.NewInt(1),
+				Asset:       "USD/2",
+			},
+			{
+				Source:      "world",
+				Destination: "b",
+				Amount:      big.NewInt(9),
+				Asset:       "USD/2",
+			},
+		},
+		res.Postings,
+	)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"a": {"USD/2"},
+			},
+			{
+				"a2": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
 type ObservableStore struct {
 	StaticStore      interpreter.StaticStore
 	GetBalancesCalls []numscript.BalanceQuery

@@ -35,12 +35,32 @@ type StaticStore struct {
 	Meta     AccountsMetadata
 }
 
-func (s StaticStore) GetBalances(context.Context, BalanceQuery) (Balances, error) {
+func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, error) {
 	if s.Balances == nil {
 		s.Balances = Balances{}
 	}
-	return s.Balances, nil
+
+	outputBalance := Balances{}
+	for k, currencies := range q {
+		accountBalance := AccountBalance{}
+		outputBalance[k] = accountBalance
+
+		accountBalanceLookup := defaultMapGet(s.Balances, k, func() AccountBalance {
+			return AccountBalance{}
+		})
+		for _, curr := range currencies {
+			n := new(big.Int)
+			accountBalance[curr] = n
+
+			if i, ok := accountBalanceLookup[curr]; ok {
+				n.Set(i)
+			}
+		}
+	}
+
+	return outputBalance, nil
 }
+
 func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error) {
 	if s.Meta == nil {
 		s.Meta = AccountsMetadata{}
