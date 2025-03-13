@@ -445,24 +445,11 @@ set_tx_meta(
 	require.Nil(t, err)
 
 	require.Equal(t, interpreter.Metadata{
-		"k": interpreter.NewMonetary("USD/2", 10),
+		"k": interpreter.NewMonetary("USD/2", 100),
 	}, res.Metadata)
 
 	require.Equal(t,
-		[]numscript.BalanceQuery{
-			{
-				"alice": {"USD/2"},
-			},
-		},
-		store.GetBalancesCalls,
-	)
-
-	require.Equal(t,
-		[]numscript.BalanceQuery{
-			{
-				"alice": {"USD/2"},
-			},
-		},
+		[]numscript.BalanceQuery(nil),
 		store.GetBalancesCalls,
 	)
 
