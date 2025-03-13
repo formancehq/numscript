@@ -57,7 +57,7 @@ func (st *programState) batchQuery(account string, asset string) {
 	}
 
 	previousValues := st.CurrentBalanceQuery[account]
-	if !slices.Contains[[]string, string](previousValues, asset) {
+	if !slices.Contains(previousValues, asset) {
 		st.CurrentBalanceQuery[account] = append(previousValues, asset)
 	}
 }
