@@ -153,6 +153,40 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMetadata)
 }
 
+func TestStaticStore(t *testing.T) {
+	store := machine.StaticStore{
+		Balances: machine.Balances{
+			"a": machine.AccountBalance{
+				"USD/2": big.NewInt(10),
+				"EUR/2": big.NewInt(1),
+			},
+			"b": machine.AccountBalance{
+				"USD/2": big.NewInt(10),
+				"COIN":  big.NewInt(11),
+			},
+		},
+	}
+
+	q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		"a": []string{"USD/2"},
+	})
+	require.Equal(t, machine.Balances{
+		"a": machine.AccountBalance{
+			"USD/2": big.NewInt(10),
+		},
+	}, q1)
+
+	q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		"b": []string{"USD/2", "COIN"},
+	})
+	require.Equal(t, machine.Balances{
+		"b": machine.AccountBalance{
+			"USD/2": big.NewInt(10),
+			"COIN":  big.NewInt(11),
+		},
+	}, q2)
+}
+
 type CaseResult struct {
 	Postings        []machine.Posting
 	TxMetadata      map[string]machine.Value
@@ -2217,6 +2251,67 @@ func TestVariableBalance(t *testing.T) {
 // 	}
 // 	test(t, tc)
 // }
+
+func TestBalanceSimple(t *testing.T) {
+	script := `
+	vars {
+		monetary $bal = balance(@alice, USD/2)
+	}
+
+	send $bal (
+		source = @world
+		destination = @dest
+	)
+
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("alice", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestAskBalanceTwice(t *testing.T) {
+	script := `
+	vars {
+		monetary $bal = balance(@alice, USD/2)
+	}
+
+	send $bal (
+		source = @alice
+		destination = @dest
+	)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("alice", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "alice",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
 
 func TestVariableAsset(t *testing.T) {
 	script := `

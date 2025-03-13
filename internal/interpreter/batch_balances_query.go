@@ -91,7 +91,17 @@ func (st *programState) runBalancesQuery() error {
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	st.CachedBalances = balances
+	// merge queried balance
+	for acc, accBalances := range balances {
+		cachedAcc := defaultMapGet(st.CachedBalances, acc, func() AccountBalance {
+			return AccountBalance{}
+		})
+
+		for curr, amt := range accBalances {
+			cachedAcc[curr] = amt
+		}
+	}
+
 	return nil
 }
 

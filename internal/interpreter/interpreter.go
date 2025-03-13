@@ -42,15 +42,15 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 
 	outputBalance := Balances{}
 	for k, currencies := range q {
-		accountBalance := AccountBalance{}
-		outputBalance[k] = accountBalance
+		outputAccountBalance := AccountBalance{}
+		outputBalance[k] = outputAccountBalance
 
 		accountBalanceLookup := defaultMapGet(s.Balances, k, func() AccountBalance {
 			return AccountBalance{}
 		})
 		for _, curr := range currencies {
 			n := new(big.Int)
-			accountBalance[curr] = n
+			outputAccountBalance[curr] = n
 
 			if i, ok := accountBalanceLookup[curr]; ok {
 				n.Set(i)
