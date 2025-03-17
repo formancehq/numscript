@@ -437,3 +437,18 @@ func TestInterpAccount(t *testing.T) {
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestIncludeComments(t *testing.T) {
+	p := parser.Parse(
+		`
+		// first comment
+		f()
+
+		// second comment
+		g()
+		`,
+	)
+
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}
