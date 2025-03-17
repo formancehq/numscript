@@ -29,6 +29,7 @@ var runOutFormatOpt string
 var overdraftFeatureFlag bool
 var oneOfFeatureFlag bool
 var accountInterpolationFlag bool
+var midScriptFunctionCallFeatureFlag bool
 
 type inputOpts struct {
 	Script    string                       `json:"script"`
@@ -129,6 +130,9 @@ func run(path string) {
 	if accountInterpolationFlag {
 		featureFlags[interpreter.ExperimentalAccountInterpolationFlag] = struct{}{}
 	}
+	if midScriptFunctionCallFeatureFlag {
+		featureFlags[interpreter.ExperimentalMidScriptFunctionCall] = struct{}{}
+	}
 
 	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
 		Balances: opt.Balances,
@@ -208,9 +212,11 @@ func getRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
 
 	// Feature flag
-	cmd.Flags().BoolVar(&overdraftFeatureFlag, interpreter.ExperimentalOverdraftFunctionFeatureFlag, false, "feature flag to enable the overdraft() function")
-	cmd.Flags().BoolVar(&oneOfFeatureFlag, interpreter.ExperimentalOneofFeatureFlag, false, "feature flag to enable the oneof combinator")
+
+	cmd.Flags().BoolVar(&overdraftFeatureFlag, interpreter.ExperimentalOverdraftFunctionFeatureFlag, false, "enables the experimental overdraft() function")
+	cmd.Flags().BoolVar(&oneOfFeatureFlag, interpreter.ExperimentalOneofFeatureFlag, false, "enable the experimental oneof combinator")
 	cmd.Flags().BoolVar(&accountInterpolationFlag, interpreter.ExperimentalAccountInterpolationFlag, false, "enables an account interpolation syntax, e.g. @users:$id:pending")
+	cmd.Flags().BoolVar(&midScriptFunctionCallFeatureFlag, interpreter.ExperimentalMidScriptFunctionCall, false, "allows to use function call as expression, and to use any expression when definining variables")
 
 	// Output options
 	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
