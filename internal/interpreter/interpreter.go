@@ -209,6 +209,7 @@ const (
 	ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
 	ExperimentalOneofFeatureFlag             FeatureFlag = "experimental-oneof"
 	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
+	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
 )
 
 func RunProgram(
@@ -231,12 +232,14 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 	}
 
+	st.varOriginPosition = true
 	if program.Vars != nil {
 		err := st.parseVars(program.Vars.Declarations, vars)
 		if err != nil {
 			return nil, err
 		}
 	}
+	st.varOriginPosition = false
 
 	// preload balances before executing the script
 	for _, statement := range program.Statements {
@@ -270,6 +273,8 @@ func RunProgram(
 
 type programState struct {
 	ctx context.Context
+
+	varOriginPosition bool
 
 	// Asset of the send statement currently being executed.
 	//

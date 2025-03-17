@@ -4042,3 +4042,74 @@ func TestAccountInvalidString(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
 }
+
+func TestMidscriptBalance(t *testing.T) {
+	script := `
+ 		send balance(@acc, USD/2) (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "USD/2", 42)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(42),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
+
+func TestMidscriptBalanceAfterDecrease(t *testing.T) {
+	script := `
+		// @acc has [10 USD/2] initially
+
+		send [USD/2 3] (
+			source = @acc
+			destination = @world
+		)
+
+		// @acc has [7 USD/2] left
+ 		send balance(@acc, USD/2) (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(3),
+				Source:      "acc",
+				Destination: "world",
+			},
+
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(7),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}

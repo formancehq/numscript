@@ -441,7 +441,9 @@ set_tx_meta(
 			},
 		},
 	}
-	res, err := parseResult.Run(context.Background(), nil, &store)
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
+		interpreter.ExperimentalMidScriptFunctionCall: {},
+	})
 	require.Nil(t, err)
 
 	require.Equal(t, interpreter.Metadata{
@@ -490,7 +492,9 @@ send [USD/2 10] (
 			},
 		},
 	}
-	res, err := parseResult.Run(context.Background(), nil, &store)
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
+		interpreter.ExperimentalMidScriptFunctionCall: {},
+	})
 	require.Nil(t, err)
 
 	require.Equal(t,
