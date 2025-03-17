@@ -60,6 +60,15 @@ func Parse(input string) ParseResult {
 
 	parsed := parseProgram(p.Program())
 
+	for _, tk := range stream.GetAllTokens() {
+		if tk.GetChannel() == antlr.TokenHiddenChannel {
+			parsed.Comments = append(parsed.Comments, Comment{
+				Content: tk.GetText()[2:],
+				Range:   tokenToRange(tk),
+			})
+		}
+	}
+
 	return ParseResult{
 		Source: input,
 		Value:  parsed,
