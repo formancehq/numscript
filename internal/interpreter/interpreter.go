@@ -156,8 +156,7 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 	switch fnCall.Caller.Name {
 	case analysis.FnVarOriginMeta:
 		if type_ == nil {
-			// TODO return error
-			panic("invalid nested meta() call")
+			return nil, InvalidNestedMeta{}
 		}
 
 		rawValue, err := meta(s, fnCall.Range, args)

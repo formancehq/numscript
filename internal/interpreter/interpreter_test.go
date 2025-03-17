@@ -4131,3 +4131,25 @@ func TestExprInVarOrigin(t *testing.T) {
 
 	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
 }
+
+func TestInvalidNestedMetaCall(t *testing.T) {
+	script := `
+		vars {
+			number $x = 1 + meta(@acc, "k")
+		}
+	`
+
+	tc := NewTestCase()
+	tc.meta = machine.AccountsMetadata{
+		"acc": {
+			"k": "42",
+		},
+	}
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidNestedMeta{},
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
