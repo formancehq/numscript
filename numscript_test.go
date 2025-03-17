@@ -166,7 +166,7 @@ send [COIN 100] (
 		"s1": "source1",
 	},
 		&store,
-		map[string]struct{}{"experimental-oneof": {}},
+		map[string]struct{}{interpreter.ExperimentalOneofFeatureFlag: {}},
 	)
 	require.Nil(t, err)
 
