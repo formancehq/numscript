@@ -137,6 +137,13 @@ func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Valu
 		return s.handleFnCall(&type_, *fnCall)
 	}
 
+	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
+		err := s.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return s.evaluateExpr(expr)
 }
 

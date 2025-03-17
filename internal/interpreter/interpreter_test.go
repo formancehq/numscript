@@ -4113,3 +4113,21 @@ func TestMidscriptBalanceAfterDecrease(t *testing.T) {
 
 	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
 }
+
+func TestExprInVarOrigin(t *testing.T) {
+	script := `
+		vars {
+			number $x = 1 + 2
+		}
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error:    nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
