@@ -5,7 +5,6 @@ import (
 
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
-	"golang.org/x/exp/maps"
 )
 
 // traverse the script to batch in advance required balance queries
@@ -63,44 +62,21 @@ func (st *programState) batchQuery(account string, asset string) {
 }
 
 func (st *programState) runBalancesQuery() error {
-	filteredQuery := BalanceQuery{}
-	for accountName, queriedCurrencies := range st.CurrentBalanceQuery {
-
-		cachedCurrenciesForAccount := defaultMapGet(st.CachedBalances, accountName, func() AccountBalance {
-			return AccountBalance{}
-		})
-
-		for _, queriedCurrency := range queriedCurrencies {
-			isAlreadyCached := slices.Contains(maps.Keys(cachedCurrenciesForAccount), queriedCurrency)
-			if !isAlreadyCached {
-				filteredQuery[accountName] = queriedCurrencies
-			}
-		}
-
-	}
+	filteredQuery := st.CachedBalances.filterQuery(st.CurrentBalanceQuery)
 
 	// avoid updating balances if we don't need to fetch new data
 	if len(filteredQuery) == 0 {
 		return nil
 	}
 
-	balances, err := st.Store.GetBalances(st.ctx, filteredQuery)
+	queriedBalances, err := st.Store.GetBalances(st.ctx, filteredQuery)
 	if err != nil {
 		return err
 	}
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	// merge queried balance
-	for acc, accBalances := range balances {
-		cachedAcc := defaultMapGet(st.CachedBalances, acc, func() AccountBalance {
-			return AccountBalance{}
-		})
-
-		for curr, amt := range accBalances {
-			cachedAcc[curr] = amt
-		}
-	}
+	st.CachedBalances.mergeBalance(queriedBalances)
 
 	return nil
 }

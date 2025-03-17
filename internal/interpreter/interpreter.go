@@ -41,14 +41,12 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 	}
 
 	outputBalance := Balances{}
-	for k, currencies := range q {
+	for queriedAccount, queriedCurrencies := range q {
 		outputAccountBalance := AccountBalance{}
-		outputBalance[k] = outputAccountBalance
+		outputBalance[queriedAccount] = outputAccountBalance
 
-		accountBalanceLookup := defaultMapGet(s.Balances, k, func() AccountBalance {
-			return AccountBalance{}
-		})
-		for _, curr := range currencies {
+		accountBalanceLookup := s.Balances.fetchAccountBalances(queriedAccount)
+		for _, curr := range queriedCurrencies {
 			n := new(big.Int)
 			outputAccountBalance[curr] = n
 
@@ -355,10 +353,10 @@ func (st *programState) getPostings() ([]Posting, InterpreterError) {
 	}
 
 	for _, posting := range postings {
-		srcBalance := st.getCachedBalance(posting.Source, posting.Asset)
+		srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
 		srcBalance.Sub(srcBalance, posting.Amount)
 
-		destBalance := st.getCachedBalance(posting.Destination, posting.Asset)
+		destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset)
 		destBalance.Add(destBalance, posting.Amount)
 	}
 	return postings, nil
@@ -375,7 +373,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		return nil, err
 	}
 
-	balance := st.getCachedBalance(*account, *asset)
+	balance := st.CachedBalances.fetchBalance(*account, *asset)
 
 	if amt == nil {
 		balance.Set(big.NewInt(0))
@@ -449,16 +447,6 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 }
 
-func (s *programState) getCachedBalance(account string, asset string) *big.Int {
-	balance := defaultMapGet(s.CachedBalances, account, func() AccountBalance {
-		return AccountBalance{}
-	})
-	assetBalance := defaultMapGet(balance, asset, func() *big.Int {
-		return big.NewInt(0)
-	})
-	return assetBalance
-}
-
 func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
@@ -471,7 +459,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		}
 	}
 
-	balance := s.getCachedBalance(*account, s.CurrentAsset)
+	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
 
 	// we sent balance+overdraft
 	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
@@ -568,7 +556,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.getCachedBalance(*account, s.CurrentAsset)
+		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
@@ -894,7 +882,7 @@ func getBalance(
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
 	}
-	balance := s.getCachedBalance(account, asset)
+	balance := s.CachedBalances.fetchBalance(account, asset)
 	return balance, nil
 
 }
