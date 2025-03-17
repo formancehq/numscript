@@ -163,7 +163,6 @@ func (res *CheckResult) check() {
 
 			if varDecl.Origin != nil {
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
-				// res.checkFnCall(*varDecl.Origin, varDecl)
 			}
 		}
 	}
@@ -177,7 +176,6 @@ func (res *CheckResult) check() {
 	for name, rng := range res.unusedVars {
 		res.pushDiagnostic(rng, UnusedVar{Name: name})
 	}
-
 }
 
 func (res *CheckResult) checkStatement(statement parser.Statement) {
