@@ -1,6 +1,10 @@
 package interpreter
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/formancehq/numscript/internal/utils"
+)
 
 func (b Balances) fetchAccountBalances(account string) AccountBalance {
 	return defaultMapGet(b, account, func() AccountBalance {
@@ -32,12 +36,14 @@ func (b Balances) has(account string, asset string) bool {
 func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
 	filteredQuery := BalanceQuery{}
 	for accountName, queriedCurrencies := range q {
-		for _, currency := range queriedCurrencies {
-			isAlreadyCached := b.has(accountName, currency)
-			if !isAlreadyCached {
-				filteredQuery[accountName] = queriedCurrencies
-			}
+		filteredCurrencies := utils.Filter(queriedCurrencies, func(currency string) bool {
+			return !b.has(accountName, currency)
+		})
+
+		if len(filteredCurrencies) > 0 {
+			filteredQuery[accountName] = filteredCurrencies
 		}
+
 	}
 	return filteredQuery
 }
