@@ -6,6 +6,7 @@ import (
 )
 
 type Version interface{ version() }
+
 type VersionMachine struct{}
 
 func (v VersionMachine) version() {}
@@ -17,6 +18,19 @@ type VersionInterpreter struct {
 }
 
 func (v VersionInterpreter) version() {}
+
+func (v VersionInterpreter) GtEq(other VersionInterpreter) bool {
+	if v.Major > other.Major {
+		return true
+	}
+	if v.Major < other.Major {
+		return false
+	}
+	if v.Minor < other.Minor {
+		return false
+	}
+	return v.Patch >= other.Patch
+}
 
 func parseSemanticVersion(src string) (bool, int, int, int) {
 	parts := strings.Split(src, ".")
