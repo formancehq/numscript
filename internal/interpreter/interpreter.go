@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -208,15 +209,6 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 	}
 	return nil
 }
-
-type FeatureFlag = string
-
-const (
-	ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
-	ExperimentalOneofFeatureFlag             FeatureFlag = "experimental-oneof"
-	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
-	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
-)
 
 func RunProgram(
 	ctx context.Context,
@@ -507,7 +499,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return totalSent, nil
 
 	case *parser.SourceOneof:
-		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		err := s.checkFeatureFlag(flags.ExperimentalOneofFeatureFlag)
 		if err != nil {
 			return nil, err
 		}
@@ -608,7 +600,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		return new(big.Int).Sub(amount, totalLeft), nil
 
 	case *parser.SourceOneof:
-		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		err := s.checkFeatureFlag(flags.ExperimentalOneofFeatureFlag)
 		if err != nil {
 			return nil, err
 		}
@@ -746,7 +738,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		return handler(destination.Remaining, remainingAmountCopy)
 
 	case *parser.DestinationOneof:
-		err := s.checkFeatureFlag(ExperimentalOneofFeatureFlag)
+		err := s.checkFeatureFlag(flags.ExperimentalOneofFeatureFlag)
 		if err != nil {
 			return err
 		}
@@ -940,7 +932,7 @@ func overdraft(
 	r parser.Range,
 	args []Value,
 ) (*Monetary, InterpreterError) {
-	err := s.checkFeatureFlag(ExperimentalOverdraftFunctionFeatureFlag)
+	err := s.checkFeatureFlag(flags.ExperimentalOverdraftFunctionFeatureFlag)
 	if err != nil {
 		return nil, err
 	}

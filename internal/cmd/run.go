@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/formancehq/numscript/internal/ansi"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 
@@ -122,13 +123,13 @@ func run(path string) {
 
 	featureFlags := map[string]struct{}{}
 	if overdraftFeatureFlag {
-		featureFlags[interpreter.ExperimentalOverdraftFunctionFeatureFlag] = struct{}{}
+		featureFlags[flags.ExperimentalOverdraftFunctionFeatureFlag] = struct{}{}
 	}
 	if oneOfFeatureFlag {
-		featureFlags[interpreter.ExperimentalOneofFeatureFlag] = struct{}{}
+		featureFlags[flags.ExperimentalOneofFeatureFlag] = struct{}{}
 	}
 	if accountInterpolationFlag {
-		featureFlags[interpreter.ExperimentalAccountInterpolationFlag] = struct{}{}
+		featureFlags[flags.ExperimentalAccountInterpolationFlag] = struct{}{}
 	}
 	if midScriptFunctionCallFeatureFlag {
 		featureFlags[interpreter.ExperimentalMidScriptFunctionCall] = struct{}{}
@@ -213,9 +214,9 @@ func getRunCmd() *cobra.Command {
 
 	// Feature flag
 
-	cmd.Flags().BoolVar(&overdraftFeatureFlag, interpreter.ExperimentalOverdraftFunctionFeatureFlag, false, "enables the experimental overdraft() function")
-	cmd.Flags().BoolVar(&oneOfFeatureFlag, interpreter.ExperimentalOneofFeatureFlag, false, "enable the experimental oneof combinator")
-	cmd.Flags().BoolVar(&accountInterpolationFlag, interpreter.ExperimentalAccountInterpolationFlag, false, "enables an account interpolation syntax, e.g. @users:$id:pending")
+	cmd.Flags().BoolVar(&overdraftFeatureFlag, flags.ExperimentalOverdraftFunctionFeatureFlag, false, "enables the experimental overdraft() function")
+	cmd.Flags().BoolVar(&oneOfFeatureFlag, flags.ExperimentalOneofFeatureFlag, false, "enable the experimental oneof combinator")
+	cmd.Flags().BoolVar(&accountInterpolationFlag, flags.ExperimentalAccountInterpolationFlag, false, "enables an account interpolation syntax, e.g. @users:$id:pending")
 	cmd.Flags().BoolVar(&midScriptFunctionCallFeatureFlag, interpreter.ExperimentalMidScriptFunctionCall, false, "allows to use function call as expression, and to use any expression when definining variables")
 
 	// Output options
