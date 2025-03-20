@@ -66,6 +66,8 @@ func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 }
 
 func (tc *TestCase) compile(t *testing.T, src string) string {
+	t.Parallel()
+
 	tc.source = src
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
@@ -91,8 +93,6 @@ func test(t *testing.T, testCase TestCase) {
 // otherwise, it tests the program under that feature flag and also tests that
 // the same script, without the flag, yields the ExperimentalFeature{} error
 func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
-	t.Parallel()
-
 	prog := testCase.program
 
 	require.NotNil(t, prog)
