@@ -66,6 +66,8 @@ func (c *TestCase) setVarsFromJSON(t *testing.T, str string) {
 }
 
 func (tc *TestCase) compile(t *testing.T, src string) string {
+	t.Parallel()
+
 	tc.source = src
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
@@ -91,8 +93,6 @@ func test(t *testing.T, testCase TestCase) {
 // otherwise, it tests the program under that feature flag and also tests that
 // the same script, without the flag, yields the ExperimentalFeature{} error
 func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
-	t.Parallel()
-
 	prog := testCase.program
 
 	require.NotNil(t, prog)
@@ -151,6 +151,40 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	assert.Equal(t, expected.Postings, execResult.Postings)
 	assert.Equal(t, expected.TxMetadata, execResult.Metadata)
 	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMetadata)
+}
+
+func TestStaticStore(t *testing.T) {
+	store := machine.StaticStore{
+		Balances: machine.Balances{
+			"a": machine.AccountBalance{
+				"USD/2": big.NewInt(10),
+				"EUR/2": big.NewInt(1),
+			},
+			"b": machine.AccountBalance{
+				"USD/2": big.NewInt(10),
+				"COIN":  big.NewInt(11),
+			},
+		},
+	}
+
+	q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		"a": []string{"USD/2"},
+	})
+	require.Equal(t, machine.Balances{
+		"a": machine.AccountBalance{
+			"USD/2": big.NewInt(10),
+		},
+	}, q1)
+
+	q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		"b": []string{"USD/2", "COIN"},
+	})
+	require.Equal(t, machine.Balances{
+		"b": machine.AccountBalance{
+			"USD/2": big.NewInt(10),
+			"COIN":  big.NewInt(11),
+		},
+	}, q2)
 }
 
 type CaseResult struct {
@@ -2218,6 +2252,67 @@ func TestVariableBalance(t *testing.T) {
 // 	test(t, tc)
 // }
 
+func TestBalanceSimple(t *testing.T) {
+	script := `
+	vars {
+		monetary $bal = balance(@alice, USD/2)
+	}
+
+	send $bal (
+		source = @world
+		destination = @dest
+	)
+
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("alice", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestAskBalanceTwice(t *testing.T) {
+	script := `
+	vars {
+		monetary $bal = balance(@alice, USD/2)
+	}
+
+	send $bal (
+		source = @alice
+		destination = @dest
+	)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("alice", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(10),
+				Source:      "alice",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestVariableAsset(t *testing.T) {
 	script := `
  		vars {
@@ -3946,4 +4041,115 @@ func TestAccountInvalidString(t *testing.T) {
 		},
 	}
 	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+}
+
+func TestMidscriptBalance(t *testing.T) {
+	script := `
+ 		send balance(@acc, USD/2) (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "USD/2", 42)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(42),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
+
+func TestMidscriptBalanceAfterDecrease(t *testing.T) {
+	script := `
+		// @acc has [10 USD/2] initially
+
+		send [USD/2 3] (
+			source = @acc
+			destination = @world
+		)
+
+		// @acc has [7 USD/2] left
+ 		send balance(@acc, USD/2) (
+ 			source = @world
+ 			destination = @dest
+ 		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.setBalance("acc", "USD/2", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(3),
+				Source:      "acc",
+				Destination: "world",
+			},
+
+			{
+				Asset:       "USD/2",
+				Amount:      big.NewInt(7),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
+
+func TestExprInVarOrigin(t *testing.T) {
+	script := `
+		vars {
+			number $x = 1 + 2
+		}
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error:    nil,
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+}
+
+func TestInvalidNestedMetaCall(t *testing.T) {
+	script := `
+		vars {
+			number $x = 1 + meta(@acc, "k")
+		}
+	`
+
+	tc := NewTestCase()
+	tc.meta = machine.AccountsMetadata{
+		"acc": {
+			"k": "42",
+		},
+	}
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidNestedMeta{},
+	}
+
+	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
 }

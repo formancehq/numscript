@@ -50,6 +50,12 @@ func (s *BaseNumscriptListener) EnterInfixExpr(ctx *InfixExprContext) {}
 // ExitInfixExpr is called when production infixExpr is exited.
 func (s *BaseNumscriptListener) ExitInfixExpr(ctx *InfixExprContext) {}
 
+// EnterApplication is called when production application is entered.
+func (s *BaseNumscriptListener) EnterApplication(ctx *ApplicationContext) {}
+
+// ExitApplication is called when production application is exited.
+func (s *BaseNumscriptListener) ExitApplication(ctx *ApplicationContext) {}
+
 // EnterAssetLiteral is called when production assetLiteral is entered.
 func (s *BaseNumscriptListener) EnterAssetLiteral(ctx *AssetLiteralContext) {}
 

@@ -32,3 +32,13 @@ func MaxBigInt(a *big.Int, b *big.Int) *big.Int {
 
 	return &max
 }
+
+func Filter[T any](slice []T, predicate func(x T) bool) []T {
+	var ret []T
+	for _, x := range slice {
+		if predicate(x) {
+			ret = append(ret, x)
+		}
+	}
+	return ret
+}

@@ -220,3 +220,11 @@ type InvalidAccountName struct {
 func (e InvalidAccountName) Error() string {
 	return fmt.Sprintf("Invalid account name: @%s", e.Name)
 }
+
+type InvalidNestedMeta struct {
+	parser.Range
+}
+
+func (InvalidNestedMeta) Error() string {
+	return "Invalid usage of meta() function: the meta function cannot be nested in a sub-expression."
+}

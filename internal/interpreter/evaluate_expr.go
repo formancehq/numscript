@@ -84,6 +84,16 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			return nil, nil
 		}
 
+	case *parser.FnCall:
+		if !st.varOriginPosition {
+			err := st.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return st.handleFnCall(nil, *expr)
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](expr)
 		return nil, nil

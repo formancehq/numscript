@@ -162,7 +162,7 @@ func (res *CheckResult) check() {
 			}
 
 			if varDecl.Origin != nil {
-				res.checkVarOrigin(*varDecl.Origin, varDecl)
+				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
 			}
 		}
 	}
@@ -302,18 +302,20 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 	}
 }
 
-func (res *CheckResult) checkVarOrigin(fnCall parser.FnCall, decl parser.VarDeclaration) {
-	resolution, ok := Builtins[fnCall.Caller.Name]
-	if ok {
-		resolution, ok := resolution.(VarOriginFnCallResolution)
-		if ok {
-			res.fnCallResolution[decl.Origin.Caller] = resolution
-			res.assertHasType(decl.Name, resolution.Return, decl.Type.Name)
+func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
+	returnType := TypeAny
+
+	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
+		if resolution, ok := resolution.(VarOriginFnCallResolution); ok {
+			res.fnCallResolution[fnCall.Caller] = resolution
+			returnType = resolution.Return
 		}
 	}
 
 	// this must come after resolution
 	res.checkFnCallArity(&fnCall)
+
+	return returnType
 }
 
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
@@ -378,6 +380,9 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		return TypeNumber
 	case *parser.StringLiteral:
 		return TypeString
+
+	case *parser.FnCall:
+		return res.checkFnCall(*lit)
 
 	default:
 		return TypeAny

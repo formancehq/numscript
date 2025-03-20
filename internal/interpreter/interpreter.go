@@ -35,12 +35,30 @@ type StaticStore struct {
 	Meta     AccountsMetadata
 }
 
-func (s StaticStore) GetBalances(context.Context, BalanceQuery) (Balances, error) {
+func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, error) {
 	if s.Balances == nil {
 		s.Balances = Balances{}
 	}
-	return s.Balances, nil
+
+	outputBalance := Balances{}
+	for queriedAccount, queriedCurrencies := range q {
+		outputAccountBalance := AccountBalance{}
+		outputBalance[queriedAccount] = outputAccountBalance
+
+		accountBalanceLookup := s.Balances.fetchAccountBalances(queriedAccount)
+		for _, curr := range queriedCurrencies {
+			n := new(big.Int)
+			outputAccountBalance[curr] = n
+
+			if i, ok := accountBalanceLookup[curr]; ok {
+				n.Set(i)
+			}
+		}
+	}
+
+	return outputBalance, nil
 }
+
 func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error) {
 	if s.Meta == nil {
 		s.Meta = AccountsMetadata{}
@@ -113,7 +131,23 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, InterpreterError) {
+func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+	// Special case for top-level meta() call
+	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+		return s.handleFnCall(&type_, *fnCall)
+	}
+
+	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
+		err := s.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.evaluateExpr(expr)
+}
+
+func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
 	args, err := s.evaluateExpressions(fnCall.Args)
 	if err != nil {
 		return nil, err
@@ -121,17 +155,15 @@ func (s *programState) handleOrigin(type_ string, fnCall parser.FnCall) (Value, 
 
 	switch fnCall.Caller.Name {
 	case analysis.FnVarOriginMeta:
+		if type_ == nil {
+			return nil, InvalidNestedMeta{}
+		}
+
 		rawValue, err := meta(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
-
-		parsed, err := parseVar(type_, rawValue, fnCall.Range)
-		if err != nil {
-			return nil, err
-		}
-
-		return parsed, nil
+		return parseVar(*type_, rawValue, fnCall.Range)
 
 	case analysis.FnVarOriginBalance:
 		monetary, err := balance(s, fnCall.Range, args)
@@ -167,7 +199,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			}
 			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value, err := s.handleOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			value, err := s.handleFnOrigin(varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}
@@ -183,6 +215,7 @@ const (
 	ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
 	ExperimentalOneofFeatureFlag             FeatureFlag = "experimental-oneof"
 	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
+	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
 )
 
 func RunProgram(
@@ -205,12 +238,14 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 	}
 
+	st.varOriginPosition = true
 	if program.Vars != nil {
 		err := st.parseVars(program.Vars.Declarations, vars)
 		if err != nil {
 			return nil, err
 		}
 	}
+	st.varOriginPosition = false
 
 	// preload balances before executing the script
 	for _, statement := range program.Statements {
@@ -244,6 +279,8 @@ func RunProgram(
 
 type programState struct {
 	ctx context.Context
+
+	varOriginPosition bool
 
 	// Asset of the send statement currently being executed.
 	//
@@ -327,10 +364,10 @@ func (st *programState) getPostings() ([]Posting, InterpreterError) {
 	}
 
 	for _, posting := range postings {
-		srcBalance := st.getCachedBalance(posting.Source, posting.Asset)
+		srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
 		srcBalance.Sub(srcBalance, posting.Amount)
 
-		destBalance := st.getCachedBalance(posting.Destination, posting.Asset)
+		destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset)
 		destBalance.Add(destBalance, posting.Amount)
 	}
 	return postings, nil
@@ -347,7 +384,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		return nil, err
 	}
 
-	balance := st.getCachedBalance(*account, *asset)
+	balance := st.CachedBalances.fetchBalance(*account, *asset)
 
 	if amt == nil {
 		balance.Set(big.NewInt(0))
@@ -421,16 +458,6 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 }
 
-func (s *programState) getCachedBalance(account string, asset string) *big.Int {
-	balance := defaultMapGet(s.CachedBalances, account, func() AccountBalance {
-		return AccountBalance{}
-	})
-	assetBalance := defaultMapGet(balance, asset, func() *big.Int {
-		return big.NewInt(0)
-	})
-	return assetBalance
-}
-
 func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
@@ -443,7 +470,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		}
 	}
 
-	balance := s.getCachedBalance(*account, s.CurrentAsset)
+	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
 
 	// we sent balance+overdraft
 	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
@@ -540,7 +567,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.getCachedBalance(*account, s.CurrentAsset)
+		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
@@ -866,7 +893,7 @@ func getBalance(
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
 	}
-	balance := s.getCachedBalance(account, asset)
+	balance := s.CachedBalances.fetchBalance(account, asset)
 	return balance, nil
 
 }

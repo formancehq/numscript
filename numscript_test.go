@@ -166,7 +166,7 @@ send [COIN 100] (
 		"s1": "source1",
 	},
 		&store,
-		map[string]struct{}{"experimental-oneof": {}},
+		map[string]struct{}{interpreter.ExperimentalOneofFeatureFlag: {}},
 	)
 	require.Nil(t, err)
 
@@ -410,6 +410,118 @@ send [USD/2 30] (
 		[]numscript.BalanceQuery{
 			{
 				"alice": {"USD/2"},
+			},
+		},
+		store.GetBalancesCalls,
+	)
+
+}
+
+func TestMidscriptBalance(t *testing.T) {
+	parseResult := numscript.Parse(`
+send [USD/2 100] (
+	source = @bob allowing unbounded overdraft
+	destination = @alice
+)
+
+set_tx_meta(
+	"k",
+	balance(@alice, USD/2)
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"alice": interpreter.AccountBalance{
+					"USD/2": big.NewInt(20),
+				},
+			},
+		},
+	}
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
+		interpreter.ExperimentalMidScriptFunctionCall: {},
+	})
+	require.Nil(t, err)
+
+	require.Equal(t, interpreter.Metadata{
+		"k": interpreter.NewMonetary("USD/2", 100),
+	}, res.Metadata)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery(nil),
+		store.GetBalancesCalls,
+	)
+
+}
+
+func TestInterleavedBalanceBatching(t *testing.T) {
+	parseResult := numscript.Parse(`
+vars {
+	account $a2 = meta(@a, "k") // -> @a2
+}
+
+send [USD/2 10] (
+  source = {
+		// balance(@a2, USD/2) -> [USD/2 1]
+		max balance($a2, USD/2) from @a
+		@world
+	}
+  destination = @b
+)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Meta: interpreter.AccountsMetadata{
+				"a": interpreter.AccountMetadata{
+					"k": "a2",
+				},
+			},
+			Balances: interpreter.Balances{
+				"a": interpreter.AccountBalance{
+					"USD/2": big.NewInt(100),
+				},
+				"a2": interpreter.AccountBalance{
+					"USD/2": big.NewInt(1),
+				},
+			},
+		},
+	}
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
+		interpreter.ExperimentalMidScriptFunctionCall: {},
+	})
+	require.Nil(t, err)
+
+	require.Equal(t,
+		[]interpreter.Posting{
+			{
+				Source:      "a",
+				Destination: "b",
+				Amount:      big.NewInt(1),
+				Asset:       "USD/2",
+			},
+			{
+				Source:      "world",
+				Destination: "b",
+				Amount:      big.NewInt(9),
+				Asset:       "USD/2",
+			},
+		},
+		res.Postings,
+	)
+
+	require.Equal(t,
+		[]numscript.BalanceQuery{
+			{
+				"a": {"USD/2"},
+			},
+			{
+				"a2": {"USD/2"},
 			},
 		},
 		store.GetBalancesCalls,
