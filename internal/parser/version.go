@@ -36,7 +36,7 @@ func NewVersionInterpreter(major uint16, minor uint16, patch uint16) VersionInte
 func (v VersionInterpreter) version() {}
 
 func (v VersionInterpreter) String() string {
-	return fmt.Sprintf("interpreter %d %d %d", v.Major, v.Minor, v.Patch)
+	return fmt.Sprintf("interpreter %d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
 func (v VersionInterpreter) GtEq(other VersionInterpreter) bool {
