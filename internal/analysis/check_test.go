@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
@@ -755,5 +756,29 @@ send [EUR/2 100] (
 			},
 		},
 		checkSource(input),
+	)
+}
+
+func TestRequireFlagForOneofWhenRequired(t *testing.T) {
+	input := `
+// @version interpreter 0.0.15
+
+send [EUR/2 100] (
+  	source = oneof {
+			@a
+			@b
+		}
+  	destination = @dest
+)
+`
+
+	ds := checkSource(input)
+	require.Len(t, ds, 1)
+
+	require.Equal(t,
+		analysis.ExperimentalFeature{
+			Name: flags.ExperimentalOneofFeatureFlag,
+		},
+		ds[0].Kind,
 	)
 }

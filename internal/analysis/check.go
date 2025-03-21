@@ -481,9 +481,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceOneof:
-		res.requireVersion(source.Range,
-			parser.NewVersionInterpreter(0, 0, 15),
-		)
+		res.checkOneofVersion(source.Range)
 
 		for _, source := range source.Sources {
 			res.checkSource(source)
@@ -639,6 +637,8 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 		res.checkKeptOrDestination(destination.Remaining)
 
 	case *parser.DestinationOneof:
+		res.checkOneofVersion(destination.Range)
+
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
 			res.checkKeptOrDestination(clause.To)

@@ -285,3 +285,15 @@ func (e VersionMismatch) Message() string {
 func (VersionMismatch) Severity() Severity {
 	return ErrorSeverity
 }
+
+type ExperimentalFeature struct {
+	Name string
+}
+
+func (e ExperimentalFeature) Message() string {
+	return fmt.Sprintf("This feature is experimental. Add this comment to your script:\n// @feature_flag %s", e.Name)
+}
+
+func (ExperimentalFeature) Severity() Severity {
+	return ErrorSeverity
+}
