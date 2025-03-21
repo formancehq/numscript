@@ -392,13 +392,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
 
 		case parser.InfixOperatorDiv:
-			_, isLeftANumberLit := lit.Left.(*parser.NumberLiteral)
-			_, isRightANumberLit := lit.Right.(*parser.NumberLiteral)
-			if !isLeftANumberLit || !isRightANumberLit {
-				res.requireVersion(lit.Range,
-					parser.NewVersionInterpreter(0, 0, 15),
-				)
-			}
+			res.checkInfixVersion(*lit)
 
 			res.checkExpression(lit.Left, TypeNumber)
 			res.checkExpression(lit.Right, TypeNumber)
