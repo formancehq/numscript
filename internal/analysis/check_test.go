@@ -759,7 +759,7 @@ send [EUR/2 100] (
 	)
 }
 
-func TestRequireFlagForOneofWhenRequired(t *testing.T) {
+func TestRequireFlagForOneofWhenMissing(t *testing.T) {
 	input := `
 // @version interpreter 0.0.15
 
@@ -781,4 +781,21 @@ send [EUR/2 100] (
 		},
 		ds[0].Kind,
 	)
+}
+
+func TestRequireFlagForOneofWhenGiven(t *testing.T) {
+	input := `
+// @version interpreter 0.0.15
+// @feature_flag experimental-oneof
+
+send [EUR/2 100] (
+  	source = oneof {
+			@a
+			@b
+		}
+  	destination = @dest
+)
+`
+
+	require.Empty(t, checkSource(input))
 }
