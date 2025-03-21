@@ -674,6 +674,7 @@ send [EUR/2 *] (
 }
 
 func TestDoNoCheckVersionWhenNotSpecified(t *testing.T) {
+	t.Parallel()
 
 	input := `
 vars {
@@ -697,6 +698,8 @@ send [EUR/2 100] (
 }
 
 func TestRequireVersionForInfixDiv(t *testing.T) {
+	t.Parallel()
+
 	input := `
 // @version machine
 
@@ -728,6 +731,8 @@ send [EUR/2 100] (
 }
 
 func TestRequireVersionForInfixDivWhenVersionLt(t *testing.T) {
+	t.Parallel()
+
 	input := `
 // required version is 0.0.15
 // @version interpreter 0.0.1
@@ -760,6 +765,8 @@ send [EUR/2 100] (
 }
 
 func TestRequireFlagForOneofWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	input := `
 // @version interpreter 0.0.15
 
@@ -784,6 +791,8 @@ send [EUR/2 100] (
 }
 
 func TestRequireFlagForOneofWhenGiven(t *testing.T) {
+	t.Parallel()
+
 	input := `
 // @version interpreter 0.0.15
 // @feature_flag experimental-oneof
@@ -798,4 +807,57 @@ send [EUR/2 100] (
 `
 
 	require.Empty(t, checkSource(input))
+}
+
+func TestRequireFlagForInterpolation(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+vars {
+	number $id 
+}
+
+send [EUR/2 100] (
+  	source = @user:$id
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@user:$id", 0),
+				Kind: analysis.ExperimentalFeature{
+					Name: flags.ExperimentalAccountInterpolationFlag,
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireFlagForFunctionOverdraft(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+vars {
+	monetary $m = overdraft(@acc, USD/2)
+}
+
+send $m ( source = @world destination = @dest)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "overdraft(@acc, USD/2)", 0),
+				Kind: analysis.ExperimentalFeature{
+					Name: flags.ExperimentalOverdraftFunctionFeatureFlag,
+				},
+			},
+		},
+		checkSource(input),
+	)
 }

@@ -305,6 +305,8 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 }
 
 func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
+	res.checkOvedraftFunctionVersion(fnCall)
+
 	returnType := TypeAny
 
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
@@ -370,6 +372,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		}
 
 	case *parser.AccountInterpLiteral:
+		res.checkAccountInterpolationVersion(*lit)
+
 		for _, part := range lit.Parts {
 			if v, ok := part.(*parser.Variable); ok {
 				res.checkExpression(v, TypeAny)

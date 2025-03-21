@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"slices"
+
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -25,6 +27,37 @@ func (res *CheckResult) checkOneofVersion(rng parser.Range) {
 		VersionClause{
 			Version:     parser.NewVersionInterpreter(0, 0, 15),
 			FeatureFlag: flags.ExperimentalOneofFeatureFlag,
+		},
+	)
+}
+
+func (res *CheckResult) checkOvedraftFunctionVersion(fnCall parser.FnCall) {
+	if fnCall.Caller.Name != FnVarOriginOverdraft {
+		return
+	}
+
+	res.requireVersion(fnCall.Range,
+		VersionClause{
+			Version:     parser.NewVersionInterpreter(0, 0, 15),
+			FeatureFlag: flags.ExperimentalOverdraftFunctionFeatureFlag,
+		},
+	)
+}
+
+func (res *CheckResult) checkAccountInterpolationVersion(expr parser.AccountInterpLiteral) {
+	isInterpolation := slices.ContainsFunc(expr.Parts, func(part parser.AccountNamePart) bool {
+		_, isVar := part.(*parser.Variable)
+		return isVar
+	})
+
+	if !isInterpolation {
+		return
+	}
+
+	res.requireVersion(expr.Range,
+		VersionClause{
+			Version:     parser.NewVersionInterpreter(0, 0, 15),
+			FeatureFlag: flags.ExperimentalAccountInterpolationFlag,
 		},
 	)
 }
