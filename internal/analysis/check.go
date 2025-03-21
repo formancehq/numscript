@@ -152,43 +152,6 @@ func newCheckResult(program parser.Program) CheckResult {
 	}
 }
 
-func (res *CheckResult) requireVersion(
-	rng parser.Range,
-	clauses ...parser.Version,
-) {
-	actualVersion := res.Program.GetVersion()
-	if actualVersion == nil {
-		return
-	}
-
-	for _, clause := range clauses {
-		switch requiredVersion := clause.(type) {
-		case parser.VersionMachine:
-			_, ok := actualVersion.(parser.VersionMachine)
-			if !ok {
-
-				res.pushDiagnostic(rng.GetRange(), VersionMismatch{
-					GotVersion:      actualVersion,
-					RequiredVersion: requiredVersion,
-				})
-				return
-			}
-
-		case parser.VersionInterpreter:
-			interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
-
-			if !ok || !interpreterActualVersion.GtEq(requiredVersion) {
-				res.pushDiagnostic(rng, VersionMismatch{
-					GotVersion:      actualVersion,
-					RequiredVersion: requiredVersion,
-				})
-				return
-			}
-
-		}
-	}
-}
-
 func (res *CheckResult) check() {
 	if res.Program.Vars != nil {
 		for _, varDecl := range res.Program.Vars.Declarations {
