@@ -54,9 +54,9 @@ func TestParseFlag(t *testing.T) {
 	`)
 
 	require.Equal(t, map[string]struct{}{
-		"experimental-something":  struct{}{},
-		"experimental-my-feature": struct{}{},
-		"another-flag":            struct{}{},
+		"experimental-something":  {},
+		"experimental-my-feature": {},
+		"another-flag":            {},
 	}, res.Value.GetFlags())
 }
 
