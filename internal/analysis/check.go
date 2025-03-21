@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -91,6 +92,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
+	version                parser.Version
 	nextDiagnosticId       int32
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
@@ -141,12 +143,55 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 
 func newCheckResult(program parser.Program) CheckResult {
 	return CheckResult{
+		version:          program.GetVersion(),
 		emptiedAccount:   make(map[string]struct{}),
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
 		Program:          program,
+	}
+}
+
+type VersionClause struct {
+	Version     parser.Version
+	FeatureFlag flags.FeatureFlag
+}
+
+func (res *CheckResult) requireVersion(
+	rng parser.Range,
+	clauses ...VersionClause,
+) {
+	actualVersion := res.Program.GetVersion()
+	if actualVersion == nil {
+		return
+	}
+
+	for _, clause := range clauses {
+		switch requiredVersion := clause.Version.(type) {
+		case parser.VersionMachine:
+			_, ok := actualVersion.(parser.VersionMachine)
+			if !ok {
+
+				res.pushDiagnostic(rng.GetRange(), VersionMismatch{
+					GotVersion:      actualVersion,
+					RequiredVersion: requiredVersion,
+				})
+				return
+			}
+
+		case parser.VersionInterpreter:
+			interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
+
+			if !ok || !interpreterActualVersion.GtEq(requiredVersion) {
+				res.pushDiagnostic(rng, VersionMismatch{
+					GotVersion:      actualVersion,
+					RequiredVersion: requiredVersion,
+				})
+				return
+			}
+
+		}
 	}
 }
 
@@ -353,6 +398,16 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
 
 		case parser.InfixOperatorDiv:
+			_, isLeftANumberLit := lit.Left.(*parser.NumberLiteral)
+			_, isRightANumberLit := lit.Right.(*parser.NumberLiteral)
+			if !isLeftANumberLit || !isRightANumberLit {
+				res.requireVersion(lit.Range,
+					VersionClause{
+						Version: parser.NewVersionInterpreter(0, 0, 15),
+					},
+				)
+			}
+
 			res.checkExpression(lit.Left, TypeNumber)
 			res.checkExpression(lit.Right, TypeNumber)
 			return TypePortion

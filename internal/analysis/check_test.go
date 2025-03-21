@@ -671,3 +671,89 @@ send [EUR/2 *] (
 		d1.Range,
 	)
 }
+
+func TestDoNoCheckVersionWhenNotSpecified(t *testing.T) {
+
+	input := `
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic(nil),
+		checkSource(input),
+	)
+
+}
+
+func TestRequireVersionForInfixDiv(t *testing.T) {
+	input := `
+// @version machine
+
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/$n", 0),
+				Kind: analysis.VersionMismatch{
+					GotVersion:      parser.VersionMachine{},
+					RequiredVersion: parser.NewVersionInterpreter(0, 0, 15),
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireVersionForInfixDivWhenVersionLt(t *testing.T) {
+	input := `
+// required version is 0.0.15
+// @version interpreter 0.0.1
+
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/$n", 0),
+				Kind: analysis.VersionMismatch{
+					GotVersion:      parser.NewVersionInterpreter(0, 0, 1),
+					RequiredVersion: parser.NewVersionInterpreter(0, 0, 15),
+				},
+			},
+		},
+		checkSource(input),
+	)
+}

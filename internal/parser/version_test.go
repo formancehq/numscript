@@ -29,6 +29,18 @@ func TestParseInterpreterVersion(t *testing.T) {
 	})
 }
 
+func TestParseInterpreterVersionWhenNotFirstComment(t *testing.T) {
+	res := parser.Parse(`
+		// first comment 
+		// @version interpreter 0.0.1
+	`)
+
+	v := res.Value.GetVersion()
+	require.Equal(t, v, parser.VersionInterpreter{
+		Patch: 1,
+	})
+}
+
 func TestParseInvalid(t *testing.T) {
 	res := parser.Parse(`
 		// @version not a valid version
