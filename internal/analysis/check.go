@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -153,14 +152,9 @@ func newCheckResult(program parser.Program) CheckResult {
 	}
 }
 
-type VersionClause struct {
-	Version     parser.Version
-	FeatureFlag flags.FeatureFlag
-}
-
 func (res *CheckResult) requireVersion(
 	rng parser.Range,
-	clauses ...VersionClause,
+	clauses ...parser.Version,
 ) {
 	actualVersion := res.Program.GetVersion()
 	if actualVersion == nil {
@@ -168,7 +162,7 @@ func (res *CheckResult) requireVersion(
 	}
 
 	for _, clause := range clauses {
-		switch requiredVersion := clause.Version.(type) {
+		switch requiredVersion := clause.(type) {
 		case parser.VersionMachine:
 			_, ok := actualVersion.(parser.VersionMachine)
 			if !ok {
@@ -402,9 +396,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			_, isRightANumberLit := lit.Right.(*parser.NumberLiteral)
 			if !isLeftANumberLit || !isRightANumberLit {
 				res.requireVersion(lit.Range,
-					VersionClause{
-						Version: parser.NewVersionInterpreter(0, 0, 15),
-					},
+					parser.NewVersionInterpreter(0, 0, 15),
 				)
 			}
 
@@ -532,6 +524,10 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceOneof:
+		res.requireVersion(source.Range,
+			parser.NewVersionInterpreter(0, 0, 15),
+		)
+
 		for _, source := range source.Sources {
 			res.checkSource(source)
 		}
