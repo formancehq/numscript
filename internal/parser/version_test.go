@@ -12,8 +12,7 @@ func TestParseMachine(t *testing.T) {
 		// @version machine
 	`)
 
-	v := res.Value.GetVersion()
-	require.Equal(t, v, parser.VersionMachine{})
+	require.Equal(t, parser.VersionMachine{}, res.Value.GetVersion())
 }
 
 func TestParseInterpreterVersion(t *testing.T) {
@@ -21,12 +20,11 @@ func TestParseInterpreterVersion(t *testing.T) {
 		// @version interpreter 12.34.56
 	`)
 
-	v := res.Value.GetVersion()
-	require.Equal(t, v, parser.VersionInterpreter{
+	require.Equal(t, parser.VersionInterpreter{
 		Major: 12,
 		Minor: 34,
 		Patch: 56,
-	})
+	}, res.Value.GetVersion())
 }
 
 func TestParseInterpreterVersionWhenNotFirstComment(t *testing.T) {
@@ -35,10 +33,9 @@ func TestParseInterpreterVersionWhenNotFirstComment(t *testing.T) {
 		// @version interpreter 0.0.1
 	`)
 
-	v := res.Value.GetVersion()
-	require.Equal(t, v, parser.VersionInterpreter{
+	require.Equal(t, parser.VersionInterpreter{
 		Patch: 1,
-	})
+	}, res.Value.GetVersion())
 }
 
 func TestParseInvalid(t *testing.T) {
@@ -46,8 +43,21 @@ func TestParseInvalid(t *testing.T) {
 		// @version not a valid version
 	`)
 
-	v := res.Value.GetVersion()
-	require.Equal(t, v, nil)
+	require.Equal(t, nil, res.Value.GetVersion())
+}
+
+func TestParseFlag(t *testing.T) {
+	res := parser.Parse(`
+		// @feature_flag experimental-something
+		// @feature_flag experimental-my-feature
+		// @feature_flag another-flag
+	`)
+
+	require.Equal(t, map[string]struct{}{
+		"experimental-something":  struct{}{},
+		"experimental-my-feature": struct{}{},
+		"another-flag":            struct{}{},
+	}, res.Value.GetFlags())
 }
 
 func TestGtEq(t *testing.T) {

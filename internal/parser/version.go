@@ -120,3 +120,31 @@ func (p Program) GetVersion() Version {
 	}
 	return nil
 }
+
+func parseFlag(comment string) string {
+	comment = strings.TrimLeft(comment, " ")
+	comment = strings.TrimRight(comment, " \n")
+	parts := strings.Split(comment, " ")
+
+	if len(parts) < 2 {
+		return ""
+	}
+
+	if parts[0] != "@feature_flag" {
+		return ""
+	}
+
+	return parts[1]
+}
+
+func (p Program) GetFlags() map[string]struct{} {
+	flags := make(map[string]struct{})
+
+	for _, comment := range p.Comments {
+		flag := parseFlag(comment.Content)
+		if flag != "" {
+			flags[flag] = struct{}{}
+		}
+	}
+	return flags
+}
