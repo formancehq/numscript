@@ -3118,6 +3118,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -3186,5 +3187,6 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---

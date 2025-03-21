@@ -4069,7 +4069,7 @@ func TestMidscriptBalance(t *testing.T) {
 		Error: nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestMidscriptBalanceAfterDecrease(t *testing.T) {
@@ -4112,7 +4112,7 @@ func TestMidscriptBalanceAfterDecrease(t *testing.T) {
 		Error: nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestExprInVarOrigin(t *testing.T) {
@@ -4130,7 +4130,7 @@ func TestExprInVarOrigin(t *testing.T) {
 		Error:    nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestInvalidNestedMetaCall(t *testing.T) {
@@ -4152,5 +4152,5 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 		Error: machine.InvalidNestedMeta{},
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }

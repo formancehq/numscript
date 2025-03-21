@@ -87,7 +87,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 
 	case *parser.FnCall:
 		if !st.varOriginPosition {
-			err := st.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+			err := st.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
 			if err != nil {
 				return nil, err
 			}

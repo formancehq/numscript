@@ -139,7 +139,7 @@ func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Valu
 	}
 
 	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
-		err := s.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+		err := s.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
 		if err != nil {
 			return nil, err
 		}
