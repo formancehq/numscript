@@ -91,6 +91,10 @@ func parseVersion(comment string) Version {
 	case "machine":
 		return VersionMachine{}
 	case "interpreter":
+		if len(parts) < 3 {
+			return nil
+		}
+
 		ok, major, minor, patch := parseSemanticVersion(parts[2])
 		if !ok {
 			return nil
