@@ -131,17 +131,17 @@ func (s *Conn) SendRequest(method string, params any) (json.RawMessage, *Respons
 
 	freshId := NewIntId(atomic.AddInt64(&s.currentId, 1))
 
-	s.stream.WriteMessage(Request{
-		ID:     freshId,
-		Method: method,
-		Params: bytes,
-	})
-
 	ch := make(chan Response)
 
 	s.pendingRequestMu.Lock()
 	s.pendingRequests[freshId] = ch
 	s.pendingRequestMu.Unlock()
+
+	go s.stream.WriteMessage(Request{
+		ID:     freshId,
+		Method: method,
+		Params: bytes,
+	})
 
 	response := <-ch
 
@@ -159,13 +159,13 @@ func (s *Conn) SendRequest(method string, params any) (json.RawMessage, *Respons
 // Send a json rpc request and wait for the message to be sent. Thread safe
 //
 // Will panick whenever the params object fails json.Marshal-ing
-func (s *Conn) SendNotification(method string, params any) {
+func (s *Conn) SendNotification(method string, params any) error {
 	bytes, err := json.Marshal(params)
 	if err != nil {
 		panic(err)
 	}
 
-	s.stream.WriteMessage(Request{
+	return s.stream.WriteMessage(Request{
 		Method: method,
 		Params: bytes,
 	})
