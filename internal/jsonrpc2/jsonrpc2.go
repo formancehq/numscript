@@ -75,7 +75,13 @@ func NewNotificationHandler[Params any](method string, handler func(params Param
 		register: func(conn *Conn) {
 			conn.notificationHandlers[method] = func(raw json.RawMessage) {
 				var payload Params
-				json.Unmarshal([]byte(raw), &payload)
+				err := json.Unmarshal([]byte(raw), &payload)
+				if err != nil {
+					// as per the json-rpc2 specs (https://www.jsonrpc.org/specification#notification),
+					// even if there are error in the notification payload, we won't return a response
+					return
+				}
+
 				handler(payload, conn)
 			}
 		},
