@@ -24,7 +24,8 @@ func TestHandleRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	var res int
-	json.Unmarshal(raw, &res)
+	e := json.Unmarshal(raw, &res)
+	require.Nil(t, e)
 	require.Equal(t, 142, res)
 }
 
