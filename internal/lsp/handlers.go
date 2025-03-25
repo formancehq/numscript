@@ -231,8 +231,8 @@ var initializeResult lsp_types.InitializeResult = lsp_types.InitializeResult{
 	},
 	// This is ugly. Is there a shortcut?
 	ServerInfo: struct {
-		Name    string "json:\"name\""
-		Version string "json:\"version,omitempty\""
+		Name    string `json:"name"`
+		Version string `json:"version,omitempty"`
 	}{
 		Name:    "numscript-ls",
 		Version: "0.0.1",
