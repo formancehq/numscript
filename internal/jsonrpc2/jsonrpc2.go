@@ -130,7 +130,7 @@ func NewNotificationHandler[Params any](method string, strategy HandlingStrategy
 // By default, the server will try write concurrently to the ObjectStream
 func NewConn(objStream MessageStream, handlers ...Handler) *Conn {
 	conn := Conn{
-		listenErr:            make(chan error),
+		listenErr:            make(chan error, 1),
 		opened:               true,
 		stream:               objStream,
 		requestsHandlers:     map[string]requestHandler{},
