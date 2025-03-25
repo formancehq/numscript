@@ -34,13 +34,21 @@ type Handler struct {
 	register func(*Conn)
 }
 
+type HandlingStrategy uint8
+
+const (
+	SyncHandling HandlingStrategy = iota
+	AsyncHandling
+)
+
 // Create a request handler for the given method
 //
 // The handler will be called asynchronously
-func NewRequestHandler[Params any](method string, handler func(params Params, conn *Conn) any) Handler {
+func NewRequestHandler[Params any](method string, strategy HandlingStrategy, handler func(params Params, conn *Conn) any) Handler {
+
 	return Handler{
 		register: func(conn *Conn) {
-			conn.requestsHandlers[method] = func(id ID, raw json.RawMessage) {
+			requestHandler := func(id ID, raw json.RawMessage) {
 				var payload Params
 				if raw != nil {
 					err := json.Unmarshal([]byte(raw), &payload)
@@ -61,7 +69,19 @@ func NewRequestHandler[Params any](method string, handler func(params Params, co
 					ID:     id,
 					Result: bytes,
 				})
+			}
 
+			switch strategy {
+			case SyncHandling:
+				conn.requestsHandlers[method] = requestHandler
+
+			case AsyncHandling:
+				conn.requestsHandlers[method] = func(id ID, raw json.RawMessage) {
+					go requestHandler(id, raw)
+				}
+
+			default:
+				panic("bad argument: Invalid handling strategy")
 			}
 		},
 	}
@@ -70,10 +90,10 @@ func NewRequestHandler[Params any](method string, handler func(params Params, co
 // Create a notification handler for the given method
 //
 // The handler will be called asynchronously
-func NewNotificationHandler[Params any](method string, handler func(params Params, conn *Conn)) Handler {
+func NewNotificationHandler[Params any](method string, strategy HandlingStrategy, handler func(params Params, conn *Conn)) Handler {
 	return Handler{
 		register: func(conn *Conn) {
-			conn.notificationHandlers[method] = func(raw json.RawMessage) {
+			notificationHandler := func(raw json.RawMessage) {
 				var payload Params
 				err := json.Unmarshal([]byte(raw), &payload)
 				if err != nil {
@@ -84,6 +104,20 @@ func NewNotificationHandler[Params any](method string, handler func(params Param
 
 				handler(payload, conn)
 			}
+
+			switch strategy {
+			case SyncHandling:
+				conn.notificationHandlers[method] = notificationHandler
+
+			case AsyncHandling:
+				conn.notificationHandlers[method] = func(raw json.RawMessage) {
+					go notificationHandler(raw)
+				}
+
+			default:
+				panic("bad argument: Invalid handling strategy")
+			}
+
 		},
 	}
 }
@@ -192,7 +226,7 @@ func (s *Conn) handleRequest(request Request) error {
 			return nil
 		}
 
-		go handler(request.Params)
+		handler(request.Params)
 	} else {
 		handler, ok := s.requestsHandlers[request.Method]
 		if !ok {
@@ -203,7 +237,7 @@ func (s *Conn) handleRequest(request Request) error {
 			return nil
 		}
 
-		go handler(request.ID, request.Params)
+		handler(request.ID, request.Params)
 	}
 	return nil
 }

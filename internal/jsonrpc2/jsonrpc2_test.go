@@ -15,7 +15,7 @@ func TestHandleRequest(t *testing.T) {
 	}
 
 	client := newClient(
-		jsonrpc2.NewRequestHandler("sum", func(p SumParams, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("sum", jsonrpc2.AsyncHandling, func(p SumParams, conn *jsonrpc2.Conn) any {
 			return p.X + p.Y
 		}),
 	)
@@ -36,7 +36,7 @@ func TestHandleNotification(t *testing.T) {
 	ch := make(chan string)
 
 	client := newClient(
-		jsonrpc2.NewNotificationHandler("greet", func(p NotifParams, conn *jsonrpc2.Conn) {
+		jsonrpc2.NewNotificationHandler("greet", jsonrpc2.AsyncHandling, func(p NotifParams, conn *jsonrpc2.Conn) {
 			ch <- p.Value
 		}),
 	)
@@ -56,7 +56,7 @@ func TestErrMethodNotFound(t *testing.T) {
 
 func TestErrIvalidParam(t *testing.T) {
 	client := newClient(
-		jsonrpc2.NewRequestHandler("capitalize", func(name string, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("capitalize", jsonrpc2.AsyncHandling, func(name string, conn *jsonrpc2.Conn) any {
 			return name + "!"
 		}),
 	)

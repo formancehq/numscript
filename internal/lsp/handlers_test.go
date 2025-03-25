@@ -162,7 +162,7 @@ func newTestClient() TestClient {
 	conn := jsonrpc2.NewConn(
 		// note 'out' and 'in' are swapped for the client
 		jsonrpc2.NewChanObjStream(out, in),
-		jsonrpc2.NewNotificationHandler("textDocument/publishDiagnostics", func(p json.RawMessage, conn *jsonrpc2.Conn) {
+		jsonrpc2.NewNotificationHandler("textDocument/publishDiagnostics", jsonrpc2.AsyncHandling, func(p json.RawMessage, conn *jsonrpc2.Conn) {
 			diagnostics <- p
 		}),
 	)

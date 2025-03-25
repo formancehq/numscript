@@ -250,29 +250,31 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 	}
 
 	return jsonrpc2.NewConn(objStream,
-		jsonrpc2.NewRequestHandler("initialize", func(_ any, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("initialize", jsonrpc2.SyncHandling, func(_ any, conn *jsonrpc2.Conn) any {
 			return initializeResult
 		}),
-		jsonrpc2.NewNotificationHandler("textDocument/didOpen", func(p lsp_types.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
+		jsonrpc2.NewNotificationHandler("textDocument/didOpen", jsonrpc2.SyncHandling, func(p lsp_types.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
 			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)
 		}),
-		jsonrpc2.NewNotificationHandler("textDocument/didChange", func(p lsp_types.DidChangeTextDocumentParams, conn *jsonrpc2.Conn) {
+		jsonrpc2.NewNotificationHandler("textDocument/didChange", jsonrpc2.SyncHandling, func(p lsp_types.DidChangeTextDocumentParams, conn *jsonrpc2.Conn) {
 			text := p.ContentChanges[len(p.ContentChanges)-1].Text
 			state.updateDocument(conn, p.TextDocument.URI, text)
 		}),
-		jsonrpc2.NewRequestHandler("textDocument/hover", func(p lsp_types.HoverParams, conn *jsonrpc2.Conn) any {
+
+		jsonrpc2.NewRequestHandler("textDocument/hover", jsonrpc2.AsyncHandling, func(p lsp_types.HoverParams, conn *jsonrpc2.Conn) any {
 			return state.handleHover(p)
 		}),
-		jsonrpc2.NewRequestHandler("textDocument/codeAction", func(p lsp_types.CodeActionParams, _ *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("textDocument/codeAction", jsonrpc2.AsyncHandling, func(p lsp_types.CodeActionParams, _ *jsonrpc2.Conn) any {
 			return state.handleCodeAction(p)
 		}),
-		jsonrpc2.NewRequestHandler("textDocument/definition", func(p lsp_types.DefinitionParams, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("textDocument/definition", jsonrpc2.AsyncHandling, func(p lsp_types.DefinitionParams, conn *jsonrpc2.Conn) any {
 			return state.handleGotoDefinition(p)
 		}),
-		jsonrpc2.NewRequestHandler("textDocument/documentSymbol", func(p lsp_types.DocumentSymbolParams, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("textDocument/documentSymbol", jsonrpc2.AsyncHandling, func(p lsp_types.DocumentSymbolParams, conn *jsonrpc2.Conn) any {
 			return state.handleGetSymbols(p)
 		}),
-		jsonrpc2.NewRequestHandler("shutdown", func(_ any, conn *jsonrpc2.Conn) any {
+
+		jsonrpc2.NewRequestHandler("shutdown", jsonrpc2.SyncHandling, func(_ any, conn *jsonrpc2.Conn) any {
 			conn.SendNotification("exit", nil)
 			return nil
 		}),
