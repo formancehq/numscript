@@ -55,8 +55,11 @@ func (s *LsObjectStream) WriteMessage(obj jsonrpc2.Message) error {
 	encoded := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(bytes), bytes)
 
 	s.mu.Lock()
-	s.out.Write([]byte(encoded))
+	_, err = s.out.Write([]byte(encoded))
 	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
