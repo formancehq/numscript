@@ -139,7 +139,7 @@ func (state *State) handleGetSymbols(params lsp_types.DocumentSymbolParams) []ls
 		return nil
 	}
 
-	var lspDocumentSymbols []lsp_types.DocumentSymbol
+	lspDocumentSymbols := make([]lsp_types.DocumentSymbol, 8)
 	for _, sym := range doc.CheckResult.GetSymbols() {
 		lspDocumentSymbols = append(lspDocumentSymbols, lsp_types.DocumentSymbol{
 			Name:           sym.Name,
