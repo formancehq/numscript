@@ -35,7 +35,7 @@ func (r *CheckResult) GetSymbols() []DocumentSymbol {
 		})
 	}
 
-	slices.SortFunc(symbols, func(a, b DocumentSymbol) int {
+	slices.SortStableFunc(symbols, func(a, b DocumentSymbol) int {
 		if a.Range.Start.GtEq(b.Range.Start) {
 			return 1
 		} else {
