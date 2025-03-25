@@ -43,7 +43,7 @@ const (
 
 // Create a request handler for the given method
 //
-// The handler will be called asynchronously
+// The handler will be called asynchronously. Will panic if not able to marshal the handler's return value
 func NewRequestHandler[Params any](method string, strategy HandlingStrategy, handler func(params Params, conn *Conn) any) Handler {
 
 	return Handler{
@@ -63,7 +63,10 @@ func NewRequestHandler[Params any](method string, strategy HandlingStrategy, han
 
 				out := handler(payload, conn)
 
-				bytes, _ := json.Marshal(out)
+				bytes, err := json.Marshal(out)
+				if err != nil {
+					panic(err)
+				}
 
 				conn.stream.WriteMessage(Response{
 					ID:     id,
