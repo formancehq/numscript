@@ -139,15 +139,16 @@ func (state *State) handleGetSymbols(params lsp_types.DocumentSymbolParams) []ls
 		return nil
 	}
 
-	lspDocumentSymbols := make([]lsp_types.DocumentSymbol, 8)
-	for _, sym := range doc.CheckResult.GetSymbols() {
-		lspDocumentSymbols = append(lspDocumentSymbols, lsp_types.DocumentSymbol{
+	syms := doc.CheckResult.GetSymbols()
+	lspDocumentSymbols := make([]lsp_types.DocumentSymbol, len(syms))
+	for index, sym := range syms {
+		lspDocumentSymbols[index] = lsp_types.DocumentSymbol{
 			Name:           sym.Name,
 			Detail:         sym.Detail,
 			Kind:           lsp_types.SymbolKind(sym.Kind),
 			Range:          toLspRange(sym.Range),
 			SelectionRange: toLspRange(sym.SelectionRange),
-		})
+		}
 	}
 
 	return lspDocumentSymbols
