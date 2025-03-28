@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"math/big"
-	"math/rand"
 	"slices"
 	"strings"
 
@@ -92,6 +91,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
+	nextDiagnosticId       int32
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
 	unboundedSend          bool
@@ -759,9 +759,12 @@ func (res *CheckResult) enterCappedSource() func() {
 }
 
 func (res *CheckResult) pushDiagnostic(rng parser.Range, kind DiagnosticKind) {
+	id := res.nextDiagnosticId
+	res.nextDiagnosticId++
+
 	res.Diagnostics = append(res.Diagnostics, Diagnostic{
 		Range: rng,
 		Kind:  kind,
-		Id:    rand.Int31(),
+		Id:    id,
 	})
 }

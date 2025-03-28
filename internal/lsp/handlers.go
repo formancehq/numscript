@@ -216,6 +216,7 @@ func toLspDiagnostic(d analysis.Diagnostic) lsp_types.Diagnostic {
 		Range:    toLspRange(d.Range),
 		Severity: lsp_types.DiagnosticSeverity(d.Kind.Severity()),
 		Message:  d.Kind.Message(),
+		Data:     float64(d.Id),
 	}
 }
 

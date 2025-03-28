@@ -3,6 +3,7 @@
 {
  "diagnostics": [
   {
+   "data": 0,
    "message": "The variable '$unbound_var' was not declared",
    "range": {
     "end": {
