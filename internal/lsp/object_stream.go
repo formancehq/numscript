@@ -85,7 +85,7 @@ func (s *LsObjectStream) ReadMessage() (jsonrpc2.Message, error) {
 	}
 
 	if readBytes != int(len) {
-		return nil, fmt.Errorf("missing bytes to read. Read: %d, total: %d", len, readBytes)
+		return nil, fmt.Errorf("missing bytes to read. Read: %d, total: %d", readBytes, len)
 	}
 
 	return jsonrpc2.UnmarshalMessage(bytes)
