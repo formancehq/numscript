@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -31,6 +32,15 @@ func MaxBigInt(a *big.Int, b *big.Int) *big.Int {
 	}
 
 	return &max
+}
+
+func Unmarshal[T any](raw json.RawMessage) (*T, error) {
+	var value T
+	err := json.Unmarshal(raw, &value)
+	if err != nil {
+		return nil, err
+	}
+	return &value, err
 }
 
 func Filter[T any](slice []T, predicate func(x T) bool) []T {
