@@ -259,6 +259,9 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)
 		}),
 		jsonrpc2.NewNotificationHandler("textDocument/didChange", jsonrpc2.SyncHandling, func(p lsp_types.DidChangeTextDocumentParams, conn *jsonrpc2.Conn) {
+			if len(p.ContentChanges) == 0 {
+				return
+			}
 			text := p.ContentChanges[len(p.ContentChanges)-1].Text
 			state.updateDocument(conn, p.TextDocument.URI, text)
 		}),
