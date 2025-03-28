@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/stretchr/testify/assert"
@@ -669,5 +670,194 @@ send [EUR/2 *] (
 	assert.Equal(t,
 		parser.RangeOfIndexed(input, "$m", 1),
 		d1.Range,
+	)
+}
+
+func TestDoNoCheckVersionWhenNotSpecified(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic(nil),
+		checkSource(input),
+	)
+
+}
+
+func TestRequireVersionForInfixDiv(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version machine
+
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/$n", 0),
+				Kind: analysis.VersionMismatch{
+					GotVersion:      parser.VersionMachine{},
+					RequiredVersion: parser.NewVersionInterpreter(0, 0, 15),
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireVersionForInfixDivWhenVersionLt(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// required version is 0.0.15
+// @version interpreter 0.0.1
+
+vars {
+	number $n
+}
+
+send [EUR/2 100] (
+  	source = {
+			1/$n from @a
+			remaining from @b
+		}
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "1/$n", 0),
+				Kind: analysis.VersionMismatch{
+					GotVersion:      parser.NewVersionInterpreter(0, 0, 1),
+					RequiredVersion: parser.NewVersionInterpreter(0, 0, 15),
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireFlagForOneofWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+
+send [EUR/2 100] (
+  	source = oneof {
+			@a
+			@b
+		}
+  	destination = @dest
+)
+`
+
+	ds := checkSource(input)
+	require.Len(t, ds, 1)
+
+	require.Equal(t,
+		analysis.ExperimentalFeature{
+			Name: flags.ExperimentalOneofFeatureFlag,
+		},
+		ds[0].Kind,
+	)
+}
+
+func TestRequireFlagForOneofWhenGiven(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+// @feature_flag experimental-oneof
+
+send [EUR/2 100] (
+  	source = oneof {
+			@a
+			@b
+		}
+  	destination = @dest
+)
+`
+
+	require.Empty(t, checkSource(input))
+}
+
+func TestRequireFlagForInterpolation(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+vars {
+	number $id 
+}
+
+send [EUR/2 100] (
+  	source = @user:$id
+  	destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@user:$id", 0),
+				Kind: analysis.ExperimentalFeature{
+					Name: flags.ExperimentalAccountInterpolationFlag,
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireFlagForFunctionOverdraft(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+vars {
+	monetary $m = overdraft(@acc, USD/2)
+}
+
+send $m ( source = @world destination = @dest)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "overdraft(@acc, USD/2)", 0),
+				Kind: analysis.ExperimentalFeature{
+					Name: flags.ExperimentalOverdraftFunctionFeatureFlag,
+				},
+			},
+		},
+		checkSource(input),
 	)
 }

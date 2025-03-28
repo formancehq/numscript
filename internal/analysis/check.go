@@ -91,6 +91,7 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
+	version                parser.Version
 	nextDiagnosticId       int32
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
@@ -141,6 +142,7 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 
 func newCheckResult(program parser.Program) CheckResult {
 	return CheckResult{
+		version:          program.GetVersion(),
 		emptiedAccount:   make(map[string]struct{}),
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
@@ -303,6 +305,8 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 }
 
 func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
+	res.checkOvedraftFunctionVersion(fnCall)
+
 	returnType := TypeAny
 
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
@@ -353,6 +357,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
 
 		case parser.InfixOperatorDiv:
+			res.checkInfixVersion(*lit)
+
 			res.checkExpression(lit.Left, TypeNumber)
 			res.checkExpression(lit.Right, TypeNumber)
 			return TypePortion
@@ -366,6 +372,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		}
 
 	case *parser.AccountInterpLiteral:
+		res.checkAccountInterpolationVersion(*lit)
+
 		for _, part := range lit.Parts {
 			if v, ok := part.(*parser.Variable); ok {
 				res.checkExpression(v, TypeAny)
@@ -477,6 +485,8 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 	case *parser.SourceOneof:
+		res.checkOneofVersion(source.Range)
+
 		for _, source := range source.Sources {
 			res.checkSource(source)
 		}
@@ -631,6 +641,8 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 		res.checkKeptOrDestination(destination.Remaining)
 
 	case *parser.DestinationOneof:
+		res.checkOneofVersion(destination.Range)
+
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
 			res.checkKeptOrDestination(clause.To)

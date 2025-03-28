@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 
+	"github.com/formancehq/numscript/internal/flags"
 	machine "github.com/formancehq/numscript/internal/interpreter"
 
 	"testing"
@@ -3513,7 +3514,7 @@ func TestOverdraftFunctionWhenNegative(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionWhenZero(t *testing.T) {
@@ -3536,7 +3537,7 @@ func TestOverdraftFunctionWhenZero(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionWhenPositive(t *testing.T) {
@@ -3560,7 +3561,7 @@ func TestOverdraftFunctionWhenPositive(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
@@ -3595,7 +3596,7 @@ func TestOverdraftFunctionUseCaseRemoveDebt(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOverdraftFunctionFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOverdraftFunctionFeatureFlag)
 }
 
 func TestAddMonetariesSameCurrency(t *testing.T) {
@@ -3753,7 +3754,7 @@ func TestOneofInSourceSendFirstBranch(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofInSource(t *testing.T) {
@@ -3778,7 +3779,7 @@ func TestOneofInSource(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofAllFailing(t *testing.T) {
@@ -3801,7 +3802,7 @@ func TestOneofAllFailing(t *testing.T) {
 			Available: *big.NewInt(0),
 		},
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofInSendAll(t *testing.T) {
@@ -3828,7 +3829,7 @@ func TestOneofInSendAll(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofSingleton(t *testing.T) {
@@ -3851,7 +3852,7 @@ func TestOneofSingleton(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofDestinationFirstClause(t *testing.T) {
@@ -3876,7 +3877,7 @@ func TestOneofDestinationFirstClause(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofDestinationSecondClause(t *testing.T) {
@@ -3902,7 +3903,7 @@ func TestOneofDestinationSecondClause(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestOneofDestinationRemainingClause(t *testing.T) {
@@ -3928,7 +3929,7 @@ func TestOneofDestinationRemainingClause(t *testing.T) {
 		},
 		Error: nil,
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalOneofFeatureFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
 
 func TestInvalidAccount(t *testing.T) {
@@ -3980,7 +3981,7 @@ func TestInvalidInterpAccount(t *testing.T) {
 			Name: "user:!invalid acc..",
 		},
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
 }
 
 func TestAccountInterp(t *testing.T) {
@@ -4010,7 +4011,7 @@ func TestAccountInterp(t *testing.T) {
 			"k": machine.AccountAddress("acc:42:pending:user:001"),
 		},
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
 }
 
 func TestAccountInvalidString(t *testing.T) {
@@ -4040,7 +4041,7 @@ func TestAccountInvalidString(t *testing.T) {
 			},
 		},
 	}
-	testWithFeatureFlag(t, tc, machine.ExperimentalAccountInterpolationFlag)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
 }
 
 func TestMidscriptBalance(t *testing.T) {
@@ -4068,7 +4069,7 @@ func TestMidscriptBalance(t *testing.T) {
 		Error: nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestMidscriptBalanceAfterDecrease(t *testing.T) {
@@ -4111,7 +4112,7 @@ func TestMidscriptBalanceAfterDecrease(t *testing.T) {
 		Error: nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestExprInVarOrigin(t *testing.T) {
@@ -4129,7 +4130,7 @@ func TestExprInVarOrigin(t *testing.T) {
 		Error:    nil,
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
 
 func TestInvalidNestedMetaCall(t *testing.T) {
@@ -4151,5 +4152,5 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 		Error: machine.InvalidNestedMeta{},
 	}
 
-	testWithFeatureFlag(t, tc, machine.ExperimentalMidScriptFunctionCall)
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/stretchr/testify/require"
 )
@@ -166,7 +167,7 @@ send [COIN 100] (
 		"s1": "source1",
 	},
 		&store,
-		map[string]struct{}{interpreter.ExperimentalOneofFeatureFlag: {}},
+		map[string]struct{}{flags.ExperimentalOneofFeatureFlag: {}},
 	)
 	require.Nil(t, err)
 
@@ -442,7 +443,7 @@ set_tx_meta(
 		},
 	}
 	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
-		interpreter.ExperimentalMidScriptFunctionCall: {},
+		flags.ExperimentalMidScriptFunctionCall: {},
 	})
 	require.Nil(t, err)
 
@@ -493,7 +494,7 @@ send [USD/2 10] (
 		},
 	}
 	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
-		interpreter.ExperimentalMidScriptFunctionCall: {},
+		flags.ExperimentalMidScriptFunctionCall: {},
 	})
 	require.Nil(t, err)
 
