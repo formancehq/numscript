@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/flags"
@@ -27,10 +28,7 @@ var runRawOpt string
 var runStdinFlag bool
 var runOutFormatOpt string
 
-var overdraftFeatureFlag bool
-var oneOfFeatureFlag bool
-var accountInterpolationFlag bool
-var midScriptFunctionCallFeatureFlag bool
+var flags_ []string
 
 type inputOpts struct {
 	Script    string                       `json:"script"`
@@ -122,17 +120,8 @@ func run(path string) {
 	}
 
 	featureFlags := map[string]struct{}{}
-	if overdraftFeatureFlag {
-		featureFlags[flags.ExperimentalOverdraftFunctionFeatureFlag] = struct{}{}
-	}
-	if oneOfFeatureFlag {
-		featureFlags[flags.ExperimentalOneofFeatureFlag] = struct{}{}
-	}
-	if accountInterpolationFlag {
-		featureFlags[flags.ExperimentalAccountInterpolationFlag] = struct{}{}
-	}
-	if midScriptFunctionCallFeatureFlag {
-		featureFlags[flags.ExperimentalMidScriptFunctionCall] = struct{}{}
+	for _, flag := range flags_ {
+		featureFlags[flag] = struct{}{}
 	}
 
 	result, err := interpreter.RunProgram(context.Background(), parseResult.Value, opt.Variables, interpreter.StaticStore{
@@ -213,11 +202,9 @@ func getRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
 
 	// Feature flag
-
-	cmd.Flags().BoolVar(&overdraftFeatureFlag, flags.ExperimentalOverdraftFunctionFeatureFlag, false, "enables the experimental overdraft() function")
-	cmd.Flags().BoolVar(&oneOfFeatureFlag, flags.ExperimentalOneofFeatureFlag, false, "enable the experimental oneof combinator")
-	cmd.Flags().BoolVar(&accountInterpolationFlag, flags.ExperimentalAccountInterpolationFlag, false, "enables an account interpolation syntax, e.g. @users:$id:pending")
-	cmd.Flags().BoolVar(&midScriptFunctionCallFeatureFlag, flags.ExperimentalMidScriptFunctionCall, false, "allows to use function call as expression, and to use any expression when definining variables")
+	cmd.Flags().StringSliceVar(&flags_, "flags", nil, fmt.Sprintf("the feature flags to pass to the interpreter. Currently available flags: %s",
+		strings.Join(flags.AllFlags, ", "),
+	))
 
 	// Output options
 	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")

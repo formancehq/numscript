@@ -8,3 +8,10 @@ const (
 	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
 	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
 )
+
+var AllFlags []string = []string{
+	ExperimentalOverdraftFunctionFeatureFlag,
+	ExperimentalOneofFeatureFlag,
+	ExperimentalAccountInterpolationFlag,
+	ExperimentalMidScriptFunctionCall,
+}
