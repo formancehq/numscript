@@ -58,6 +58,7 @@ const FnVarOriginMeta = "meta"
 const FnVarOriginBalance = "balance"
 const FnVarOriginOverdraft = "overdraft"
 const FnVarOriginGetAsset = "get_asset"
+const FnVarOriginGetAmount = "get_amount"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{

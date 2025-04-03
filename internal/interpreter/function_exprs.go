@@ -135,3 +135,23 @@ func getAsset(
 
 	return mon.Asset, nil
 }
+
+func getAmount(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalGetAmountFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	mon := parseArg(p, r, expectMonetary)
+	err = p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return mon.Amount, nil
+}
