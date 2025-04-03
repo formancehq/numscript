@@ -4154,3 +4154,23 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 
 	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
 }
+
+func TestGetAssetFunction(t *testing.T) {
+	script := `
+ 		vars { asset $a = get_asset([ABC 100]) }
+
+ 		set_tx_meta("asset", $a)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		TxMetadata: map[string]machine.Value{
+			"asset": machine.Asset("ABC"),
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalGetAssetFunctionFeatureFlag)
+}

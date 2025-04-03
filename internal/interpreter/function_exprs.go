@@ -115,3 +115,23 @@ func balance(
 	}
 	return &m, nil
 }
+
+func getAsset(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalGetAssetFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	mon := parseArg(p, r, expectMonetary)
+	err = p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return mon.Asset, nil
+}
