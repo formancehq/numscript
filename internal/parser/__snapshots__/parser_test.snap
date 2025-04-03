@@ -57,6 +57,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -115,6 +116,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -214,6 +216,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -366,6 +369,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -455,6 +459,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -556,6 +561,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -644,6 +650,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -719,6 +726,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -837,6 +845,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -953,6 +962,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 [TestEmptyVars - 1]
@@ -965,6 +975,7 @@ parser.Program{
         Declarations: nil,
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -1000,6 +1011,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -1049,6 +1061,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1175,6 +1188,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1260,6 +1274,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1314,6 +1329,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1366,6 +1382,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1437,6 +1454,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1459,6 +1477,7 @@ parser.Program{
             Args: nil,
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1491,6 +1510,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1576,6 +1596,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1641,6 +1662,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -1722,6 +1744,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1839,6 +1862,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1888,6 +1912,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -1982,6 +2007,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2071,6 +2097,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2152,6 +2179,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2201,6 +2229,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2237,6 +2266,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2271,6 +2301,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2392,6 +2423,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2458,6 +2490,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2495,6 +2528,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2560,6 +2594,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2628,6 +2663,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2732,6 +2768,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2783,6 +2820,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2834,6 +2872,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2899,6 +2938,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2936,6 +2976,7 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---
 
@@ -2983,6 +3024,59 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
+}
+---
+
+[TestIncludeComments - 1]
+parser.Program{
+    Vars:       (*parser.VarDeclarations)(nil),
+    Statements: {
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:2, Line:2},
+                End:   parser.Position{Character:5, Line:2},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:2, Line:2},
+                    End:   parser.Position{Character:3, Line:2},
+                },
+                Name: "f",
+            },
+            Args: nil,
+        },
+        &parser.FnCall{
+            Range: parser.Range{
+                Start: parser.Position{Character:2, Line:5},
+                End:   parser.Position{Character:5, Line:5},
+            },
+            Caller: &parser.FnCallIdentifier{
+                Range: parser.Range{
+                    Start: parser.Position{Character:2, Line:5},
+                    End:   parser.Position{Character:3, Line:5},
+                },
+                Name: "g",
+            },
+            Args: nil,
+        },
+    },
+    Comments: {
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:2, Line:1},
+                End:   parser.Position{Character:19, Line:1},
+            },
+            Content: " first comment\n",
+        },
+        {
+            Range: parser.Range{
+                Start: parser.Position{Character:2, Line:4},
+                End:   parser.Position{Character:20, Line:4},
+            },
+            Content: " second comment\n",
+        },
+    },
 }
 ---
 
@@ -3024,6 +3118,7 @@ parser.Program{
         },
     },
     Statements: nil,
+    Comments:   nil,
 }
 ---
 
@@ -3092,5 +3187,6 @@ parser.Program{
             },
         },
     },
+    Comments: nil,
 }
 ---

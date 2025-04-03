@@ -315,7 +315,13 @@ type VarDeclarations struct {
 	Declarations []VarDeclaration
 }
 
+type Comment struct {
+	Range
+	Content string
+}
+
 type Program struct {
 	Vars       *VarDeclarations
 	Statements []Statement
+	Comments   []Comment
 }

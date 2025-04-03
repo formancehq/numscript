@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/ansi"
+	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -270,4 +271,29 @@ func (e UnboundedAccountIsNotLast) Message() string {
 
 func (UnboundedAccountIsNotLast) Severity() Severity {
 	return WarningSeverity
+}
+
+type VersionMismatch struct {
+	RequiredVersion parser.Version
+	GotVersion      parser.Version
+}
+
+func (e VersionMismatch) Message() string {
+	return fmt.Sprintf("Version mismatch. Required version '%s' (but got '%s' instead)", e.RequiredVersion.String(), e.GotVersion.String())
+}
+
+func (VersionMismatch) Severity() Severity {
+	return ErrorSeverity
+}
+
+type ExperimentalFeature struct {
+	Name string
+}
+
+func (e ExperimentalFeature) Message() string {
+	return fmt.Sprintf("This feature is experimental. Add this comment to your script:\n// @feature_flag %s", e.Name)
+}
+
+func (ExperimentalFeature) Severity() Severity {
+	return ErrorSeverity
 }

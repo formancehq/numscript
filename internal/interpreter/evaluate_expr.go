@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -19,7 +20,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			case parser.AccountTextPart:
 				parts = append(parts, part.Name)
 			case *parser.Variable:
-				err := st.checkFeatureFlag(ExperimentalAccountInterpolationFlag)
+				err := st.checkFeatureFlag(flags.ExperimentalAccountInterpolationFlag)
 				if err != nil {
 					return nil, err
 				}
@@ -86,7 +87,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 
 	case *parser.FnCall:
 		if !st.varOriginPosition {
-			err := st.checkFeatureFlag(ExperimentalMidScriptFunctionCall)
+			err := st.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
 			if err != nil {
 				return nil, err
 			}
