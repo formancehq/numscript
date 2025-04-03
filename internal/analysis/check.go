@@ -84,6 +84,16 @@ var Builtins = map[string]FnCallResolution{
 		Return: TypeMonetary,
 		Docs:   "get absolute amount of the overdraft of an account. Returns zero if balance is not negative",
 	},
+	FnVarOriginGetAsset: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary},
+		Return: TypeAsset,
+		Docs:   "get the asset of the given monetary",
+	},
+	FnVarOriginGetAmount: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary},
+		Return: TypeNumber,
+		Docs:   "get the amount of the given monetary",
+	},
 }
 
 type Diagnostic struct {
