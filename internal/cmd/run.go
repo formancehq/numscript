@@ -21,14 +21,15 @@ const (
 	OutputFormatJson   = "json"
 )
 
-var runVariablesOpt string
-var runBalancesOpt string
-var runMetaOpt string
-var runRawOpt string
-var runStdinFlag bool
-var runOutFormatOpt string
-
-var flags_ []string
+type Args struct {
+	VariablesOpt string
+	BalancesOpt  string
+	MetaOpt      string
+	RawOpt       string
+	StdinFlag    bool
+	OutFormatOpt string
+	Flags        []string
+}
 
 type inputOpts struct {
 	Script    string                       `json:"script"`
@@ -37,19 +38,19 @@ type inputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-func (o *inputOpts) fromRaw() {
-	if runRawOpt == "" {
+func (o *inputOpts) fromRaw(opts Args) {
+	if opts.RawOpt == "" {
 		return
 	}
 
-	err := json.Unmarshal([]byte(runRawOpt), o)
+	err := json.Unmarshal([]byte(opts.RawOpt), o)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (o *inputOpts) fromStdin() {
-	if !runStdinFlag {
+func (o *inputOpts) fromStdin(opts Args) {
+	if !opts.StdinFlag {
 		return
 	}
 
@@ -64,7 +65,7 @@ func (o *inputOpts) fromStdin() {
 	}
 }
 
-func (o *inputOpts) fromOptions(path string) {
+func (o *inputOpts) fromOptions(path string, opts Args) {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
@@ -74,8 +75,8 @@ func (o *inputOpts) fromOptions(path string) {
 		o.Script = string(numscriptContent)
 	}
 
-	if runBalancesOpt != "" {
-		content, err := os.ReadFile(runBalancesOpt)
+	if opts.BalancesOpt != "" {
+		content, err := os.ReadFile(opts.BalancesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
@@ -83,8 +84,8 @@ func (o *inputOpts) fromOptions(path string) {
 		json.Unmarshal(content, &o.Balances)
 	}
 
-	if runMetaOpt != "" {
-		content, err := os.ReadFile(runMetaOpt)
+	if opts.MetaOpt != "" {
+		content, err := os.ReadFile(opts.MetaOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
@@ -92,8 +93,8 @@ func (o *inputOpts) fromOptions(path string) {
 		json.Unmarshal(content, &o.Meta)
 	}
 
-	if runVariablesOpt != "" {
-		content, err := os.ReadFile(runVariablesOpt)
+	if opts.VariablesOpt != "" {
+		content, err := os.ReadFile(opts.VariablesOpt)
 		if err != nil {
 			os.Stderr.Write([]byte(err.Error()))
 			return
@@ -102,16 +103,16 @@ func (o *inputOpts) fromOptions(path string) {
 	}
 }
 
-func run(path string) {
+func run(path string, opts Args) {
 	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(interpreter.AccountsMetadata),
 		Balances:  make(interpreter.Balances),
 	}
 
-	opt.fromRaw()
-	opt.fromOptions(path)
-	opt.fromStdin()
+	opt.fromRaw(opts)
+	opt.fromOptions(path, opts)
+	opt.fromStdin(opts)
 
 	parseResult := parser.Parse(opt.Script)
 	if len(parseResult.Errors) != 0 {
@@ -120,7 +121,7 @@ func run(path string) {
 	}
 
 	featureFlags := map[string]struct{}{}
-	for _, flag := range flags_ {
+	for _, flag := range opts.Flags {
 		featureFlags[flag] = struct{}{}
 	}
 
@@ -140,14 +141,14 @@ func run(path string) {
 		return
 	}
 
-	switch runOutFormatOpt {
+	switch opts.OutFormatOpt {
 	case OutputFormatJson:
 		showJson(result)
 	case OutputFormatPretty:
 		showPretty(result)
 	default:
 		// TODO handle err
-		panic("Invalid option: " + runBalancesOpt)
+		panic("Invalid option: " + opts.OutFormatOpt)
 	}
 
 }
@@ -181,6 +182,8 @@ func showPretty(result *interpreter.ExecutionResult) {
 }
 
 func getRunCmd() *cobra.Command {
+	opts := Args{}
+
 	cmd := cobra.Command{
 		Use:   "run",
 		Short: "Evaluate a numscript file",
@@ -190,24 +193,24 @@ func getRunCmd() *cobra.Command {
 			if len(args) > 0 {
 				path = args[0]
 			}
-			run(path)
+			run(path, opts)
 		},
 	}
 
 	// Input args
-	cmd.Flags().StringVarP(&runVariablesOpt, "variables", "v", "", "Path of a json file containing the variables")
-	cmd.Flags().StringVarP(&runBalancesOpt, "balances", "b", "", "Path of a json file containing the balances")
-	cmd.Flags().StringVarP(&runMetaOpt, "meta", "m", "", "Path of a json file containing the accounts metadata")
-	cmd.Flags().StringVarP(&runRawOpt, "raw", "r", "", "Raw json input containing script, variables, balances, metadata")
-	cmd.Flags().BoolVar(&runStdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
+	cmd.Flags().StringVarP(&opts.VariablesOpt, "variables", "v", "", "Path of a json file containing the variables")
+	cmd.Flags().StringVarP(&opts.BalancesOpt, "balances", "b", "", "Path of a json file containing the balances")
+	cmd.Flags().StringVarP(&opts.MetaOpt, "meta", "m", "", "Path of a json file containing the accounts metadata")
+	cmd.Flags().StringVarP(&opts.RawOpt, "raw", "r", "", "Raw json input containing script, variables, balances, metadata")
+	cmd.Flags().BoolVar(&opts.StdinFlag, "stdin", false, "Take input from stdin (same format as the --raw option)")
 
 	// Feature flag
-	cmd.Flags().StringSliceVar(&flags_, "flags", nil, fmt.Sprintf("the feature flags to pass to the interpreter. Currently available flags: %s",
+	cmd.Flags().StringSliceVar(&opts.Flags, "flags", nil, fmt.Sprintf("the feature flags to pass to the interpreter. Currently available flags: %s",
 		strings.Join(flags.AllFlags, ", "),
 	))
 
 	// Output options
-	cmd.Flags().StringVar(&runOutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
+	cmd.Flags().StringVar(&opts.OutFormatOpt, "output-format", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
 
 	return &cmd
 }
