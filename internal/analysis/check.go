@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -34,9 +35,10 @@ type FnCallResolution interface {
 }
 
 type VarOriginFnCallResolution struct {
-	Params []string
-	Docs   string
-	Return string
+	Params             []string
+	Docs               string
+	Return             string
+	VersionConstraints []VersionClause
 }
 type StatementFnCallResolution struct {
 	Params []string
@@ -57,6 +59,8 @@ const FnSetAccountMeta = "set_account_meta"
 const FnVarOriginMeta = "meta"
 const FnVarOriginBalance = "balance"
 const FnVarOriginOverdraft = "overdraft"
+const FnVarOriginGetAsset = "get_asset"
+const FnVarOriginGetAmount = "get_amount"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{
@@ -81,6 +85,34 @@ var Builtins = map[string]FnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "get absolute amount of the overdraft of an account. Returns zero if balance is not negative",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 15),
+				FeatureFlag: flags.ExperimentalOverdraftFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginGetAsset: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary},
+		Return: TypeAsset,
+		Docs:   "get the asset of the given monetary",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 16),
+				FeatureFlag: flags.ExperimentalGetAssetFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginGetAmount: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary},
+		Return: TypeNumber,
+		Docs:   "get the amount of the given monetary",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 16),
+				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+			},
+		},
 	},
 }
 
@@ -305,14 +337,14 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 }
 
 func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
-	res.checkOvedraftFunctionVersion(fnCall)
-
 	returnType := TypeAny
 
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
 		if resolution, ok := resolution.(VarOriginFnCallResolution); ok {
 			res.fnCallResolution[fnCall.Caller] = resolution
 			returnType = resolution.Return
+
+			res.requireVersion(fnCall.Range, resolution.VersionConstraints...)
 		}
 	}
 
