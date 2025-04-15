@@ -133,6 +133,7 @@ func (*SourceOverdraft) source() {}
 
 type (
 	SourceAccount struct {
+		Color ValueExpr
 		ValueExpr
 	}
 
@@ -165,6 +166,7 @@ type (
 
 	SourceOverdraft struct {
 		Range
+		Color   ValueExpr
 		Address ValueExpr
 		Bounded *ValueExpr
 	}
