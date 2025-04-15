@@ -160,6 +160,16 @@ func parseVarType(tk antlr.Token) *TypeDecl {
 	}
 }
 
+func parseColorConstraint(colorConstraintCtx antlrParser.IColorConstraintContext) ValueExpr {
+	if colorConstraintCtx == nil {
+		return nil
+	}
+
+	return parseValueExpr(
+		colorConstraintCtx.ValueExpr(),
+	)
+}
+
 func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	if sourceCtx == nil {
 		return nil
@@ -170,6 +180,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	switch sourceCtx := sourceCtx.(type) {
 	case *antlrParser.SrcAccountContext:
 		return &SourceAccount{
+			Color:     parseColorConstraint(sourceCtx.ColorConstraint()),
 			ValueExpr: parseValueExpr(sourceCtx.ValueExpr()),
 		}
 
@@ -218,6 +229,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	case *antlrParser.SrcAccountUnboundedOverdraftContext:
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
+			Color:   parseColorConstraint(sourceCtx.ColorConstraint()),
 			Address: parseValueExpr(sourceCtx.GetAddress()),
 		}
 
@@ -226,6 +238,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 
 		return &SourceOverdraft{
 			Range:   ctxToRange(sourceCtx),
+			Color:   parseColorConstraint(sourceCtx.ColorConstraint()),
 			Address: parseValueExpr(sourceCtx.GetAddress()),
 			Bounded: &varMon,
 		}

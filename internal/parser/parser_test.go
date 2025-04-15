@@ -474,3 +474,30 @@ set_tx_meta(
 	require.Len(t, p.Errors, 0)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+func TestColorRestriction(t *testing.T) {
+	p := parser.Parse(`send $sent (
+  source = @s \ "red"
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+func TestColorRestrictionBoundedOverdraft(t *testing.T) {
+	p := parser.Parse(`send $sent (
+  source = @s \ "cl" allowing overdraft up to $ov
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
+
+func TestColorRestrictionUnboundedOverdraft(t *testing.T) {
+	p := parser.Parse(`send $sent (
+  source = $acc \ $col allowing unbounded overdraft
+  destination = @dest
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	assert.Empty(t, p.Errors)
+}
