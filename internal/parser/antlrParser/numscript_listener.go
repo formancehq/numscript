@@ -73,6 +73,9 @@ type NumscriptListener interface {
 	// EnterRemainingAllotment is called when entering the remainingAllotment production.
 	EnterRemainingAllotment(c *RemainingAllotmentContext)
 
+	// EnterColorConstraint is called when entering the colorConstraint production.
+	EnterColorConstraint(c *ColorConstraintContext)
+
 	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
 	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
 
@@ -201,6 +204,9 @@ type NumscriptListener interface {
 
 	// ExitRemainingAllotment is called when exiting the remainingAllotment production.
 	ExitRemainingAllotment(c *RemainingAllotmentContext)
+
+	// ExitColorConstraint is called when exiting the colorConstraint production.
+	ExitColorConstraint(c *ColorConstraintContext)
 
 	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
 	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)

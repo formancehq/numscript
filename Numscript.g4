@@ -41,11 +41,13 @@ allotment:
 	valueExpr	# portionedAllotment
 	| REMAINING	# remainingAllotment;
 
+colorConstraint: RESTRICT valueExpr;
+
 source:
-	address = valueExpr ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
-	| address = valueExpr ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
+	address = valueExpr colorConstraint? ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
+	| address = valueExpr colorConstraint? ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
 		srcAccountBoundedOverdraft
-	| valueExpr							# srcAccount
+	| valueExpr colorConstraint?		# srcAccount
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
 	| LBRACE source* RBRACE				# srcInorder
 	| ONEOF LBRACE source+ RBRACE		# srcOneof

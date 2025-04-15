@@ -152,6 +152,12 @@ func (s *BaseNumscriptListener) EnterRemainingAllotment(ctx *RemainingAllotmentC
 // ExitRemainingAllotment is called when production remainingAllotment is exited.
 func (s *BaseNumscriptListener) ExitRemainingAllotment(ctx *RemainingAllotmentContext) {}
 
+// EnterColorConstraint is called when production colorConstraint is entered.
+func (s *BaseNumscriptListener) EnterColorConstraint(ctx *ColorConstraintContext) {}
+
+// ExitColorConstraint is called when production colorConstraint is exited.
+func (s *BaseNumscriptListener) ExitColorConstraint(ctx *ColorConstraintContext) {}
+
 // EnterSrcAccountUnboundedOverdraft is called when production srcAccountUnboundedOverdraft is entered.
 func (s *BaseNumscriptListener) EnterSrcAccountUnboundedOverdraft(ctx *SrcAccountUnboundedOverdraftContext) {
 }
