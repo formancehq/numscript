@@ -25,6 +25,7 @@ func (e ReconcileError) Error() string {
 type Sender struct {
 	Name     string
 	Monetary *big.Int
+	Color    *string
 }
 
 type Receiver struct {
@@ -77,17 +78,16 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 		case 0: /* sender.Monetary == receiver.Monetary */
 			postingAmount = *sender.Monetary
 		case -1: /* sender.Monetary < receiver.Monetary */
-			var monetary big.Int
 			receivers = append(receivers, Receiver{
 				Name:     receiver.Name,
-				Monetary: monetary.Sub(receiver.Monetary, sender.Monetary),
+				Monetary: new(big.Int).Sub(receiver.Monetary, sender.Monetary),
 			})
 			postingAmount = *sender.Monetary
 		case 1: /* sender.Monetary > receiver.Monetary */
-			var monetary big.Int
 			senders = append(senders, Sender{
 				Name:     sender.Name,
-				Monetary: monetary.Sub(sender.Monetary, receiver.Monetary),
+				Monetary: new(big.Int).Sub(sender.Monetary, receiver.Monetary),
+				Color:    sender.Color,
 			})
 			postingAmount = *receiver.Monetary
 		}
@@ -100,12 +100,12 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			}
 		}
 
-		if postingToMerge == nil {
+		if postingToMerge == nil || postingToMerge.Asset != coloredAsset(asset, sender.Color) {
 			postings = append(postings, Posting{
 				Source:      sender.Name,
 				Destination: receiver.Name,
 				Amount:      &postingAmount,
-				Asset:       asset,
+				Asset:       coloredAsset(asset, sender.Color),
 			})
 		} else {
 			// postingToMerge.Amount += postingAmount

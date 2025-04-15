@@ -301,11 +301,11 @@ type programState struct {
 	FeatureFlags map[string]struct{}
 }
 
-func (st *programState) pushSender(name string, monetary *big.Int) {
+func (st *programState) pushSender(name string, monetary *big.Int, color *string) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary})
+	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary, Color: color})
 }
 
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
@@ -455,7 +455,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 
 }
 
-func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -467,11 +467,16 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		}
 	}
 
-	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
+	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	if err != nil {
+		return nil, err
+	}
+
+	balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 	// we sent balance+overdraft
 	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
-	s.pushSender(*account, sentAmt)
+	s.pushSender(*account, sentAmt, color)
 	return sentAmt, nil
 }
 
@@ -479,7 +484,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.sendAllToAccount(source.ValueExpr, big.NewInt(0))
+		return s.sendAllToAccount(source.ValueExpr, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -490,7 +495,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			}
 			cap = bounded
 		}
-		return s.sendAllToAccount(source.Address, cap)
+		return s.sendAllToAccount(source.Address, cap, source.Color)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
@@ -550,7 +555,7 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 	return nil
 }
 
-func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -559,19 +564,24 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		overdraft = nil
 	}
 
+	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	if err != nil {
+		return nil, err
+	}
+
 	var actuallySentAmt *big.Int
 	if overdraft == nil {
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset)
+		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
 		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
 
-	s.pushSender(*account, actuallySentAmt)
+	s.pushSender(*account, actuallySentAmt, color)
 	return actuallySentAmt, nil
 }
 
@@ -580,7 +590,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0))
+		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -591,7 +601,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			}
 			cap = upTo
 		}
-		return s.trySendingToAccount(source.Address, amount, cap)
+		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
 
 	case *parser.SourceInorder:
 		totalLeft := new(big.Int).Set(amount)
@@ -851,7 +861,7 @@ func getBalance(
 	account string,
 	asset string,
 ) (*big.Int, InterpreterError) {
-	s.batchQuery(account, asset)
+	s.batchQuery(account, asset, nil)
 	fetchBalanceErr := s.runBalancesQuery()
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}

@@ -12,6 +12,14 @@ func (b Balances) fetchAccountBalances(account string) AccountBalance {
 	})
 }
 
+func coloredAsset(asset string, color *string) string {
+	// TODO handle "/" part of the asset
+	if color == nil {
+		return asset
+	}
+	return asset + "*" + *color
+}
+
 // Get the (account, asset) tuple from the Balances
 // if the tuple is not present, it will write a big.NewInt(0) in it and return it
 func (b Balances) fetchBalance(account string, asset string) *big.Int {

@@ -31,7 +31,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		if err != nil {
 			return err
 		}
-		st.batchQuery(*account, *asset)
+		st.batchQuery(*account, *asset, nil)
 		return nil
 
 	case *parser.SendStatement:
@@ -50,10 +50,11 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 	}
 }
 
-func (st *programState) batchQuery(account string, asset string) {
+func (st *programState) batchQuery(account string, asset string, color *string) {
 	if account == "world" {
 		return
 	}
+	asset = coloredAsset(asset, color)
 
 	previousValues := st.CurrentBalanceQuery[account]
 	if !slices.Contains(previousValues, asset) {
@@ -89,7 +90,12 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset)
+		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		if err != nil {
+			return err
+		}
+
+		st.batchQuery(*account, st.CurrentAsset, color)
 		return nil
 
 	case *parser.SourceOverdraft:
@@ -102,7 +108,12 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		if err != nil {
 			return err
 		}
-		st.batchQuery(*account, st.CurrentAsset)
+		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		if err != nil {
+			return err
+		}
+
+		st.batchQuery(*account, st.CurrentAsset, color)
 		return nil
 
 	case *parser.SourceInorder:

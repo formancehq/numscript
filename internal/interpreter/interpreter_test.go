@@ -4194,3 +4194,170 @@ func TestGetAmountFunction(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
+
+func TestColorSend(t *testing.T) {
+	script := `
+ 		send [COIN 100] (
+			source = @world \ "red"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN*red",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestColorSendOverdrat(t *testing.T) {
+	script := `
+ 		send [COIN 100] (
+			source = @acc \ "red" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN*red",
+				Amount:      big.NewInt(100),
+				Source:      "acc",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestColorRestrictBalance(t *testing.T) {
+	script := `
+ 		send [COIN 20] (
+			source = @acc \ "red"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("acc", "COIN", 1)
+	tc.setBalance("acc", "COIN*red", 100)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN*red",
+				Amount:      big.NewInt(20),
+				Source:      "acc",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
+	script := `
+ 		send [COIN 20] (
+			source = @acc \ "red"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("acc", "COIN", 100)
+	tc.setBalance("acc", "COIN*red", 1)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MissingFundsErr{
+			Needed:    *big.NewInt(20),
+			Available: *big.NewInt(1),
+			Asset:     "COIN",
+		},
+	}
+	test(t, tc)
+}
+
+func TestColorRestrictionInSendAll(t *testing.T) {
+	script := `
+ 		send [COIN *] (
+			source = @src \ "red"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+
+	tc.setBalance("src", "COIN*red", 42)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{{
+			Asset:       "COIN*red",
+			Amount:      big.NewInt(42),
+			Source:      "src",
+			Destination: "dest",
+		}},
+	}
+	test(t, tc)
+}
+
+func TestColorInorder(t *testing.T) {
+
+	script := `
+ 		send [COIN 100] (
+			source = {
+					@src \ "red"
+					@src \ "blue"
+					@src
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.setBalance("src", "COIN*red", 20)
+	tc.setBalance("src", "COIN*blue", 30)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN*red",
+				Amount:      big.NewInt(20),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN*blue",
+				Amount:      big.NewInt(30),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
