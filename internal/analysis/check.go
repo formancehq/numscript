@@ -489,7 +489,9 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			case *parser.Variable:
 				coloredAccountName += "\\$" + col.Name
 			case *parser.StringLiteral:
-				coloredAccountName += "\\\"" + col.String + "\""
+				if col.String != "" {
+					coloredAccountName += "\\\"" + col.String + "\""
+				}
 			}
 
 			if _, emptied := res.emptiedAccount[coloredAccountName]; emptied && !account.IsWorld() {

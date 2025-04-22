@@ -905,3 +905,25 @@ func TestInorderRedundantWhenColored(t *testing.T) {
 		checkSource(input),
 	)
 }
+
+func TestInorderRedundantWhenEmptyColored(t *testing.T) {
+	t.Parallel()
+
+	input := `send [COIN 100] (
+  	source = {
+			@a
+			@a \ "" // <- empty color behaves as no color
+		}
+  	destination = @dest
+)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@a", 1),
+				Kind:  analysis.EmptiedAccount{Name: "a"},
+			},
+		},
+		checkSource(input),
+	)
+}
