@@ -4457,5 +4457,5 @@ func TestEmptyColor(t *testing.T) {
 			},
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
