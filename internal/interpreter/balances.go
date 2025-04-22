@@ -14,7 +14,7 @@ func (b Balances) fetchAccountBalances(account string) AccountBalance {
 
 func coloredAsset(asset string, color *string) string {
 	// TODO handle "/" part of the asset
-	if color == nil {
+	if color == nil || *color == "" {
 		return asset
 	}
 	return asset + "*" + *color

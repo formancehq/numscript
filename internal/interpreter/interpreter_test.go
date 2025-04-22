@@ -4361,3 +4361,30 @@ func TestColorInorder(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestEmptyColor(t *testing.T) {
+	// empty string color behaves as no color
+
+	script := `
+ 		send [COIN *] (
+			source = @src \ "" // <- same as just '@src'
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
