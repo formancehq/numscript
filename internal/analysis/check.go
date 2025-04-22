@@ -476,6 +476,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		res.checkExpression(source.ValueExpr, TypeAccount)
+		res.checkExpression(source.Color, TypeString)
 		if account, ok := source.ValueExpr.(*parser.AccountInterpLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
 				res.pushDiagnostic(source.GetRange(), InvalidUnboundedAccount{})
@@ -483,11 +484,19 @@ func (res *CheckResult) checkSource(source parser.Source) {
 				res.unboundedAccountInSend = account
 			}
 
-			if _, emptied := res.emptiedAccount[account.String()]; emptied && !account.IsWorld() {
+			coloredAccountName := account.String()
+			switch col := source.Color.(type) {
+			case *parser.Variable:
+				coloredAccountName += "\\$" + col.Name
+			case *parser.StringLiteral:
+				coloredAccountName += "\\\"" + col.String + "\""
+			}
+
+			if _, emptied := res.emptiedAccount[coloredAccountName]; emptied && !account.IsWorld() {
 				res.pushDiagnostic(account.Range, EmptiedAccount{Name: account.String()})
 			}
 
-			res.emptiedAccount[account.String()] = struct{}{}
+			res.emptiedAccount[coloredAccountName] = struct{}{}
 		}
 
 	case *parser.SourceOverdraft:
@@ -507,6 +516,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		}
 
 		res.checkExpression(source.Address, TypeAccount)
+		res.checkExpression(source.Color, TypeString)
 		if source.Bounded != nil {
 			res.checkExpression(*source.Bounded, TypeMonetary)
 		}

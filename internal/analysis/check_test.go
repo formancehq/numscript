@@ -861,3 +861,47 @@ send $m ( source = @world destination = @dest)
 		checkSource(input),
 	)
 }
+
+func TestCheckColorVar(t *testing.T) {
+	t.Parallel()
+
+	input := `
+	send [COIN 100] (
+  	source = {
+			@a \ $col1
+			@b \ $col2 allowing unbounded overdraft
+		}
+  	destination = @dest
+)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$col1", 0),
+				Kind:  analysis.UnboundVariable{Name: "col1", Type: "string"},
+			},
+			{
+				Range: parser.RangeOfIndexed(input, "$col2", 0),
+				Kind:  analysis.UnboundVariable{Name: "col2", Type: "string"},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestInorderRedundantWhenColored(t *testing.T) {
+	t.Parallel()
+
+	input := `send [COIN 100] (
+  	source = {
+			@a
+			@a \ "x"
+		}
+  	destination = @dest
+)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic(nil),
+		checkSource(input),
+	)
+}
