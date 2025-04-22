@@ -4216,7 +4216,7 @@ func TestColorSend(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestColorSendOverdrat(t *testing.T) {
@@ -4240,7 +4240,7 @@ func TestColorSendOverdrat(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestColorRestrictBalance(t *testing.T) {
@@ -4267,7 +4267,7 @@ func TestColorRestrictBalance(t *testing.T) {
 		},
 		Error: nil,
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
@@ -4291,7 +4291,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 			Asset:     "COIN",
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestColorRestrictionInSendAll(t *testing.T) {
@@ -4315,7 +4315,7 @@ func TestColorRestrictionInSendAll(t *testing.T) {
 			Destination: "dest",
 		}},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestColorInorder(t *testing.T) {
@@ -4359,7 +4359,7 @@ func TestColorInorder(t *testing.T) {
 			},
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
 func TestEmptyColor(t *testing.T) {
@@ -4386,5 +4386,5 @@ func TestEmptyColor(t *testing.T) {
 			},
 		},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }

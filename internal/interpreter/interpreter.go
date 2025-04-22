@@ -456,6 +456,13 @@ func (st *programState) runSendStatement(statement parser.SendStatement) ([]Post
 }
 
 func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
+	if colorExpr != nil {
+		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -556,6 +563,13 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 }
 
 func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
+	if colorExpr != nil {
+		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
