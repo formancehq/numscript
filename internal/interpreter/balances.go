@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"math/big"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -13,11 +14,18 @@ func (b Balances) fetchAccountBalances(account string) AccountBalance {
 }
 
 func coloredAsset(asset string, color *string) string {
-	// TODO handle "/" part of the asset
 	if color == nil || *color == "" {
 		return asset
 	}
-	return asset + "*" + *color
+
+	// note: 1 <= len(parts) <= 2
+	parts := strings.Split(asset, "/")
+
+	coloredAsset := parts[0] + "*" + *color
+	if len(parts) > 1 {
+		coloredAsset += "/" + parts[1]
+	}
+	return coloredAsset
 }
 
 // Get the (account, asset) tuple from the Balances

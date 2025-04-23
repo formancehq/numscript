@@ -4388,3 +4388,27 @@ func TestEmptyColor(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
+
+func TestColorWithAssetPrecision(t *testing.T) {
+	script := `
+ 		send [USD/4 10] (
+			source = @src \ "col" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD*col/4",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
