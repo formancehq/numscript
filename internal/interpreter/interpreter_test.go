@@ -4433,6 +4433,50 @@ func TestInvalidColor(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
+func TestColorWithAssetPrecision(t *testing.T) {
+	script := `
+ 		send [USD/4 10] (
+			source = @src \ "COL" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD_COL/4",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestInvalidColor(t *testing.T) {
+	script := `
+ 		send [USD 10] (
+			source = @src \ "!!" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidColor{
+			Color: "!!",
+			Range: parser.RangeOfIndexed(script, `"!!"`, 0),
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
 func TestEmptyColor(t *testing.T) {
 	// empty string color behaves as no color
 
