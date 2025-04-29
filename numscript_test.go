@@ -665,3 +665,94 @@ func TestConsecutiveSendOperationsBalanceTrackingAPI(t *testing.T) {
 	require.Equal(t, 1, len(store.GetBalancesCalls))
 	require.Contains(t, store.GetBalancesCalls[0], "source")
 }
+
+func TestInvalidMonetaryLiteralAPI(t *testing.T) {
+	script := `
+		vars {
+			monetary $amt = [USD/-2 100]
+		}
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "experimental-mid-script-function-call")
+}
+
+func TestUndefinedVariableAPI(t *testing.T) {
+	script := `
+		vars {
+			monetary $amt = $undefined_var
+		}
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "experimental-mid-script-function-call")
+}
+
+func TestInvalidAllotmentSumAPI(t *testing.T) {
+	script := `
+		send [COIN 100] (
+			source = @world
+			destination = {
+				1/3 to @dest1
+				1/3 to @dest2
+			}
+		)
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Invalid allotment: portions sum should be 1")
+}
+
+func TestInvalidSendAllWithNegativeBalanceAPI(t *testing.T) {
+	script := `
+		send [COIN *] (
+			source = @source
+			destination = @dest
+		)
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"source": {"COIN": big.NewInt(-10)},
+			},
+		},
+	}
+	
+	result, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.NoError(t, err)
+	require.Empty(t, result.Postings, "No postings should be created with negative balance")
+}

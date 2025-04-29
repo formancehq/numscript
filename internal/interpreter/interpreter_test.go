@@ -2719,6 +2719,130 @@ func TestErrors(t *testing.T) {
 		}
 		test(t, tc)
 	})
+
+	t.Run("invalid monetary literal format", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				monetary $amt = [USD/-2 100]
+			}
+		`)
+		tc.expected = CaseResult{
+			Error: machine.ExperimentalFeature{
+				FlagName: flags.ExperimentalMidScriptFunctionCall,
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("invalid account name", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			send [COIN 100] (
+				source = @invalid:account:name
+				destination = @dest
+			)
+		`)
+		tc.expected = CaseResult{
+			Error: machine.MissingFundsErr{
+				Asset:     "COIN",
+				Needed:    *big.NewInt(100),
+				Available: *big.NewInt(0),
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("type error in function call", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				monetary $amt = [COIN 100]
+				string $result = balance(@account, $amt)
+			}
+		`)
+		tc.expected = CaseResult{
+			Error: machine.ExperimentalFeature{
+				FlagName: flags.ExperimentalMidScriptFunctionCall,
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("undefined variable in expression", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				monetary $amt = $undefined_var
+			}
+		`)
+		tc.expected = CaseResult{
+			Error: machine.ExperimentalFeature{
+				FlagName: flags.ExperimentalMidScriptFunctionCall,
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("invalid variable in account name", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			vars {
+				number $id = 42
+			}
+			
+			send [COIN 10] (
+				source = @account:$missing
+				destination = @dest
+			)
+		`)
+		tc.expected = CaseResult{
+			Error: machine.ExperimentalFeature{
+				FlagName: flags.ExperimentalMidScriptFunctionCall,
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("send all with negative balance", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			send [COIN *] (
+				source = @source
+				destination = @dest
+			)
+		`)
+		tc.setBalance("source", "COIN", -10)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{},
+		}
+		test(t, tc)
+	})
+
+	t.Run("invalid allotment with zero portion", func(t *testing.T) {
+		tc := NewTestCase()
+		tc.compile(t, `
+			send [COIN 100] (
+				source = @world
+				destination = {
+					0/1 to @dest1
+					1/1 to @dest2
+				}
+			)
+		`)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{
+					Asset:       "COIN",
+					Amount:      big.NewInt(100),
+					Source:      "world",
+					Destination: "dest2",
+				},
+			},
+		}
+		test(t, tc)
+	})
 }
 
 func TestNestedRemaining(t *testing.T) {
