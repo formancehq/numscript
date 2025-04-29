@@ -4194,3 +4194,345 @@ func TestGetAmountFunction(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
+
+func TestExtremelyLargeNumbers(t *testing.T) {
+	script := `
+		send [COIN 9223372036854775807] (
+			source = @world
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(9223372036854775807),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestAssetWithMultipleDecimalPlaces(t *testing.T) {
+	script := `
+		send [USD/12345 100] (
+			source = @world
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/12345",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestExactAllotmentDivision(t *testing.T) {
+	script := `
+		send [COIN 100] (
+			source = @world
+			destination = {
+				1/4 to @dest1
+				1/4 to @dest2
+				1/2 to @dest3
+			}
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(25),
+				Source:      "world",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(25),
+				Source:      "world",
+				Destination: "dest2",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "world",
+				Destination: "dest3",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestComplexNestedSourceWithOverdraft(t *testing.T) {
+	script := `
+		send [COIN 20] (
+			source = {
+				max [COIN 5] from @source1
+				max [COIN 10] from {
+					@source2 allowing overdraft up to [COIN 5]
+					@source3
+				}
+				@source4
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	
+	tc.setBalance("source1", "COIN", 3)
+	tc.setBalance("source2", "COIN", 2)
+	tc.setBalance("source3", "COIN", 12)
+	tc.setBalance("source4", "COIN", 1)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:     "COIN",
+			Needed:    *big.NewInt(20),
+			Available: *big.NewInt(14),
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidAssetFormat(t *testing.T) {
+	script := `
+		send [USD/0 100] (
+			source = @world
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD/0",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestArithmeticOperationsOverflow(t *testing.T) {
+	script := `
+		vars {
+			number $max = 9223372036854775807
+			number $result = $max + 1
+		}
+		
+		set_tx_meta("result", $result)
+	`
+
+	tc := NewTestCase()
+	tc.setVarsFromJSON(t, `{"max": "9223372036854775807"}`)
+	tc.compile(t, script)
+
+	expectedResult := new(big.Int).Add(big.NewInt(9223372036854775807), big.NewInt(1))
+	
+	tc.expected = CaseResult{
+		TxMetadata: map[string]machine.Value{
+			"result": machine.MonetaryInt(*expectedResult),
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
+}
+
+func TestPortionWithWhitespace(t *testing.T) {
+	script := `
+		send [COIN 100] (
+			source = @world
+			destination = {
+				1 / 4 to @dest1
+				3/ 4 to @dest2
+			}
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(25),
+				Source:      "world",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(75),
+				Source:      "world",
+				Destination: "dest2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestComplexAccountInterpolation(t *testing.T) {
+	script := `
+		vars {
+			number $id1 = 42
+			number $id2 = 100
+			string $type = "user"
+		}
+		
+		send [COIN 10] (
+			source = @$type:$id1
+			destination = @$type:$id2
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("user:42", "COIN", 10)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "user:42",
+				Destination: "user:100",
+			},
+		},
+	}
+	
+	featureFlags := map[string]struct{}{
+		flags.ExperimentalAccountInterpolationFlag: {},
+		flags.ExperimentalMidScriptFunctionCall:    {},
+	}
+	
+	execResult, err := machine.RunProgram(
+		context.Background(),
+		*tc.program,
+		tc.vars,
+		machine.StaticStore{
+			tc.balances,
+			tc.meta,
+		},
+		featureFlags,
+	)
+	
+	require.NoError(t, err)
+	assert.Equal(t, tc.expected.Postings, execResult.Postings)
+}
+
+func TestConsecutiveSendOperationsBalanceTracking(t *testing.T) {
+	script := `
+		send [COIN *] (
+			source = max [COIN 50] from @source
+			destination = @dest1
+		)
+		
+		send [COIN *] (
+			source = @source
+			destination = @dest2
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("source", "COIN", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "source",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "source",
+				Destination: "dest2",
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestZeroOverdraftLimit(t *testing.T) {
+	script := `
+		send [COIN 10] (
+			source = @source allowing overdraft up to [COIN 0]
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("source", "COIN", 5)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:     "COIN",
+			Needed:    *big.NewInt(10),
+			Available: *big.NewInt(5),
+		},
+	}
+	test(t, tc)
+}
+
+func TestTinyAllocation(t *testing.T) {
+	script := `
+		send [COIN 3] (
+			source = @world
+			destination = {
+				1/100 to @dest1
+				99/100 to @dest2
+			}
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "world",
+				Destination: "dest1",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(2),
+				Source:      "world",
+				Destination: "dest2",
+			},
+		},
+	}
+	test(t, tc)
+}

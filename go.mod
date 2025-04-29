@@ -1,6 +1,8 @@
 module github.com/formancehq/numscript
 
-go 1.22.1
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
