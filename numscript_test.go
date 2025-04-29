@@ -556,3 +556,112 @@ func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) 
 func (*ErrorStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	return nil, errors.New("Error while fetching metadata")
 }
+
+func TestExtremelyLargeNumbersAPI(t *testing.T) {
+	script := `
+		send [COIN 9223372036854775807] (
+			source = @world
+			destination = @dest
+		)
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+		},
+	}
+	
+	result, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.NoError(t, err)
+	
+	require.Equal(t, 1, len(result.Postings))
+	require.Equal(t, "COIN", result.Postings[0].Asset)
+	require.Equal(t, "world", result.Postings[0].Source)
+	require.Equal(t, "dest", result.Postings[0].Destination)
+	require.Equal(t, big.NewInt(9223372036854775807), result.Postings[0].Amount)
+}
+
+func TestComplexNestedSourceWithOverdraftAPI(t *testing.T) {
+	script := `
+		send [COIN 20] (
+			source = {
+				max [COIN 5] from @source1
+				max [COIN 10] from {
+					@source2 allowing overdraft up to [COIN 5]
+					@source3
+				}
+				@source4
+			}
+			destination = @dest
+		)
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"source1": {"COIN": big.NewInt(3)},
+				"source2": {"COIN": big.NewInt(2)},
+				"source3": {"COIN": big.NewInt(12)},
+				"source4": {"COIN": big.NewInt(1)},
+			},
+		},
+	}
+	
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Not enough funds")
+	
+	require.Equal(t, 1, len(store.GetBalancesCalls))
+	require.Contains(t, store.GetBalancesCalls[0], "source1")
+	require.Contains(t, store.GetBalancesCalls[0], "source2")
+	require.Contains(t, store.GetBalancesCalls[0], "source3")
+	require.Contains(t, store.GetBalancesCalls[0], "source4")
+}
+
+func TestConsecutiveSendOperationsBalanceTrackingAPI(t *testing.T) {
+	script := `
+		send [COIN *] (
+			source = max [COIN 50] from @source
+			destination = @dest1
+		)
+		
+		send [COIN *] (
+			source = @source
+			destination = @dest2
+		)
+	`
+	
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+	
+	store := ObservableStore{
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{
+				"source": {"COIN": big.NewInt(100)},
+			},
+		},
+	}
+	
+	result, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.NoError(t, err)
+	
+	require.Equal(t, 2, len(result.Postings))
+	
+	require.Equal(t, "source", result.Postings[0].Source)
+	require.Equal(t, "dest1", result.Postings[0].Destination)
+	require.Equal(t, big.NewInt(50), result.Postings[0].Amount)
+	
+	require.Equal(t, "source", result.Postings[1].Source)
+	require.Equal(t, "dest2", result.Postings[1].Destination)
+	require.Equal(t, big.NewInt(50), result.Postings[1].Amount)
+	
+	require.Equal(t, 1, len(store.GetBalancesCalls))
+	require.Contains(t, store.GetBalancesCalls[0], "source")
+}
