@@ -4208,7 +4208,7 @@ func TestColorSend(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN*red",
+				Asset:       "COIN_red",
 				Amount:      big.NewInt(100),
 				Source:      "world",
 				Destination: "dest",
@@ -4232,7 +4232,7 @@ func TestColorSendOverdrat(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN*red",
+				Asset:       "COIN_red",
 				Amount:      big.NewInt(100),
 				Source:      "acc",
 				Destination: "dest",
@@ -4253,13 +4253,13 @@ func TestColorRestrictBalance(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 1)
-	tc.setBalance("acc", "COIN*red", 100)
+	tc.setBalance("acc", "COIN_red", 100)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN*red",
+				Asset:       "COIN_red",
 				Amount:      big.NewInt(20),
 				Source:      "acc",
 				Destination: "dest",
@@ -4280,7 +4280,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 100)
-	tc.setBalance("acc", "COIN*red", 1)
+	tc.setBalance("acc", "COIN_red", 1)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
@@ -4304,12 +4304,12 @@ func TestColorRestrictionInSendAll(t *testing.T) {
 
 	tc := NewTestCase()
 
-	tc.setBalance("src", "COIN*red", 42)
+	tc.setBalance("src", "COIN_red", 42)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{{
-			Asset:       "COIN*red",
+			Asset:       "COIN_red",
 			Amount:      big.NewInt(42),
 			Source:      "src",
 			Destination: "dest",
@@ -4333,20 +4333,20 @@ func TestColorInorder(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("src", "COIN", 100)
-	tc.setBalance("src", "COIN*red", 20)
-	tc.setBalance("src", "COIN*blue", 30)
+	tc.setBalance("src", "COIN_red", 20)
+	tc.setBalance("src", "COIN_blue", 30)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN*red",
+				Asset:       "COIN_red",
 				Amount:      big.NewInt(20),
 				Source:      "src",
 				Destination: "dest",
 			},
 			{
-				Asset:       "COIN*blue",
+				Asset:       "COIN_blue",
 				Amount:      big.NewInt(30),
 				Source:      "src",
 				Destination: "dest",
@@ -4403,7 +4403,7 @@ func TestColorWithAssetPrecision(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "USD*col/4",
+				Asset:       "USD_col/4",
 				Amount:      big.NewInt(10),
 				Source:      "src",
 				Destination: "dest",

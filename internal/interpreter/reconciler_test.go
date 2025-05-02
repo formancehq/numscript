@@ -175,7 +175,7 @@ func TestReconcileColoredAssetExactMatch(t *testing.T) {
 			{"src", big.NewInt(10), pointer("x")},
 		},
 		Receivers: []Receiver{{"dest", big.NewInt(10)}},
-		Expected:  []Posting{{"src", "dest", big.NewInt(10), "COIN*x"}},
+		Expected:  []Posting{{"src", "dest", big.NewInt(10), "COIN_x"}},
 	})
 }
 
@@ -190,8 +190,8 @@ func TestReconcileColoredManyDestPerSender(t *testing.T) {
 			{"d2", big.NewInt(5)},
 		},
 		Expected: []Posting{
-			{"src", "d1", big.NewInt(5), "COIN*x"},
-			{"src", "d2", big.NewInt(5), "COIN*x"},
+			{"src", "d1", big.NewInt(5), "COIN_x"},
+			{"src", "d2", big.NewInt(5), "COIN_x"},
 		},
 	})
 }
@@ -207,8 +207,8 @@ func TestReconcileColoredManySenderColors(t *testing.T) {
 			{"dest", big.NewInt(2)},
 		},
 		Expected: []Posting{
-			{"src", "dest", big.NewInt(1), "COIN*c1"},
-			{"src", "dest", big.NewInt(1), "COIN*c2"},
+			{"src", "dest", big.NewInt(1), "COIN_c1"},
+			{"src", "dest", big.NewInt(1), "COIN_c2"},
 		},
 	})
 }

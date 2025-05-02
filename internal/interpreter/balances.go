@@ -21,7 +21,7 @@ func coloredAsset(asset string, color *string) string {
 	// note: 1 <= len(parts) <= 2
 	parts := strings.Split(asset, "/")
 
-	coloredAsset := parts[0] + "*" + *color
+	coloredAsset := parts[0] + "_" + *color
 	if len(parts) > 1 {
 		coloredAsset += "/" + parts[1]
 	}
