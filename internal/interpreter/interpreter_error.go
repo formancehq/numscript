@@ -228,3 +228,12 @@ type InvalidNestedMeta struct {
 func (InvalidNestedMeta) Error() string {
 	return "Invalid usage of meta() function: the meta function cannot be nested in a sub-expression."
 }
+
+type InvalidColor struct {
+	parser.Range
+	Color string
+}
+
+func (e InvalidColor) Error() string {
+	return fmt.Sprintf("Invalid color name: '%s'. Only uppercase letters are allowed.", e.Color)
+}

@@ -4198,7 +4198,7 @@ func TestGetAmountFunction(t *testing.T) {
 func TestColorSend(t *testing.T) {
 	script := `
  		send [COIN 100] (
-			source = @world \ "red"
+			source = @world \ "RED"
 			destination = @dest
 		)
 	`
@@ -4208,7 +4208,7 @@ func TestColorSend(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN_red",
+				Asset:       "COIN_RED",
 				Amount:      big.NewInt(100),
 				Source:      "world",
 				Destination: "dest",
@@ -4222,7 +4222,7 @@ func TestColorSend(t *testing.T) {
 func TestColorSendOverdrat(t *testing.T) {
 	script := `
  		send [COIN 100] (
-			source = @acc \ "red" allowing unbounded overdraft
+			source = @acc \ "RED" allowing unbounded overdraft
 			destination = @dest
 		)
 	`
@@ -4232,7 +4232,7 @@ func TestColorSendOverdrat(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN_red",
+				Asset:       "COIN_RED",
 				Amount:      big.NewInt(100),
 				Source:      "acc",
 				Destination: "dest",
@@ -4246,20 +4246,20 @@ func TestColorSendOverdrat(t *testing.T) {
 func TestColorRestrictBalance(t *testing.T) {
 	script := `
  		send [COIN 20] (
-			source = @acc \ "red"
+			source = @acc \ "RED"
 			destination = @dest
 		)
 	`
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 1)
-	tc.setBalance("acc", "COIN_red", 100)
+	tc.setBalance("acc", "COIN_RED", 100)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN_red",
+				Asset:       "COIN_RED",
 				Amount:      big.NewInt(20),
 				Source:      "acc",
 				Destination: "dest",
@@ -4273,14 +4273,14 @@ func TestColorRestrictBalance(t *testing.T) {
 func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 	script := `
  		send [COIN 20] (
-			source = @acc \ "red"
+			source = @acc \ "RED"
 			destination = @dest
 		)
 	`
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 100)
-	tc.setBalance("acc", "COIN_red", 1)
+	tc.setBalance("acc", "COIN_RED", 1)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
@@ -4297,19 +4297,19 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 func TestColorRestrictionInSendAll(t *testing.T) {
 	script := `
  		send [COIN *] (
-			source = @src \ "red"
+			source = @src \ "RED"
 			destination = @dest
 		)
 	`
 
 	tc := NewTestCase()
 
-	tc.setBalance("src", "COIN_red", 42)
+	tc.setBalance("src", "COIN_RED", 42)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{{
-			Asset:       "COIN_red",
+			Asset:       "COIN_RED",
 			Amount:      big.NewInt(42),
 			Source:      "src",
 			Destination: "dest",
@@ -4323,8 +4323,8 @@ func TestColorInorder(t *testing.T) {
 	script := `
  		send [COIN 100] (
 			source = {
-					@src \ "red"
-					@src \ "blue"
+					@src \ "RED"
+					@src \ "BLUE"
 					@src
 			}
 			destination = @dest
@@ -4333,20 +4333,20 @@ func TestColorInorder(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("src", "COIN", 100)
-	tc.setBalance("src", "COIN_red", 20)
-	tc.setBalance("src", "COIN_blue", 30)
+	tc.setBalance("src", "COIN_RED", 20)
+	tc.setBalance("src", "COIN_BLUE", 30)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "COIN_red",
+				Asset:       "COIN_RED",
 				Amount:      big.NewInt(20),
 				Source:      "src",
 				Destination: "dest",
 			},
 			{
-				Asset:       "COIN_blue",
+				Asset:       "COIN_BLUE",
 				Amount:      big.NewInt(30),
 				Source:      "src",
 				Destination: "dest",
@@ -4392,7 +4392,7 @@ func TestEmptyColor(t *testing.T) {
 func TestColorWithAssetPrecision(t *testing.T) {
 	script := `
  		send [USD/4 10] (
-			source = @src \ "col" allowing unbounded overdraft
+			source = @src \ "COL" allowing unbounded overdraft
 			destination = @dest
 		)
 	`
@@ -4403,11 +4403,31 @@ func TestColorWithAssetPrecision(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []Posting{
 			{
-				Asset:       "USD_col/4",
+				Asset:       "USD_COL/4",
 				Amount:      big.NewInt(10),
 				Source:      "src",
 				Destination: "dest",
 			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestInvalidColor(t *testing.T) {
+	script := `
+ 		send [USD 10] (
+			source = @src \ "!!" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidColor{
+			Color: "!!",
+			Range: parser.RangeOfIndexed(script, `"!!"`, 0),
 		},
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)

@@ -474,7 +474,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		}
 	}
 
-	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	color, err := s.evaluateColor(colorExpr)
 	if err != nil {
 		return nil, err
 	}
@@ -562,6 +562,8 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 	return nil
 }
 
+var colorRe = regexp.MustCompile("^[A-Z]*$")
+
 func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
 		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
@@ -578,7 +580,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		overdraft = nil
 	}
 
-	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	color, err := s.evaluateColor(colorExpr)
 	if err != nil {
 		return nil, err
 	}
