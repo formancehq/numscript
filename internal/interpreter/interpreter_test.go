@@ -4296,6 +4296,41 @@ func TestWithinInorder(t *testing.T) {
 	test(t, tc)
 }
 
+func TestThroughComplex(t *testing.T) {
+	script := `
+ 	send [USD/2 10] (
+		source = {
+			@a1 // balance: 5
+			@a2 // balance: 100
+		} through {
+			2/3 from @p1 // [USD/2 7]
+			1/3 from @p2 // [USD/2 3]
+		}
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a1", "USD/2", 5)
+	tc.setBalance("a2", "USD/2", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a1", Destination: "p1", Amount: big.NewInt(5), Asset: "USD/2"},
+			{Source: "a2", Destination: "p1", Amount: big.NewInt(2), Asset: "USD/2"},
+
+			{Source: "a2", Destination: "p2", Amount: big.NewInt(3), Asset: "USD/2"},
+
+			{Source: "p1", Destination: "dest", Amount: big.NewInt(7), Asset: "USD/2"},
+			{Source: "p2", Destination: "dest", Amount: big.NewInt(3), Asset: "USD/2"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
 func TestColorSend(t *testing.T) {
 	script := `
  		send [COIN 100] (

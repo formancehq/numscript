@@ -15,6 +15,8 @@ type fundsStack struct {
 }
 
 func newFundsStack(senders []Sender) fundsStack {
+	senders = slices.Clone(senders)
+
 	// TODO do not modify arg
 	// TODO clone big ints so that we can manipulate them
 	slices.Reverse(senders)
