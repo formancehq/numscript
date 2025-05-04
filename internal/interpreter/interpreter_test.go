@@ -4195,6 +4195,77 @@ func TestGetAmountFunction(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
 
+func TestThroughSimple(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through @b
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedLeftSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = {@a through @b} through @c
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedRightSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through {@b through @c}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
 func TestColorSend(t *testing.T) {
 	script := `
  		send [COIN 100] (

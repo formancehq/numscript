@@ -257,17 +257,17 @@ func RunProgram(
 		return nil, QueryBalanceError{WrappedError: genericErr}
 	}
 
-	postings := make([]Posting, 0)
+	st.Postings = make([]Posting, 0)
 	for _, statement := range program.Statements {
 		statementPostings, err := st.runStatement(statement)
 		if err != nil {
 			return nil, err
 		}
-		postings = append(postings, statementPostings...)
+		st.Postings = append(st.Postings, statementPostings...)
 	}
 
 	res := &ExecutionResult{
-		Postings:         postings,
+		Postings:         st.Postings,
 		Metadata:         st.TxMeta,
 		AccountsMetadata: st.SetAccountsMeta,
 	}
@@ -288,6 +288,10 @@ type programState struct {
 	TxMeta     map[string]Value
 	Senders    []Sender
 	Receivers  []Receiver
+	Postings   []Posting
+
+	// The funds allocated in the left side of a "through" source
+	fundsStack *fundsStack
 
 	Store Store
 
@@ -588,6 +592,27 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 	if overdraft == nil {
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
+	} else if s.fundsStack != nil {
+
+		// TODO test/handle overdraft
+
+		availableSenders := s.fundsStack.Pull(amount)
+
+		for _, sender := range availableSenders {
+			// TODO update cached asset
+
+			s.Postings = append(s.Postings, Posting{
+				Asset:       s.CurrentAsset,
+				Source:      sender.Name,
+				Destination: *account,
+				Amount:      sender.Amount,
+			})
+		}
+
+		// TODO what if we didn't pull enough? Would that be possible?
+
+		actuallySentAmt = new(big.Int).Set(amount)
+
 	} else {
 		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
@@ -686,6 +711,24 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cappedAmount.Set(big.NewInt(0))
 		}
 		return s.trySendingUpTo(source.From, cappedAmount)
+
+	case *parser.SourceThrough:
+		indexBefore := len(s.Senders)
+		leftAmt, err := s.trySendingUpTo(source.Source, amount)
+		if err != nil {
+			return nil, err
+		}
+
+		fs := newFundsStack(s.Senders[indexBefore:])
+		oldStack := s.fundsStack
+		s.fundsStack = &fs
+		defer func() {
+			s.fundsStack = oldStack
+		}()
+		s.Senders = s.Senders[0:indexBefore]
+
+		// TODO test new amt and new err
+		return s.trySendingUpTo(source.Proxy, leftAmt)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
