@@ -355,10 +355,7 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 }
 
 func (st *programState) getPostings() ([]Posting, InterpreterError) {
-	postings, err := Reconcile(st.CurrentAsset, st.Senders, st.Receivers)
-	if err != nil {
-		return nil, err
-	}
+	postings := Reconcile(st.CurrentAsset, st.Senders, st.Receivers)
 
 	for _, posting := range postings {
 		srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
