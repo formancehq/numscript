@@ -50,22 +50,25 @@ func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
 		s.compactTop()
 
 		available := s.senders[len(s.senders)-1]
+		s.senders = s.senders[:len(s.senders)-1]
 
 		switch available.Amount.Cmp(requiredAmount) {
 		case -1: // not enough:
 			out = append(out, available)
-			s.senders = s.senders[:len(s.senders)-1]
 			requiredAmount.Sub(requiredAmount, available.Amount)
 
-		default: // enough:
+		case 1: // more than enough
+			s.senders = append(s.senders, Sender{
+				Name:   available.Name,
+				Amount: new(big.Int).Sub(available.Amount, requiredAmount),
+			})
+			fallthrough
+
+		case 0: // exactly the same
 			out = append(out, Sender{
 				Name:   available.Name,
-				Amount: requiredAmount,
+				Amount: new(big.Int).Set(requiredAmount),
 			})
-			available.Amount.Sub(available.Amount, requiredAmount)
-			if available.Amount.Cmp(big.NewInt(0)) == 0 {
-				s.senders = s.senders[:len(s.senders)-1]
-			}
 			return out
 		}
 
