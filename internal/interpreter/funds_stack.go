@@ -8,6 +8,7 @@ import (
 type Sender struct {
 	Name   string
 	Amount *big.Int
+	Color  string
 }
 
 type fundsStack struct {
@@ -35,12 +36,13 @@ func (s *fundsStack) compactTop() {
 			continue
 		}
 
-		if first.Name != second.Name {
+		if first.Name != second.Name || first.Color != second.Color {
 			return
 		}
 
 		s.senders = append(s.senders[0:len(s.senders)-2], Sender{
 			Name:   first.Name,
+			Color:  first.Color,
 			Amount: new(big.Int).Add(first.Amount, second.Amount),
 		})
 	}
@@ -67,6 +69,7 @@ func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
 		case 1: // more than enough
 			s.senders = append(s.senders, Sender{
 				Name:   available.Name,
+				Color:  available.Color,
 				Amount: new(big.Int).Sub(available.Amount, requiredAmount),
 			})
 			fallthrough
@@ -74,6 +77,7 @@ func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
 		case 0: // exactly the same
 			out = append(out, Sender{
 				Name:   available.Name,
+				Color:  available.Color,
 				Amount: new(big.Int).Set(requiredAmount),
 			})
 			return out

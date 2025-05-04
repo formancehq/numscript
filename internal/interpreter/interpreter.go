@@ -310,7 +310,7 @@ type programState struct {
 	FeatureFlags map[string]struct{}
 }
 
-func (st *programState) pushSender(name string, monetary *big.Int, color *string) {
+func (st *programState) pushSender(name string, monetary *big.Int, color string) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
@@ -334,7 +334,7 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		postings := Posting{
 			Source:      sender.Name,
 			Destination: name,
-			Asset:       st.CurrentAsset,
+			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
 			Amount:      sender.Amount,
 		}
 
@@ -499,7 +499,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 
 	// we sent balance+overdraft
 	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
-	s.pushSender(*account, sentAmt, color)
+	s.pushSender(*account, sentAmt, *color)
 	return sentAmt, nil
 }
 
@@ -634,7 +634,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
 
-	s.pushSender(*account, actuallySentAmt, color)
+	s.pushSender(*account, actuallySentAmt, *color)
 	return actuallySentAmt, nil
 }
 

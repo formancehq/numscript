@@ -3250,6 +3250,7 @@ parser.Program{
                     End:   parser.Position{Character:23, Line:2},
                 },
                 Source: &parser.SourceAccount{
+                    Color:     nil,
                     ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:10, Line:2},
@@ -3261,6 +3262,7 @@ parser.Program{
                     },
                 },
                 Proxy: &parser.SourceAccount{
+                    Color:     nil,
                     ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:21, Line:2},
