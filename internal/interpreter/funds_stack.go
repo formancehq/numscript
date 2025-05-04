@@ -5,6 +5,11 @@ import (
 	"slices"
 )
 
+type Sender struct {
+	Name   string
+	Amount *big.Int
+}
+
 type fundsStack struct {
 	senders []Sender
 }

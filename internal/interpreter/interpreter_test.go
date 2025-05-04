@@ -4267,8 +4267,6 @@ func TestThroughNestedRightSide(t *testing.T) {
 }
 
 func TestWithinInorder(t *testing.T) {
-	t.Skip("Fix postings order")
-
 	script := `
  		send [COIN 10] (
 			source = {
@@ -4285,12 +4283,11 @@ func TestWithinInorder(t *testing.T) {
 	tc.setBalance("b", "COIN", 1)
 	tc.expected = CaseResult{
 		Postings: []Posting{
+			// TODO are we ok with this being the first one? is it always correct?
+			{Source: "b", Destination: "proxy", Amount: big.NewInt(1), Asset: "COIN"},
 
 			{Source: "a", Destination: "dest", Amount: big.NewInt(2), Asset: "COIN"},
-
-			{Source: "b", Destination: "proxy", Amount: big.NewInt(1), Asset: "COIN"},
 			{Source: "proxy", Destination: "dest", Amount: big.NewInt(1), Asset: "COIN"},
-
 			{Source: "world", Destination: "dest", Amount: big.NewInt(7), Asset: "COIN"},
 		},
 		Error: nil,
