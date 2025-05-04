@@ -3,8 +3,6 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/formancehq/numscript/internal/funds_stack"
 )
 
 type Posting struct {
@@ -33,21 +31,8 @@ type Receiver struct {
 	Amount *big.Int
 }
 
-func newFundsStackFromSenders(s []Sender) funds_stack.FundsStack {
-	fs := make([]funds_stack.Sender, len(s))
-	for i, sender := range s {
-		fs[i] = funds_stack.Sender{
-			Name:   sender.Name,
-			Amount: sender.Amount,
-		}
-	}
-
-	return funds_stack.NewFundsStack(fs)
-
-}
-
 func Reconcile(asset string, senders []Sender, receivers []Receiver) []Posting {
-	fundsStack := newFundsStackFromSenders(senders)
+	fundsStack := newFundsStack(senders)
 
 	var postings []Posting
 
