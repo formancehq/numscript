@@ -96,3 +96,17 @@ func TestMissingFunds(t *testing.T) {
 		{Name: "s1", Amount: big.NewInt(2)},
 	}, out)
 }
+
+func TestNoZeroLeftovers(t *testing.T) {
+	stack := funds_stack.NewFundsStack([]funds_stack.Sender{
+		{Name: "s1", Amount: big.NewInt(10)},
+		{Name: "s2", Amount: big.NewInt(15)},
+	})
+
+	stack.Pull(big.NewInt(10))
+
+	out := stack.Pull(big.NewInt(15))
+	require.Equal(t, []funds_stack.Sender{
+		{Name: "s2", Amount: big.NewInt(15)},
+	}, out)
+}

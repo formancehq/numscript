@@ -305,14 +305,16 @@ func (st *programState) pushSender(name string, monetary *big.Int, color *string
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary, Color: color})
+
+	st.Senders = append(st.Senders, Sender{Name: name, Amount: monetary, Color: color})
+
 }
 
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Receivers = append(st.Receivers, Receiver{Name: name, Monetary: monetary})
+	st.Receivers = append(st.Receivers, Receiver{Name: name, Amount: monetary})
 }
 
 func (st *programState) runStatement(statement parser.Statement) ([]Posting, InterpreterError) {
