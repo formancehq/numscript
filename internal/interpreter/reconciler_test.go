@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type ReconcileTestCase struct {
@@ -23,9 +22,8 @@ func runReconcileTestCase(t *testing.T, tc ReconcileTestCase) {
 		tc.Currency = "COIN"
 	}
 
-	got, err := Reconcile(tc.Currency, tc.Senders, tc.Receivers)
+	got := Reconcile(tc.Currency, tc.Senders, tc.Receivers)
 
-	require.Equal(t, tc.ExpectedErr, err)
 	assert.Equal(t, tc.Expected, got)
 }
 

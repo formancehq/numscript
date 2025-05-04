@@ -33,7 +33,7 @@ type Receiver struct {
 	Monetary *big.Int
 }
 
-func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting, InterpreterError) {
+func Reconcile(asset string, senders []Sender, receivers []Receiver) []Posting {
 
 	// We reverse senders and receivers once so that we can
 	// treat them as stack and push/pop in O(1)
@@ -65,10 +65,10 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 		if empty {
 			isReceivedAmtZero := receiver.Monetary.Cmp(big.NewInt(0)) == 0
 			if isReceivedAmtZero {
-				return postings, nil
+				return postings
 			}
 
-			return postings, nil
+			return postings
 		}
 
 		snd := (*big.Int)(sender.Monetary)
@@ -113,7 +113,7 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 		}
 	}
 
-	return postings, nil
+	return postings
 }
 
 func popStack[T any](stack *[]T) (T, bool) {
