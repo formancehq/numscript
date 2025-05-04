@@ -32,13 +32,7 @@ func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
 	// TODO preallocate for perfs
 	var out []Sender
 
-	for requiredAmount.Cmp(big.NewInt(0)) != 0 {
-		if len(s.senders) == 0 {
-			panic("TODO empty senders")
-			return out
-			// TODO handle
-		}
-
+	for requiredAmount.Cmp(big.NewInt(0)) != 0 && len(s.senders) != 0 {
 		available := s.senders[len(s.senders)-1]
 
 		switch available.Amount.Cmp(requiredAmount) {
