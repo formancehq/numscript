@@ -44,7 +44,6 @@ func (s *FundsStack) compactTop() {
 	}
 }
 
-// TODO should return err as well? When not enough funds
 func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
@@ -75,9 +74,4 @@ func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
 	}
 
 	return out
-}
-
-// Get the total quantity of allocated funds
-func (*FundsStack) Size() *big.Int {
-	panic("TODO implement .Size()")
 }
