@@ -78,12 +78,12 @@ func TestCompactFundsWithEmptySender(t *testing.T) {
 }
 
 func TestMissingFunds(t *testing.T) {
-	t.Skip("TODO emit err")
-
 	stack := funds_stack.NewFundsStack([]funds_stack.Sender{
 		{Name: "s1", Amount: big.NewInt(2)},
 	})
 
-	out := stack.Pull(big.NewInt(3))
-	require.Equal(t, []funds_stack.Sender{}, out)
+	out := stack.Pull(big.NewInt(300))
+	require.Equal(t, []funds_stack.Sender{
+		{Name: "s1", Amount: big.NewInt(2)},
+	}, out)
 }
