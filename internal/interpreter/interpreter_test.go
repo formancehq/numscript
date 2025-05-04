@@ -4266,7 +4266,7 @@ func TestThroughNestedRightSide(t *testing.T) {
 	test(t, tc)
 }
 
-func TestWithinInorder(t *testing.T) {
+func TestThroughWithinInorder(t *testing.T) {
 	script := `
  		send [COIN 10] (
 			source = {
