@@ -23,9 +23,9 @@ func (e ReconcileError) Error() string {
 }
 
 type Sender struct {
-	Name     string
-	Monetary *big.Int
-	Color    *string
+	Name   string
+	Amount *big.Int
+	Color  *string
 }
 
 type Receiver struct {
