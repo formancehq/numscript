@@ -49,8 +49,6 @@ func TestPullZero(t *testing.T) {
 }
 
 func TestCompactFunds(t *testing.T) {
-	t.Skip("TODO")
-
 	stack := funds_stack.NewFundsStack([]funds_stack.Sender{
 		{Name: "s1", Amount: big.NewInt(2)},
 		{Name: "s1", Amount: big.NewInt(10)},
@@ -62,9 +60,20 @@ func TestCompactFunds(t *testing.T) {
 	}, out)
 }
 
-func TestCompactFundsWithEmptySender(t *testing.T) {
-	t.Skip("TODO")
+func TestCompactFunds3Times(t *testing.T) {
+	stack := funds_stack.NewFundsStack([]funds_stack.Sender{
+		{Name: "s1", Amount: big.NewInt(2)},
+		{Name: "s1", Amount: big.NewInt(3)},
+		{Name: "s1", Amount: big.NewInt(1)},
+	})
 
+	out := stack.Pull(big.NewInt(6))
+	require.Equal(t, []funds_stack.Sender{
+		{Name: "s1", Amount: big.NewInt(6)},
+	}, out)
+}
+
+func TestCompactFundsWithEmptySender(t *testing.T) {
 	stack := funds_stack.NewFundsStack([]funds_stack.Sender{
 		{Name: "s1", Amount: big.NewInt(2)},
 		{Name: "s2", Amount: big.NewInt(0)},
