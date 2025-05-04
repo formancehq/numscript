@@ -1,29 +1,24 @@
-package funds_stack
+package interpreter
 
 import (
 	"math/big"
 	"slices"
 )
 
-type Sender struct {
-	Name   string
-	Amount *big.Int
-}
-
-type FundsStack struct {
+type fundsStack struct {
 	senders []Sender
 }
 
-func NewFundsStack(senders []Sender) FundsStack {
+func newFundsStack(senders []Sender) fundsStack {
 	// TODO do not modify arg
 	// TODO clone big ints so that we can manipulate them
 	slices.Reverse(senders)
-	return FundsStack{
+	return fundsStack{
 		senders: senders,
 	}
 }
 
-func (s *FundsStack) compactTop() {
+func (s *fundsStack) compactTop() {
 	for len(s.senders) >= 2 {
 		first := s.senders[len(s.senders)-1]
 		second := s.senders[len(s.senders)-2]
@@ -44,7 +39,7 @@ func (s *FundsStack) compactTop() {
 	}
 }
 
-func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
+func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
 
