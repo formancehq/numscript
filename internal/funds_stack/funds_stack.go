@@ -68,6 +68,9 @@ func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
 				Amount: requiredAmount,
 			})
 			available.Amount.Sub(available.Amount, requiredAmount)
+			if available.Amount.Cmp(big.NewInt(0)) == 0 {
+				s.senders = s.senders[:len(s.senders)-1]
+			}
 			return out
 		}
 

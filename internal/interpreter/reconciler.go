@@ -3,7 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-	"slices"
+
+	"github.com/formancehq/numscript/internal/funds_stack"
 )
 
 type Posting struct {
@@ -23,107 +24,49 @@ func (e ReconcileError) Error() string {
 }
 
 type Sender struct {
-	Name     string
-	Monetary *big.Int
+	Name   string
+	Amount *big.Int
 }
 
 type Receiver struct {
-	Name     string
-	Monetary *big.Int
+	Name   string
+	Amount *big.Int
+}
+
+func newFundsStackFromSenders(s []Sender) funds_stack.FundsStack {
+	fs := make([]funds_stack.Sender, len(s))
+	for i, sender := range s {
+		fs[i] = funds_stack.Sender{
+			Name:   sender.Name,
+			Amount: sender.Amount,
+		}
+	}
+
+	return funds_stack.NewFundsStack(fs)
+
 }
 
 func Reconcile(asset string, senders []Sender, receivers []Receiver) []Posting {
+	fundsStack := newFundsStackFromSenders(senders)
 
-	// We reverse senders and receivers once so that we can
-	// treat them as stack and push/pop in O(1)
-	slices.Reverse(senders)
-	slices.Reverse(receivers)
 	var postings []Posting
 
-	for {
-		receiver, empty := popStack(&receivers)
-		if empty {
-			break
-		}
+	for _, receiver := range receivers {
+		senders := fundsStack.Pull(receiver.Amount)
 
-		// Ugly workaround
 		if receiver.Name == KEPT_ADDR {
-			sender, empty := popStack(&senders)
-			if !empty {
-				var newMon big.Int
-				newMon.Sub(sender.Monetary, receiver.Monetary)
-				senders = append(senders, Sender{
-					Name:     sender.Name,
-					Monetary: &newMon,
-				})
-			}
 			continue
 		}
 
-		sender, empty := popStack(&senders)
-		if empty {
-			isReceivedAmtZero := receiver.Monetary.Cmp(big.NewInt(0)) == 0
-			if isReceivedAmtZero {
-				return postings
-			}
-
-			return postings
-		}
-
-		snd := (*big.Int)(sender.Monetary)
-
-		var postingAmount big.Int
-		switch snd.Cmp(receiver.Monetary) {
-		case 0: /* sender.Monetary == receiver.Monetary */
-			postingAmount = *sender.Monetary
-		case -1: /* sender.Monetary < receiver.Monetary */
-			var monetary big.Int
-			receivers = append(receivers, Receiver{
-				Name:     receiver.Name,
-				Monetary: monetary.Sub(receiver.Monetary, sender.Monetary),
-			})
-			postingAmount = *sender.Monetary
-		case 1: /* sender.Monetary > receiver.Monetary */
-			var monetary big.Int
-			senders = append(senders, Sender{
-				Name:     sender.Name,
-				Monetary: monetary.Sub(sender.Monetary, receiver.Monetary),
-			})
-			postingAmount = *receiver.Monetary
-		}
-
-		var postingToMerge *Posting
-		if len(postings) != 0 {
-			posting := &postings[len(postings)-1]
-			if posting.Source == sender.Name && posting.Destination == receiver.Name {
-				postingToMerge = posting
-			}
-		}
-
-		if postingToMerge == nil {
+		for _, sender := range senders {
 			postings = append(postings, Posting{
 				Source:      sender.Name,
 				Destination: receiver.Name,
-				Amount:      &postingAmount,
+				Amount:      sender.Amount,
 				Asset:       asset,
 			})
-		} else {
-			// postingToMerge.Amount += postingAmount
-			postingToMerge.Amount.Add(postingToMerge.Amount, &postingAmount)
 		}
 	}
 
 	return postings
-}
-
-func popStack[T any](stack *[]T) (T, bool) {
-	l := len(*stack)
-	if l == 0 {
-		var t T
-		return t, true
-	}
-
-	popped := (*stack)[l-1]
-	*stack = (*stack)[:l-1]
-	return popped, false
 }

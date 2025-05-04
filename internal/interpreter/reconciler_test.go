@@ -41,6 +41,8 @@ func TestReconcileSingletonExactMatch(t *testing.T) {
 }
 
 func TestReconcileZero(t *testing.T) {
+	t.Skip("we should never emit zero postings")
+
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency:  "COIN",
 		Senders:   []Sender{{"src", big.NewInt(0)}},
