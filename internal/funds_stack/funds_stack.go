@@ -17,10 +17,30 @@ type FundsStack struct {
 func NewFundsStack(senders []Sender) FundsStack {
 	// TODO do not modify arg
 	// TODO clone big ints so that we can manipulate them
-	// TODO compact
 	slices.Reverse(senders)
 	return FundsStack{
 		senders: senders,
+	}
+}
+
+func (s *FundsStack) compactTop() {
+	for len(s.senders) >= 2 {
+		first := s.senders[len(s.senders)-1]
+		second := s.senders[len(s.senders)-2]
+
+		if second.Amount.Cmp(big.NewInt(0)) == 0 {
+			s.senders = append(s.senders[0:len(s.senders)-2], first)
+			continue
+		}
+
+		if first.Name != second.Name {
+			return
+		}
+
+		s.senders = append(s.senders[0:len(s.senders)-2], Sender{
+			Name:   first.Name,
+			Amount: new(big.Int).Add(first.Amount, second.Amount),
+		})
 	}
 }
 
@@ -33,6 +53,8 @@ func (s *FundsStack) Pull(requiredAmount *big.Int) []Sender {
 	var out []Sender
 
 	for requiredAmount.Cmp(big.NewInt(0)) != 0 && len(s.senders) != 0 {
+		s.compactTop()
+
 		available := s.senders[len(s.senders)-1]
 
 		switch available.Amount.Cmp(requiredAmount) {
