@@ -615,7 +615,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 			// TODO update cached asset
 
 			s.Postings = append(s.Postings, Posting{
-				Asset:       s.CurrentAsset,
+				Asset:       coloredAsset(s.CurrentAsset, &sender.Color),
 				Source:      sender.Name,
 				Destination: *account,
 				Amount:      sender.Amount,
