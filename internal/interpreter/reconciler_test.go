@@ -36,7 +36,7 @@ func TestReconcileEmpty(t *testing.T) {
 func TestReconcileSingletonExactMatch(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency:  "COIN",
-		Senders:   []Sender{{"src", big.NewInt(10)}},
+		Senders:   []Sender{{"src", big.NewInt(10), nil}},
 		Receivers: []Receiver{{"dest", big.NewInt(10)}},
 		Expected:  []Posting{{"src", "dest", big.NewInt(10), "COIN"}},
 	})
@@ -45,7 +45,7 @@ func TestReconcileSingletonExactMatch(t *testing.T) {
 func TestReconcileZero(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency:  "COIN",
-		Senders:   []Sender{{"src", big.NewInt(0)}},
+		Senders:   []Sender{{"src", big.NewInt(0), nil}},
 		Receivers: []Receiver{{"dest", big.NewInt(0)}},
 		Expected: []Posting{
 			{"src", "dest", big.NewInt(0), "COIN"},
@@ -59,6 +59,7 @@ func TestNoReceiversLeft(t *testing.T) {
 		Senders: []Sender{{
 			"src",
 			big.NewInt(10),
+			nil,
 		}},
 	})
 }
@@ -66,7 +67,7 @@ func TestNoReceiversLeft(t *testing.T) {
 func TestReconcileSendersRemainder(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "EUR",
-		Senders:  []Sender{{"src", big.NewInt(100)}},
+		Senders:  []Sender{{"src", big.NewInt(100), nil}},
 		Receivers: []Receiver{
 			{
 				"d1",
@@ -87,8 +88,8 @@ func TestReconcileWhenSendersAreSplit(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(20)},
-			{"s2", big.NewInt(30)},
+			{"s1", big.NewInt(20), nil},
+			{"s2", big.NewInt(30), nil},
 		},
 		Receivers: []Receiver{{"d", big.NewInt(50)}},
 		Expected: []Posting{
@@ -102,8 +103,8 @@ func TestMany(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(80 + 20)},
-			{"s2", big.NewInt(1000)},
+			{"s1", big.NewInt(80 + 20), nil},
+			{"s2", big.NewInt(1000), nil},
 		},
 		Receivers: []Receiver{
 			{"d1", big.NewInt(80)},
@@ -121,8 +122,8 @@ func TestReconcileManySendersManyReceivers(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "EUR",
 		Senders: []Sender{
-			{"s1", big.NewInt(80 + 20)},
-			{"s2", big.NewInt(1000)},
+			{"s1", big.NewInt(80 + 20), nil},
+			{"s2", big.NewInt(1000), nil},
 		},
 		Receivers: []Receiver{
 			{"d1", big.NewInt(80)},
@@ -140,9 +141,9 @@ func TestReconcileOverlapping(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "EUR",
 		Senders: []Sender{
-			{"src1", big.NewInt(1)},
-			{"src2", big.NewInt(10)},
-			{"src2", big.NewInt(20)},
+			{"src1", big.NewInt(1), nil},
+			{"src2", big.NewInt(10), nil},
+			{"src2", big.NewInt(20), nil},
 		},
 		Receivers: []Receiver{{"d", big.NewInt(31)}},
 		Expected: []Posting{
@@ -156,7 +157,7 @@ func TestReconcileKept(t *testing.T) {
 	runReconcileTestCase(t, ReconcileTestCase{
 		Currency: "GEM",
 		Senders: []Sender{
-			{"src", big.NewInt(100)},
+			{"src", big.NewInt(100), nil},
 		},
 		Receivers: []Receiver{
 			{"dest", big.NewInt(50)},
@@ -165,4 +166,53 @@ func TestReconcileKept(t *testing.T) {
 			{"src", "dest", big.NewInt(50), "GEM"},
 		},
 	})
+}
+
+func TestReconcileColoredAssetExactMatch(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "COIN",
+		Senders: []Sender{
+			{"src", big.NewInt(10), pointer("x")},
+		},
+		Receivers: []Receiver{{"dest", big.NewInt(10)}},
+		Expected:  []Posting{{"src", "dest", big.NewInt(10), "COIN_x"}},
+	})
+}
+
+func TestReconcileColoredManyDestPerSender(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "COIN",
+		Senders: []Sender{
+			{"src", big.NewInt(10), pointer("x")},
+		},
+		Receivers: []Receiver{
+			{"d1", big.NewInt(5)},
+			{"d2", big.NewInt(5)},
+		},
+		Expected: []Posting{
+			{"src", "d1", big.NewInt(5), "COIN_x"},
+			{"src", "d2", big.NewInt(5), "COIN_x"},
+		},
+	})
+}
+
+func TestReconcileColoredManySenderColors(t *testing.T) {
+	runReconcileTestCase(t, ReconcileTestCase{
+		Currency: "COIN",
+		Senders: []Sender{
+			{"src", big.NewInt(1), pointer("c1")},
+			{"src", big.NewInt(1), pointer("c2")},
+		},
+		Receivers: []Receiver{
+			{"dest", big.NewInt(2)},
+		},
+		Expected: []Posting{
+			{"src", "dest", big.NewInt(1), "COIN_c1"},
+			{"src", "dest", big.NewInt(1), "COIN_c2"},
+		},
+	})
+}
+
+func pointer[T any](x T) *T {
+	return &x
 }

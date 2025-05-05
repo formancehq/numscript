@@ -4194,3 +4194,241 @@ func TestGetAmountFunction(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
+
+func TestColorSend(t *testing.T) {
+	script := `
+ 		send [COIN 100] (
+			source = @world \ "RED"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_RED",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorSendOverdrat(t *testing.T) {
+	script := `
+ 		send [COIN 100] (
+			source = @acc \ "RED" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_RED",
+				Amount:      big.NewInt(100),
+				Source:      "acc",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorRestrictBalance(t *testing.T) {
+	script := `
+ 		send [COIN 20] (
+			source = @acc \ "RED"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("acc", "COIN", 1)
+	tc.setBalance("acc", "COIN_RED", 100)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_RED",
+				Amount:      big.NewInt(20),
+				Source:      "acc",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
+	script := `
+ 		send [COIN 20] (
+			source = @acc \ "RED"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("acc", "COIN", 100)
+	tc.setBalance("acc", "COIN_RED", 1)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.MissingFundsErr{
+			Needed:    *big.NewInt(20),
+			Available: *big.NewInt(1),
+			Asset:     "COIN",
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorRestrictionInSendAll(t *testing.T) {
+	script := `
+ 		send [COIN *] (
+			source = @src \ "RED"
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+
+	tc.setBalance("src", "COIN_RED", 42)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{{
+			Asset:       "COIN_RED",
+			Amount:      big.NewInt(42),
+			Source:      "src",
+			Destination: "dest",
+		}},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorInorder(t *testing.T) {
+
+	script := `
+ 		send [COIN 100] (
+			source = {
+					@src \ "RED"
+					@src \ "BLUE"
+					@src
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.setBalance("src", "COIN_RED", 20)
+	tc.setBalance("src", "COIN_BLUE", 30)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_RED",
+				Amount:      big.NewInt(20),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN_BLUE",
+				Amount:      big.NewInt(30),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(50),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestEmptyColor(t *testing.T) {
+	// empty string color behaves as no color
+
+	script := `
+ 		send [COIN *] (
+			source = @src \ "" // <- same as just '@src'
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestColorWithAssetPrecision(t *testing.T) {
+	script := `
+ 		send [USD/4 10] (
+			source = @src \ "COL" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "USD_COL/4",
+				Amount:      big.NewInt(10),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestInvalidColor(t *testing.T) {
+	script := `
+ 		send [USD 10] (
+			source = @src \ "!!" allowing unbounded overdraft
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidColor{
+			Color: "!!",
+			Range: parser.RangeOfIndexed(script, `"!!"`, 0),
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}

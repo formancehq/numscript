@@ -125,6 +125,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:13, Line:1},
@@ -270,6 +271,7 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},

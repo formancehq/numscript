@@ -31,6 +31,7 @@ STAR: '*';
 PLUS: '+';
 MINUS: '-';
 DIV: '/';
+RESTRICT: '\\';
 
 PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 

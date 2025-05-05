@@ -101,6 +101,13 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	}
 }
 
+func evaluateOptExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
+	if expr == nil {
+		return nil, nil
+	}
+	return evaluateExprAs(st, expr, expect)
+}
+
 func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
 	value, err := st.evaluateExpr(expr)
 	if err != nil {
@@ -125,6 +132,26 @@ func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Valu
 		values = append(values, value)
 	}
 	return values, nil
+}
+
+func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (*string, InterpreterError) {
+	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	if err != nil {
+		return nil, err
+	}
+	if color == nil {
+		return nil, nil
+	}
+
+	isValidColor := colorRe.Match([]byte(*color))
+	if !isValidColor {
+		return nil, InvalidColor{
+			Range: colorExpr.GetRange(),
+			Color: *color,
+		}
+	}
+
+	return color, nil
 }
 
 func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
