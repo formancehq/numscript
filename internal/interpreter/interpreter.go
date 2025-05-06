@@ -305,6 +305,10 @@ func (st *programState) pushSender(name string, monetary *big.Int, color *string
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
+
+	srcBalance := st.CachedBalances.fetchBalance(name, coloredAsset(st.CurrentAsset, color))
+	srcBalance.Sub(srcBalance, monetary)
+
 	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary, Color: color})
 }
 
@@ -360,14 +364,21 @@ func (st *programState) getPostings() ([]Posting, InterpreterError) {
 		return nil, err
 	}
 
+	var filteredPostings []Posting
 	for _, posting := range postings {
-		srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
-		srcBalance.Sub(srcBalance, posting.Amount)
+		if posting.Destination == KEPT_ADDR {
+			// refund pre-allocated funds
+			srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
+			srcBalance.Add(srcBalance, posting.Amount)
+		} else {
+			destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset)
+			destBalance.Add(destBalance, posting.Amount)
 
-		destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset)
-		destBalance.Add(destBalance, posting.Amount)
+			filteredPostings = append(filteredPostings, posting)
+		}
 	}
-	return postings, nil
+
+	return filteredPostings, nil
 }
 
 func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]Posting, InterpreterError) {

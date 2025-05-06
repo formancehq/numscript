@@ -161,9 +161,10 @@ func TestReconcileKept(t *testing.T) {
 		},
 		Receivers: []Receiver{
 			{"dest", big.NewInt(50)},
-			{"<kept>", big.NewInt(50)}},
+			{KEPT_ADDR, big.NewInt(50)}},
 		Expected: []Posting{
 			{"src", "dest", big.NewInt(50), "GEM"},
+			{Source: "src", Destination: KEPT_ADDR, Amount: big.NewInt(50), Asset: "GEM"},
 		},
 	})
 }

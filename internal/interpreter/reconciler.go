@@ -48,18 +48,19 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 		}
 
 		// Ugly workaround
-		if receiver.Name == KEPT_ADDR {
-			sender, empty := popStack(&senders)
-			if !empty {
-				var newMon big.Int
-				newMon.Sub(sender.Monetary, receiver.Monetary)
-				senders = append(senders, Sender{
-					Name:     sender.Name,
-					Monetary: &newMon,
-				})
-			}
-			continue
-		}
+		// if receiver.Name == KEPT_ADDR {
+		// 	sender, empty := popStack(&senders)
+		// 	if !empty {
+		// 		panic("P")
+		// 		var newMon big.Int
+		// 		newMon.Sub(sender.Monetary, receiver.Monetary)
+		// 		senders = append(senders, Sender{
+		// 			Name:     sender.Name,
+		// 			Monetary: &newMon,
+		// 		})
+		// 	}
+		// 	continue
+		// }
 
 		sender, empty := popStack(&senders)
 		if empty {

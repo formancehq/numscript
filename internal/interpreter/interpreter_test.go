@@ -713,6 +713,41 @@ func TestNegativeMax(t *testing.T) {
 	test(t, tc)
 }
 
+func TestUpdateBalances(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+// @alice balance is 100 initially
+send [USD 200] (
+	source = {
+		@alice
+		@alice
+		@world
+	}
+	destination = @dest
+)
+	`)
+	tc.setBalance("alice", "USD", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "alice",
+				Destination: "dest",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
 func TestSendAllDestinatioAllot(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
