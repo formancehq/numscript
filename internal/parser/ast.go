@@ -120,8 +120,8 @@ func (expr AccountInterpLiteral) String() string {
 // Source exprs
 
 type Source interface {
+	Ranged
 	source()
-	GetRange() Range
 }
 
 func (*SourceInorder) source()   {}

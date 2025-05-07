@@ -52,3 +52,11 @@ func Filter[T any](slice []T, predicate func(x T) bool) []T {
 	}
 	return ret
 }
+
+func Map[T any, U any](slice []T, f func(x T) U) []U {
+	out := make([]U, len(slice))
+	for index, x := range slice {
+		out[index] = f(x)
+	}
+	return out
+}
