@@ -122,7 +122,7 @@ _Note_: dividing by 0 is a runtime error.
 
 ### New function: `overdraft :: (account, asset) -> monetary`
 
-> flag: `experimental-overdraft-function `
+> flag: `experimental-overdraft-function`
 
 Returns the account's overdraft amount as a positive value (or zero if the account didn't have a negative overdraft)
 
@@ -231,4 +231,89 @@ send [USD/2 *] (
 
 > flag: `experimental-oneof`
 
-TODO!
+You can add a `oneof` modifier to the inorder blocks (in both source and destination position) so that only the first branch that succeeds is picked. Like the default inorder syntax, it can be nested inside other constructs.
+
+In source position, the first branch that is able to allocate enough funds is picked.
+For example:
+
+| account | asset   | amount |
+| ------- | ------- | ------ |
+| `@a`    | `USD/2` | 99     |
+| `@b`    | `USD/2` | 100    |
+
+```numscript
+send [USD/2 100] (
+  source = oneof {
+    @a
+    @b
+  }
+  destination = @dest
+)
+```
+
+Will produce these postings:
+
+| source | destination | asset   | amount |
+| ------ | ----------- | ------- | ------ |
+| `@b`   | `@dest`     | `USD/2` | 200    |
+
+As you can see, unlike the default inorder, only a branch is picked, instead of pulling as much as possible from each account.
+
+You can also combine the two syntaxes:
+
+```numscript
+// pull either from @a or @b
+// but if none of them has enough balance on its own, use the combined balance
+send [USD/2 100] (
+  source = oneof {
+    @a
+    @b
+    { @a @b }
+  }
+  destination = @dest
+)
+```
+
+This also works in destination position: (note that the inorder syntax in destination position has mandatory "max" clauses)
+
+```numscript
+// balances:
+// @a => { USD/2: 99 }
+// @b => { USD/2: 200 }
+
+send [USD/2 100] (
+  source = @world
+  destination = oneof {
+    max [USD/2 20] to @alice
+    max [USD/2 99] to @bob
+    max [USD/2 101] to @charlie
+    remaining kept
+  }
+)
+```
+
+Will produce:
+
+| source   | destination | asset   | amount |
+| -------- | ----------- | ------- | ------ |
+| `@world` | `@charlie`  | `USD/2` | 100    |
+
+This may be useful in contexts where the sent amount is injected via a variable, or when the `oneof` destination block is nested within other blocks.
+
+For example, we can top-up the debt (overdraft) of some accounts, by making sure we either fill it or don't send anything:
+
+```numscript
+// we'll also need the following for this example:
+// experimental-overdraft-function
+// experimental-mid-script-function-call
+send [USD/2 150] (
+  source = @world
+  destination = oneof {
+    // we prioritize acme which is cheap
+    max overdraft(@world:acme) to @world:acme
+    // and eventually evilcorp which is expensive
+    max overdraft(@world:evilcorp) to @world:evilcorp
+    remaining kept
+  }
+)
+```
