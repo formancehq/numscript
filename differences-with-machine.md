@@ -277,10 +277,6 @@ send [USD/2 100] (
 This also works in destination position: (note that the inorder syntax in destination position has mandatory "max" clauses)
 
 ```numscript
-// balances:
-// @a => { USD/2: 99 }
-// @b => { USD/2: 200 }
-
 send [USD/2 100] (
   source = @world
   destination = oneof {
