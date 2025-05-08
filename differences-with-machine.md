@@ -1,4 +1,4 @@
-The implementation of the numscript interpreter behaves mostly the same with the machine implementation that is embedded in the [ledger](https://github.com/formancehq/ledger) repo, however there are new functionalities and some breaking changes that it's important to be aware of.
+The implementation of the numscript interpreter behaves mostly the same with the machine implementation that is embedded in the [ledger](https://github.com/formancehq/ledger) repo, however there are new functionalities and some breaking changes that are important to be aware of.
 
 # Breaking changes
 
@@ -19,9 +19,9 @@ This is true for **every** kind of posting with a zero amount, which now aren't 
 
 <details>
 <summary>Rationale</summary>
-The previous behaviour was an edge cases that wasn't explicitly documented and didn't have clear rules, which could make the users rely on undefined behaviours.
+The previous behaviour was an edge case that wasn't explicitly documented and didn't have clear rules, which could make the users rely on undefined behaviours.
 
-Sometimes this lead to confusing scenarios:
+Sometimes this led to confusing scenarios:
 
 ```numscript
 send [USD/2 0] (
@@ -36,7 +36,7 @@ send [USD/2 0] (
 which would generate those postings:
 `[{source: "s1", destination: "world", amount: 0, asset: "USD/2"}]` (no `@s2`)
 
-Sometimes it lead to noisy outputs:
+Sometimes it led to noisy outputs:
 
 ```numscript
 // if @alice had an empty balance, this was previously a zero posting
@@ -80,7 +80,7 @@ send [USD/2 100] (
 
 ### Optional underscore in numbers literal
 
-You can now write numbers literals with underscores. They only act as visual separators and have no semantic meaning:
+You can now write numeric literals with underscores. They only act as visual separators and have no semantic meaning:
 
 ```java
 123_456 // equivalent to 123456
