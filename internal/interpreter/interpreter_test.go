@@ -4787,3 +4787,75 @@ func TestExampleMinConstraintNoCommissionsWithLowAmt(t *testing.T) {
 		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 	})
 }
+
+func TestExampleMinConstraintMerchantPaysFeesIfNeeded(t *testing.T) {
+	script := `
+vars {
+	number $amt
+  account $fees_hold = virtual()
+}
+
+send [EUR $amt] (
+  source = @merchant
+  destination = {
+    10% to $fees_hold
+    remaining to @dest
+  }
+)
+
+send [EUR 5] (
+  source = {
+    $fees_hold
+    @merchant
+  }
+  destination = @fees
+)
+
+send [EUR *] (
+  source = $fees_hold
+  destination = @fees
+)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("merchant", "EUR", 99999)
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(9), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+}
