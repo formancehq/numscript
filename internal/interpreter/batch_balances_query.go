@@ -147,6 +147,10 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		return nil
 
+	case *parser.SourceThrough:
+		// TODO also check right side? create failing test with colors
+		return st.findBalancesQueries(source.Source)
+
 	default:
 		utils.NonExhaustiveMatchPanic[error](source)
 		return nil

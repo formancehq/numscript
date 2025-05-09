@@ -243,6 +243,13 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 			Bounded: &varMon,
 		}
 
+	case *antlrParser.SrcThroughContext:
+		return &SourceThrough{
+			Range:  ctxToRange(sourceCtx),
+			Source: parseSource(sourceCtx.GetSrc()),
+			Proxy:  parseSource(sourceCtx.GetProxy()),
+		}
+
 	case *antlrParser.SourceContext:
 		return nil
 
