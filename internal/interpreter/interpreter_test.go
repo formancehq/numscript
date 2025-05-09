@@ -4711,3 +4711,79 @@ func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
 	})
 
 }
+func TestExampleMinConstraintNoCommissionsWithLowAmt(t *testing.T) {
+	script := `
+	vars {
+		number $amt
+
+		account $fees_hold = virtual()
+		account $dest_hold = virtual()
+	}
+
+	send [EUR $amt] (
+		source = @world
+		destination = {
+			10% to $fees_hold
+			remaining to $dest_hold
+		}
+	)
+
+	send [EUR *] (
+		source = $fees_hold
+		destination = oneof {
+			max [EUR 5] to @dest
+			remaining to @fees
+		}
+	)
+
+	send [EUR *] (
+		source = $fees_hold
+		destination = @fees
+	)
+	send [EUR *] (
+		source = $dest_hold
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "world", Destination: "fees", Amount: big.NewInt(10), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(9), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+}
