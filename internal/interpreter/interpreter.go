@@ -191,6 +191,8 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
+	case analysis.FnVarOriginVirtual:
+		return virtual(s)
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
@@ -241,6 +243,8 @@ func RunProgram(
 		ctx:                 ctx,
 		FeatureFlags:        featureFlags,
 		Postings:            make([]Posting, 0),
+
+		virtualAccounts: make(map[string]*fundsStack),
 	}
 
 	st.varOriginPosition = true
@@ -295,6 +299,9 @@ type programState struct {
 	Senders    []Sender
 	Postings   []Posting
 
+	nextVirtualAccountId uint16
+	virtualAccounts      map[string]*fundsStack
+
 	// The funds allocated in the left side of a "through" source
 	fundsStack *fundsStack
 
@@ -327,6 +334,15 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	senders := st.fundsStack.Pull(monetary)
 
 	if name == KEPT_ADDR {
+		return
+	}
+
+	if isVirtual(name) {
+		fs := defaultMapGet(st.virtualAccounts, name, func() *fundsStack {
+			s := newFundsStack(nil)
+			return &s
+		})
+		fs.Push(senders...)
 		return
 	}
 
@@ -495,6 +511,21 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		return nil, err
 	}
 
+	if isVirtual(*account) {
+		fs := defaultMapGet(s.virtualAccounts, *account, func() *fundsStack {
+			s := newFundsStack(nil)
+			return &s
+		})
+
+		pulled := fs.PullAll()
+		sentAmt := big.NewInt(0)
+		for _, sender := range pulled {
+			sentAmt.Add(sentAmt, sender.Amount)
+			s.pushSender(sender.Name, sender.Amount, *color)
+		}
+		return sentAmt, nil
+	}
+
 	balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 	// we sent balance+overdraft
@@ -626,6 +657,22 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 
 		actuallySentAmt = new(big.Int).Set(amount)
 
+	} else if isVirtual(*account) {
+		fs := defaultMapGet(s.virtualAccounts, *account, func() *fundsStack {
+			s := newFundsStack(nil)
+			return &s
+		})
+
+		// TODO handle overdraft
+		pulledSenders := fs.Pull(amount)
+
+		sentAmt := big.NewInt(0)
+		for _, sender := range pulledSenders {
+			sentAmt.Add(sentAmt, sender.Amount)
+			s.pushSender(sender.Name, sender.Amount, sender.Color)
+		}
+
+		return sentAmt, nil
 	} else {
 		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 

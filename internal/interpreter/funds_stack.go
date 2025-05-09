@@ -26,6 +26,10 @@ func newFundsStack(senders []Sender) fundsStack {
 	}
 }
 
+func (s *fundsStack) Push(sender ...Sender) {
+	s.senders = append(s.senders, sender...)
+}
+
 func (s *fundsStack) compactTop() {
 	for len(s.senders) >= 2 {
 		first := s.senders[len(s.senders)-1]
@@ -46,6 +50,12 @@ func (s *fundsStack) compactTop() {
 			Amount: new(big.Int).Add(first.Amount, second.Amount),
 		})
 	}
+}
+
+func (s *fundsStack) PullAll() []Sender {
+	senders := s.senders
+	s.senders = nil
+	return senders
 }
 
 func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {

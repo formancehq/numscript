@@ -4568,3 +4568,146 @@ func TestInvalidColor(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
+
+func TestVirtualAccountCreate(t *testing.T) {
+	script := `
+		vars {
+			account $v = virtual()
+		}
+
+ 		send [USD 10] (
+			source = @world
+			destination = $v
+		)
+
+		send [USD 5] (
+			source = $v
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+}
+
+func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
+	script := `
+	// say that we need to send 10%*$amt (up to 5) to @fees; the rest to @dest
+	// if the $amt wasn't at least 5 in the first place, we fail (as @fees isn't able to get 5)
+
+	vars {
+		number $amt
+
+		account $fees_hold = virtual()
+		account $dest_hold = virtual()
+	}
+
+	send [EUR $amt] (
+		source = @world
+		destination = {
+			// we don't send anything to @fees or @dest just yet
+			// that's because we don't know how much @dest can get, yet
+			10% to $fees_hold
+			remaining to $dest_hold
+		}
+	)
+
+	send [EUR 5] (
+		source = {
+			$fees_hold // <- we try to take 5 here
+			$dest_hold // but if it's not enough, we'll take the rest from here
+		} // note that we fail if we don't reach [EUR 5]
+		destination = @fees
+		// $fees_hold and $dest_hold are virtual: therefore they won't show up in the postings
+		// they keep the @world allocation (the source in the first stm) so that's what the
+		// postings will show
+	)
+
+	// now we empty the rest
+	send [EUR *] (
+		source = $fees_hold
+		destination = @fees
+	)
+	send [EUR *] (
+		source = $dest_hold
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+
+				{Source: "world", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=5", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "5"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=3", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "3"}`)
+
+		tc.expected = CaseResult{
+			Error: machine.MissingFundsErr{
+				Asset:     "EUR",
+				Needed:    *big.NewInt(5),
+				Available: *big.NewInt(3),
+			},
+		}
+		test(t, tc)
+	})
+
+}
