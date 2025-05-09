@@ -76,14 +76,17 @@ type NumscriptListener interface {
 	// EnterColorConstraint is called when entering the colorConstraint production.
 	EnterColorConstraint(c *ColorConstraintContext)
 
-	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
-	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
-
 	// EnterSrcAccountBoundedOverdraft is called when entering the srcAccountBoundedOverdraft production.
 	EnterSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
 
-	// EnterSrcAccount is called when entering the srcAccount production.
-	EnterSrcAccount(c *SrcAccountContext)
+	// EnterSrcOneof is called when entering the srcOneof production.
+	EnterSrcOneof(c *SrcOneofContext)
+
+	// EnterSrcAccountUnboundedOverdraft is called when entering the srcAccountUnboundedOverdraft production.
+	EnterSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
+
+	// EnterSrcThrough is called when entering the srcThrough production.
+	EnterSrcThrough(c *SrcThroughContext)
 
 	// EnterSrcAllotment is called when entering the srcAllotment production.
 	EnterSrcAllotment(c *SrcAllotmentContext)
@@ -91,11 +94,11 @@ type NumscriptListener interface {
 	// EnterSrcInorder is called when entering the srcInorder production.
 	EnterSrcInorder(c *SrcInorderContext)
 
-	// EnterSrcOneof is called when entering the srcOneof production.
-	EnterSrcOneof(c *SrcOneofContext)
-
 	// EnterSrcCapped is called when entering the srcCapped production.
 	EnterSrcCapped(c *SrcCappedContext)
+
+	// EnterSrcAccount is called when entering the srcAccount production.
+	EnterSrcAccount(c *SrcAccountContext)
 
 	// EnterAllotmentClauseSrc is called when entering the allotmentClauseSrc production.
 	EnterAllotmentClauseSrc(c *AllotmentClauseSrcContext)
@@ -208,14 +211,17 @@ type NumscriptListener interface {
 	// ExitColorConstraint is called when exiting the colorConstraint production.
 	ExitColorConstraint(c *ColorConstraintContext)
 
-	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
-	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
-
 	// ExitSrcAccountBoundedOverdraft is called when exiting the srcAccountBoundedOverdraft production.
 	ExitSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
 
-	// ExitSrcAccount is called when exiting the srcAccount production.
-	ExitSrcAccount(c *SrcAccountContext)
+	// ExitSrcOneof is called when exiting the srcOneof production.
+	ExitSrcOneof(c *SrcOneofContext)
+
+	// ExitSrcAccountUnboundedOverdraft is called when exiting the srcAccountUnboundedOverdraft production.
+	ExitSrcAccountUnboundedOverdraft(c *SrcAccountUnboundedOverdraftContext)
+
+	// ExitSrcThrough is called when exiting the srcThrough production.
+	ExitSrcThrough(c *SrcThroughContext)
 
 	// ExitSrcAllotment is called when exiting the srcAllotment production.
 	ExitSrcAllotment(c *SrcAllotmentContext)
@@ -223,11 +229,11 @@ type NumscriptListener interface {
 	// ExitSrcInorder is called when exiting the srcInorder production.
 	ExitSrcInorder(c *SrcInorderContext)
 
-	// ExitSrcOneof is called when exiting the srcOneof production.
-	ExitSrcOneof(c *SrcOneofContext)
-
 	// ExitSrcCapped is called when exiting the srcCapped production.
 	ExitSrcCapped(c *SrcCappedContext)
+
+	// ExitSrcAccount is called when exiting the srcAccount production.
+	ExitSrcAccount(c *SrcAccountContext)
 
 	// ExitAllotmentClauseSrc is called when exiting the allotmentClauseSrc production.
 	ExitAllotmentClauseSrc(c *AllotmentClauseSrcContext)

@@ -4195,6 +4195,142 @@ func TestGetAmountFunction(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
 
+func TestThroughSimple(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through @b
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedLeftSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = {@a through @b} through @c
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedRightSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through {@b through @c}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughWithinInorder(t *testing.T) {
+	script := `
+ 		send [COIN 10] (
+			source = {
+				max [COIN 2] from @a allowing unbounded overdraft
+				@b through @proxy // balance=1
+				@world //left=7
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("b", "COIN", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// TODO are we ok with this being the first one? is it always correct?
+			{Source: "b", Destination: "proxy", Amount: big.NewInt(1), Asset: "COIN"},
+
+			{Source: "a", Destination: "dest", Amount: big.NewInt(2), Asset: "COIN"},
+			{Source: "proxy", Destination: "dest", Amount: big.NewInt(1), Asset: "COIN"},
+			{Source: "world", Destination: "dest", Amount: big.NewInt(7), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughComplex(t *testing.T) {
+	script := `
+ 	send [USD/2 10] (
+		source = {
+			@a1 // balance: 5
+			@a2 // balance: 100
+		} through {
+			2/3 from @p1 // [USD/2 7]
+			1/3 from @p2 // [USD/2 3]
+		}
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a1", "USD/2", 5)
+	tc.setBalance("a2", "USD/2", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a1", Destination: "p1", Amount: big.NewInt(5), Asset: "USD/2"},
+			{Source: "a2", Destination: "p1", Amount: big.NewInt(2), Asset: "USD/2"},
+
+			{Source: "a2", Destination: "p2", Amount: big.NewInt(3), Asset: "USD/2"},
+
+			{Source: "p1", Destination: "dest", Amount: big.NewInt(7), Asset: "USD/2"},
+			{Source: "p2", Destination: "dest", Amount: big.NewInt(3), Asset: "USD/2"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
 func TestColorSend(t *testing.T) {
 	script := `
  		send [COIN 100] (

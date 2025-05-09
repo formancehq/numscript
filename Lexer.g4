@@ -17,6 +17,7 @@ ALLOWING: 'allowing';
 UNBOUNDED: 'unbounded';
 OVERDRAFT: 'overdraft';
 ONEOF: 'oneof';
+THROUGH: 'through';
 KEPT: 'kept';
 SAVE: 'save';
 LPARENS: '(';

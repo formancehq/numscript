@@ -47,11 +47,12 @@ source:
 	address = valueExpr colorConstraint? ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
 	| address = valueExpr colorConstraint? ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#
 		srcAccountBoundedOverdraft
-	| valueExpr colorConstraint?		# srcAccount
-	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
-	| LBRACE source* RBRACE				# srcInorder
-	| ONEOF LBRACE source+ RBRACE		# srcOneof
-	| MAX cap = valueExpr FROM source	# srcCapped;
+	| valueExpr colorConstraint?			# srcAccount
+	| LBRACE allotmentClauseSrc+ RBRACE		# srcAllotment
+	| LBRACE source* RBRACE					# srcInorder
+	| ONEOF LBRACE source+ RBRACE			# srcOneof
+	| MAX cap = valueExpr FROM source		# srcCapped
+	| src = source THROUGH proxy = source	# srcThrough;
 allotmentClauseSrc: allotment FROM source;
 
 keptOrDestination:

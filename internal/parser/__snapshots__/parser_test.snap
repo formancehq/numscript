@@ -3222,6 +3222,75 @@ parser.Program{
 }
 ---
 
+[TestThroughSimple - 1]
+parser.Program{
+    Vars:       (*parser.VarDeclarations)(nil),
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{Character:0, Line:1},
+                End:   parser.Position{Character:1, Line:4},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:1},
+                    End:   parser.Position{Character:9, Line:1},
+                },
+                Monetary: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:1},
+                        End:   parser.Position{Character:9, Line:1},
+                    },
+                    Name: "amt",
+                },
+            },
+            Source: &parser.SourceThrough{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:2},
+                    End:   parser.Position{Character:23, Line:2},
+                },
+                Source: &parser.SourceAccount{
+                    Color:     nil,
+                    ValueExpr: &parser.AccountInterpLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:10, Line:2},
+                            End:   parser.Position{Character:12, Line:2},
+                        },
+                        Parts: {
+                            parser.AccountTextPart{Name:"a"},
+                        },
+                    },
+                },
+                Proxy: &parser.SourceAccount{
+                    Color:     nil,
+                    ValueExpr: &parser.AccountInterpLiteral{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:21, Line:2},
+                            End:   parser.Position{Character:23, Line:2},
+                        },
+                        Parts: {
+                            parser.AccountTextPart{Name:"b"},
+                        },
+                    },
+                },
+            },
+            Destination: &parser.DestinationAccount{
+                ValueExpr: &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:15, Line:3},
+                        End:   parser.Position{Character:20, Line:3},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
+                },
+            },
+        },
+    },
+    Comments: nil,
+}
+---
+
 [TestColorRestriction - 1]
 parser.Program{
     Vars:       (*parser.VarDeclarations)(nil),
