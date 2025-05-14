@@ -62,11 +62,27 @@ func (s *fundsStack) compactTop() {
 	}
 }
 
-func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
-	return s.PullColored(requiredAmount, "")
+func (s *fundsStack) PullAll() []Sender {
+	var senders []Sender
+	for s.senders != nil {
+		senders = append(senders, s.senders.Head)
+		s.senders = s.senders.Tail
+	}
+	return senders
+}
+
+func (s *fundsStack) PullAnything(requiredAmount *big.Int) []Sender {
+	return s.Pull(requiredAmount, nil)
 }
 
 func (s *fundsStack) PullColored(requiredAmount *big.Int, color string) []Sender {
+	return s.Pull(requiredAmount, &color)
+}
+func (s *fundsStack) PullUncolored(requiredAmount *big.Int) []Sender {
+	return s.PullColored(requiredAmount, "")
+}
+
+func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
 
@@ -78,6 +94,16 @@ func (s *fundsStack) PullColored(requiredAmount *big.Int, color string) []Sender
 
 		available := s.senders.Head
 		s.senders = s.senders.Tail
+
+		if color != nil && available.Color != *color {
+			out1 := s.Pull(requiredAmount, color)
+			s.senders = &stack[Sender]{
+				Head: available,
+				Tail: s.senders,
+			}
+			out = append(out, out1...)
+			break
+		}
 
 		switch available.Amount.Cmp(requiredAmount) {
 		case -1: // not enough:
