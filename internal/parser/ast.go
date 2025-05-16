@@ -130,6 +130,7 @@ func (*SourceAllotment) source() {}
 func (*SourceAccount) source()   {}
 func (*SourceCapped) source()    {}
 func (*SourceOverdraft) source() {}
+func (*SourceThrough) source()   {}
 
 type (
 	SourceAccount struct {
@@ -169,6 +170,12 @@ type (
 		Color   ValueExpr
 		Address ValueExpr
 		Bounded *ValueExpr
+	}
+
+	SourceThrough struct {
+		Range
+		Source Source
+		Proxy  Source
 	}
 )
 
