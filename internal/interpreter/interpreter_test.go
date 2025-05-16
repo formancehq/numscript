@@ -4859,3 +4859,24 @@ send [EUR *] (
 		test(t, tc)
 	})
 }
+
+func TestSelfSendIsNoop(t *testing.T) {
+	script := `
+vars { account $v = virtual() }
+
+send [EUR 100] (
+  source = $v allowing unbounded overdraft
+  destination = $v
+)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting(nil),
+	}
+	test(t, tc)
+
+}
