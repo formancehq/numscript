@@ -331,7 +331,7 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		return
 	}
 
-	senders := st.fundsStack.Pull(monetary)
+	senders := st.fundsStack.PullAnything(monetary)
 
 	if name == KEPT_ADDR {
 		return
@@ -640,7 +640,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 
 		// TODO test/handle overdraft
 
-		availableSenders := s.fundsStack.Pull(amount)
+		availableSenders := s.fundsStack.PullColored(amount, *color)
 
 		for _, sender := range availableSenders {
 			// TODO update cached asset
@@ -664,7 +664,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		})
 
 		// TODO handle overdraft
-		pulledSenders := fs.Pull(amount)
+		pulledSenders := fs.PullColored(amount, *color)
 
 		sentAmt := big.NewInt(0)
 		for _, sender := range pulledSenders {

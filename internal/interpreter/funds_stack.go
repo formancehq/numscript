@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"math/big"
-	"slices"
 )
 
 type Sender struct {
@@ -11,32 +10,40 @@ type Sender struct {
 	Color  string
 }
 
-type fundsStack struct {
-	senders []Sender
+type stack[T any] struct {
+	Head T
+	Tail *stack[T]
 }
 
-func newFundsStack(senders []Sender) fundsStack {
-	senders = slices.Clone(senders)
-
-	// TODO do not modify arg
-	// TODO clone big ints so that we can manipulate them
-	slices.Reverse(senders)
-	return fundsStack{
-		senders: senders,
+func fromSlice[T any](slice []T) *stack[T] {
+	// TODO make it stack-safe
+	if len(slice) == 0 {
+		return nil
+	}
+	return &stack[T]{
+		Head: slice[0],
+		Tail: fromSlice(slice[1:]),
 	}
 }
 
-func (s *fundsStack) Push(sender ...Sender) {
-	s.senders = append(s.senders, sender...)
+type fundsStack struct {
+	senders *stack[Sender]
+}
+
+func newFundsStack(senders []Sender) fundsStack {
+	return fundsStack{
+		senders: fromSlice(senders),
+	}
 }
 
 func (s *fundsStack) compactTop() {
-	for len(s.senders) >= 2 {
-		first := s.senders[len(s.senders)-1]
-		second := s.senders[len(s.senders)-2]
+	for s.senders != nil && s.senders.Tail != nil {
+
+		first := s.senders.Head
+		second := s.senders.Tail.Head
 
 		if second.Amount.Cmp(big.NewInt(0)) == 0 {
-			s.senders = append(s.senders[0:len(s.senders)-2], first)
+			s.senders = &stack[Sender]{Head: first, Tail: s.senders.Tail.Tail}
 			continue
 		}
 
@@ -44,32 +51,79 @@ func (s *fundsStack) compactTop() {
 			return
 		}
 
-		s.senders = append(s.senders[0:len(s.senders)-2], Sender{
-			Name:   first.Name,
-			Color:  first.Color,
-			Amount: new(big.Int).Add(first.Amount, second.Amount),
-		})
+		s.senders = &stack[Sender]{
+			Head: Sender{
+				Name:   first.Name,
+				Color:  first.Color,
+				Amount: new(big.Int).Add(first.Amount, second.Amount),
+			},
+			Tail: s.senders.Tail.Tail,
+		}
 	}
 }
 
 func (s *fundsStack) PullAll() []Sender {
-	senders := s.senders
-	s.senders = nil
+	var senders []Sender
+	for s.senders != nil {
+		senders = append(senders, s.senders.Head)
+		s.senders = s.senders.Tail
+	}
 	return senders
 }
 
-func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
+func getLastCellOrNil(stack *stack[Sender]) *stack[Sender] {
+	for {
+		if stack.Tail == nil {
+			return stack
+		}
+		stack = stack.Tail
+	}
+}
+
+// TODO(perf) we can keep the reference of the last cell to have an O(1) push
+func (s *fundsStack) Push(senders ...Sender) {
+	newTail := fromSlice(senders)
+	if s.senders == nil {
+		s.senders = newTail
+	} else {
+		cell := getLastCellOrNil(s.senders)
+		cell.Tail = newTail
+	}
+}
+
+func (s *fundsStack) PullAnything(requiredAmount *big.Int) []Sender {
+	return s.Pull(requiredAmount, nil)
+}
+
+func (s *fundsStack) PullColored(requiredAmount *big.Int, color string) []Sender {
+	return s.Pull(requiredAmount, &color)
+}
+func (s *fundsStack) PullUncolored(requiredAmount *big.Int) []Sender {
+	return s.PullColored(requiredAmount, "")
+}
+
+func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
 
 	// TODO preallocate for perfs
 	var out []Sender
 
-	for requiredAmount.Cmp(big.NewInt(0)) != 0 && len(s.senders) != 0 {
+	for requiredAmount.Cmp(big.NewInt(0)) != 0 && s.senders != nil {
 		s.compactTop()
 
-		available := s.senders[len(s.senders)-1]
-		s.senders = s.senders[:len(s.senders)-1]
+		available := s.senders.Head
+		s.senders = s.senders.Tail
+
+		if color != nil && available.Color != *color {
+			out1 := s.Pull(requiredAmount, color)
+			s.senders = &stack[Sender]{
+				Head: available,
+				Tail: s.senders,
+			}
+			out = append(out, out1...)
+			break
+		}
 
 		switch available.Amount.Cmp(requiredAmount) {
 		case -1: // not enough:
@@ -77,11 +131,14 @@ func (s *fundsStack) Pull(requiredAmount *big.Int) []Sender {
 			requiredAmount.Sub(requiredAmount, available.Amount)
 
 		case 1: // more than enough
-			s.senders = append(s.senders, Sender{
-				Name:   available.Name,
-				Color:  available.Color,
-				Amount: new(big.Int).Sub(available.Amount, requiredAmount),
-			})
+			s.senders = &stack[Sender]{
+				Head: Sender{
+					Name:   available.Name,
+					Color:  available.Color,
+					Amount: new(big.Int).Sub(available.Amount, requiredAmount),
+				},
+				Tail: s.senders,
+			}
 			fallthrough
 
 		case 0: // exactly the same
