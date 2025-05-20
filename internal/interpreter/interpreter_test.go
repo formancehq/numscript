@@ -4909,3 +4909,38 @@ send [USD 20] (
 	test(t, tc)
 
 }
+
+func TestTransitiveVirtualAccount(t *testing.T) {
+	script := `
+vars {
+	account $v1 = virtual()
+	account $v2 = virtual()
+}
+
+send [USD 100] (
+  source = @world
+  destination = $v1
+)
+
+send [USD 100] (
+  source = $v1
+  destination = $v2
+)
+
+send [USD 100] (
+  source = $v2
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(100), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
