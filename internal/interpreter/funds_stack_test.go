@@ -172,3 +172,48 @@ func TestPullColoredComplex(t *testing.T) {
 		{Name: "s2", Amount: big.NewInt(1), Color: "c2"},
 	}, out)
 }
+
+func TestRepayWhenEnough(t *testing.T) {
+	credits := newFundsStack([]Sender{
+		{"s1", big.NewInt(2), ""},
+		{"s2", big.NewInt(5), ""},
+	})
+
+	debts := newFundsStack([]Sender{
+		{"d1", big.NewInt(1), ""},
+		{"d2", big.NewInt(2), ""},
+	})
+
+	postings := debts.RepayWith(&credits, "USD")
+
+	require.Equal(t, []Posting{
+		{"s1", "d1", big.NewInt(1), "USD"},
+		{"s1", "d2", big.NewInt(1), "USD"},
+		{"s2", "d2", big.NewInt(1), "USD"},
+	}, postings)
+
+	require.Equal(t, []Sender{
+		{"s2", big.NewInt(4), ""},
+	}, credits.PullAll())
+
+	require.Equal(t, []Sender(nil), debts.PullAll())
+}
+
+func TestRepayWhenNotEnough(t *testing.T) {
+	credits := newFundsStack([]Sender{
+		{"s1", big.NewInt(10), ""},
+	})
+	debts := newFundsStack([]Sender{
+		{"d1", big.NewInt(100), ""},
+	})
+
+	postings := debts.RepayWith(&credits, "USD")
+	require.Equal(t, []Posting{
+		{"s1", "d1", big.NewInt(10), "USD"},
+	}, postings)
+
+	require.Equal(t, []Sender(nil), credits.PullAll())
+	require.Equal(t, []Sender{
+		{"d1", big.NewInt(90), ""},
+	}, debts.PullAll())
+}

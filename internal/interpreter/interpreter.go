@@ -244,7 +244,8 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 		Postings:            make([]Posting, 0),
 
-		virtualAccounts: make(map[string]map[string]*fundsStack),
+		virtualAccountsCredits: make(map[string]map[string]*fundsStack),
+		virtualAccountsDebts:   make(map[string]map[string]*fundsStack),
 	}
 
 	st.varOriginPosition = true
@@ -301,8 +302,9 @@ type programState struct {
 
 	nextVirtualAccountId uint16
 
-	// A {accountid, asset}->fundsStack map
-	virtualAccounts map[string]map[string]*fundsStack
+	// An {accountid, asset}->fundsStack map
+	virtualAccountsCredits map[string]map[string]*fundsStack
+	virtualAccountsDebts   map[string]map[string]*fundsStack
 
 	// The funds allocated in the left side of a "through" source
 	fundsStack *fundsStack
@@ -319,8 +321,18 @@ type programState struct {
 	FeatureFlags map[string]struct{}
 }
 
-func (s *programState) getVirtualAccount(accountId string) *fundsStack {
-	assetsMap := defaultMapGet(s.virtualAccounts, accountId, func() map[string]*fundsStack {
+func (s *programState) getVirtualAccountCredits(accountId string) *fundsStack {
+	assetsMap := defaultMapGet(s.virtualAccountsCredits, accountId, func() map[string]*fundsStack {
+		return make(map[string]*fundsStack)
+	})
+	return defaultMapGet(assetsMap, s.CurrentAsset, func() *fundsStack {
+		fs := newFundsStack(nil)
+		return &fs
+	})
+}
+
+func (s *programState) getVirtualAccountDebits(accountId string) *fundsStack {
+	assetsMap := defaultMapGet(s.virtualAccountsDebts, accountId, func() map[string]*fundsStack {
 		return make(map[string]*fundsStack)
 	})
 	return defaultMapGet(assetsMap, s.CurrentAsset, func() *fundsStack {
@@ -350,12 +362,33 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	}
 
 	if isVirtual(name) {
-		fs := st.getVirtualAccount(name)
-		fs.Push(senders...)
+		// before pushing to credits, pay debts first (if any)
+		debtsFs := st.getVirtualAccountDebits(name)
+
+		fs := newFundsStack(senders)
+		postings := debtsFs.RepayWith(&fs, st.CurrentAsset)
+
+		// fmt.Printf("REPAY: \n-debts: %#v\n-creds: %#v\n", debtsFs.senders, creditsFs.senders)
+
+		creditsFs := st.getVirtualAccountCredits(name)
+		st.Postings = append(st.Postings, postings...)
+
+		creditsFs.Push(senders...)
 		return
 	}
 
 	for _, sender := range senders {
+		if isVirtual(sender.Name) {
+			// since the sender is not an actual account, add this to the account's debits
+			fs := st.getVirtualAccountDebits(sender.Name)
+			fs.Push(Sender{
+				Name:   name,
+				Amount: sender.Amount,
+				Color:  sender.Color,
+			})
+			continue
+		}
+
 		postings := Posting{
 			Source:      sender.Name,
 			Destination: name,
@@ -521,7 +554,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 	}
 
 	if isVirtual(*account) {
-		fs := s.getVirtualAccount(*account)
+		fs := s.getVirtualAccountCredits(*account)
 
 		pulled := fs.PullAll()
 		sentAmt := big.NewInt(0)
@@ -664,7 +697,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		actuallySentAmt = new(big.Int).Set(amount)
 
 	} else if isVirtual(*account) {
-		fs := s.getVirtualAccount(*account)
+		fs := s.getVirtualAccountCredits(*account)
 
 		// TODO handle overdraft
 		pulledSenders := fs.PullColored(amount, *color)

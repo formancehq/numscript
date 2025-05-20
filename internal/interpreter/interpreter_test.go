@@ -4944,3 +4944,34 @@ send [USD 100] (
 	test(t, tc)
 
 }
+
+func TestOverdraftVirtual(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+// we get the same result we'd have by swapping the statements
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @dest
+)
+
+send [USD 200] (
+  source = @world
+  destination = $v
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(100), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
