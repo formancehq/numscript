@@ -244,7 +244,7 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 		Postings:            make([]Posting, 0),
 
-		virtualAccounts: make(map[string]*fundsStack),
+		virtualAccounts: make(map[string]map[string]*fundsStack),
 	}
 
 	st.varOriginPosition = true
@@ -300,7 +300,9 @@ type programState struct {
 	Postings   []Posting
 
 	nextVirtualAccountId uint16
-	virtualAccounts      map[string]*fundsStack
+
+	// A {accountid, asset}->fundsStack map
+	virtualAccounts map[string]map[string]*fundsStack
 
 	// The funds allocated in the left side of a "through" source
 	fundsStack *fundsStack
@@ -315,6 +317,16 @@ type programState struct {
 	CurrentBalanceQuery BalanceQuery
 
 	FeatureFlags map[string]struct{}
+}
+
+func (s *programState) getVirtualAccount(accountId string) *fundsStack {
+	assetsMap := defaultMapGet(s.virtualAccounts, accountId, func() map[string]*fundsStack {
+		return make(map[string]*fundsStack)
+	})
+	return defaultMapGet(assetsMap, s.CurrentAsset, func() *fundsStack {
+		fs := newFundsStack(nil)
+		return &fs
+	})
 }
 
 func (st *programState) pushSender(name string, monetary *big.Int, color string) {
@@ -338,10 +350,7 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	}
 
 	if isVirtual(name) {
-		fs := defaultMapGet(st.virtualAccounts, name, func() *fundsStack {
-			s := newFundsStack(nil)
-			return &s
-		})
+		fs := st.getVirtualAccount(name)
 		fs.Push(senders...)
 		return
 	}
@@ -512,10 +521,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 	}
 
 	if isVirtual(*account) {
-		fs := defaultMapGet(s.virtualAccounts, *account, func() *fundsStack {
-			s := newFundsStack(nil)
-			return &s
-		})
+		fs := s.getVirtualAccount(*account)
 
 		pulled := fs.PullAll()
 		sentAmt := big.NewInt(0)
@@ -658,10 +664,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		actuallySentAmt = new(big.Int).Set(amount)
 
 	} else if isVirtual(*account) {
-		fs := defaultMapGet(s.virtualAccounts, *account, func() *fundsStack {
-			s := newFundsStack(nil)
-			return &s
-		})
+		fs := s.getVirtualAccount(*account)
 
 		// TODO handle overdraft
 		pulledSenders := fs.PullColored(amount, *color)

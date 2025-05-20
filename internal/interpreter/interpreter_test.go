@@ -4880,3 +4880,32 @@ send [EUR 100] (
 	test(t, tc)
 
 }
+
+func TestWrongCurrencyVirtualAcc(t *testing.T) {
+	script := `
+vars { account $v = virtual() }
+
+send [EUR 100] (
+  source = @world
+  destination = $v
+)
+
+send [USD 20] (
+  source = $v
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:     "USD",
+			Available: *big.NewInt(0),
+			Needed:    *big.NewInt(20),
+		},
+	}
+	test(t, tc)
+
+}
