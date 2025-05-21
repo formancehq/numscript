@@ -5004,3 +5004,43 @@ send [USD 200] (
 	test(t, tc)
 
 }
+
+func TestCreditorsStack(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d1
+)
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d2
+)
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d3
+)
+
+send [USD 150] (
+  source = @world
+  destination = $v
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "d1", Amount: big.NewInt(100), Asset: "USD"},
+			{Source: "world", Destination: "d2", Amount: big.NewInt(50), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
