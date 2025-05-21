@@ -4975,3 +4975,32 @@ send [USD 200] (
 	test(t, tc)
 
 }
+
+func TestOverdraftVirtualLeftNegative(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @dest
+)
+
+send [USD 200] (
+  source = @world
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(200), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
