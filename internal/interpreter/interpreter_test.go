@@ -4195,6 +4195,142 @@ func TestGetAmountFunction(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalGetAmountFunctionFeatureFlag)
 }
 
+func TestThroughSimple(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through @b
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedLeftSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = {@a through @b} through @c
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughNestedRightSide(t *testing.T) {
+
+	script := `
+ 		send [COIN 10] (
+			source = @a through {@b through @c}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a", "COIN", 999)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a", Destination: "b", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "b", Destination: "c", Amount: big.NewInt(10), Asset: "COIN"},
+			{Source: "c", Destination: "dest", Amount: big.NewInt(10), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughWithinInorder(t *testing.T) {
+	script := `
+ 		send [COIN 10] (
+			source = {
+				max [COIN 2] from @a allowing unbounded overdraft
+				@b through @proxy // balance=1
+				@world //left=7
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("b", "COIN", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			// TODO are we ok with this being the first one? is it always correct?
+			{Source: "b", Destination: "proxy", Amount: big.NewInt(1), Asset: "COIN"},
+
+			{Source: "a", Destination: "dest", Amount: big.NewInt(2), Asset: "COIN"},
+			{Source: "proxy", Destination: "dest", Amount: big.NewInt(1), Asset: "COIN"},
+			{Source: "world", Destination: "dest", Amount: big.NewInt(7), Asset: "COIN"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
+func TestThroughComplex(t *testing.T) {
+	script := `
+ 	send [USD/2 10] (
+		source = {
+			@a1 // balance: 5
+			@a2 // balance: 100
+		} through {
+			2/3 from @p1 // [USD/2 7]
+			1/3 from @p2 // [USD/2 3]
+		}
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("a1", "USD/2", 5)
+	tc.setBalance("a2", "USD/2", 100)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "a1", Destination: "p1", Amount: big.NewInt(5), Asset: "USD/2"},
+			{Source: "a2", Destination: "p1", Amount: big.NewInt(2), Asset: "USD/2"},
+
+			{Source: "a2", Destination: "p2", Amount: big.NewInt(3), Asset: "USD/2"},
+
+			{Source: "p1", Destination: "dest", Amount: big.NewInt(7), Asset: "USD/2"},
+			{Source: "p2", Destination: "dest", Amount: big.NewInt(3), Asset: "USD/2"},
+		},
+		Error: nil,
+	}
+
+	test(t, tc)
+}
+
 func TestColorSend(t *testing.T) {
 	script := `
  		send [COIN 100] (
@@ -4431,4 +4567,545 @@ func TestInvalidColor(t *testing.T) {
 		},
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestVirtualAccountCreate(t *testing.T) {
+	script := `
+		vars {
+			account $v = virtual()
+		}
+
+ 		send [USD 10] (
+			source = @world
+			destination = $v
+		)
+
+		send [USD 5] (
+			source = $v
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+}
+
+func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
+	script := `
+	// say that we need to send 10%*$amt (up to 5) to @fees; the rest to @dest
+	// if the $amt wasn't at least 5 in the first place, we fail (as @fees isn't able to get 5)
+
+	vars {
+		number $amt
+
+		account $fees_hold = virtual()
+		account $dest_hold = virtual()
+	}
+
+	send [EUR $amt] (
+		source = @world
+		destination = {
+			// we don't send anything to @fees or @dest just yet
+			// that's because we don't know how much @dest can get, yet
+			10% to $fees_hold
+			remaining to $dest_hold
+		}
+	)
+
+	send [EUR 5] (
+		source = {
+			$fees_hold // <- we try to take 5 here
+			$dest_hold // but if it's not enough, we'll take the rest from here
+		} // note that we fail if we don't reach [EUR 5]
+		destination = @fees
+		// $fees_hold and $dest_hold are virtual: therefore they won't show up in the postings
+		// they keep the @world allocation (the source in the first stm) so that's what the
+		// postings will show
+	)
+
+	// now we empty the rest
+	send [EUR *] (
+		source = $fees_hold
+		destination = @fees
+	)
+	send [EUR *] (
+		source = $dest_hold
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+
+				{Source: "world", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=5", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "5"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=3", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "3"}`)
+
+		tc.expected = CaseResult{
+			Error: machine.MissingFundsErr{
+				Asset:     "EUR",
+				Needed:    *big.NewInt(5),
+				Available: *big.NewInt(3),
+			},
+		}
+		test(t, tc)
+	})
+
+}
+func TestExampleMinConstraintNoCommissionsWithLowAmt(t *testing.T) {
+	script := `
+	vars {
+		number $amt
+
+		account $fees_hold = virtual()
+		account $dest_hold = virtual()
+	}
+
+	send [EUR $amt] (
+		source = @world
+		destination = {
+			10% to $fees_hold
+			remaining to $dest_hold
+		}
+	)
+
+	send [EUR *] (
+		source = $fees_hold
+		destination = oneof {
+			max [EUR 5] to @dest
+			remaining to @fees
+		}
+	)
+
+	send [EUR *] (
+		source = $fees_hold
+		destination = @fees
+	)
+	send [EUR *] (
+		source = $dest_hold
+		destination = @dest
+	)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "world", Destination: "fees", Amount: big.NewInt(10), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(9), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+
+				{Source: "world", Destination: "dest", Amount: big.NewInt(1), Asset: "EUR"},
+				{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+	})
+}
+
+func TestExampleMinConstraintMerchantPaysFeesIfNeeded(t *testing.T) {
+	script := `
+vars {
+	number $amt
+  account $fees_hold = virtual()
+}
+
+send [EUR $amt] (
+  source = @merchant
+  destination = {
+    10% to $fees_hold
+    remaining to @dest
+  }
+)
+
+send [EUR 5] (
+  source = {
+    $fees_hold
+    @merchant
+  }
+  destination = @fees
+)
+
+send [EUR *] (
+  source = $fees_hold
+  destination = @fees
+)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("merchant", "EUR", 99999)
+	tc.compile(t, script)
+
+	t.Run("amt=100", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "100"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				// TODO merge those
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(90), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=10", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "10"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(9), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("amt=6", func(t *testing.T) {
+		tc.setVarsFromJSON(t, `{"amt": "6"}`)
+
+		tc.expected = CaseResult{
+			Postings: []machine.Posting{
+				{Source: "merchant", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
+				{Source: "merchant", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
+			},
+		}
+		test(t, tc)
+	})
+}
+
+func TestSelfSendIsNoop(t *testing.T) {
+	script := `
+vars { account $v = virtual() }
+
+send [EUR 100] (
+  source = $v allowing unbounded overdraft
+  destination = $v
+)
+
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting(nil),
+	}
+	test(t, tc)
+
+}
+
+func TestWrongCurrencyVirtualAcc(t *testing.T) {
+	script := `
+vars { account $v = virtual() }
+
+send [EUR 100] (
+  source = @world
+  destination = $v
+)
+
+send [USD 20] (
+  source = $v
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Asset:     "USD",
+			Available: *big.NewInt(0),
+			Needed:    *big.NewInt(20),
+		},
+	}
+	test(t, tc)
+
+}
+
+func TestTransitiveVirtualAccount(t *testing.T) {
+	script := `
+vars {
+	account $v1 = virtual()
+	account $v2 = virtual()
+}
+
+send [USD 100] (
+  source = @world
+  destination = $v1
+)
+
+send [USD 100] (
+  source = $v1
+  destination = $v2
+)
+
+send [USD 100] (
+  source = $v2
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(100), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
+
+func TestOverdraftVirtual(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+// we get the same result we'd have by swapping the statements
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @dest
+)
+
+send [USD 200] (
+  source = @world
+  destination = $v
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(100), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
+
+func TestOverdraftVirtualLeftNegative(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @dest
+)
+
+send [USD 200] (
+  source = @world
+  destination = @dest
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(200), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
+
+func TestCreditorsStack(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d1
+)
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d2
+)
+
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d3
+)
+
+send [USD 150] (
+  source = @world
+  destination = $v
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "d1", Amount: big.NewInt(100), Asset: "USD"},
+			{Source: "world", Destination: "d2", Amount: big.NewInt(50), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+
+}
+
+func TestRepaySelfWithVirtual(t *testing.T) {
+	script := `
+vars {
+	account $alice_virtual = virtual()
+}
+
+send [USD/2 *] (
+  source = @alice
+  destination = $alice_virtual
+)
+
+send [USD/2 10] (
+  source = $alice_virtual allowing unbounded overdraft
+  destination = {
+    1/2 to @dest
+    remaining to $alice_virtual
+  }
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("just enough balance", func(t *testing.T) {
+		// alice has just enough to give to @dest
+		tc.setBalance("alice", "USD/2", 5)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("more than enough but less than 100%", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 6)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("fail when less than the half", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 2)
+		tc.expected = CaseResult{
+			Error: machine.MissingFundsErr{Asset: "USD/2", Needed: *big.NewInt(5), Available: *big.NewInt(2)},
+		}
+		test(t, tc)
+	})
+
+	t.Run("more than 100%", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 100)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
 }

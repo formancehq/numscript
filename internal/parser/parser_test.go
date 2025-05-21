@@ -501,3 +501,14 @@ func TestColorRestrictionUnboundedOverdraft(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 	assert.Empty(t, p.Errors)
 }
+
+func TestThroughSimple(t *testing.T) {
+	p := parser.Parse(`
+send $amt (
+	source = @a through @b
+	destination = @dest
+)
+`)
+	require.Len(t, p.Errors, 0)
+	snaps.MatchSnapshot(t, p.Value)
+}

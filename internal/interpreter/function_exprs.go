@@ -1,7 +1,9 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
@@ -154,4 +156,17 @@ func getAmount(
 	}
 
 	return mon.Amount, nil
+}
+
+func virtual(s *programState) (Value, InterpreterError) {
+	id := s.nextVirtualAccountId
+	s.nextVirtualAccountId++
+
+	accountName := fmt.Sprintf("#<virtual@%d>", id)
+
+	return AccountAddress(accountName), nil
+}
+
+func isVirtual(name string) bool {
+	return strings.HasPrefix(name, "#<virtual@")
 }

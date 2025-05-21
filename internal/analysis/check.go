@@ -61,6 +61,7 @@ const FnVarOriginBalance = "balance"
 const FnVarOriginOverdraft = "overdraft"
 const FnVarOriginGetAsset = "get_asset"
 const FnVarOriginGetAmount = "get_amount"
+const FnVarOriginVirtual = "virtual"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{
@@ -111,6 +112,18 @@ var Builtins = map[string]FnCallResolution{
 			{
 				Version:     parser.NewVersionInterpreter(0, 0, 16),
 				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginVirtual: VarOriginFnCallResolution{
+		Params: []string{},
+		Return: TypeAccount,
+		Docs:   "create a virtual account",
+		VersionConstraints: []VersionClause{
+			{
+				// TODO flag
+				Version: parser.NewVersionInterpreter(0, 0, 17),
+				// FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
 			},
 		},
 	},
