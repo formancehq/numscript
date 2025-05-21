@@ -5044,3 +5044,68 @@ send [USD 150] (
 	test(t, tc)
 
 }
+
+func TestRepaySelfWithVirtual(t *testing.T) {
+	script := `
+vars {
+	account $alice_virtual = virtual()
+}
+
+send [USD/2 *] (
+  source = @alice
+  destination = $alice_virtual
+)
+
+send [USD/2 10] (
+  source = $alice_virtual allowing unbounded overdraft
+  destination = {
+    1/2 to @dest
+    remaining to $alice_virtual
+  }
+)
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	t.Run("just enough balance", func(t *testing.T) {
+		// alice has just enough to give to @dest
+		tc.setBalance("alice", "USD/2", 5)
+
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("more than enough but less than 100%", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 6)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
+	t.Run("fail when less than the half", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 2)
+		tc.expected = CaseResult{
+			Error: machine.MissingFundsErr{Asset: "USD/2", Needed: *big.NewInt(5), Available: *big.NewInt(2)},
+		}
+		test(t, tc)
+	})
+
+	t.Run("more than 100%", func(t *testing.T) {
+		tc.setBalance("alice", "USD/2", 100)
+		tc.expected = CaseResult{
+			Postings: []Posting{
+				{Source: "alice", Destination: "dest", Amount: big.NewInt(5), Asset: "USD/2"},
+			},
+		}
+		test(t, tc)
+	})
+
+}
