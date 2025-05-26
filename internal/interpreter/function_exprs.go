@@ -195,21 +195,21 @@ func maxOf(
 	}
 
 	p := NewArgsParser(args)
-	min1 := parseArg(p, r, expectMonetary)
-	min2 := parseArg(p, r, expectMonetary)
+	max1 := parseArg(p, r, expectMonetary)
+	max2 := parseArg(p, r, expectMonetary)
 	err = p.parse()
 	if err != nil {
 		return nil, err
 	}
 
-	number1 := (*big.Int)(&min1.Amount)
-	number2 := (*big.Int)(&min2.Amount)
+	number1 := (*big.Int)(&max1.Amount)
+	number2 := (*big.Int)(&max2.Amount)
 
 	if number1.Cmp(number2) <= 0 {
-		return *min2, nil
+		return *max2, nil
 	}
 
-	return *min1, nil
+	return *max1, nil
 }
 
 func multiply(
@@ -223,20 +223,20 @@ func multiply(
 	}
 
 	p := NewArgsParser(args)
-	min1 := parseArg(p, r, expectMonetary)
-	min2 := parseArg(p, r, expectMonetary)
+	mon1 := parseArg(p, r, expectMonetary)
+	mon2 := parseArg(p, r, expectMonetary)
 	err = p.parse()
 	if err != nil {
 		return nil, err
 	}
 
-	number1 := (*big.Int)(&min1.Amount)
-	number2 := (*big.Int)(&min2.Amount)
+	number1 := (*big.Int)(&mon1.Amount)
+	number2 := (*big.Int)(&mon2.Amount)
 
 	result := new(big.Int).Mul(number1, number2)
 
 	return Monetary{
-		Asset:  Asset(*&min1.Asset),
+		Asset:  mon1.Asset,
 		Amount: MonetaryInt(*result),
 	}, nil
 }

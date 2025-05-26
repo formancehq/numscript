@@ -12,7 +12,7 @@ const (
 	ExperimentalAssetColors                  FeatureFlag = "experimental-asset-colors"
 	ExperimentalMinOfFunctionFeatureFlag     FeatureFlag = "experimental-min-of-function"
 	ExperimentalMaxOfFunctionFeatureFlag     FeatureFlag = "experimental-max-of-function"
-	ExperimentalMultiplyFunctionFeatureFlag  FeatureFlag = "experimental-multiply-of-function"
+	ExperimentalMultiplyFunctionFeatureFlag  FeatureFlag = "experimental-multiply-function"
 )
 
 var AllFlags []string = []string{
