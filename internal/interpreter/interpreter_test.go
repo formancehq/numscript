@@ -4432,3 +4432,78 @@ func TestInvalidColor(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
+
+func TestMinOfFunction(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $min = min_of([EUR/2 100], [EUR/2 101])
+	}
+
+	send $min (
+		source = @world
+		destination = @test:1234
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "test:1234",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalMinOfFunctionFeatureFlag)
+}
+
+func TestMaxOfFunction(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $min = max_of([EUR/2 100], [EUR/2 101])
+	}
+
+	send $min (
+		source = @world
+		destination = @test:1234
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(101),
+				Source:      "world",
+				Destination: "test:1234",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalMaxOfFunctionFeatureFlag)
+}
+
+func TestMultiplyFunction(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	vars {
+		monetary $min = multiply([EUR/2 5], [EUR/2 6])
+	}
+
+	send $min (
+		source = @world
+		destination = @test:1234
+	)`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "EUR/2",
+				Amount:      big.NewInt(30),
+				Source:      "world",
+				Destination: "test:1234",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalMultiplyFunctionFeatureFlag)
+}

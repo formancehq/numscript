@@ -155,3 +155,88 @@ func getAmount(
 
 	return mon.Amount, nil
 }
+
+func minOf(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalMinOfFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	min1 := parseArg(p, r, expectMonetary)
+	min2 := parseArg(p, r, expectMonetary)
+	err = p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	number1 := (*big.Int)(&min1.Amount)
+	number2 := (*big.Int)(&min2.Amount)
+
+	if number1.Cmp(number2) <= 0 {
+		return *min1, nil
+	}
+
+	return *min2, nil
+}
+
+func maxOf(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalMaxOfFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	min1 := parseArg(p, r, expectMonetary)
+	min2 := parseArg(p, r, expectMonetary)
+	err = p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	number1 := (*big.Int)(&min1.Amount)
+	number2 := (*big.Int)(&min2.Amount)
+
+	if number1.Cmp(number2) <= 0 {
+		return *min2, nil
+	}
+
+	return *min1, nil
+}
+
+func multiply(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalMultiplyFunctionFeatureFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	min1 := parseArg(p, r, expectMonetary)
+	min2 := parseArg(p, r, expectMonetary)
+	err = p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	number1 := (*big.Int)(&min1.Amount)
+	number2 := (*big.Int)(&min2.Amount)
+
+	result := new(big.Int).Mul(number1, number2)
+
+	return Monetary{
+		Asset:  Asset(*&min1.Asset),
+		Amount: MonetaryInt(*result),
+	}, nil
+}

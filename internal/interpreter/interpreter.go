@@ -184,7 +184,12 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
-
+	case analysis.FnVarOriginMinOf:
+		return minOf(s, fnCall.Range, args)
+	case analysis.FnVarOriginMaxOf:
+		return maxOf(s, fnCall.Range, args)
+	case analysis.FnVarOriginMultiply:
+		return multiply(s, fnCall.Range, args)
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
 	}

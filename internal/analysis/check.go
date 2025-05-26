@@ -61,6 +61,9 @@ const FnVarOriginBalance = "balance"
 const FnVarOriginOverdraft = "overdraft"
 const FnVarOriginGetAsset = "get_asset"
 const FnVarOriginGetAmount = "get_amount"
+const FnVarOriginMinOf = "min_of"
+const FnVarOriginMaxOf = "max_of"
+const FnVarOriginMultiply = "multiply"
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{
@@ -111,6 +114,39 @@ var Builtins = map[string]FnCallResolution{
 			{
 				Version:     parser.NewVersionInterpreter(0, 0, 16),
 				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginMinOf: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary, TypeMonetary},
+		Return: TypeMonetary,
+		Docs:   "returns the minimum of two monetary values",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 17),
+				FeatureFlag: flags.ExperimentalMinOfFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginMaxOf: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary, TypeMonetary},
+		Return: TypeMonetary,
+		Docs:   "returns the maximum of two monetary values",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 17),
+				FeatureFlag: flags.ExperimentalMaxOfFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginMultiply: VarOriginFnCallResolution{
+		Params: []string{TypeMonetary, TypeMonetary},
+		Return: TypeMonetary,
+		Docs:   "returns the product of two monetary values",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 17),
+				FeatureFlag: flags.ExperimentalMultiplyFunctionFeatureFlag,
 			},
 		},
 	},
