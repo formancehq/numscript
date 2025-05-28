@@ -368,8 +368,6 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		fs := newFundsStack(senders)
 		postings := debtsFs.RepayWith(&fs, st.CurrentAsset)
 
-		// fmt.Printf("REPAY: \n-debts: %#v\n-creds: %#v\n", debtsFs.senders, creditsFs.senders)
-
 		creditsFs := st.getVirtualAccountCredits(name)
 		st.Postings = append(st.Postings, postings...)
 
@@ -671,44 +669,41 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		return nil, err
 	}
 
+	if isVirtual(*account) {
+		fs := s.getVirtualAccountCredits(*account)
+
+		pulledSenders := fs.PullColored(amount, *color)
+
+		pulledAmt := big.NewInt(0)
+		for _, sender := range pulledSenders {
+			pulledAmt.Add(pulledAmt, sender.Amount)
+			s.pushSender(sender.Name, sender.Amount, sender.Color)
+		}
+
+		// if we didn't pull enough
+		if pulledAmt.Cmp(amount) == -1 {
+			// invariant: leftAmt > 0
+			// (we never pull more than required)
+			leftAmt := new(big.Int).Sub(amount, pulledAmt)
+
+			var addionalSent *big.Int
+			if overdraft == nil {
+				addionalSent = new(big.Int).Set(leftAmt)
+			} else {
+				addionalSent = utils.MinBigInt(overdraft, leftAmt)
+			}
+
+			pulledAmt.Add(pulledAmt, addionalSent)
+			s.pushSender(*account, addionalSent, *color)
+		}
+
+		return pulledAmt, nil
+	}
+
 	var actuallySentAmt *big.Int
 	if overdraft == nil {
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
-	} else if s.fundsStack != nil {
-
-		// TODO test/handle overdraft
-
-		availableSenders := s.fundsStack.PullColored(amount, *color)
-
-		for _, sender := range availableSenders {
-			// TODO update cached asset
-
-			s.Postings = append(s.Postings, Posting{
-				Asset:       coloredAsset(s.CurrentAsset, &sender.Color),
-				Source:      sender.Name,
-				Destination: *account,
-				Amount:      sender.Amount,
-			})
-		}
-
-		// TODO what if we didn't pull enough? Would that be possible?
-
-		actuallySentAmt = new(big.Int).Set(amount)
-
-	} else if isVirtual(*account) {
-		fs := s.getVirtualAccountCredits(*account)
-
-		// TODO handle overdraft
-		pulledSenders := fs.PullColored(amount, *color)
-
-		sentAmt := big.NewInt(0)
-		for _, sender := range pulledSenders {
-			sentAmt.Add(sentAmt, sender.Amount)
-			s.pushSender(sender.Name, sender.Amount, sender.Color)
-		}
-
-		return sentAmt, nil
 	} else {
 		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
@@ -716,7 +711,6 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
 		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
-
 	s.pushSender(*account, actuallySentAmt, *color)
 	return actuallySentAmt, nil
 }
