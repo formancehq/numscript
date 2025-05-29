@@ -23,9 +23,9 @@ func (e ReconcileError) Error() string {
 }
 
 type Sender struct {
-	Name     string
-	Monetary *big.Int
-	Color    *string
+	Name   string
+	Amount *big.Int
+	Color  *string
 }
 
 type Receiver struct {
@@ -52,10 +52,10 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			sender, empty := popStack(&senders)
 			if !empty {
 				var newMon big.Int
-				newMon.Sub(sender.Monetary, receiver.Monetary)
+				newMon.Sub(sender.Amount, receiver.Monetary)
 				senders = append(senders, Sender{
-					Name:     sender.Name,
-					Monetary: &newMon,
+					Name:   sender.Name,
+					Amount: &newMon,
 				})
 			}
 			continue
@@ -71,23 +71,23 @@ func Reconcile(asset string, senders []Sender, receivers []Receiver) ([]Posting,
 			return postings, nil
 		}
 
-		snd := (*big.Int)(sender.Monetary)
+		snd := (*big.Int)(sender.Amount)
 
 		var postingAmount big.Int
 		switch snd.Cmp(receiver.Monetary) {
 		case 0: /* sender.Monetary == receiver.Monetary */
-			postingAmount = *sender.Monetary
+			postingAmount = *sender.Amount
 		case -1: /* sender.Monetary < receiver.Monetary */
 			receivers = append(receivers, Receiver{
 				Name:     receiver.Name,
-				Monetary: new(big.Int).Sub(receiver.Monetary, sender.Monetary),
+				Monetary: new(big.Int).Sub(receiver.Monetary, sender.Amount),
 			})
-			postingAmount = *sender.Monetary
+			postingAmount = *sender.Amount
 		case 1: /* sender.Monetary > receiver.Monetary */
 			senders = append(senders, Sender{
-				Name:     sender.Name,
-				Monetary: new(big.Int).Sub(sender.Monetary, receiver.Monetary),
-				Color:    sender.Color,
+				Name:   sender.Name,
+				Amount: new(big.Int).Sub(sender.Amount, receiver.Monetary),
+				Color:  sender.Color,
 			})
 			postingAmount = *receiver.Monetary
 		}

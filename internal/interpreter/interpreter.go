@@ -305,7 +305,7 @@ func (st *programState) pushSender(name string, monetary *big.Int, color *string
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary, Color: color})
+	st.Senders = append(st.Senders, Sender{Name: name, Amount: monetary, Color: color})
 }
 
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
