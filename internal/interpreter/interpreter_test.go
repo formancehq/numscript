@@ -4840,6 +4840,66 @@ send [USD 200] (
 
 }
 
+func TestBoundedOverdraftVirtualWhenFails(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 10] (
+  source = @world
+  destination = $v
+)
+
+send [USD 100] (
+  source = $v allowing overdraft up to [USD 1]
+  destination = @dest
+)
+
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Available: *big.NewInt(11),
+			Needed:    *big.NewInt(100),
+			Asset:     "USD",
+		},
+	}
+	test(t, tc)
+}
+
+func TestBoundedOverdraftVirtualWhenDoesNotFail(t *testing.T) {
+	script := `
+vars {
+	account $v = virtual()
+}
+
+send [USD 10] (
+  source = @world
+  destination = $v
+)
+
+send [USD 100] (
+  source = $v allowing overdraft up to [USD 9999]
+  destination = @dest
+)
+
+`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(10), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+}
+
 func TestOverdraftVirtualLeftNegative(t *testing.T) {
 	script := `
 vars {
