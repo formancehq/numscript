@@ -74,6 +74,13 @@ type InterpreterError interface {
 
 type Metadata = map[string]Value
 
+type Posting struct {
+	Source      string   `json:"source"`
+	Destination string   `json:"destination"`
+	Amount      *big.Int `json:"amount"`
+	Asset       string   `json:"asset"`
+}
+
 type ExecutionResult struct {
 	Postings []Posting `json:"postings"`
 
@@ -229,6 +236,8 @@ func RunProgram(
 		CachedBalances:     Balances{},
 		SetAccountsMeta:    AccountsMetadata{},
 		Store:              store,
+		Postings:           make([]Posting, 0),
+		fundsStack:         newFundsStack(nil),
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
@@ -257,17 +266,15 @@ func RunProgram(
 		return nil, QueryBalanceError{WrappedError: genericErr}
 	}
 
-	postings := make([]Posting, 0)
 	for _, statement := range program.Statements {
-		statementPostings, err := st.runStatement(statement)
+		err := st.runStatement(statement)
 		if err != nil {
 			return nil, err
 		}
-		postings = append(postings, statementPostings...)
 	}
 
 	res := &ExecutionResult{
-		Postings:         postings,
+		Postings:         st.Postings,
 		Metadata:         st.TxMeta,
 		AccountsMetadata: st.SetAccountsMeta,
 	}
@@ -281,13 +288,13 @@ type programState struct {
 
 	// Asset of the send statement currently being executed.
 	//
-	// it's value is undefined outside of send statements execution
+	// its value is undefined outside of send statements execution
 	CurrentAsset string
 
 	ParsedVars map[string]Value
 	TxMeta     map[string]Value
-	Senders    []Sender
-	Receivers  []Receiver
+	Postings   []Posting
+	fundsStack fundsStack
 
 	Store Store
 
@@ -301,46 +308,63 @@ type programState struct {
 	FeatureFlags map[string]struct{}
 }
 
-func (st *programState) pushSender(name string, monetary *big.Int, color *string) {
+func (st *programState) pushSender(name string, monetary *big.Int, color string) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Senders = append(st.Senders, Sender{Name: name, Monetary: monetary, Color: color})
+
+	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset)
+	balance.Sub(balance, monetary)
+
+	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
 }
 
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
-	st.Receivers = append(st.Receivers, Receiver{Name: name, Monetary: monetary})
+
+	senders := st.fundsStack.PullAnything(monetary)
+
+	for _, sender := range senders {
+		postings := Posting{
+			Source:      sender.Name,
+			Destination: name,
+			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
+			Amount:      sender.Amount,
+		}
+
+		if name == KEPT_ADDR {
+			// If funds are kept, give them back to senders
+			srcBalance := st.CachedBalances.fetchBalance(postings.Source, postings.Asset)
+			srcBalance.Add(srcBalance, postings.Amount)
+
+			continue
+		}
+
+		destBalance := st.CachedBalances.fetchBalance(postings.Destination, postings.Asset)
+		destBalance.Add(destBalance, postings.Amount)
+
+		st.Postings = append(st.Postings, postings)
+	}
 }
 
-func (st *programState) runStatement(statement parser.Statement) ([]Posting, InterpreterError) {
-	st.Senders = nil
-	st.Receivers = nil
-
+func (st *programState) runStatement(statement parser.Statement) InterpreterError {
 	switch statement := statement.(type) {
 	case *parser.FnCall:
 		args, err := st.evaluateExpressions(statement.Args)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		switch statement.Caller.Name {
 		case analysis.FnSetTxMeta:
-			err := setTxMeta(st, statement.Caller.Range, args)
-			if err != nil {
-				return nil, err
-			}
+			return setTxMeta(st, statement.Caller.Range, args)
 		case analysis.FnSetAccountMeta:
-			err := setAccountMeta(st, statement.Caller.Range, args)
-			if err != nil {
-				return nil, err
-			}
+			return setAccountMeta(st, statement.Caller.Range, args)
 		default:
-			return nil, UnboundFunctionErr{Name: statement.Caller.Name}
+			return UnboundFunctionErr{Name: statement.Caller.Name}
 		}
-		return nil, nil
 
 	case *parser.SendStatement:
 		return st.runSendStatement(*statement)
@@ -350,35 +374,19 @@ func (st *programState) runStatement(statement parser.Statement) ([]Posting, Int
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](statement)
-		return nil, nil
+		return nil
 	}
 }
 
-func (st *programState) getPostings() ([]Posting, InterpreterError) {
-	postings, err := Reconcile(st.CurrentAsset, st.Senders, st.Receivers)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, posting := range postings {
-		srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset)
-		srcBalance.Sub(srcBalance, posting.Amount)
-
-		destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset)
-		destBalance.Add(destBalance, posting.Amount)
-	}
-	return postings, nil
-}
-
-func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]Posting, InterpreterError) {
+func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) InterpreterError {
 	asset, amt, err := st.evaluateSentAmt(saveStatement.SentValue)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccount)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	balance := st.CachedBalances.fetchBalance(*account, *asset)
@@ -388,7 +396,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 	} else {
 		// Do not allow negative saves
 		if amt.Cmp(big.NewInt(0)) == -1 {
-			return nil, NegativeAmountErr{
+			return NegativeAmountErr{
 				Range:  saveStatement.SentValue.GetRange(),
 				Amount: MonetaryInt(*amt),
 			}
@@ -402,55 +410,45 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) ([]
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (st *programState) runSendStatement(statement parser.SendStatement) ([]Posting, InterpreterError) {
+func (st *programState) runSendStatement(statement parser.SendStatement) InterpreterError {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
 		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		st.CurrentAsset = *asset
 		sentAmt, err := st.sendAll(statement.Source)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		err = st.receiveFrom(statement.Destination, sentAmt)
-		if err != nil {
-			return nil, err
-		}
-		return st.getPostings()
+		return st.receiveFrom(statement.Destination, sentAmt)
 
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		st.CurrentAsset = string(monetary.Asset)
 
 		monetaryAmt := (*big.Int)(&monetary.Amount)
 		if monetaryAmt.Cmp(big.NewInt(0)) == -1 {
-			return nil, NegativeAmountErr{Amount: monetary.Amount}
+			return NegativeAmountErr{Amount: monetary.Amount}
 		}
 
 		err = st.trySendingExact(statement.Source, monetaryAmt)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		// TODO simplify pointers
 		amt := big.Int(monetary.Amount)
-		err = st.receiveFrom(statement.Destination, &amt)
-		if err != nil {
-			return nil, err
-		}
-
-		return st.getPostings()
+		return st.receiveFrom(statement.Destination, &amt)
 	default:
 		utils.NonExhaustiveMatchPanic[any](sentValue)
-		return nil, nil
+		return nil
 	}
 
 }
@@ -483,7 +481,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 
 	// we sent balance+overdraft
 	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
-	s.pushSender(*account, sentAmt, color)
+	s.pushSender(*account, sentAmt, *color)
 	return sentAmt, nil
 }
 
@@ -596,9 +594,18 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
 		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
 	}
-
-	s.pushSender(*account, actuallySentAmt, color)
+	s.pushSender(*account, actuallySentAmt, *color)
 	return actuallySentAmt, nil
+}
+
+func (s *programState) cloneState() func() {
+	fsBackup := s.fundsStack.Clone()
+	balancesBackup := s.CachedBalances.deepClone()
+
+	return func() {
+		s.fundsStack = fsBackup
+		s.CachedBalances = balancesBackup
+	}
 }
 
 // Tries sending "amount" and returns the actually sent amt.
@@ -640,9 +647,8 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		leadingSources := source.Sources[0 : len(source.Sources)-1]
 
 		for _, source := range leadingSources {
-
-			// do not move this line below (as .trySendingUpTo() will mutate senders' length)
-			backtrackingIndex := len(s.Senders)
+			// do not move this line below (as .trySendingUpTo() will mutate the fundsStack)
+			undo := s.cloneState()
 
 			sentAmt, err := s.trySendingUpTo(source, amount)
 			if err != nil {
@@ -655,7 +661,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			}
 
 			// else, backtrack to remove this branch's sendings
-			s.Senders = s.Senders[0:backtrackingIndex]
+			undo()
 		}
 
 		return s.trySendingUpTo(source.Sources[len(source.Sources)-1], amount)

@@ -140,7 +140,8 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (*string, Inter
 		return nil, err
 	}
 	if color == nil {
-		return nil, nil
+		col := ""
+		return &col, nil
 	}
 
 	isValidColor := colorRe.Match([]byte(*color))
