@@ -16,14 +16,15 @@ type stack[T any] struct {
 }
 
 func fromSlice[T any](slice []T) *stack[T] {
-	// TODO make it stack-safe
-	if len(slice) == 0 {
-		return nil
+	var ret *stack[T]
+	// TODO use https://pkg.go.dev/slices#Backward in golang 1.23
+	for i := len(slice) - 1; i >= 0; i-- {
+		ret = &stack[T]{
+			Head: slice[i],
+			Tail: ret,
+		}
 	}
-	return &stack[T]{
-		Head: slice[0],
-		Tail: fromSlice(slice[1:]),
-	}
+	return ret
 }
 
 type fundsStack struct {
