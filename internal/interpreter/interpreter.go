@@ -598,6 +598,16 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 	return actuallySentAmt, nil
 }
 
+func (s *programState) cloneState() func() {
+	fsBackup := s.fundsStack.Clone()
+	balancesBackup := s.CachedBalances.deepClone()
+
+	return func() {
+		s.fundsStack = fsBackup
+		s.CachedBalances = balancesBackup
+	}
+}
+
 // Tries sending "amount" and returns the actually sent amt.
 // Doesn't fail (unless nested sources fail)
 func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
@@ -638,8 +648,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 
 		for _, source := range leadingSources {
 			// do not move this line below (as .trySendingUpTo() will mutate the fundsStack)
-			fsBackup := s.fundsStack.Clone()
-			balancesBackup := s.CachedBalances.deepClone()
+			undo := s.cloneState()
 
 			sentAmt, err := s.trySendingUpTo(source, amount)
 			if err != nil {
@@ -652,8 +661,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			}
 
 			// else, backtrack to remove this branch's sendings
-			s.fundsStack = fsBackup
-			s.CachedBalances = balancesBackup
+			undo()
 		}
 
 		return s.trySendingUpTo(source.Sources[len(source.Sources)-1], amount)
