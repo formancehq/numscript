@@ -16,14 +16,15 @@ type stack[T any] struct {
 }
 
 func fromSlice[T any](slice []T) *stack[T] {
-	// TODO make it stack-safe
-	if len(slice) == 0 {
-		return nil
+	var ret *stack[T]
+	// TODO use https://pkg.go.dev/slices#Backward in golang 1.23
+	for i := len(slice) - 1; i >= 0; i-- {
+		ret = &stack[T]{
+			Head: slice[i],
+			Tail: ret,
+		}
 	}
-	return &stack[T]{
-		Head: slice[0],
-		Tail: fromSlice(slice[1:]),
-	}
+	return ret
 }
 
 type fundsStack struct {
@@ -153,38 +154,6 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 	}
 
 	return out
-}
-
-// Treat this stack as debts and filter out senders by "repaying" debts
-func (s *fundsStack) RepayWith(credits *fundsStack, asset string) []Posting {
-	var postings []Posting
-
-	for s.senders != nil {
-		// Peek head from debts and try to pull that much
-		hd := s.senders.Head
-
-		senders := credits.Pull(hd.Amount, &hd.Color)
-		totalRepayed := big.NewInt(0)
-		for _, sender := range senders {
-			totalRepayed.Add(totalRepayed, sender.Amount)
-			postings = append(postings, Posting{
-				Source:      sender.Name,
-				Destination: hd.Name,
-				Amount:      sender.Amount,
-				Asset:       coloredAsset(asset, &sender.Color),
-			})
-		}
-
-		pulled := s.Pull(totalRepayed, &hd.Color)
-		if len(pulled) == 0 {
-			break
-		}
-
-		// careful: infinite loops possible with different colors
-		// break
-	}
-
-	return postings
 }
 
 // Clone the stack so that you can safely mutate one without mutating the other
