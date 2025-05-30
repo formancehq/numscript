@@ -13,6 +13,34 @@ type Sender struct {
 type stack[T any] struct {
 	Head T
 	Tail *stack[T]
+
+	// Instead of keeping a single ref of the lastCell and updating the invariant on every push/pop operation,
+	// we keep a cache of the last cell on every cell.
+	// This makes code much easier and we don't risk breaking the invariant and producing wrong results and other subtle issues
+	//
+	// While, unlike keeping a single reference (like golang's queue `container/list` package does), this is not always O(1),
+	// the amortized time should still be O(1) (the number of steps of traversal while searching the last elem is not higher than the number of .Push() calls)
+	lastCell *stack[T]
+}
+
+func (s *stack[T]) getLastCell() *stack[T] {
+	// check if this is the last cell without reading cache first
+	if s.Tail == nil {
+		return s
+	}
+
+	// if not, check if cache is present
+	if s.lastCell != nil {
+		// even if it is, it may be a stale value (as more values could have been pushed), so we check the value recursively
+		lastCell := s.lastCell.getLastCell()
+		// we do path compression so that next time we get the path immediately
+		s.lastCell = lastCell
+		return lastCell
+	}
+
+	// if no last value is cached, we traverse recursively to find it
+	s.lastCell = s.Tail.getLastCell()
+	return s.lastCell
 }
 
 func fromSlice[T any](slice []T) *stack[T] {
@@ -72,22 +100,12 @@ func (s *fundsStack) PullAll() []Sender {
 	return senders
 }
 
-func getLastCellOrNil(stack *stack[Sender]) *stack[Sender] {
-	for {
-		if stack.Tail == nil {
-			return stack
-		}
-		stack = stack.Tail
-	}
-}
-
-// TODO(perf) we can keep the reference of the last cell to have an O(1) push
 func (s *fundsStack) Push(senders ...Sender) {
 	newTail := fromSlice(senders)
 	if s.senders == nil {
 		s.senders = newTail
 	} else {
-		cell := getLastCellOrNil(s.senders)
+		cell := s.senders.getLastCell()
 		cell.Tail = newTail
 	}
 }

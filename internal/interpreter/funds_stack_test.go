@@ -188,3 +188,25 @@ func TestClone(t *testing.T) {
 	}, cloned.PullAll())
 
 }
+
+func TestCompactFundsAndPush(t *testing.T) {
+	noCol := ""
+
+	stack := newFundsStack([]Sender{
+		{Name: "s1", Amount: big.NewInt(2)},
+		{Name: "s1", Amount: big.NewInt(10)},
+	})
+
+	stack.Pull(big.NewInt(1), &noCol)
+
+	stack.Push(Sender{
+		Name:   "pushed",
+		Amount: big.NewInt(42),
+	})
+
+	out := stack.PullAll()
+	require.Equal(t, []Sender{
+		{Name: "s1", Amount: big.NewInt(11)},
+		{Name: "pushed", Amount: big.NewInt(42)},
+	}, out)
+}
