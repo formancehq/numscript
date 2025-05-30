@@ -288,7 +288,7 @@ type programState struct {
 
 	// Asset of the send statement currently being executed.
 	//
-	// it's value is undefined outside of send statements execution
+	// its value is undefined outside of send statements execution
 	CurrentAsset string
 
 	ParsedVars map[string]Value
@@ -312,6 +312,10 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
+
+	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset)
+	balance.Sub(balance, monetary)
+
 	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
 }
 
@@ -322,10 +326,6 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 
 	senders := st.fundsStack.PullAnything(monetary)
 
-	if name == KEPT_ADDR {
-		return
-	}
-
 	for _, sender := range senders {
 		postings := Posting{
 			Source:      sender.Name,
@@ -334,8 +334,13 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 			Amount:      sender.Amount,
 		}
 
-		srcBalance := st.CachedBalances.fetchBalance(postings.Source, postings.Asset)
-		srcBalance.Sub(srcBalance, postings.Amount)
+		if name == KEPT_ADDR {
+			// If funds are kept, give them back to senders
+			srcBalance := st.CachedBalances.fetchBalance(postings.Source, postings.Asset)
+			srcBalance.Add(srcBalance, postings.Amount)
+
+			continue
+		}
 
 		destBalance := st.CachedBalances.fetchBalance(postings.Destination, postings.Asset)
 		destBalance.Add(destBalance, postings.Amount)
@@ -634,6 +639,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		for _, source := range leadingSources {
 			// do not move this line below (as .trySendingUpTo() will mutate the fundsStack)
 			fsBackup := s.fundsStack.Clone()
+			balancesBackup := s.CachedBalances.deepClone()
 
 			sentAmt, err := s.trySendingUpTo(source, amount)
 			if err != nil {
@@ -647,6 +653,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 
 			// else, backtrack to remove this branch's sendings
 			s.fundsStack = fsBackup
+			s.CachedBalances = balancesBackup
 		}
 
 		return s.trySendingUpTo(source.Sources[len(source.Sources)-1], amount)

@@ -13,6 +13,19 @@ func (b Balances) fetchAccountBalances(account string) AccountBalance {
 	})
 }
 
+func (b Balances) deepClone() Balances {
+	cloned := make(Balances)
+	for account, accountBalances := range b {
+		for asset, amount := range accountBalances {
+			clonedAccountBalances := cloned.fetchAccountBalances(account)
+			defaultMapGet(clonedAccountBalances, asset, func() *big.Int {
+				return new(big.Int).Set(amount)
+			})
+		}
+	}
+	return cloned
+}
+
 func coloredAsset(asset string, color *string) string {
 	if color == nil || *color == "" {
 		return asset
