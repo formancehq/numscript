@@ -4432,3 +4432,72 @@ func TestInvalidColor(t *testing.T) {
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
+
+func TestUpdateBalances(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+// @alice balance is 100 initially
+send [USD 200] (
+	source = {
+		@alice
+		@alice
+		@world
+	}
+	destination = @dest
+)
+	`)
+	tc.setBalance("alice", "USD", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "alice",
+				Destination: "dest",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestUpdateBalancesWithOneof(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+// @alice balance is 100 initially
+send [USD 200] (
+	source = oneof {
+		@alice
+		{@alice @world}
+	}
+	destination = @dest
+)
+	`)
+	tc.setBalance("alice", "USD", 100)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "alice",
+				Destination: "dest",
+			},
+			{
+				Asset:       "USD",
+				Amount:      big.NewInt(100),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
+}
