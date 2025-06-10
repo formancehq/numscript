@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-virtual-account"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.error.missingFunds": true
+    }
+  ]
+}

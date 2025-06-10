@@ -31,7 +31,11 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		if err != nil {
 			return err
 		}
-		st.batchQuery(*account, *asset, nil)
+
+		if account, ok := account.Repr.(AccountAddress); ok {
+			st.batchQuery(string(account), *asset, nil)
+		}
+
 		return nil
 
 	case *parser.SendStatement:
@@ -95,7 +99,10 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		if account, ok := account.Repr.(AccountAddress); ok {
+			st.batchQuery(string(account), st.CurrentAsset, color)
+		}
+
 		return nil
 
 	case *parser.SourceWithScaling:
@@ -110,7 +117,13 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, assetToScaledAsset(st.CurrentAsset), color)
+		switch account := account.Repr.(type) {
+		case AccountAddress:
+			st.batchQuery(string(account), assetToScaledAsset(st.CurrentAsset), color)
+
+		case VirtualAccount:
+
+		}
 		return nil
 
 	case *parser.SourceOverdraft:
@@ -128,7 +141,10 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		if account, ok := account.Repr.(AccountAddress); ok {
+			st.batchQuery(string(account), st.CurrentAsset, color)
+		}
+
 		return nil
 
 	case *parser.SourceInorder:

@@ -8,6 +8,16 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+type AccountValue interface {
+	account()
+	String() string
+}
+
+type AccountAddress string
+
+func (AccountAddress) account() {}
+func (VirtualAccount) account() {}
+
 type Value interface {
 	value()
 	String() string
@@ -16,25 +26,25 @@ type Value interface {
 type String string
 type Asset string
 type Portion big.Rat
-type AccountAddress string
+type Account struct{ Repr AccountValue }
 type MonetaryInt big.Int
 type Monetary struct {
 	Amount MonetaryInt
 	Asset  Asset
 }
 
-func (String) value()         {}
-func (AccountAddress) value() {}
-func (MonetaryInt) value()    {}
-func (Monetary) value()       {}
-func (Portion) value()        {}
-func (Asset) value()          {}
+func (String) value()      {}
+func (Account) value()     {}
+func (MonetaryInt) value() {}
+func (Monetary) value()    {}
+func (Portion) value()     {}
+func (Asset) value()       {}
 
-func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
+func NewAccountAddress(src string) (Account, InterpreterError) {
 	if !checkAccountName(src) {
-		return AccountAddress(""), InvalidAccountName{Name: src}
+		return Account{AccountAddress("")}, InvalidAccountName{Name: src}
 	}
-	return AccountAddress(src), nil
+	return Account{AccountAddress(src)}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
@@ -63,6 +73,10 @@ func (v Monetary) MarshalJSON() ([]byte, error) {
 
 func (v String) String() string {
 	return string(v)
+}
+
+func (v Account) String() string {
+	return v.Repr.String()
 }
 
 func (v AccountAddress) String() string {
@@ -145,11 +159,25 @@ func expectAsset(v Value, r parser.Range) (*string, InterpreterError) {
 	}
 }
 
-func expectAccount(v Value, r parser.Range) (*string, InterpreterError) {
+func expectAccount(v Value, r parser.Range) (*Account, InterpreterError) {
 	switch v := v.(type) {
-	case AccountAddress:
-		return (*string)(&v), nil
+	case Account:
+		return &v, nil
 
+	default:
+		return nil, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
+	}
+}
+
+func expectAccountAddress(v Value, r parser.Range) (*string, InterpreterError) {
+	acc, err := expectAccount(v, r)
+	if err != nil {
+		return nil, err
+	}
+	switch acc := acc.Repr.(type) {
+	case AccountAddress:
+		s := string(acc)
+		return &s, nil
 	default:
 		return nil, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
 	}
