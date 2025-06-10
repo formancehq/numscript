@@ -1,0 +1,19 @@
+vars {
+	account $v = virtual()
+}
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d1
+)
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d2
+)
+send [USD 100] (
+  source = $v allowing unbounded overdraft
+  destination = @d3
+)
+send [USD 150] (
+  source = @world
+  destination = $v
+)

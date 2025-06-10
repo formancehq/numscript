@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-virtual-account", "experimental-oneof"],
+  "testCases": [
+    {
+      "it": "amt=100",
+      "variables": { "amt": "100" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 10,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 90,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=10",
+      "variables": { "amt": "10" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 9,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=6",
+      "variables": { "amt": "6" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "EUR"
+        }
+      ]
+    }
+  ]
+}

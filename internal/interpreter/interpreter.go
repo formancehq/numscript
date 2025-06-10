@@ -194,6 +194,8 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
+	case analysis.FnVarOriginVirtual:
+		return virtual(), nil
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
@@ -219,6 +221,14 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			if err != nil {
 				return err
 			}
+
+			if acc, ok := value.(Account); ok {
+				if vacc, ok := acc.Repr.(VirtualAccount); ok {
+					vacc.Dbg = varsDecl.Name.Name
+					value = Account{vacc}
+				}
+			}
+
 			s.ParsedVars[varsDecl.Name.Name] = value
 		}
 	}
@@ -245,6 +255,9 @@ func RunProgram(
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
 		FeatureFlags:        featureFlags,
+
+		virtualAccountsCredits: make(map[string]map[string]*fundsStack),
+		virtualAccountsDebts:   make(map[string]map[string]*fundsStack),
 	}
 
 	st.varOriginPosition = true
@@ -309,46 +322,84 @@ type programState struct {
 	CurrentBalanceQuery BalanceQuery
 
 	FeatureFlags map[string]struct{}
+
+	// An {accountid, asset}->fundsStack map
+	virtualAccountsCredits map[string]map[string]*fundsStack
+	virtualAccountsDebts   map[string]map[string]*fundsStack
 }
 
-func (st *programState) pushSender(name string, monetary *big.Int, color string) {
-	if monetary.Cmp(big.NewInt(0)) == 0 {
-		return
+// Pushes sender to fs, and keeps track of the additional sent value by adding it (in-loco) to the given totalSent ptr.
+// if totalSent is nil, it's considered as zero
+func (st *programState) pushSender(sender Sender, totalSent *big.Int) *big.Int {
+	if totalSent == nil {
+		totalSent = big.NewInt(0)
 	}
 
-	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
-	balance.Sub(balance, monetary)
+	if sender.Amount.Cmp(big.NewInt(0)) == 0 {
+		return totalSent
+	}
 
-	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
+	totalSent.Add(totalSent, sender.Amount)
+
+	switch account := sender.Account.(type) {
+	case VirtualAccount:
+		// No need to do anything
+		// we'll get this account's balance from the fundsStack
+
+	case AccountAddress:
+		balance := st.CachedBalances.fetchBalance(string(account), st.CurrentAsset, sender.Color)
+		balance.Sub(balance, sender.Amount)
+	}
+
+	st.fundsStack.Push(sender)
+
+	return totalSent
 }
 
-func (st *programState) pushReceiver(name string, monetary *big.Int) {
-	if monetary.Cmp(big.NewInt(0)) == 0 {
-		return
-	}
-
-	senders := st.fundsStack.PullAnything(monetary)
-
+func (st *programState) pushReceiver(account Account, amount *big.Int) {
+	senders := st.fundsStack.PullAnything(amount)
 	for _, sender := range senders {
-		postings := Posting{
-			Source:      sender.Name,
+		switch acc := account.Repr.(type) {
+		case VirtualAccount:
+			st.pushVirtualReceiver(acc, sender)
+		case AccountAddress:
+			st.pushReceiverAddress(string(acc), sender)
+		}
+	}
+}
+
+func (st *programState) pushVirtualReceiver(vacc VirtualAccount, sender Sender) {
+	postings := vacc.Receive(st.CurrentAsset, sender)
+	st.Postings = append(st.Postings, postings...)
+}
+
+func (st *programState) pushReceiverAddress(name string, sender Sender) {
+	switch senderAccountAddress := sender.Account.(type) {
+	case AccountAddress:
+		posting := Posting{
+			Source:      string(senderAccountAddress),
 			Destination: name,
 			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
 			Amount:      sender.Amount,
 		}
-
 		if name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(postings.Source, st.CurrentAsset, sender.Color)
-			srcBalance.Add(srcBalance, postings.Amount)
-
-			continue
+			srcBalance := st.CachedBalances.fetchBalance(posting.Source, st.CurrentAsset, sender.Color)
+			srcBalance.Add(srcBalance, posting.Amount)
+			return
 		}
+		destBalance := st.CachedBalances.fetchBalance(posting.Destination, st.CurrentAsset, sender.Color)
+		destBalance.Add(destBalance, posting.Amount)
+		st.Postings = append(st.Postings, posting)
 
-		destBalance := st.CachedBalances.fetchBalance(postings.Destination, st.CurrentAsset, sender.Color)
-		destBalance.Add(destBalance, postings.Amount)
-
-		st.Postings = append(st.Postings, postings)
+	case VirtualAccount:
+		// Here we have a debt from a virtual acc.
+		// we don't want to emit that as a posting (but TODO check how does it interact with kept)
+		senderAccountAddress.Pull(st.CurrentAsset, Sender{
+			AccountAddress(name),
+			sender.Amount,
+			sender.Color,
+		})
 	}
 }
 
@@ -387,7 +438,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 		return err
 	}
 
-	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccount)
+	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccountAddress)
 	if err != nil {
 		return err
 	}
@@ -470,9 +521,9 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 		return nil, err
 	}
 
-	if *account == "world" || overdraft == nil {
+	if account.Repr == AccountAddress("world") || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: *account,
+			Name: account.String(),
 		}
 	}
 
@@ -481,13 +532,29 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 		return nil, err
 	}
 
-	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
+	switch account := account.Repr.(type) {
+	case AccountAddress:
+		balance := s.CachedBalances.fetchBalance(string(account), s.CurrentAsset, *color)
 
-	// we sent balance+overdraft
-	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
+		// we sent balance+overdraft
+		sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
 
-	s.pushSender(*account, sentAmt, *color)
-	return sentAmt, nil
+		return s.pushSender(Sender{account, sentAmt, *color}, nil), nil
+
+	case VirtualAccount:
+		totalSent := big.NewInt(0)
+
+		senders := account.PullCredits(s.CurrentAsset)
+		for _, sender := range senders {
+			s.pushSender(sender, totalSent)
+		}
+
+		return totalSent, nil
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](account)
+		return nil, nil
+	}
 }
 
 // Send as much as possible (and return the sent amt)
@@ -577,7 +644,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 	if err != nil {
 		return nil, err
 	}
-	if *account == "world" {
+	if account.Repr == AccountAddress("world") {
 		overdraft = nil
 	}
 
@@ -586,18 +653,56 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		return nil, err
 	}
 
-	var actuallySentAmt *big.Int
-	if overdraft == nil {
-		// unbounded overdraft: we send the required amount
-		actuallySentAmt = new(big.Int).Set(amount)
-	} else {
-		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
+	switch account := account.Repr.(type) {
+	case AccountAddress:
+		var actuallySentAmt *big.Int
+		if overdraft == nil {
+			// unbounded overdraft: we send the required amount
+			actuallySentAmt = new(big.Int).Set(amount)
+		} else {
+			balance := s.CachedBalances.fetchBalance(string(account), s.CurrentAsset, *color)
 
-		// that's the amount we are allowed to send (balance + overdraft)
-		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
+			// that's the amount we are allowed to send (balance + overdraft)
+			actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
+		}
+		return s.pushSender(Sender{account, actuallySentAmt, *color}, nil), nil
+
+	case VirtualAccount:
+		totalSent := big.NewInt(0)
+
+		fs := account.getCredits(s.CurrentAsset)
+		pulledSenders := fs.PullColored(amount, *color)
+
+		for _, sender := range pulledSenders {
+			s.pushSender(sender, totalSent)
+		}
+
+		// if we didn't pull enough
+		if totalSent.Cmp(amount) == -1 {
+
+			// invariant: missingAmt > 0
+			// (we never pull more than required)
+			missingAmt := new(big.Int).Sub(amount, totalSent)
+
+			var addionalSent *big.Int
+			if overdraft == nil {
+				addionalSent = new(big.Int).Set(missingAmt)
+			} else {
+				// TODO check this is the correct number to eventually send
+				// TODO test overdraft
+				addionalSent = utils.MinBigInt(overdraft, missingAmt)
+			}
+
+			s.pushSender(Sender{account, addionalSent, *color}, totalSent)
+		}
+
+		return totalSent, nil
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](account)
+		return nil, nil
 	}
-	s.pushSender(*account, actuallySentAmt, *color)
-	return actuallySentAmt, nil
+
 }
 
 func (s *programState) cloneState() func() {
@@ -703,12 +808,17 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 }
 
 func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
+	if amount.Cmp(big.NewInt(0)) == 0 {
+		return nil
+	}
+
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
 		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
+
 		s.pushReceiver(*account, amount)
 		return nil
 
@@ -806,7 +916,7 @@ const KEPT_ADDR = "<kept>"
 func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.pushReceiver(KEPT_ADDR, amount)
+		s.pushReceiver(Account{AccountAddress(KEPT_ADDR)}, amount)
 		return nil
 
 	case *parser.DestinationTo:

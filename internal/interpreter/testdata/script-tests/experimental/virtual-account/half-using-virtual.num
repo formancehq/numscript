@@ -1,0 +1,9 @@
+vars { account $v = virtual() }
+
+send [USD/2 10] (
+  source = {
+    1/2 from @alice
+    remaining from $v allowing unbounded overdraft
+  }
+  destination = @interests
+)

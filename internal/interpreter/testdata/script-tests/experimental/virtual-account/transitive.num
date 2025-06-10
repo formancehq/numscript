@@ -1,0 +1,16 @@
+vars {
+	account $v1 = virtual()
+	account $v2 = virtual()
+}
+send [USD 100] (
+  source = @world
+  destination = $v1
+)
+send [USD 100] (
+  source = $v1
+  destination = $v2
+)
+send [USD 100] (
+  source = $v2
+  destination = @dest
+)

@@ -20,7 +20,7 @@ func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError 
 
 func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterError {
 	p := NewArgsParser(args)
-	account := parseArg(p, r, expectAccount)
+	account := parseArg(p, r, expectAccountAddress)
 	key := parseArg(p, r, expectString)
 	meta := parseArg(p, r, expectAnything)
 	err := p.parse()
