@@ -34,6 +34,10 @@ func MaxBigInt(a *big.Int, b *big.Int) *big.Int {
 	return &max
 }
 
+func NonNeg(a *big.Int) *big.Int {
+	return MaxBigInt(a, big.NewInt(0))
+}
+
 func Unmarshal[T any](raw json.RawMessage) (*T, error) {
 	var value T
 	err := json.Unmarshal(raw, &value)
