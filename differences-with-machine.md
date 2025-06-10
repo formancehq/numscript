@@ -122,7 +122,7 @@ _Note_: dividing by 0 is a runtime error.
 
 ### New function: `overdraft :: (account, asset) -> monetary`
 
-> flag: `experimental-overdraft-function`
+> flag: `experimental-overdraft-function` (available from 0.0.15)
 
 Returns the account's overdraft amount as a positive value (or zero if the account didn't have a negative overdraft)
 
@@ -144,7 +144,7 @@ send [COIN *] (
 
 ### New function: `get_asset :: monetary -> asset`
 
-> flag: `experimental-get-asset-function`
+> flag: `experimental-get-asset-function` (available from 0.0.16)
 
 Get the asset of the given monetary. For example:
 
@@ -157,7 +157,7 @@ vars {
 
 ### New function: `get_amount :: monetary -> number`
 
-> flag: `experimental-get-amount-function`
+> flag: `experimental-get-amount-function` (available from 0.0.16)
 
 Get the amount of the given monetary. For example:
 
@@ -170,7 +170,7 @@ vars {
 
 ### Account interpolation syntax
 
-> flag: `experimental-account-interpolation`
+> flag: `experimental-account-interpolation` (available from 0.0.15)
 
 You can now interpolate variables inside account literals:
 
@@ -187,7 +187,7 @@ Creating invalid account names (e.g. by interpolating string like `"!"`) will ra
 
 ### Mid-script function call
 
-> flag: `experimental-mid-script-function-call`
+> flag: `experimental-mid-script-function-call` (available from 0.0.15)
 
 The values that initiate vars can now be any kind of expression, not just function calls:
 
@@ -313,3 +313,65 @@ send [USD/2 150] (
   }
 )
 ```
+
+### Colored assets
+
+> flag: `experimental-asset-colors` (available from 0.0.17)
+
+This functionality allows to deal with semi-fungible assets. While this is already possible, by using conventions like `JPMUSD` and `STRIPEUSD`, there is no way for a statement to deal simultaneously with two different assets.
+We therefore introduce a restriction operator that you can use on account on source positions to specify what sub-asset to pull from the balance. An asset `ASSET/n` marked with the "X" color will be represented in the store (for example, the ledger's database) as the `ASSET_X/n` asset.
+
+In practice, the operator looks like this:
+
+```
+send [USD/2 100] (
+  source = @alice \ "STRIPE"
+  destination = @dest
+)
+```
+
+This will emit the following postings (by checking `@alice`'s `USD_STRIPE/2` balance):
+
+```
+[
+  {
+    source: "alice",
+    destination: "dest",
+    asset: "USD_STRIPE/2",
+    amount: 100,
+  }
+]
+```
+
+A restricted account can nested as usual:
+
+```
+send [USD/2 100] (
+  source = oneof {
+    @alice \ "STRIPE"
+    @alice \ "PAYPAL"
+    @alice \ "ADYEN"
+  }
+  destination = @dest
+)
+```
+
+Colors are represented as string, therefore you use any expression that evaluates to string, including variables:
+
+```
+vars {
+  string $col
+}
+
+send [USD/2 100] (
+  source = @alice \ $col
+  destination = @dest
+)
+```
+
+The empty string (`""`) represents no color. Therefore, those two sources are exactly the same:
+
+- `@account \ ""`
+- `@account`
+
+In that case, we'll not remap the asset by using the `_` postfix.
