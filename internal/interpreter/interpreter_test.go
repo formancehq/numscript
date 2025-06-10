@@ -4501,3 +4501,104 @@ send [USD 200] (
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalOneofFeatureFlag)
 }
+
+func TestSendWhenNegativeBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 10] (
+		source = {
+			@s
+			@world
+		}
+  	destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", -5)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftWhenNegativeOvedraftInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN *] (
+		source = {
+			@s allowing overdraft up to [COIN -10] 
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", 1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "s",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftWhenNegativeBalanceInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN *] (
+		source = {
+			@s allowing overdraft up to [COIN 2]
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", -1)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "s",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestOverdraftWhenNegativeBalance(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 10] (
+		source = {
+			@s allowing overdraft up to [COIN -10] 
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", 11)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10),
+				Source:      "s",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}

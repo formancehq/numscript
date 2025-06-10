@@ -453,7 +453,8 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 
 }
 
-func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
+// PRE: overdraft >= 0
+func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
 		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
 		if err != nil {
@@ -466,7 +467,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 		return nil, err
 	}
 
-	if *account == "world" || ovedraft == nil {
+	if *account == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
 			Name: *account,
 		}
@@ -480,7 +481,9 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, ovedraf
 	balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 	// we sent balance+overdraft
-	sentAmt := utils.MaxBigInt(new(big.Int).Add(balance, ovedraft), big.NewInt(0))
+	sentAmt := utils.NonNeg(
+		new(big.Int).Add(balance, overdraft),
+	)
 	s.pushSender(*account, sentAmt, *color)
 	return sentAmt, nil
 }
@@ -498,7 +501,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			if err != nil {
 				return nil, err
 			}
-			cap = bounded
+			cap = utils.NonNeg(bounded)
 		}
 		return s.sendAllToAccount(source.Address, cap, source.Color)
 
@@ -528,11 +531,8 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		if err != nil {
 			return nil, err
 		}
-		if monetary.Cmp(big.NewInt(0)) == -1 {
-			monetary.Set(big.NewInt(0))
-		}
 		// We switch to the default sending evaluation for this subsource
-		return s.trySendingUpTo(source.From, monetary)
+		return s.trySendingUpTo(source.From, utils.NonNeg(monetary))
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
@@ -562,6 +562,7 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 
 var colorRe = regexp.MustCompile("^[A-Z]*$")
 
+// PRE: overdraft >= 0
 func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
 		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
@@ -588,7 +589,9 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
+		balance := utils.NonNeg(
+			s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color)),
+		)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		safeSendAmt := new(big.Int).Add(balance, overdraft)
@@ -622,7 +625,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			if err != nil {
 				return nil, err
 			}
-			cap = upTo
+			cap = utils.NonNeg(upTo)
 		}
 		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
 
@@ -688,11 +691,9 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		if err != nil {
 			return nil, err
 		}
-		cappedAmount := utils.MinBigInt(amount, cap)
-		if cappedAmount.Cmp(big.NewInt(0)) == -1 {
-			cappedAmount.Set(big.NewInt(0))
-		}
-		return s.trySendingUpTo(source.From, cappedAmount)
+		return s.trySendingUpTo(source.From, utils.NonNeg(
+			utils.MinBigInt(amount, cap),
+		))
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](source)
