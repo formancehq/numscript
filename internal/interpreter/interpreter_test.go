@@ -4602,3 +4602,227 @@ func TestOverdraftWhenNegativeBalance(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestDoNotExceedOverdraft(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 10] (
+		source = {
+			// should pull 3 (otherwise the overdraft exceeds 5)
+			@s allowing overdraft up to [COIN 5]
+
+			@world
+		}
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", -2)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(3),
+				Source:      "s",
+				Destination: "dest",
+			},
+
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10 - 3),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestDoNotExceedOverdraftOnSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN *] (
+		source = @s allowing overdraft up to [COIN 5]
+		destination = @dest
+	)
+	`)
+	tc.setBalance("s", "COIN", -4)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(1),
+				Source:      "s",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestDoNotExceedOverdraftWhenDoubleSpending(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `
+	send [COIN 10] (
+		source = {
+			// should pull 2
+			@s allowing overdraft up to [COIN 2]
+
+			// should pull other 3 (otherwise the overdraft exceeds 5)
+			@s allowing overdraft up to [COIN 5]
+
+			@world
+		}
+		destination = @dest
+	)
+	`)
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(2 + 3),
+				Source:      "s",
+				Destination: "dest",
+			},
+
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(10 - 5),
+				Source:      "world",
+				Destination: "dest",
+			},
+		},
+		Error: nil,
+	}
+	test(t, tc)
+}
+
+func TestSafeMaxWithdraft(t *testing.T) {
+	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(0),
+		big.NewInt(0),
+	))
+
+	require.Equal(t, big.NewInt(200), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(100),
+		big.NewInt(100),
+	))
+
+	require.Equal(t, big.NewInt(105), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(100),
+		big.NewInt(5),
+	))
+
+	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(-10),
+		big.NewInt(0),
+	))
+
+	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(-10),
+		big.NewInt(5),
+	))
+
+	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(-10),
+		big.NewInt(10),
+	))
+
+	require.Equal(t, big.NewInt(1), machine.CalculateMaxSafeWithdraw(
+		big.NewInt(-10),
+		big.NewInt(11),
+	))
+}
+
+// TODO this should be a fuzz test instead
+func TestSafeWithdraft(t *testing.T) {
+	t.Run("with zero overdraft, only take what's available", func(t *testing.T) {
+		t.Run("balance > 0 allows you to take what's available", func(t *testing.T) {
+			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+				big.NewInt(100),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+				big.NewInt(10),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(1), machine.CalculateSafeWithdraw(
+				big.NewInt(1),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(10),
+				big.NewInt(0),
+				big.NewInt(0),
+			))
+
+			// not enough balance:
+			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+				big.NewInt(10),
+				big.NewInt(0),
+				big.NewInt(100),
+			))
+
+		})
+
+		t.Run("balance == 0 doesn't let you take anything", func(t *testing.T) {
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(0),
+				big.NewInt(0),
+				big.NewInt(0),
+			))
+		})
+
+		t.Run("balance < 0 doesn't let you take anything if there's no overdraft", func(t *testing.T) {
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(-100),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(0),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(-1),
+				big.NewInt(0),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+				big.NewInt(-10),
+				big.NewInt(0),
+				big.NewInt(0),
+			))
+		})
+	})
+
+	t.Run("when overdraft is not zero, you can go over your balance", func(t *testing.T) {
+		t.Run("if we have enough balance>=requestedAmount, overdraft is ignored matter", func(t *testing.T) {
+			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+				big.NewInt(100),
+				big.NewInt(100),
+				big.NewInt(10),
+			))
+			require.Equal(t, big.NewInt(100), machine.CalculateSafeWithdraw(
+				big.NewInt(100),
+				big.NewInt(42),
+				big.NewInt(100),
+			))
+		})
+
+		t.Run("if we have zero balance, overdraft allows us to withdraw", func(t *testing.T) {
+			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+				big.NewInt(0),
+				big.NewInt(100),
+				big.NewInt(10),
+			))
+		})
+
+	})
+
+}
