@@ -481,9 +481,8 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 	balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 	// we sent balance+overdraft
-	sentAmt := utils.NonNeg(
-		new(big.Int).Add(balance, overdraft),
-	)
+	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
+
 	s.pushSender(*account, sentAmt, *color)
 	return sentAmt, nil
 }
@@ -589,13 +588,10 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := utils.NonNeg(
-			s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color)),
-		)
+		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
 
 		// that's the amount we are allowed to send (balance + overdraft)
-		safeSendAmt := new(big.Int).Add(balance, overdraft)
-		actuallySentAmt = utils.MinBigInt(safeSendAmt, amount)
+		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
 	}
 	s.pushSender(*account, actuallySentAmt, *color)
 	return actuallySentAmt, nil
@@ -966,4 +962,30 @@ func (s programState) checkFeatureFlag(flag string) InterpreterError {
 	} else {
 		return ExperimentalFeature{FlagName: flag}
 	}
+}
+
+/*
+PRE: ovedraft != nil, balance != nil
+PRE: ovedraft >= 0
+POST: $out >= 0
+*/
+func CalculateMaxSafeWithdraw(balance *big.Int, overdraft *big.Int) *big.Int {
+	return utils.NonNeg(
+		new(big.Int).Add(balance, overdraft),
+	)
+}
+
+/*
+PRE: ovedraft != nil, balance != nil
+PRE: ovedraft >= 0
+PRE: requestedAmount >= 0
+POST: $out >= 0
+*/
+func CalculateSafeWithdraw(
+	balance *big.Int,
+	overdraft *big.Int,
+	requestedAmount *big.Int,
+) *big.Int {
+	safe := CalculateMaxSafeWithdraw(balance, overdraft)
+	return utils.MinBigInt(safe, requestedAmount)
 }
