@@ -216,7 +216,7 @@ func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right par
 
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {
 	switch v := v.(type) {
-	case AccountAddress:
+	case Account:
 		return v.String(), nil
 	case String:
 		return v.String(), nil
