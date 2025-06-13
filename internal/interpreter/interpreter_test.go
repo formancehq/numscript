@@ -4362,6 +4362,50 @@ func TestColorInorder(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
+func TestColorInorderSendAll(t *testing.T) {
+
+	script := `
+ 		send [COIN *] (
+			source = {
+					@src \ "RED"
+					@src \ "BLUE"
+					@src
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.setBalance("src", "COIN_RED", 20)
+	tc.setBalance("src", "COIN_BLUE", 30)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_RED",
+				Amount:      big.NewInt(20),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN_BLUE",
+				Amount:      big.NewInt(30),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
 func TestEmptyColor(t *testing.T) {
 	// empty string color behaves as no color
 

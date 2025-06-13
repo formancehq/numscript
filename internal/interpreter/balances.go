@@ -43,10 +43,10 @@ func coloredAsset(asset string, color *string) string {
 
 // Get the (account, asset) tuple from the Balances
 // if the tuple is not present, it will write a big.NewInt(0) in it and return it
-func (b Balances) fetchBalance(account string, asset string) *big.Int {
+func (b Balances) fetchBalance(account string, uncoloredAsset string, color string) *big.Int {
 	accountBalances := b.fetchAccountBalances(account)
 
-	return defaultMapGet(accountBalances, asset, func() *big.Int {
+	return defaultMapGet(accountBalances, coloredAsset(uncoloredAsset, &color), func() *big.Int {
 		return new(big.Int)
 	})
 }

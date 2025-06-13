@@ -313,7 +313,7 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 		return
 	}
 
-	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset)
+	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
 	balance.Sub(balance, monetary)
 
 	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
@@ -336,13 +336,13 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 
 		if name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(postings.Source, postings.Asset)
+			srcBalance := st.CachedBalances.fetchBalance(postings.Source, st.CurrentAsset, sender.Color)
 			srcBalance.Add(srcBalance, postings.Amount)
 
 			continue
 		}
 
-		destBalance := st.CachedBalances.fetchBalance(postings.Destination, postings.Asset)
+		destBalance := st.CachedBalances.fetchBalance(postings.Destination, st.CurrentAsset, sender.Color)
 		destBalance.Add(destBalance, postings.Amount)
 
 		st.Postings = append(st.Postings, postings)
@@ -389,7 +389,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 		return err
 	}
 
-	balance := st.CachedBalances.fetchBalance(*account, *asset)
+	balance := st.CachedBalances.fetchBalance(*account, *asset, "")
 
 	if amt == nil {
 		balance.Set(big.NewInt(0))
@@ -478,7 +478,7 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 		return nil, err
 	}
 
-	balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
+	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
 
 	// we sent balance+overdraft
 	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
@@ -588,7 +588,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.CachedBalances.fetchBalance(*account, coloredAsset(s.CurrentAsset, color))
+		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
@@ -885,7 +885,7 @@ func getBalance(
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
 	}
-	balance := s.CachedBalances.fetchBalance(account, asset)
+	balance := s.CachedBalances.fetchBalance(account, asset, "")
 	return balance, nil
 
 }
