@@ -313,7 +313,7 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 		return
 	}
 
-	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset)
+	balance := st.CachedBalances.fetchBalance(name, coloredAsset(st.CurrentAsset, &color))
 	balance.Sub(balance, monetary)
 
 	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
