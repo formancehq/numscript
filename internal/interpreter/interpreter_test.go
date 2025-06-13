@@ -4406,6 +4406,79 @@ func TestColorInorderSendAll(t *testing.T) {
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
 }
 
+func TestNoDoubleSpendingInColoredSendAll(t *testing.T) {
+
+	script := `
+ 		send [COIN *] (
+			source = {
+					@src \ "X"
+					@src \ "X"
+					@src
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 100)
+	tc.setBalance("src", "COIN_X", 20)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_X",
+				Amount:      big.NewInt(20),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(100),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
+func TestNoDoubleSpendingInColoredSend(t *testing.T) {
+	script := `
+ 		send [COIN 100] (
+			source = {
+					@src \ "X"
+					@src \ "X"
+					@src
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.setBalance("src", "COIN", 99999)
+	tc.setBalance("src", "COIN_X", 20)
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{
+				Asset:       "COIN_X",
+				Amount:      big.NewInt(20),
+				Source:      "src",
+				Destination: "dest",
+			},
+			{
+				Asset:       "COIN",
+				Amount:      big.NewInt(80),
+				Source:      "src",
+				Destination: "dest",
+			},
+		},
+	}
+	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+}
+
 func TestEmptyColor(t *testing.T) {
 	// empty string color behaves as no color
 
