@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/utils"
@@ -13,7 +14,14 @@ type VirtualAccount struct {
 }
 
 func (v VirtualAccount) String() string {
-	return "#<virtual>"
+	var name string
+	if v.Dbg != "" {
+		name = v.Dbg
+	} else {
+		name = "anonymous"
+	}
+
+	return fmt.Sprintf("#<virtual:%s>", name)
 }
 
 func NewVirtualAccount() VirtualAccount {

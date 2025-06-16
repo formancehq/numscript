@@ -218,6 +218,14 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			if err != nil {
 				return err
 			}
+
+			if acc, ok := value.(Account); ok {
+				if vacc, ok := acc.Repr.(VirtualAccount); ok {
+					vacc.Dbg = varsDecl.Name.Name
+					value = Account{vacc}
+				}
+			}
+
 			s.ParsedVars[varsDecl.Name.Name] = value
 		}
 	}
@@ -655,23 +663,26 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 		}
 
 		pulledAmt := sumSendersAmount(pulledSenders)
+
 		// if we didn't pull enough
 		if pulledAmt.Cmp(amount) == -1 {
-			// invariant: leftAmt > 0
+
+			// invariant: missingAmt > 0
 			// (we never pull more than required)
-			leftAmt := new(big.Int).Sub(amount, pulledAmt)
+			missingAmt := new(big.Int).Sub(amount, pulledAmt)
 
 			var addionalSent *big.Int
 			if overdraft == nil {
-				addionalSent = new(big.Int).Set(leftAmt)
+				addionalSent = new(big.Int).Set(missingAmt)
 			} else {
-				addionalSent = utils.MinBigInt(overdraft, leftAmt)
+				// TODO check this is the correct number to eventually send
+				// TODO test overdraft
+				addionalSent = utils.MinBigInt(overdraft, missingAmt)
 			}
-			// TODO check this is the correct number to eventually send
-			// TODO test overdraft
-			pulledAmt.Add(pulledAmt, addionalSent)
 
-			s.pushSender(Sender{account, pulledAmt, *color})
+			s.pushSender(Sender{account, addionalSent, *color})
+
+			pulledAmt.Add(pulledAmt, addionalSent)
 		}
 
 		return pulledAmt, nil
