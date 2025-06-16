@@ -4970,9 +4970,67 @@ func TestVirtualAccountCreate(t *testing.T) {
 	test(t, tc)
 }
 
-func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
-	t.Skip()
+func TestVirtualAccountPreventDoubleSpending(t *testing.T) {
+	script := `
+		vars {
+			account $v = virtual()
+		}
+ 		send [USD 5] (
+			source = @world
+			destination = $v
+		)
+		send [USD 10] (
+			source = {
+				$v
+				$v
+			}
+			destination = @dest
+		)
+	`
 
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.MissingFundsErr{
+			Needed:    *big.NewInt(10),
+			Available: *big.NewInt(5),
+			Asset:     "USD",
+		},
+	}
+	test(t, tc)
+}
+
+func TestVirtualAccountPreventDoubleSpendingInSendAll(t *testing.T) {
+	script := `
+		vars {
+			account $v = virtual()
+		}
+ 		send [USD 10] (
+			source = @world
+			destination = $v
+		)
+		send [USD *] (
+			source = {
+				$v
+				$v
+			}
+			destination = @dest
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(10), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+}
+
+func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
 	script := `
 	// say that we need to send 10%*$amt (up to 5) to @fees; the rest to @dest
 	// if the $amt wasn't at least 5 in the first place, we fail (as @fees isn't able to get 5)
@@ -5034,7 +5092,6 @@ func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
 
 		tc.expected = CaseResult{
 			Postings: []machine.Posting{
-
 				{Source: "world", Destination: "fees", Amount: big.NewInt(5), Asset: "EUR"},
 				{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "EUR"},
 			},
@@ -5082,8 +5139,6 @@ func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
 
 }
 func TestExampleMinConstraintNoCommissionsWithLowAmt(t *testing.T) {
-	t.Skip("TODO")
-
 	script := `
 	vars {
 		number $amt
@@ -5157,7 +5212,6 @@ func TestExampleMinConstraintNoCommissionsWithLowAmt(t *testing.T) {
 }
 
 func TestExampleMinConstraintMerchantPaysFeesIfNeeded(t *testing.T) {
-	t.Skip("TODO")
 	script := `
 vars {
 	number $amt
@@ -5513,5 +5567,3 @@ send [USD/2 10] (
 	})
 
 }
-
-// TODO test double spending virtual
