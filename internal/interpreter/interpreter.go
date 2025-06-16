@@ -325,10 +325,18 @@ type programState struct {
 	virtualAccountsDebts   map[string]map[string]*fundsStack
 }
 
-func (st *programState) pushSender(sender Sender) {
-	if sender.Amount.Cmp(big.NewInt(0)) == 0 {
-		return
+// Pushes sender to fs, and keeps track of the additional sent value by adding it (in-loco) to the given totalSent ptr.
+// if totalSent is nil, it's considered as zero
+func (st *programState) pushSender(sender Sender, totalSent *big.Int) *big.Int {
+	if totalSent == nil {
+		totalSent = big.NewInt(0)
 	}
+
+	if sender.Amount.Cmp(big.NewInt(0)) == 0 {
+		return totalSent
+	}
+
+	totalSent.Add(totalSent, sender.Amount)
 
 	switch account := sender.Account.(type) {
 	case VirtualAccount:
@@ -341,6 +349,8 @@ func (st *programState) pushSender(sender Sender) {
 	}
 
 	st.fundsStack.Push(sender)
+
+	return totalSent
 }
 
 func (st *programState) pushReceiver(account Account, amount *big.Int) {
@@ -526,16 +536,17 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 		// we sent balance+overdraft
 		sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
 
-		s.pushSender(Sender{account, sentAmt, *color})
-
-		return sentAmt, nil
+		return s.pushSender(Sender{account, sentAmt, *color}, nil), nil
 
 	case VirtualAccount:
+		totalSent := big.NewInt(0)
+
 		senders := account.PullCredits(s.CurrentAsset)
 		for _, sender := range senders {
-			s.pushSender(sender)
+			s.pushSender(sender, totalSent)
 		}
-		return sumSendersAmount(senders), nil
+
+		return totalSent, nil
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](account)
@@ -651,25 +662,24 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 			// that's the amount we are allowed to send (balance + overdraft)
 			actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
 		}
-		s.pushSender(Sender{account, actuallySentAmt, *color})
-		return actuallySentAmt, nil
+		return s.pushSender(Sender{account, actuallySentAmt, *color}, nil), nil
 
 	case VirtualAccount:
+		totalSent := big.NewInt(0)
+
 		fs := account.getCredits(s.CurrentAsset)
 		pulledSenders := fs.PullColored(amount, *color)
 
 		for _, sender := range pulledSenders {
-			s.pushSender(sender)
+			s.pushSender(sender, totalSent)
 		}
 
-		pulledAmt := sumSendersAmount(pulledSenders)
-
 		// if we didn't pull enough
-		if pulledAmt.Cmp(amount) == -1 {
+		if totalSent.Cmp(amount) == -1 {
 
 			// invariant: missingAmt > 0
 			// (we never pull more than required)
-			missingAmt := new(big.Int).Sub(amount, pulledAmt)
+			missingAmt := new(big.Int).Sub(amount, totalSent)
 
 			var addionalSent *big.Int
 			if overdraft == nil {
@@ -680,12 +690,10 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 				addionalSent = utils.MinBigInt(overdraft, missingAmt)
 			}
 
-			s.pushSender(Sender{account, addionalSent, *color})
-
-			pulledAmt.Add(pulledAmt, addionalSent)
+			s.pushSender(Sender{account, addionalSent, *color}, totalSent)
 		}
 
-		return pulledAmt, nil
+		return totalSent, nil
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](account)
@@ -1064,14 +1072,6 @@ func (s programState) checkFeatureFlag(flag string) InterpreterError {
 	} else {
 		return ExperimentalFeature{FlagName: flag}
 	}
-}
-
-func sumSendersAmount(senders []Sender) *big.Int {
-	tot := big.NewInt(0)
-	for _, sender := range senders {
-		tot.Add(tot, sender.Amount)
-	}
-	return tot
 }
 
 /*
