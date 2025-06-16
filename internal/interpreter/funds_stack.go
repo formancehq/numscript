@@ -187,49 +187,16 @@ func (s fundsStack) Clone() fundsStack {
 	return fs
 }
 
-// Treat this stack as debts and filter out senders by "repaying" debts
-func (s *fundsStack) RepayWith(credits *fundsStack, asset string) []Posting {
-	var postings []Posting
-
-	// for s.senders != nil {
-	// 	// Peek head from debts and try to pull that much
-	// 	hd := s.senders.Head
-
-	// 	senders := credits.Pull(hd.Amount, &hd.Color)
-	// 	totalRepayed := big.NewInt(0)
-	// 	for _, sender := range senders {
-	// 		totalRepayed.Add(totalRepayed, sender.Amount)
-	// 		postings = append(postings, Posting{
-	// 			Source:      sender.Account,
-	// 			Destination: hd.Account,
-	// 			Amount:      sender.Amount,
-	// 			Asset:       coloredAsset(asset, &sender.Color),
-	// 		})
-	// 	}
-
-	// 	pulled := s.Pull(totalRepayed, &hd.Color)
-	// 	if len(pulled) == 0 {
-	// 		break
-	// 	}
-
-	// 	// careful: infinite loops possible with different colors
-	// 	// break
-	// }
-
-	return postings
-}
-
 // Treat this stack as debts and use the sender to repay debt.
 // Return the sender updated with the left amt (and the emitted postings)
 func (s *fundsStack) RepayWithSender(asset string, credit Sender) ([]Posting, Sender) {
 	// clone the amount so that we can modify it
 	credit.Amount = new(big.Int).Set(credit.Amount)
 
-	// Take away the debt that the credit allows for
-	clearedDebt := s.PullColored(credit.Amount, credit.Color)
-
 	var postings []Posting
 
+	// Take away the debt that the credit allows for
+	clearedDebt := s.PullColored(credit.Amount, credit.Color)
 	for _, receiver := range clearedDebt {
 		switch creditAccount := credit.Account.(type) {
 		case VirtualAccount:
