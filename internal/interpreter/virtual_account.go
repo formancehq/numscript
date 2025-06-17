@@ -13,6 +13,10 @@ type VirtualAccount struct {
 	debits  map[string]*fundsStack
 }
 
+func (v VirtualAccount) WithDbg(dbg string) VirtualAccount {
+	v.Dbg = dbg
+	return v
+}
 func (v VirtualAccount) String() string {
 	var name string
 	if v.Dbg != "" {
@@ -103,7 +107,9 @@ func (vacc *VirtualAccount) Pull(asset string, overdraft *big.Int, receiver Send
 				})
 
 			case VirtualAccount:
-				panic("UNREACHABED")
+				// TODO either include in coverage or simply this
+				panic("UNRECHED")
+
 				return receiverAccount.Receive(asset, Sender{
 					vacc,
 					pulledSender.Amount,

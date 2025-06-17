@@ -1,6 +1,7 @@
 package interpreter_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -308,4 +309,101 @@ func TestVirtualAccountTransitiveTwoStepsPayFirst(t *testing.T) {
 		Amount:  amt,
 	}))
 
+}
+
+func TestCommutativeOrder(t *testing.T) {
+	amt := big.NewInt(10)
+
+	//amt=10USD
+	// @src -> $v0
+	// $v0 -> $v1
+	// $v1 -> $v2
+	// $v2 -> @dest
+	// => [{@src, @dest, 10}]
+
+	var v0 interpreter.VirtualAccount
+	var v1 interpreter.VirtualAccount
+	var v2 interpreter.VirtualAccount
+
+	ops := []func() []Posting{
+		func() []Posting {
+			return v0.Receive("USD", interpreter.Sender{
+				Account: interpreter.AccountAddress("src"),
+				Amount:  amt,
+			})
+		},
+		func() []Posting {
+			return v1.Receive("USD", interpreter.Sender{
+				Account: v0,
+				Amount:  amt,
+			})
+		},
+		func() []Posting {
+			return v2.Receive("USD", interpreter.Sender{
+				Account: v1,
+				Amount:  amt,
+			})
+		},
+		func() []Posting {
+			return v2.Pull("USD", nil, interpreter.Sender{
+				Account: interpreter.AccountAddress("dest"),
+				Amount:  amt,
+			})
+		},
+	}
+	permutations := permute(len(ops))
+
+	for _, permutation := range permutations {
+		t.Run(fmt.Sprintf("permutation [%v]", permutation), func(t *testing.T) {
+			v0 = interpreter.NewVirtualAccount().WithDbg("v0")
+			v1 = interpreter.NewVirtualAccount().WithDbg("v1")
+			v2 = interpreter.NewVirtualAccount().WithDbg("v2")
+
+			for permIndex, index := range permutation {
+				op := ops[index]
+				postings := op()
+				isLast := permIndex == len(ops)-1
+				if isLast {
+					require.Equal(t, []Posting{
+						{"src", "dest", amt, "USD"},
+					}, postings)
+				} else {
+					require.Empty(t, postings)
+
+				}
+
+			}
+
+		})
+	}
+}
+
+// gpt-generated (I was too lazy to write that)
+func permute(n int) [][]int {
+	var res [][]int
+	used := make([]bool, n)
+	var path []int
+
+	var backtrack func()
+	backtrack = func() {
+		if len(path) == n {
+			perm := make([]int, n)
+			copy(perm, path)
+			res = append(res, perm)
+			return
+		}
+		for i := 0; i < n; i++ {
+			if used[i] {
+				continue
+			}
+			used[i] = true
+			path = append(path, i)
+			backtrack()
+			path = path[:len(path)-1]
+			used[i] = false
+		}
+	}
+
+	backtrack()
+	return res
 }

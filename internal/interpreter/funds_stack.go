@@ -200,13 +200,11 @@ func (s *fundsStack) RepayWithSender(asset string, credit Sender) ([]Posting, Se
 	for _, receiver := range clearedDebt {
 		switch creditAccount := credit.Account.(type) {
 		case VirtualAccount:
-
-			// pulled := creditAccount.Pull(asset, nil, credit)
-			// fmt.Printf("PULLED: %#v", credit)
-
-			panic("TODO handle vacc in credit scenario")
+			pulled := creditAccount.Pull(asset, nil, receiver)
+			postings = append(postings, pulled...)
 
 		case AccountAddress:
+			// TODO do we need this in the other case?
 			credit.Amount.Sub(credit.Amount, receiver.Amount)
 
 			switch receiverAccount := receiver.Account.(type) {
