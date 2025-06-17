@@ -373,7 +373,7 @@ func (st *programState) pushVirtualReceiver(vacc VirtualAccount, sender Sender) 
 func (st *programState) pushReceiverAddress(name string, sender Sender) {
 	switch senderAccountAddress := sender.Account.(type) {
 	case AccountAddress:
-		postings := Posting{
+		posting := Posting{
 			Source:      string(senderAccountAddress),
 			Destination: name,
 			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
@@ -381,13 +381,13 @@ func (st *programState) pushReceiverAddress(name string, sender Sender) {
 		}
 		if name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(postings.Source, st.CurrentAsset, sender.Color)
-			srcBalance.Add(srcBalance, postings.Amount)
+			srcBalance := st.CachedBalances.fetchBalance(posting.Source, st.CurrentAsset, sender.Color)
+			srcBalance.Add(srcBalance, posting.Amount)
 			return
 		}
-		destBalance := st.CachedBalances.fetchBalance(postings.Destination, st.CurrentAsset, sender.Color)
-		destBalance.Add(destBalance, postings.Amount)
-		st.Postings = append(st.Postings, postings)
+		destBalance := st.CachedBalances.fetchBalance(posting.Destination, st.CurrentAsset, sender.Color)
+		destBalance.Add(destBalance, posting.Amount)
+		st.Postings = append(st.Postings, posting)
 
 	case VirtualAccount:
 		// Here we have a debt from a virtual acc.
