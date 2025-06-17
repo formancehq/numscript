@@ -52,9 +52,6 @@ func (vacc *VirtualAccount) getDebits(asset string) *fundsStack {
 // In this case, the operation will emit the corresponding postings (if any).
 func (vacc *VirtualAccount) Receive(asset string, sender Sender) []Posting {
 	// when receiving funds, we need to use them to clear debts first (if any)
-	// TODO check debits first
-	// debits := vacc.getDebits(asset)
-
 	debits := vacc.getDebits(asset)
 
 	postings, sender := debits.RepayWithSender(asset, sender)
@@ -106,13 +103,17 @@ func (vacc *VirtualAccount) Pull(asset string, overdraft *big.Int, receiver Send
 				})
 
 			case VirtualAccount:
-				// receiverAccount.Receive()
-				panic("TODO handle virtual account in Pull()")
+				panic("UNREACHABED")
+				return receiverAccount.Receive(asset, Sender{
+					vacc,
+					pulledSender.Amount,
+					receiver.Color,
+				})
 			}
 		}
-
 	}
 
+	// TODO it looks like we aren't using overdraft now. How's that possible?
 	allowedDebt := utils.MinBigInt(remainingAmt, overdraft)
 	if allowedDebt.Cmp(big.NewInt(0)) == 1 {
 		// If we didn't pull enough and we're allowed to overdraft,

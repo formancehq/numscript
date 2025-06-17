@@ -5030,6 +5030,40 @@ func TestVirtualAccountPreventDoubleSpendingInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+func TestVirtualAccountKept(t *testing.T) {
+	script := `
+		vars {
+			account $v = virtual()
+		}
+ 		send [USD 10] (
+			source = @world
+			destination = $v
+		)
+		send [USD *] (
+			source = $v
+			destination = {
+				max [USD 5] to @dest
+				remaining kept
+			}
+		)
+
+		send [USD *] (
+			source = $v
+			destination = @other
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{Source: "world", Destination: "dest", Amount: big.NewInt(5), Asset: "USD"},
+		},
+	}
+	test(t, tc)
+}
+
 func TestExampleMinConstraintFailIfNotEnough(t *testing.T) {
 	script := `
 	// say that we need to send 10%*$amt (up to 5) to @fees; the rest to @dest
