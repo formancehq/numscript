@@ -68,6 +68,47 @@ func (vacc *VirtualAccount) Receive(asset string, sender Sender) []Posting {
 	return postings
 }
 
+func send(
+	source AccountValue,
+	destination AccountValue,
+	amount *big.Int,
+	asset string,
+	color string,
+) []Posting {
+	switch source := source.(type) {
+	case AccountAddress:
+
+		switch destination := destination.(type) {
+		case AccountAddress:
+			return []Posting{{
+				Source:      string(source),
+				Destination: string(destination),
+				Amount:      amount,
+				Asset:       coloredAsset(asset, &color),
+			}}
+		case VirtualAccount:
+			panic("TODO2")
+		}
+
+	case VirtualAccount:
+
+		switch dest := destination.(type) {
+		case AccountAddress:
+			return source.Pull(asset, nil, Sender{
+				Account: dest,
+				Amount:  amount,
+				Color:   color,
+			})
+
+		case VirtualAccount:
+			panic("TODO4")
+		}
+
+	}
+
+	panic("non exhaustive match")
+}
+
 // Treat this stack as debts and use the sender to repay debt.
 // Return the emitted postings and the remaining amount
 func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, *big.Int) {
@@ -76,31 +117,20 @@ func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, *bi
 	var postings []Posting
 
 	// Take away the debt that the credit allows for
-	clearedDebt := s.PullColored(remainingAmt, credit.Color)
-	for _, receiver := range clearedDebt {
-		switch creditAccount := credit.Account.(type) {
-		case VirtualAccount:
-			pulled := creditAccount.Pull(asset, nil, receiver)
-			postings = append(postings, pulled...)
+	pulled := s.PullColored(credit.Amount, credit.Color)
+	for _, pulledSender := range pulled {
+		newPostings := send(
+			credit.Account,
+			pulledSender.Account,
+			pulledSender.Amount,
+			asset,
+			credit.Color,
+		)
+		postings = append(postings, newPostings...)
+	}
 
-		case AccountAddress:
-			// TODO do we need this in the other case?
-			remainingAmt.Sub(remainingAmt, receiver.Amount)
-
-			switch receiverAccount := receiver.Account.(type) {
-			case AccountAddress:
-				postings = append(postings, Posting{
-					Source:      string(creditAccount),
-					Destination: string(receiverAccount),
-					Amount:      receiver.Amount,
-					Asset:       coloredAsset(asset, &credit.Color),
-				})
-
-			case VirtualAccount:
-				panic("TODO repay vacc")
-			}
-		}
-
+	for _, p := range postings {
+		remainingAmt.Sub(remainingAmt, p.Amount)
 	}
 
 	return postings, remainingAmt
@@ -128,36 +158,18 @@ func (vacc *VirtualAccount) Pull(asset string, overdraft *big.Int, receiver Send
 	pulled := credits.PullColored(receiver.Amount, receiver.Color)
 
 	remainingAmt := new(big.Int).Set(receiver.Amount)
+
 	var postings []Posting
+
 	for _, pulledSender := range pulled {
-		switch pulledSenderAccount := pulledSender.Account.(type) {
-		case VirtualAccount:
-			recPostings := pulledSenderAccount.Pull(asset, overdraft, receiver)
-			postings = append(postings, recPostings...)
-			continue
-
-		case AccountAddress:
-			remainingAmt.Sub(remainingAmt, pulledSender.Amount)
-			switch receiverAccount := receiver.Account.(type) {
-			case AccountAddress:
-				postings = append(postings, Posting{
-					Source:      string(pulledSenderAccount),
-					Destination: string(receiverAccount),
-					Amount:      pulledSender.Amount,
-					Asset:       coloredAsset(asset, &receiver.Color),
-				})
-
-			case VirtualAccount:
-				// TODO either include in coverage or simply this
-				panic("UNRECHED")
-
-				return receiverAccount.Receive(asset, Sender{
-					vacc,
-					pulledSender.Amount,
-					receiver.Color,
-				})
-			}
-		}
+		newPostings := send(
+			pulledSender.Account,
+			receiver.Account,
+			pulledSender.Amount,
+			asset,
+			receiver.Color,
+		)
+		postings = append(postings, newPostings...)
 	}
 
 	// TODO it looks like we aren't using overdraft now. How's that possible?
