@@ -58,24 +58,25 @@ func (vacc *VirtualAccount) Receive(asset string, sender Sender) []Posting {
 	// when receiving funds, we need to use them to clear debts first (if any)
 	debits := vacc.getDebits(asset)
 
-	postings, sender := repayWithSender(debits, asset, sender)
+	postings, remainingAmount := repayWithSender(debits, asset, sender)
 
 	credits := vacc.getCredits(asset)
+
+	sender.Amount = remainingAmount
 	credits.Push(sender)
 
 	return postings
 }
 
 // Treat this stack as debts and use the sender to repay debt.
-// Return the sender updated with the left amt (and the emitted postings)
-func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, Sender) {
-	// clone the amount so that we can modify it
-	credit.Amount = new(big.Int).Set(credit.Amount)
+// Return the emitted postings and the remaining amount
+func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, *big.Int) {
+	remainingAmt := new(big.Int).Set(credit.Amount)
 
 	var postings []Posting
 
 	// Take away the debt that the credit allows for
-	clearedDebt := s.PullColored(credit.Amount, credit.Color)
+	clearedDebt := s.PullColored(remainingAmt, credit.Color)
 	for _, receiver := range clearedDebt {
 		switch creditAccount := credit.Account.(type) {
 		case VirtualAccount:
@@ -84,7 +85,7 @@ func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, Sen
 
 		case AccountAddress:
 			// TODO do we need this in the other case?
-			credit.Amount.Sub(credit.Amount, receiver.Amount)
+			remainingAmt.Sub(remainingAmt, receiver.Amount)
 
 			switch receiverAccount := receiver.Account.(type) {
 			case AccountAddress:
@@ -102,7 +103,7 @@ func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, Sen
 
 	}
 
-	return postings, credit
+	return postings, remainingAmt
 
 }
 
