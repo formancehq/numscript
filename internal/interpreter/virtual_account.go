@@ -58,12 +58,52 @@ func (vacc *VirtualAccount) Receive(asset string, sender Sender) []Posting {
 	// when receiving funds, we need to use them to clear debts first (if any)
 	debits := vacc.getDebits(asset)
 
-	postings, sender := debits.RepayWithSender(asset, sender)
+	postings, sender := repayWithSender(debits, asset, sender)
 
 	credits := vacc.getCredits(asset)
 	credits.Push(sender)
 
 	return postings
+}
+
+// Treat this stack as debts and use the sender to repay debt.
+// Return the sender updated with the left amt (and the emitted postings)
+func repayWithSender(s *fundsStack, asset string, credit Sender) ([]Posting, Sender) {
+	// clone the amount so that we can modify it
+	credit.Amount = new(big.Int).Set(credit.Amount)
+
+	var postings []Posting
+
+	// Take away the debt that the credit allows for
+	clearedDebt := s.PullColored(credit.Amount, credit.Color)
+	for _, receiver := range clearedDebt {
+		switch creditAccount := credit.Account.(type) {
+		case VirtualAccount:
+			pulled := creditAccount.Pull(asset, nil, receiver)
+			postings = append(postings, pulled...)
+
+		case AccountAddress:
+			// TODO do we need this in the other case?
+			credit.Amount.Sub(credit.Amount, receiver.Amount)
+
+			switch receiverAccount := receiver.Account.(type) {
+			case AccountAddress:
+				postings = append(postings, Posting{
+					Source:      string(creditAccount),
+					Destination: string(receiverAccount),
+					Amount:      receiver.Amount,
+					Asset:       coloredAsset(asset, &credit.Color),
+				})
+
+			case VirtualAccount:
+				panic("TODO repay vacc")
+			}
+		}
+
+	}
+
+	return postings, credit
+
 }
 
 // Pull all the *immediately* available credits
