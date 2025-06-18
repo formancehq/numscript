@@ -5601,3 +5601,68 @@ send [USD/2 10] (
 	})
 
 }
+
+func TestSendHalfUsingVirtual(t *testing.T) {
+	script := `
+		vars { account $v = virtual() }
+
+		send [USD/2 10] (
+			source = {
+				1/2 from @alice
+				remaining from $v allowing unbounded overdraft
+			}
+			destination = @interests
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+	tc.setBalance("alice", "USD/2", 5)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{
+			{
+				Source:      "alice",
+				Destination: "interests",
+				Asset:       "USD/2",
+				Amount:      big.NewInt(5),
+			},
+		},
+	}
+	test(t, tc)
+}
+
+func TestVirtualSendCreditAround(t *testing.T) {
+	script := `
+		vars {
+			account $v1 = virtual()
+			account $v2 = virtual()
+		}
+
+ 		send [USD 1] (
+			source = $v1 allowing unbounded overdraft
+			destination = $v2
+		)
+
+		send [USD 1] (
+			// here's we're sending the credit we have from $v1
+			// so $v2 doesn't "owe" anything to @dest
+			source = $v2
+			destination = @dest
+		)
+
+		send [USD 1] (
+			// that's why this doesn't output any postings
+			source = @world
+			destination = $v2
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{},
+	}
+	test(t, tc)
+}
