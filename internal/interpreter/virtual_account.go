@@ -3,8 +3,6 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 type VirtualAccount struct {
@@ -94,7 +92,7 @@ func send(
 
 		switch dest := destination.(type) {
 		case AccountAddress:
-			return source.Pull(asset, nil, Sender{
+			return source.Pull(asset, Sender{
 				Account: dest,
 				Amount:  amount,
 				Color:   color,
@@ -149,11 +147,7 @@ func (vacc *VirtualAccount) PullCredits(asset string) []Sender {
 //
 // If the overdraft is higher than 0 or unbounded, is possible that the pulled amount is higher than the virtual account's credits.
 // In this case, we'll add the pulled amount to the virtual account's debts.
-func (vacc *VirtualAccount) Pull(asset string, overdraft *big.Int, receiver Sender) []Posting {
-	if overdraft == nil {
-		overdraft = new(big.Int).Set(receiver.Amount)
-	}
-
+func (vacc *VirtualAccount) Pull(asset string, receiver Sender) []Posting {
 	credits := vacc.getCredits(asset)
 	pulled := credits.PullColored(receiver.Amount, receiver.Color)
 
@@ -173,15 +167,14 @@ func (vacc *VirtualAccount) Pull(asset string, overdraft *big.Int, receiver Send
 	}
 
 	// TODO it looks like we aren't using overdraft now. How's that possible?
-	allowedDebt := utils.MinBigInt(remainingAmt, overdraft)
-	if allowedDebt.Cmp(big.NewInt(0)) == 1 {
+	if remainingAmt.Cmp(big.NewInt(0)) == 1 {
 		// If we didn't pull enough and we're allowed to overdraft,
 		// push the amount to debts WITHOUT emitting the corresponding postings (yet)
 		debits := vacc.getDebits(asset)
 		debits.Push(Sender{
 			Account: receiver.Account,
 			Color:   receiver.Color,
-			Amount:  allowedDebt,
+			Amount:  remainingAmt,
 		})
 	}
 

@@ -19,7 +19,7 @@ func TestVirtualAccountReceiveAndThenPull(t *testing.T) {
 	})
 	require.Empty(t, postings)
 
-	postings = vacc.Pull("USD", big.NewInt(0), interpreter.Sender{
+	postings = vacc.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  big.NewInt(10),
 	})
@@ -42,7 +42,7 @@ func TestVirtualAccountReceiveAndThenPullPartialAmount(t *testing.T) {
 	})
 	require.Empty(t, postings)
 
-	postings = vacc.Pull("USD", big.NewInt(0), interpreter.Sender{
+	postings = vacc.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  big.NewInt(1), // <- we're only pulling 1 out of 10
 	})
@@ -64,7 +64,7 @@ func TestVirtualAccountPullFirst(t *testing.T) {
 	vacc := interpreter.NewVirtualAccount()
 
 	// Now we pull first. Note the unbounded overdraft
-	postings := vacc.Pull("USD", nil, interpreter.Sender{
+	postings := vacc.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  big.NewInt(10),
 	})
@@ -90,7 +90,7 @@ func TestVirtualAccountPullFirstMixed(t *testing.T) {
 	vacc := interpreter.NewVirtualAccount()
 
 	// 1 USD of debt
-	vacc.Pull("USD", nil, interpreter.Sender{
+	vacc.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("lender"),
 		Amount:  big.NewInt(1),
 	})
@@ -110,7 +110,7 @@ func TestVirtualAccountPullFirstMixed(t *testing.T) {
 	}, postings)
 
 	// pull the rest
-	postings = vacc.Pull("USD", nil, interpreter.Sender{
+	postings = vacc.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  big.NewInt(100),
 	})
@@ -156,7 +156,7 @@ func TestVirtualAccountTransitiveWhenNotOverdraft(t *testing.T) {
 	require.Equal(t, []Posting{
 		{"src", "dest", amt, "USD"},
 	},
-		v1.Pull("USD", nil, interpreter.Sender{
+		v1.Pull("USD", interpreter.Sender{
 			Account: interpreter.AccountAddress("dest"),
 			Amount:  amt,
 		}))
@@ -188,7 +188,7 @@ func TestVirtualAccountTransitiveWhenOverdraft(t *testing.T) {
 	// => [{@src, @dest, 10}]
 	require.Equal(t, []Posting{
 		{"src", "dest", amt, "USD"},
-	}, v1.Pull("USD", nil, interpreter.Sender{
+	}, v1.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  amt,
 	}))
@@ -212,7 +212,7 @@ func TestVirtualAccountTransitiveWhenOverdraftAndPayLast(t *testing.T) {
 	}))
 
 	// $v1 -> @dest (10 USD)
-	require.Empty(t, v1.Pull("USD", nil, interpreter.Sender{
+	require.Empty(t, v1.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  amt,
 	}))
@@ -254,7 +254,7 @@ func TestVirtualAccountTransitiveTwoSteps(t *testing.T) {
 	}))
 
 	// $v2 -> @dest
-	require.Empty(t, v2.Pull("USD", nil, interpreter.Sender{
+	require.Empty(t, v2.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  amt,
 	}))
@@ -304,7 +304,7 @@ func TestVirtualAccountTransitiveTwoStepsPayFirst(t *testing.T) {
 	// $v2 -> @dest
 	require.Equal(t, []Posting{
 		{"src", "dest", amt, "USD"},
-	}, v2.Pull("USD", nil, interpreter.Sender{
+	}, v2.Pull("USD", interpreter.Sender{
 		Account: interpreter.AccountAddress("dest"),
 		Amount:  amt,
 	}))
@@ -345,7 +345,7 @@ func TestCommutativeOrder(t *testing.T) {
 			})
 		},
 		func() []Posting {
-			return v2.Pull("USD", nil, interpreter.Sender{
+			return v2.Pull("USD", interpreter.Sender{
 				Account: interpreter.AccountAddress("dest"),
 				Amount:  amt,
 			})

@@ -392,7 +392,7 @@ func (st *programState) pushReceiverAddress(name string, sender Sender) {
 	case VirtualAccount:
 		// Here we have a debt from a virtual acc.
 		// we don't want to emit that as a posting (but TODO check how does it interact with kept)
-		senderAccountAddress.Pull(st.CurrentAsset, nil, Sender{
+		senderAccountAddress.Pull(st.CurrentAsset, Sender{
 			AccountAddress(name),
 			sender.Amount,
 			sender.Color,
