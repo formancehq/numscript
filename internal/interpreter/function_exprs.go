@@ -19,7 +19,7 @@ func overdraft(
 
 	// TODO more precise args range location
 	p := NewArgsParser(args)
-	account := parseArg(p, r, expectAccount)
+	account := parseArg(p, r, expectAccountAddress) // TODO also handle virtual account
 	asset := parseArg(p, r, expectAsset)
 	err = p.parse()
 	if err != nil {
@@ -53,7 +53,7 @@ func meta(
 ) (string, InterpreterError) {
 	// TODO more precise location
 	p := NewArgsParser(args)
-	account := parseArg(p, rng, expectAccount)
+	account := parseArg(p, rng, expectAccountAddress)
 	key := parseArg(p, rng, expectString)
 	err := p.parse()
 	if err != nil {
@@ -86,7 +86,7 @@ func balance(
 ) (*Monetary, InterpreterError) {
 	// TODO more precise args range location
 	p := NewArgsParser(args)
-	account := parseArg(p, r, expectAccount)
+	account := parseArg(p, r, expectAccountAddress)
 	asset := parseArg(p, r, expectAsset)
 	err := p.parse()
 	if err != nil {
@@ -102,7 +102,7 @@ func balance(
 
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, NegativeBalanceError{
-			Account: *account,
+			Account: Account{AccountAddress(*account)},
 			Amount:  *balance,
 		}
 	}
@@ -154,4 +154,8 @@ func getAmount(
 	}
 
 	return mon.Amount, nil
+}
+
+func virtual() Value {
+	return Account{Repr: NewVirtualAccount()}
 }
