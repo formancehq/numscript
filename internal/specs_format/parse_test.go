@@ -2,8 +2,10 @@ package specs_format_test
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/stretchr/testify/require"
 )
@@ -36,20 +38,20 @@ func TestParseSpecs(t *testing.T) {
 
 	require.Equal(t, specs_format.Specs{
 		It: "d1",
-		Balances: map[string]map[string]int64{
+		Balances: interpreter.Balances{
 			"alice": {
-				"EUR": 200,
+				"EUR": big.NewInt(200),
 			},
 		},
-		Vars: map[string]string{
+		Vars: interpreter.VariablesMap{
 			"amt": "200",
 		},
-		ExpectedPostings: []specs_format.Posting{
+		ExpectedPostings: []interpreter.Posting{
 			{
 				Source:      "src",
 				Destination: "dest",
 				Asset:       "EUR",
-				Amount:      100,
+				Amount:      big.NewInt(100),
 			},
 		},
 	}, specs)
