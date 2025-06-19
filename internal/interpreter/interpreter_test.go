@@ -5666,3 +5666,72 @@ func TestVirtualSendCreditAround(t *testing.T) {
 	}
 	test(t, tc)
 }
+
+func TestVirtualKept(t *testing.T) {
+	script := `
+		vars {
+			account $v1 = virtual()
+		}
+
+ 		send [USD 1] (
+			source = @v1
+			destination = $v1
+		)
+
+		send [USD 2] (
+			source = $v2
+			destination = @dest
+		)
+
+		send [USD 1] (
+			// that's why this doesn't output any postings
+			source = @world
+			destination = $v2
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{},
+	}
+	test(t, tc)
+}
+
+func TestVirtualSendCreditAroundMixed(t *testing.T) {
+	t.Skip("TODO impl test")
+
+	script := `
+		vars {
+			account $v1 = virtual()
+			account $v2 = virtual()
+		}
+
+ 		send [USD 1] (
+			source = $v1 allowing unbounded overdraft
+			destination = $v2
+		)
+
+		send [USD 2] (
+			// here's we're sending the credit we have from $v1
+			// so $v2 doesn't "owe" anything to @dest
+			source = $v2
+			destination = @dest
+		)
+
+		send [USD 1] (
+			// that's why this doesn't output any postings
+			source = @world
+			destination = $v2
+		)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Postings: []machine.Posting{},
+	}
+	test(t, tc)
+}
