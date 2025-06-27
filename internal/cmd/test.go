@@ -40,39 +40,41 @@ func test(path string) {
 
 	out := specs_format.Run(parseResult.Value, specs)
 	for _, result := range out.Cases {
-		if !result.Pass {
-			expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
-			actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
+		if result.Pass {
+			continue
+		}
 
-			fmt.Println(ansi.Underline(`it: ` + result.It))
+		expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
+		actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
 
-			fmt.Println(ansi.ColorGreen("- Expected"))
-			fmt.Println(ansi.ColorRed("+ Received\n"))
+		fmt.Println(ansi.Underline(`it: ` + result.It))
 
-			dmp := diffmatchpatch.New()
+		fmt.Println(ansi.ColorGreen("- Expected"))
+		fmt.Println(ansi.ColorRed("+ Received\n"))
 
-			aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
-			diffs := dmp.DiffMain(aChars, bChars, true)
-			diffs = dmp.DiffCharsToLines(diffs, lineArray)
+		dmp := diffmatchpatch.New()
 
-			for _, diff := range diffs {
-				lines := strings.Split(diff.Text, "\n")
-				for _, line := range lines {
-					if line == "" {
-						continue
-					}
-					switch diff.Type {
-					case diffmatchpatch.DiffDelete:
-						fmt.Println(ansi.ColorGreen("- " + line))
-					case diffmatchpatch.DiffInsert:
-						fmt.Println(ansi.ColorRed("+ " + line))
-					case diffmatchpatch.DiffEqual:
-						fmt.Println("  " + line)
-					}
+		aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
+		diffs := dmp.DiffMain(aChars, bChars, true)
+		diffs = dmp.DiffCharsToLines(diffs, lineArray)
+
+		for _, diff := range diffs {
+			lines := strings.Split(diff.Text, "\n")
+			for _, line := range lines {
+				if line == "" {
+					continue
+				}
+				switch diff.Type {
+				case diffmatchpatch.DiffDelete:
+					fmt.Println(ansi.ColorGreen("- " + line))
+				case diffmatchpatch.DiffInsert:
+					fmt.Println(ansi.ColorRed("+ " + line))
+				case diffmatchpatch.DiffEqual:
+					fmt.Println("  " + line)
 				}
 			}
-
 		}
+
 	}
 
 	if out.Total == 0 {
