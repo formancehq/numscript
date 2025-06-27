@@ -45,33 +45,44 @@ type SpecsResult struct {
 	Cases   []TestCaseResult
 }
 
-func Run(program parser.Program, specs Specs) SpecsResult {
+func Check(program parser.Program, specs Specs) SpecsResult {
 	specsResult := SpecsResult{}
 
 	for _, testCase := range specs.TestCases {
 		// TODO merge balances, vars, meta
-		meta := specs.Meta
-		balances := specs.Balances
-		vars := specs.Vars
+		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
+		balances := mergeBalances(specs.Balances, testCase.Balances)
+		vars := mergeVars(specs.Vars, testCase.Vars)
 
 		specsResult.Total += 1
 
 		result, err := interpreter.RunProgram(
 			context.Background(),
 			program,
-			specs.Vars,
+			vars,
 			interpreter.StaticStore{
-				// TODO merge balance, meta
 				Meta:     meta,
 				Balances: balances,
 			}, nil)
 
+		var pass bool
+		var actualPostings []interpreter.Posting
+
 		// TODO recover err on missing funds
 		if err != nil {
-			panic(err)
+			if _, ok := err.(interpreter.MissingFundsErr); ok {
+
+				pass = testCase.ExpectedPostings == nil
+				actualPostings = nil
+			} else {
+				panic(err)
+			}
+
+		} else {
+			pass = reflect.DeepEqual(result.Postings, testCase.ExpectedPostings)
+			actualPostings = result.Postings
 		}
 
-		pass := reflect.DeepEqual(result.Postings, testCase.ExpectedPostings)
 		if pass {
 			specsResult.Passing += 1
 		} else {
@@ -85,9 +96,32 @@ func Run(program parser.Program, specs Specs) SpecsResult {
 			Balances:         balances,
 			Vars:             vars,
 			ExpectedPostings: testCase.ExpectedPostings,
-			ActualPostings:   result.Postings,
+			ActualPostings:   actualPostings,
 		})
 	}
 
 	return specsResult
+}
+
+func mergeVars(v1 interpreter.VariablesMap, v2 interpreter.VariablesMap) interpreter.VariablesMap {
+	out := interpreter.VariablesMap{}
+	for k, v := range v1 {
+		out[k] = v
+	}
+	for k, v := range v2 {
+		out[k] = v
+	}
+	return out
+}
+
+func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsMetadata) interpreter.AccountsMetadata {
+	out := m1.DeepClone()
+	out.Merge(m2)
+	return out
+}
+
+func mergeBalances(b1 interpreter.Balances, b2 interpreter.Balances) interpreter.Balances {
+	out := b1.DeepClone()
+	out.Merge(b2)
+	return out
 }

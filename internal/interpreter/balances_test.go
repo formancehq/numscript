@@ -41,7 +41,7 @@ func TestCloneBalances(t *testing.T) {
 		},
 	}
 
-	cloned := fullBalance.deepClone()
+	cloned := fullBalance.DeepClone()
 
 	fullBalance["alice"]["USD/2"].Set(big.NewInt(42))
 
