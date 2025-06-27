@@ -38,7 +38,7 @@ func test(path string) {
 		return
 	}
 
-	out := specs_format.Run(parseResult.Value, specs)
+	out := specs_format.Check(parseResult.Value, specs)
 	for _, result := range out.Cases {
 		if result.Pass {
 			continue

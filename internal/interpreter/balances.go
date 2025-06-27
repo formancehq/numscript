@@ -13,7 +13,7 @@ func (b Balances) fetchAccountBalances(account string) AccountBalance {
 	})
 }
 
-func (b Balances) deepClone() Balances {
+func (b Balances) DeepClone() Balances {
 	cloned := make(Balances)
 	for account, accountBalances := range b {
 		for asset, amount := range accountBalances {
