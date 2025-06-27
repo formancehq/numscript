@@ -13,23 +13,31 @@ import (
 func TestParseSpecs(t *testing.T) {
 
 	raw := `
-		{
-			"it": "d1",
-			"balances": {
-				"alice": { "EUR": 200 }
-			},
-			"vars": {
-				"amt": "200"
-			},
-			"expectedPostings": [
-				{
-					"source": "src",
-					"destination": "dest",
-					"asset": "EUR",
-					"amount": 100
-				}
-			]
-		}
+{
+  "balances": {
+    "alice": { "EUR": 200 }
+  },
+  "vars": {
+    "amt": "200"
+  },
+  "testCases": [
+    {
+      "it": "d1",
+      "balances": {
+        "bob": { "EUR": 42 }
+      },
+      "expectedPostings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR",
+          "amount": 100
+        }
+      ]
+    }
+  ]
+}
+
 	`
 
 	var specs specs_format.Specs
@@ -37,7 +45,6 @@ func TestParseSpecs(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Equal(t, specs_format.Specs{
-		It: "d1",
 		Balances: interpreter.Balances{
 			"alice": {
 				"EUR": big.NewInt(200),
@@ -46,12 +53,22 @@ func TestParseSpecs(t *testing.T) {
 		Vars: interpreter.VariablesMap{
 			"amt": "200",
 		},
-		ExpectedPostings: []interpreter.Posting{
+		TestCases: []specs_format.TestCase{
 			{
-				Source:      "src",
-				Destination: "dest",
-				Asset:       "EUR",
-				Amount:      big.NewInt(100),
+				It: "d1",
+				Balances: interpreter.Balances{
+					"bob": {
+						"EUR": big.NewInt(42),
+					},
+				},
+				ExpectedPostings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "EUR",
+						Amount:      big.NewInt(100),
+					},
+				},
 			},
 		},
 	}, specs)

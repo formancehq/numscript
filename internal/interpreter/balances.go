@@ -78,7 +78,7 @@ func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
 }
 
 // Merge balances by adding balances in the "update" arg
-func (b Balances) mergeBalance(update Balances) {
+func (b Balances) Merge(update Balances) {
 	// merge queried balance
 	for acc, accBalances := range update {
 		cachedAcc := defaultMapGet(b, acc, func() AccountBalance {
