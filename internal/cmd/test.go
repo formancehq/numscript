@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/spf13/cobra"
@@ -34,15 +35,32 @@ func test(path string) {
 		return
 	}
 
-	out, err := specs_format.Run(parseResult.Value, specs)
-	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		return
+	out := specs_format.Run(parseResult.Value, specs)
+	for _, result := range out.Cases {
+		if !result.Pass {
+			fmt.Println(ansi.Underline(`it: ` + result.It))
+
+			fmt.Println("\nExpected:")
+			expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
+			fmt.Println(ansi.ColorGreen(string(expected)))
+
+			fmt.Println("\nGot:")
+			actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
+			fmt.Println(ansi.ColorRed(string(actual)))
+
+		}
 	}
 
-	if !out.Success {
-		fmt.Printf("Postings mismatch.\n\tExpected: %v\n\tGot:%v\n", out.ExpectedPostings, out.ActualPostings)
+	if out.Total == 0 {
+		fmt.Println(ansi.ColorRed("Empty test suite!"))
+		os.Exit(1)
+	} else if out.Failing == 0 {
+		fmt.Printf("All tests passing ✅\n")
+		return
+	} else {
+		os.Exit(1)
 	}
+
 }
 
 // TODO test directory instead
