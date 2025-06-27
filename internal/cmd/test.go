@@ -47,7 +47,13 @@ func test(path string) {
 		expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
 		actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
 
-		fmt.Println(ansi.Underline(`it: ` + result.It))
+		fmt.Println(ansi.Underline("it: " + result.It))
+
+		if len(result.Balances) != 0 {
+			fmt.Println()
+			fmt.Println(result.Balances.PrettyPrint())
+			fmt.Println()
+		}
 
 		fmt.Println(ansi.ColorGreen("- Expected"))
 		fmt.Println(ansi.ColorRed("+ Received\n"))

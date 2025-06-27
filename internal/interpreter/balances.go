@@ -1,9 +1,11 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -89,4 +91,58 @@ func (b Balances) Merge(update Balances) {
 			cachedAcc[curr] = amt
 		}
 	}
+}
+
+const accountHeader = "Account"
+const assetHeader = "Asset"
+const balanceHeader = "Balance"
+
+func (b Balances) PrettyPrint() string {
+	type Row struct {
+		Account string
+		Asset   string
+		Balance string
+	}
+
+	var rows []Row
+	for account, accBalances := range b {
+		for asset, balance := range accBalances {
+			rows = append(rows, Row{account, asset, balance.String()})
+		}
+	}
+
+	maxAccountLen := len(accountHeader)
+	maxAssetLen := len(assetHeader)
+	maxBalanceLen := len(balanceHeader)
+	for _, row := range rows {
+		maxAccountLen = max(maxAccountLen, len(row.Account))
+		maxAssetLen = max(maxAssetLen, len(row.Asset))
+		maxBalanceLen = max(maxBalanceLen, len(row.Balance))
+	}
+
+	out := fmt.Sprintf("| %-*s | %-*s | %-*s |",
+		maxAccountLen,
+		ansi.ColorCyan(accountHeader),
+
+		maxAssetLen,
+		ansi.ColorCyan(assetHeader),
+
+		maxBalanceLen,
+		ansi.ColorCyan(balanceHeader),
+	)
+
+	for _, row := range rows {
+		out += fmt.Sprintf("\n| %-*s | %-*s | %-*s |",
+			maxAccountLen,
+			row.Account,
+
+			maxAssetLen,
+			row.Asset,
+
+			maxBalanceLen,
+			row.Balance,
+		)
+	}
+
+	return out
 }
