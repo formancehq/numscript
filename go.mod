@@ -5,7 +5,10 @@ go 1.22.1
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/gkampitakis/go-snaps v0.5.4
+	github.com/sergi/go-diff v1.0.0
 )
+
+require gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
