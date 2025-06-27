@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/spf13/cobra"
+
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 func test(path string) {
@@ -38,15 +41,36 @@ func test(path string) {
 	out := specs_format.Run(parseResult.Value, specs)
 	for _, result := range out.Cases {
 		if !result.Pass {
+			expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
+			actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
+
 			fmt.Println(ansi.Underline(`it: ` + result.It))
 
-			fmt.Println("\nExpected:")
-			expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
-			fmt.Println(ansi.ColorGreen(string(expected)))
+			fmt.Println(ansi.ColorGreen("- Expected"))
+			fmt.Println(ansi.ColorRed("+ Received\n"))
 
-			fmt.Println("\nGot:")
-			actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
-			fmt.Println(ansi.ColorRed(string(actual)))
+			dmp := diffmatchpatch.New()
+
+			aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
+			diffs := dmp.DiffMain(aChars, bChars, true)
+			diffs = dmp.DiffCharsToLines(diffs, lineArray)
+
+			for _, diff := range diffs {
+				lines := strings.Split(diff.Text, "\n")
+				for _, line := range lines {
+					if line == "" {
+						continue
+					}
+					switch diff.Type {
+					case diffmatchpatch.DiffDelete:
+						fmt.Println(ansi.ColorGreen("- " + line))
+					case diffmatchpatch.DiffInsert:
+						fmt.Println(ansi.ColorRed("+ " + line))
+					case diffmatchpatch.DiffEqual:
+						fmt.Println("  " + line)
+					}
+				}
+			}
 
 		}
 	}
