@@ -1,6 +1,9 @@
 package ansi
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const resetCol = "\033[0m"
 
@@ -13,9 +16,19 @@ func Compose(cols ...func(string) string) func(string) string {
 	}
 }
 
+func replaceLast(s, oldStr, newStr string) string {
+	lastIndex := strings.LastIndex(s, oldStr)
+	if lastIndex == -1 {
+		return s
+	}
+	return s[:lastIndex] + newStr + s[lastIndex+len(oldStr):]
+}
+
 func col(s string, code int) string {
-	c := fmt.Sprintf("\033[%dm", code)
-	return c + s + resetCol
+	colorCode := fmt.Sprintf("\033[%dm", code)
+	// This trick should allow to stack colors (TODO test)
+	s = replaceLast(s, resetCol, resetCol+colorCode)
+	return colorCode + s + resetCol
 }
 
 func ColorRed(s string) string {
@@ -40,6 +53,10 @@ func ColorCyan(s string) string {
 
 func ColorLight(s string) string {
 	return col(s, 97) // Bright white → light
+}
+
+func ColorBrightBlack(s string) string {
+	return col(s, 90)
 }
 
 // BG
