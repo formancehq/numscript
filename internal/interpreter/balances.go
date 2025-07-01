@@ -1,11 +1,9 @@
 package interpreter
 
 import (
-	"fmt"
 	"math/big"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -93,56 +91,15 @@ func (b Balances) Merge(update Balances) {
 	}
 }
 
-const accountHeader = "Account"
-const assetHeader = "Asset"
-const balanceHeader = "Balance"
-
 func (b Balances) PrettyPrint() string {
-	type Row struct {
-		Account string
-		Asset   string
-		Balance string
-	}
+	header := []string{"Account", "Asset", "Balance"}
 
-	var rows []Row
+	var rows [][]string
 	for account, accBalances := range b {
 		for asset, balance := range accBalances {
-			rows = append(rows, Row{account, asset, balance.String()})
+			row := []string{account, asset, balance.String()}
+			rows = append(rows, row)
 		}
 	}
-
-	maxAccountLen := len(accountHeader)
-	maxAssetLen := len(assetHeader)
-	maxBalanceLen := len(balanceHeader)
-	for _, row := range rows {
-		maxAccountLen = max(maxAccountLen, len(row.Account))
-		maxAssetLen = max(maxAssetLen, len(row.Asset))
-		maxBalanceLen = max(maxBalanceLen, len(row.Balance))
-	}
-
-	out := fmt.Sprintf("| %-*s | %-*s | %-*s |",
-		maxAccountLen,
-		ansi.ColorCyan(accountHeader),
-
-		maxAssetLen,
-		ansi.ColorCyan(assetHeader),
-
-		maxBalanceLen,
-		ansi.ColorCyan(balanceHeader),
-	)
-
-	for _, row := range rows {
-		out += fmt.Sprintf("\n| %-*s | %-*s | %-*s |",
-			maxAccountLen,
-			row.Account,
-
-			maxAssetLen,
-			row.Asset,
-
-			maxBalanceLen,
-			row.Balance,
-		)
-	}
-
-	return out
+	return utils.CsvPretty(header, rows)
 }
