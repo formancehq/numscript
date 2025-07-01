@@ -101,5 +101,5 @@ func (b Balances) PrettyPrint() string {
 			rows = append(rows, row)
 		}
 	}
-	return utils.CsvPretty(header, rows)
+	return utils.CsvPretty(header, rows, true)
 }
