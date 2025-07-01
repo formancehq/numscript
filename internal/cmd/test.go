@@ -76,7 +76,7 @@ func showFailingTestCase(specsFilePath string, result specs_format.TestCaseResul
 			case diffmatchpatch.DiffInsert:
 				fmt.Println(ansi.ColorRed("+ " + line))
 			case diffmatchpatch.DiffEqual:
-				fmt.Println("  " + line)
+				fmt.Println(ansi.ColorBrightBlack("  " + line))
 			}
 		}
 	}
