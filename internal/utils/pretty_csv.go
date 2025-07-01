@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/ansi"
@@ -11,7 +12,22 @@ import (
 func CsvPretty(
 	header []string,
 	rows [][]string,
+	sortRows bool,
 ) string {
+	if sortRows {
+		slices.SortStableFunc(rows, func(x, y []string) int {
+			strX := strings.Join(x, "|")
+			strY := strings.Join(y, "|")
+			if strX == strY {
+				return 0
+			} else if strX < strY {
+				return -1
+			} else {
+				return 1
+			}
+		})
+	}
+
 	// -- Find paddings
 	var maxLengths []int = make([]int, len(header))
 	for fieldIndex, fieldName := range header {
@@ -55,4 +71,13 @@ func CsvPretty(
 	}
 
 	return strings.Join(allRows, "\n")
+}
+
+func CsvPrettyMap(keyName string, valueName string, m map[string]string) string {
+	var rows [][]string
+	for k, v := range m {
+		rows = append(rows, []string{k, v})
+	}
+
+	return CsvPretty([]string{keyName, valueName}, rows, true)
 }

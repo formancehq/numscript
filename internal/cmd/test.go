@@ -9,6 +9,7 @@ import (
 	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
+	"github.com/formancehq/numscript/internal/utils"
 	"github.com/spf13/cobra"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -52,6 +53,18 @@ func test(path string) {
 		if len(result.Balances) != 0 {
 			fmt.Println()
 			fmt.Println(result.Balances.PrettyPrint())
+			fmt.Println()
+		}
+
+		if len(result.Meta) != 0 {
+			fmt.Println()
+			fmt.Println(result.Meta.PrettyPrint())
+			fmt.Println()
+		}
+
+		if len(result.Vars) != 0 {
+			fmt.Println()
+			fmt.Println(utils.CsvPrettyMap("Name", "Value", result.Vars))
 			fmt.Println()
 		}
 
