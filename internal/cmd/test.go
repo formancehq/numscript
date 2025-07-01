@@ -140,6 +140,50 @@ func test(specsFilePath string) specs_format.SpecsResult {
 	return out
 }
 
+func testPaths(paths []string) {
+	for _, path := range paths {
+		path = strings.TrimSuffix(path, "/")
+
+		glob := fmt.Sprintf(path + "/*.num.specs.json")
+
+		files, err := filepath.Glob(glob)
+		if err != nil {
+			panic(err)
+		}
+
+		type FailingSpec struct {
+			File   string
+			Result specs_format.TestCaseResult
+		}
+
+		var failingTests []FailingSpec
+
+		for _, file := range files {
+			out := test(file)
+
+			for _, testCase := range out.Cases {
+				if testCase.Pass {
+					continue
+				}
+
+				failingTests = append(failingTests, FailingSpec{
+					File:   file,
+					Result: testCase,
+				})
+			}
+		}
+
+		if len(failingTests) == 0 {
+			return
+		}
+
+		for _, failedTest := range failingTests {
+			showFailingTestCase(failedTest.File, failedTest.Result)
+		}
+		os.Exit(1)
+	}
+}
+
 var testCmd = &cobra.Command{
 	Use:   "test <path>",
 	Short: "Test a numscript file, using the corresponding spec file",
@@ -149,46 +193,6 @@ var testCmd = &cobra.Command{
 			paths = []string{"."}
 		}
 
-		for _, path := range paths {
-			path = strings.TrimSuffix(path, "/")
-
-			glob := fmt.Sprintf(path + "/*.num.specs.json")
-
-			files, err := filepath.Glob(glob)
-			if err != nil {
-				panic(err)
-			}
-
-			type FailingSpec struct {
-				File   string
-				Result specs_format.TestCaseResult
-			}
-
-			var failingTests []FailingSpec
-
-			for _, file := range files {
-				out := test(file)
-
-				for _, testCase := range out.Cases {
-					if testCase.Pass {
-						continue
-					}
-
-					failingTests = append(failingTests, FailingSpec{
-						File:   file,
-						Result: testCase,
-					})
-				}
-			}
-
-			if len(failingTests) == 0 {
-				return
-			}
-
-			for _, failedTest := range failingTests {
-				showFailingTestCase(failedTest.File, failedTest.Result)
-			}
-			os.Exit(1)
-		}
+		testPaths(paths)
 	},
 }
