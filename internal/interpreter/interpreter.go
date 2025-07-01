@@ -989,3 +989,12 @@ func CalculateSafeWithdraw(
 	safe := CalculateMaxSafeWithdraw(balance, overdraft)
 	return utils.MinBigInt(safe, requestedAmount)
 }
+
+func PrettyPrintPostings(postings []Posting) string {
+	var rows [][]string
+	for _, posting := range postings {
+		row := []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+		rows = append(rows, row)
+	}
+	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
+}

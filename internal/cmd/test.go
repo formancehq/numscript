@@ -45,10 +45,14 @@ func test(path string) {
 			continue
 		}
 
-		expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
-		actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
+		failColor := ansi.Compose(ansi.BgRed, ansi.ColorLight, ansi.Bold)
+		fmt.Print(failColor(" FAIL "))
+		fmt.Println(ansi.ColorRed(" " + path + " > " + result.It))
 
-		fmt.Println(ansi.Underline("it: " + result.It))
+		showGiven := len(result.Balances) != 0 || len(result.Meta) != 0 || len(result.Vars) != 0
+		if showGiven {
+			fmt.Println(ansi.Underline("\nGIVEN:"))
+		}
 
 		if len(result.Balances) != 0 {
 			fmt.Println()
@@ -68,10 +72,15 @@ func test(path string) {
 			fmt.Println()
 		}
 
+		fmt.Print(ansi.Underline("EXPECT:\n\n"))
+
 		fmt.Println(ansi.ColorGreen("- Expected"))
 		fmt.Println(ansi.ColorRed("+ Received\n"))
 
 		dmp := diffmatchpatch.New()
+
+		expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
+		actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
 
 		aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
 		diffs := dmp.DiffMain(aChars, bChars, true)
