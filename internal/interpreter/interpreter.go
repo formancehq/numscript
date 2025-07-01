@@ -998,3 +998,12 @@ func PrettyPrintPostings(postings []Posting) string {
 	}
 	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
 }
+
+func PrettyPrintMeta(meta Metadata) string {
+	m := map[string]string{}
+	for k, v := range meta {
+		m[k] = v.String()
+	}
+
+	return utils.CsvPrettyMap("Name", "Value", m)
+}

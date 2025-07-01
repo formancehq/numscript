@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -164,21 +163,15 @@ func showJson(result *interpreter.ExecutionResult) {
 }
 
 func showPretty(result *interpreter.ExecutionResult) {
-	fmt.Println(ansi.ColorCyan("Postings:"))
-	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(postingsJson))
 
-	fmt.Println()
+	fmt.Println("Postings:")
+	fmt.Println(interpreter.PrettyPrintPostings(result.Postings))
 
-	fmt.Println(ansi.ColorCyan("Meta:"))
-	txMetaJson, err := json.MarshalIndent(result.Metadata, "", "  ")
-	if err != nil {
-		panic(err)
+	if len(result.Metadata) != 0 {
+		fmt.Println("Meta:")
+		fmt.Println(interpreter.PrettyPrintMeta(result.Metadata))
 	}
-	fmt.Println(string(txMetaJson))
+
 }
 
 func getRunCmd() *cobra.Command {
