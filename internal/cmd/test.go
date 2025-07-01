@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/ansi"
@@ -140,7 +141,16 @@ func test(specsFilePath string) specs_format.SpecsResult {
 	return out
 }
 
+type testResult struct {
+	File   string
+	Result specs_format.TestCaseResult
+}
+
 func testPaths(paths []string) {
+	testFiles := 0
+	failedTestFiles := 0
+
+	var allTests []testResult
 	for _, path := range paths {
 		path = strings.TrimSuffix(path, "/")
 
@@ -150,38 +160,109 @@ func testPaths(paths []string) {
 		if err != nil {
 			panic(err)
 		}
-
-		type FailingSpec struct {
-			File   string
-			Result specs_format.TestCaseResult
-		}
-
-		var failingTests []FailingSpec
+		testFiles += len(files)
 
 		for _, file := range files {
 			out := test(file)
 
 			for _, testCase := range out.Cases {
-				if testCase.Pass {
-					continue
-				}
-
-				failingTests = append(failingTests, FailingSpec{
+				allTests = append(allTests, testResult{
 					File:   file,
 					Result: testCase,
 				})
 			}
-		}
 
-		if len(failingTests) == 0 {
-			return
+			// Count tests
+			isTestFailed := slices.ContainsFunc(out.Cases, func(tc specs_format.TestCaseResult) bool {
+				return tc.Pass
+			})
+			if isTestFailed {
+				failedTestFiles += 1
+			}
 		}
-
-		for _, failedTest := range failingTests {
-			showFailingTestCase(failedTest.File, failedTest.Result)
-		}
-		os.Exit(1)
 	}
+
+	for _, test_ := range allTests {
+		showFailingTestCase(test_.File, test_.Result)
+	}
+
+	// Stats
+	printFilesStats(allTests)
+
+}
+
+func printFilesStats(allTests []testResult) {
+	failedTests := utils.Filter(allTests, func(t testResult) bool {
+		return !t.Result.Pass
+	})
+
+	testFilesLabel := "Test files"
+	testsLabel := "Tests"
+
+	paddedLabel := func(s string) string {
+		maxLen := max(len(testFilesLabel), len(testsLabel)) // yeah, ok, this could be hardcoded, I know
+		return ansi.ColorBrightBlack(fmt.Sprintf(" %*s ", maxLen, s))
+	}
+
+	fmt.Println()
+
+	// Files stats
+	{
+		filesCount := len(slices.CompactFunc(allTests, func(t1 testResult, t2 testResult) bool {
+			return t1.File == t2.File
+		}))
+		failedTestsFilesCount := len(slices.CompactFunc(failedTests, func(t1 testResult, t2 testResult) bool {
+			return t1.File == t2.File
+		}))
+		passedTestsFilesCount := filesCount - failedTestsFilesCount
+
+		var testFilesUIParts []string
+		if failedTestsFilesCount != 0 {
+			testFilesUIParts = append(testFilesUIParts,
+				ansi.Compose(ansi.ColorBrightRed, ansi.Bold)(fmt.Sprintf("%d failed", failedTestsFilesCount)),
+			)
+		}
+		if passedTestsFilesCount != 0 {
+			testFilesUIParts = append(testFilesUIParts,
+				ansi.Compose(ansi.ColorBrightGreen, ansi.Bold)(fmt.Sprintf("%d passed", passedTestsFilesCount)),
+			)
+		}
+		testFilesUI := strings.Join(testFilesUIParts, ansi.ColorBrightBlack(" | "))
+		totalTestFilesUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", filesCount))
+		fmt.Print(paddedLabel(testFilesLabel) + " " + testFilesUI + " " + totalTestFilesUI)
+	}
+
+	fmt.Println()
+
+	// Tests stats
+	{
+
+		testsCount := len(allTests)
+		failedTestsCount := len(failedTests)
+		passedTestsCount := testsCount - failedTestsCount
+
+		var testUIParts []string
+		if failedTestsCount != 0 {
+			testUIParts = append(testUIParts,
+				ansi.Compose(ansi.ColorBrightRed, ansi.Bold)(fmt.Sprintf("%d failed", failedTestsCount)),
+			)
+		}
+		if passedTestsCount != 0 {
+			testUIParts = append(testUIParts,
+				ansi.Compose(ansi.ColorBrightGreen, ansi.Bold)(fmt.Sprintf("%d passed", passedTestsCount)),
+			)
+		}
+
+		testsUI := strings.Join(testUIParts, ansi.ColorBrightBlack(" | "))
+		totalTestsUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", testsCount))
+
+		fmt.Print(paddedLabel(testsLabel) + " " + testsUI + " " + totalTestsUI)
+
+		if failedTestsCount != 0 {
+			os.Exit(1)
+		}
+	}
+
 }
 
 var testCmd = &cobra.Command{
