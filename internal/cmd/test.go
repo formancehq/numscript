@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,9 +18,12 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-func showFailingTestCase(specsFilePath string, result specs_format.TestCaseResult) {
+func showFailingTestCase(testResult testResult) (rerun bool) {
+	specsFilePath := testResult.File
+	result := testResult.Result
+
 	if result.Pass {
-		return
+		return false
 	}
 
 	fmt.Print("\n\n")
@@ -82,9 +86,54 @@ func showFailingTestCase(specsFilePath string, result specs_format.TestCaseResul
 		}
 	}
 
+	if interactiveMode {
+		fmt.Println(ansi.ColorBrightBlack(
+			fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
+				ansi.ColorBrightYellow("u"),
+				ansi.ColorBrightYellow("n"),
+			)))
+
+		reader := bufio.NewReader(os.Stdin)
+		line, _, err := reader.ReadLine()
+		if err != nil {
+			panic(err)
+		}
+
+		switch string(line) {
+		case "u":
+			testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
+				// TODO check there are no duplicate "It"
+				if t.It == testResult.Result.It {
+					t.ExpectedPostings = testResult.Result.ActualPostings
+				}
+
+				return t
+			})
+
+			newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+
+			err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
+			if err != nil {
+				panic(err)
+			}
+			return true
+
+		case "n":
+			return false
+
+		default:
+			panic("TODO invalid command")
+		}
+
+	}
+
+	return false
 }
 
-func test(specsFilePath string) specs_format.SpecsResult {
+func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	if !strings.HasSuffix(specsFilePath, ".num.specs.json") {
 		panic("Wrong name")
 	}
@@ -138,10 +187,11 @@ func test(specsFilePath string) specs_format.SpecsResult {
 
 	}
 
-	return out
+	return specs, out
 }
 
 type testResult struct {
+	Specs  specs_format.Specs
 	File   string
 	Result specs_format.TestCaseResult
 }
@@ -163,10 +213,11 @@ func testPaths(paths []string) {
 		testFiles += len(files)
 
 		for _, file := range files {
-			out := test(file)
+			specs, out := test(file)
 
 			for _, testCase := range out.Cases {
 				allTests = append(allTests, testResult{
+					Specs:  specs,
 					File:   file,
 					Result: testCase,
 				})
@@ -183,13 +234,20 @@ func testPaths(paths []string) {
 	}
 
 	for _, test_ := range allTests {
-		showFailingTestCase(test_.File, test_.Result)
+		rerun := showFailingTestCase(test_)
+		if rerun {
+			fmt.Print("\033[H\033[2J")
+			testPaths(paths)
+			return
+		}
 	}
 
 	// Stats
 	printFilesStats(allTests)
 
 }
+
+var interactiveMode = false
 
 func printFilesStats(allTests []testResult) {
 	failedTests := utils.Filter(allTests, func(t testResult) bool {
