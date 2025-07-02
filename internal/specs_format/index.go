@@ -17,24 +17,28 @@ type Specs struct {
 }
 
 type TestCase struct {
-	It               string                       `json:"it"`
-	Balances         interpreter.Balances         `json:"balances,omitempty"`
-	Vars             interpreter.VariablesMap     `json:"vars,omitempty"`
-	Meta             interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
-	ExpectedPostings []interpreter.Posting        `json:"expectedPostings"`
-	// TODO expected tx meta, accountsMeta
+	It                   string                        `json:"it"`
+	Balances             interpreter.Balances          `json:"balances,omitempty"`
+	Vars                 interpreter.VariablesMap      `json:"vars,omitempty"`
+	Meta                 interpreter.AccountsMetadata  `json:"accountsMeta,omitempty"`
+	ExpectedPostings     []interpreter.Posting         `json:"expectedPostings"`
+	ExpectedTxMeta       *interpreter.AccountsMetadata `json:"expectedTxMeta,omitempty"`
+	ExpectedAccountsMeta *map[string]string            `json:"expectedAccountsMeta,omitempty"`
+	ExpectMissingFunds   bool                          `json:"expectMissingFunds,omitempty"`
 }
 
 type TestCaseResult struct {
-	It               string                       `json:"it"`
-	Pass             bool                         `json:"pass"`
-	Balances         interpreter.Balances         `json:"balances"`
-	Vars             interpreter.VariablesMap     `json:"vars"`
-	Meta             interpreter.AccountsMetadata `json:"accountsMeta"`
-	ExpectedPostings []interpreter.Posting        `json:"expectedPostings"`
-	ActualPostings   []interpreter.Posting        `json:"actualPostings"`
-
-	// TODO expected tx meta, accountsMeta
+	It                   string                        `json:"it"`
+	Pass                 bool                          `json:"pass"`
+	Balances             interpreter.Balances          `json:"balances"`
+	Vars                 interpreter.VariablesMap      `json:"vars"`
+	Meta                 interpreter.AccountsMetadata  `json:"accountsMeta"`
+	ExpectedPostings     []interpreter.Posting         `json:"expectedPostings"`
+	ActualPostings       []interpreter.Posting         `json:"actualPostings"`
+	ExpectedTxMeta       *map[string]string            `json:"expectedTxMeta,omitempty"`
+	ActualTxMeta         *map[string]string            `json:"actualTxMeta,omitempty"`
+	ExpectedAccountsMeta *interpreter.AccountsMetadata `json:"expectedAccountsMeta,omitempty"`
+	ActualAccountsMeta   *interpreter.AccountsMetadata `json:"actualAccountsMeta,omitempty"`
 }
 
 type SpecsResult struct {
