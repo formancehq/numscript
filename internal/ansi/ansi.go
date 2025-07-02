@@ -67,6 +67,10 @@ func ColorBrightGreen(s string) string {
 	return col(s, 92)
 }
 
+func ColorBrightYellow(s string) string {
+	return col(s, 93)
+}
+
 // BG
 func BgDark(s string) string {
 	return col(s, 100)
