@@ -21,10 +21,10 @@ type TestCase struct {
 	Balances             interpreter.Balances          `json:"balances,omitempty"`
 	Vars                 interpreter.VariablesMap      `json:"vars,omitempty"`
 	Meta                 interpreter.AccountsMetadata  `json:"accountsMeta,omitempty"`
-	ExpectedPostings     []interpreter.Posting         `json:"expectedPostings"`
-	ExpectedTxMeta       *interpreter.AccountsMetadata `json:"expectedTxMeta,omitempty"`
-	ExpectedAccountsMeta *map[string]string            `json:"expectedAccountsMeta,omitempty"`
-	ExpectMissingFunds   bool                          `json:"expectMissingFunds,omitempty"`
+	ExpectedPostings     []interpreter.Posting         `json:"expect.postings"`
+	ExpectedTxMeta       *interpreter.AccountsMetadata `json:"expect.txMeta,omitempty"`
+	ExpectedAccountsMeta *map[string]string            `json:"expect.accountsMeta,omitempty"`
+	ExpectMissingFunds   bool                          `json:"expect.missingFunds,omitempty"`
 }
 
 type TestCaseResult struct {

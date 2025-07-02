@@ -26,7 +26,7 @@ func TestParseSpecs(t *testing.T) {
       "balances": {
         "bob": { "EUR": 42 }
       },
-      "expectedPostings": [
+      "expect.postings": [
         {
           "source": "src",
           "destination": "dest",
