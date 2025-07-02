@@ -10,10 +10,11 @@ import (
 
 // --- Specs:
 type Specs struct {
-	Balances  interpreter.Balances         `json:"balances,omitempty"`
-	Vars      interpreter.VariablesMap     `json:"vars,omitempty"`
-	Meta      interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
-	TestCases []TestCase                   `json:"testCases,omitempty"`
+	FeatureFlags []string                     `json:"featureFlags,omitempty"`
+	Balances     interpreter.Balances         `json:"balances,omitempty"`
+	Vars         interpreter.VariablesMap     `json:"vars,omitempty"`
+	Meta         interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
+	TestCases    []TestCase                   `json:"testCases,omitempty"`
 }
 
 type TestCase struct {
@@ -60,6 +61,11 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 
 		specsResult.Total += 1
 
+		featureFlags := make(map[string]struct{})
+		for _, flag := range specs.FeatureFlags {
+			featureFlags[flag] = struct{}{}
+		}
+
 		result, err := interpreter.RunProgram(
 			context.Background(),
 			program,
@@ -67,7 +73,9 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 			interpreter.StaticStore{
 				Meta:     meta,
 				Balances: balances,
-			}, nil)
+			},
+			featureFlags,
+		)
 
 		var pass bool
 		var actualPostings []interpreter.Posting
