@@ -18,28 +18,27 @@ type Specs struct {
 }
 
 type TestCase struct {
-	It                   string                        `json:"it"`
-	Balances             interpreter.Balances          `json:"balances,omitempty"`
-	Vars                 interpreter.VariablesMap      `json:"vars,omitempty"`
-	Meta                 interpreter.AccountsMetadata  `json:"accountsMeta,omitempty"`
-	ExpectedPostings     []interpreter.Posting         `json:"expect.postings"`
-	ExpectedTxMeta       *interpreter.AccountsMetadata `json:"expect.txMeta,omitempty"`
-	ExpectedAccountsMeta *map[string]string            `json:"expect.accountsMeta,omitempty"`
-	ExpectMissingFunds   bool                          `json:"expect.missingFunds,omitempty"`
+	It       string                       `json:"it"`
+	Balances interpreter.Balances         `json:"balances,omitempty"`
+	Vars     interpreter.VariablesMap     `json:"vars,omitempty"`
+	Meta     interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
+
+	// Expectations
+	ExpectedPostings     []interpreter.Posting        `json:"expect.postings"`
+	ExpectedTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
+	ExpectedAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
+	ExpectMissingFunds   bool                         `json:"expect.missingFunds,omitempty"`
 }
 
 type TestCaseResult struct {
-	It                   string                        `json:"it"`
-	Pass                 bool                          `json:"pass"`
-	Balances             interpreter.Balances          `json:"balances"`
-	Vars                 interpreter.VariablesMap      `json:"vars"`
-	Meta                 interpreter.AccountsMetadata  `json:"accountsMeta"`
-	ExpectedPostings     []interpreter.Posting         `json:"expectedPostings"`
-	ActualPostings       []interpreter.Posting         `json:"actualPostings"`
-	ExpectedTxMeta       *map[string]string            `json:"expectedTxMeta,omitempty"`
-	ActualTxMeta         *map[string]string            `json:"actualTxMeta,omitempty"`
-	ExpectedAccountsMeta *interpreter.AccountsMetadata `json:"expectedAccountsMeta,omitempty"`
-	ActualAccountsMeta   *interpreter.AccountsMetadata `json:"actualAccountsMeta,omitempty"`
+	It       string                       `json:"it"`
+	Pass     bool                         `json:"pass"`
+	Balances interpreter.Balances         `json:"balances"`
+	Vars     interpreter.VariablesMap     `json:"vars"`
+	Meta     interpreter.AccountsMetadata `json:"accountsMeta"`
+
+	// Assertions
+	FailedAssertions []AssertionMismatch[any] `json:"failedAssertions"`
 }
 
 type SpecsResult struct {
@@ -48,6 +47,19 @@ type SpecsResult struct {
 	Passing uint `json:"passing"`
 	Failing uint `json:"failing"`
 	Cases   []TestCaseResult
+}
+
+func runAssertion(failedAssertions []AssertionMismatch[any], assertion string, expected any, got any) []AssertionMismatch[any] {
+	eq := reflect.DeepEqual(expected, got)
+	if !eq {
+		return append(failedAssertions, AssertionMismatch[any]{
+			Assertion: assertion,
+			Expected:  expected,
+			Got:       got,
+		})
+	}
+
+	return failedAssertions
 }
 
 func Check(program parser.Program, specs Specs) SpecsResult {
@@ -77,24 +89,63 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 			featureFlags,
 		)
 
-		var pass bool
-		var actualPostings []interpreter.Posting
+		var failedAssertions []AssertionMismatch[any]
 
 		// TODO recover err on missing funds
 		if err != nil {
 			if _, ok := err.(interpreter.MissingFundsErr); ok {
-
-				pass = testCase.ExpectedPostings == nil
-				actualPostings = nil
+				if !testCase.ExpectMissingFunds {
+					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+						Assertion: "expect.missingFunds",
+						Expected:  false,
+						Got:       true,
+					})
+				}
 			} else {
 				panic(err)
 			}
 
 		} else {
-			pass = reflect.DeepEqual(result.Postings, testCase.ExpectedPostings)
-			actualPostings = result.Postings
+
+			if testCase.ExpectMissingFunds {
+				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+					Assertion: "expect.missingFunds",
+					Expected:  true,
+					Got:       false,
+				})
+			}
+
+			if testCase.ExpectedPostings != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.postings",
+					testCase.ExpectedPostings,
+					result.Postings,
+				)
+			}
+
+			if testCase.ExpectedTxMeta != nil {
+				metadata := map[string]string{}
+				for k, v := range result.Metadata {
+					metadata[k] = v.String()
+				}
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.txMeta",
+					testCase.ExpectedTxMeta,
+					metadata,
+				)
+			}
+
+			if testCase.ExpectedAccountsMeta != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.accountsMeta",
+					testCase.ExpectedAccountsMeta,
+					result.AccountsMetadata,
+				)
+			}
+
 		}
 
+		pass := len(failedAssertions) == 0
 		if pass {
 			specsResult.Passing += 1
 		} else {
@@ -107,8 +158,7 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 			Meta:             meta,
 			Balances:         balances,
 			Vars:             vars,
-			ExpectedPostings: testCase.ExpectedPostings,
-			ActualPostings:   actualPostings,
+			FailedAssertions: failedAssertions,
 		})
 	}
 
@@ -136,4 +186,10 @@ func mergeBalances(b1 interpreter.Balances, b2 interpreter.Balances) interpreter
 	out := b1.DeepClone()
 	out.Merge(b2)
 	return out
+}
+
+type AssertionMismatch[T any] struct {
+	Assertion string `json:"assertion"`
+	Expected  T      `json:"expected,omitempty"`
+	Got       T      `json:"got,omitempty"`
 }

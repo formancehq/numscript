@@ -59,23 +59,24 @@ func TestRunSpecsSimple(t *testing.T) {
 						"USD": big.NewInt(9999),
 					},
 				},
-				Meta: interpreter.AccountsMetadata{},
-				ExpectedPostings: []interpreter.Posting{
-					{
-						Source:      "src",
-						Destination: "dest",
-						Asset:       "USD",
-						Amount:      big.NewInt(42),
-					},
-				},
-				ActualPostings: []interpreter.Posting{
-					{
-						Source:      "src",
-						Destination: "dest",
-						Asset:       "USD",
-						Amount:      big.NewInt(42),
-					},
-				},
+				Meta:             interpreter.AccountsMetadata{},
+				FailedAssertions: nil,
+				// ExpectedPostings: []interpreter.Posting{
+				// 	{
+				// 		Source:      "src",
+				// 		Destination: "dest",
+				// 		Asset:       "USD",
+				// 		Amount:      big.NewInt(42),
+				// 	},
+				// },
+				// ActualPostings: []interpreter.Posting{
+				// 	{
+				// 		Source:      "src",
+				// 		Destination: "dest",
+				// 		Asset:       "USD",
+				// 		Amount:      big.NewInt(42),
+				// 	},
+				// },
 			},
 		},
 	}, out)
@@ -128,22 +129,23 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 						"USD": big.NewInt(1),
 					},
 				},
-				ExpectedPostings: []interpreter.Posting{
-					{
-						Source:      "src",
-						Destination: "dest",
-						Asset:       "USD",
-						Amount:      big.NewInt(1),
-					},
-				},
-				ActualPostings: []interpreter.Posting{
-					{
-						Source:      "src",
-						Destination: "dest",
-						Asset:       "USD",
-						Amount:      big.NewInt(1),
-					},
-				},
+				FailedAssertions: nil,
+				// ExpectedPostings: []interpreter.Posting{
+				// 	{
+				// 		Source:      "src",
+				// 		Destination: "dest",
+				// 		Asset:       "USD",
+				// 		Amount:      big.NewInt(1),
+				// 	},
+				// },
+				// ActualPostings: []interpreter.Posting{
+				// 	{
+				// 		Source:      "src",
+				// 		Destination: "dest",
+				// 		Asset:       "USD",
+				// 		Amount:      big.NewInt(1),
+				// 	},
+				// },
 			},
 		},
 	}, out)
@@ -157,6 +159,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				"it": "t1",
 				"vars": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
+				"expect.missingFunds": false,
 				"expect.postings": null
 			}
 		]
@@ -169,12 +172,12 @@ func TestRunWithMissingBalance(t *testing.T) {
 	out := specs_format.Check(exampleProgram.Value, specs)
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
-		Failing: 0,
-		Passing: 1,
+		Failing: 1,
+		Passing: 0,
 		Cases: []specs_format.TestCaseResult{
 			{
 				It:   "t1",
-				Pass: true,
+				Pass: false,
 				Vars: interpreter.VariablesMap{
 					"source": "src",
 					"amount": "42",
@@ -184,9 +187,16 @@ func TestRunWithMissingBalance(t *testing.T) {
 						"USD": big.NewInt(1),
 					},
 				},
-				Meta:             interpreter.AccountsMetadata{},
-				ExpectedPostings: nil,
-				ActualPostings:   nil,
+				Meta: interpreter.AccountsMetadata{},
+				FailedAssertions: []specs_format.AssertionMismatch[any]{
+					{
+						Assertion: "expect.missingFunds",
+						Expected:  false,
+						Got:       true,
+					},
+				},
+				// ExpectedPostings: nil,
+				// ActualPostings:   nil,
 			},
 		},
 	}, out)
@@ -230,22 +240,20 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 					},
 				},
 				Meta: interpreter.AccountsMetadata{},
-				ExpectedPostings: []interpreter.Posting{
+				FailedAssertions: []specs_format.AssertionMismatch[any]{
 					{
-						Source:      "src",
-						Destination: "dest",
-						Asset:       "USD",
-						Amount:      big.NewInt(1),
+						Assertion: "expect.missingFunds",
+						Got:       true,
+						Expected:  false,
 					},
 				},
-				ActualPostings: nil,
 			},
 		},
 	}, out)
 
 }
 
-func TestNoPostingsIsNotNullPostings(t *testing.T) {
+func TestNullPostingsIsNoop(t *testing.T) {
 	exampleProgram := parser.Parse(``)
 
 	j := `{
@@ -266,12 +274,12 @@ func TestNoPostingsIsNotNullPostings(t *testing.T) {
 	out := specs_format.Check(exampleProgram.Value, specs)
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
-		Failing: 1,
-		Passing: 0,
+		Failing: 0,
+		Passing: 1,
 		Cases: []specs_format.TestCaseResult{
 			{
 				It:   "t1",
-				Pass: false,
+				Pass: true,
 				Vars: interpreter.VariablesMap{
 					"source": "src",
 					"amount": "42",
@@ -282,8 +290,7 @@ func TestNoPostingsIsNotNullPostings(t *testing.T) {
 					},
 				},
 				Meta:             interpreter.AccountsMetadata{},
-				ExpectedPostings: nil,
-				ActualPostings:   []interpreter.Posting{},
+				FailedAssertions: nil,
 			},
 		},
 	}, out)
