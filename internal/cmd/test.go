@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/ansi"
+	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/formancehq/numscript/internal/utils"
@@ -17,6 +18,34 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
+
+func showDiff(expected_ any, got_ any) {
+	dmp := diffmatchpatch.New()
+
+	expected, _ := json.MarshalIndent(expected_, "", "  ")
+	actual, _ := json.MarshalIndent(got_, "", "  ")
+
+	aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
+	diffs := dmp.DiffMain(aChars, bChars, true)
+	diffs = dmp.DiffCharsToLines(diffs, lineArray)
+
+	for _, diff := range diffs {
+		lines := strings.Split(diff.Text, "\n")
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			switch diff.Type {
+			case diffmatchpatch.DiffDelete:
+				fmt.Println(ansi.ColorGreen("- " + line))
+			case diffmatchpatch.DiffInsert:
+				fmt.Println(ansi.ColorRed("+ " + line))
+			case diffmatchpatch.DiffEqual:
+				fmt.Println(ansi.ColorBrightBlack("  " + line))
+			}
+		}
+	}
+}
 
 func showFailingTestCase(testResult testResult) (rerun bool) {
 	specsFilePath := testResult.File
@@ -60,72 +89,59 @@ func showFailingTestCase(testResult testResult) (rerun bool) {
 	fmt.Println(ansi.ColorGreen("- Expected"))
 	fmt.Println(ansi.ColorRed("+ Received\n"))
 
-	dmp := diffmatchpatch.New()
+	for _, failedAssertion := range result.FailedAssertions {
+		showDiff(failedAssertion.Expected, failedAssertion.Got)
 
-	expected, _ := json.MarshalIndent(result.ExpectedPostings, "", "  ")
-	actual, _ := json.MarshalIndent(result.ActualPostings, "", "  ")
+		if interactiveMode {
+			fmt.Println(ansi.ColorBrightBlack(
+				fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
+					ansi.ColorBrightYellow("u"),
+					ansi.ColorBrightYellow("n"),
+				)))
 
-	aChars, bChars, lineArray := dmp.DiffLinesToChars(string(expected), string(actual))
-	diffs := dmp.DiffMain(aChars, bChars, true)
-	diffs = dmp.DiffCharsToLines(diffs, lineArray)
-
-	for _, diff := range diffs {
-		lines := strings.Split(diff.Text, "\n")
-		for _, line := range lines {
-			if line == "" {
-				continue
+			reader := bufio.NewReader(os.Stdin)
+			line, _, err := reader.ReadLine()
+			if err != nil {
+				panic(err)
 			}
-			switch diff.Type {
-			case diffmatchpatch.DiffDelete:
-				fmt.Println(ansi.ColorGreen("- " + line))
-			case diffmatchpatch.DiffInsert:
-				fmt.Println(ansi.ColorRed("+ " + line))
-			case diffmatchpatch.DiffEqual:
-				fmt.Println(ansi.ColorBrightBlack("  " + line))
-			}
-		}
-	}
 
-	if interactiveMode {
-		fmt.Println(ansi.ColorBrightBlack(
-			fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
-				ansi.ColorBrightYellow("u"),
-				ansi.ColorBrightYellow("n"),
-			)))
+			switch string(line) {
+			case "u":
+				testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
+					// TODO check there are no duplicate "It"
+					if t.It == testResult.Result.It {
+						switch failedAssertion.Expected {
+						case "expect.postings":
+							t.ExpectedPostings = failedAssertion.Expected.([]interpreter.Posting)
 
-		reader := bufio.NewReader(os.Stdin)
-		line, _, err := reader.ReadLine()
-		if err != nil {
-			panic(err)
-		}
+						default:
+							panic("TODO implement")
 
-		switch string(line) {
-		case "u":
-			testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
-				// TODO check there are no duplicate "It"
-				if t.It == testResult.Result.It {
-					t.ExpectedPostings = testResult.Result.ActualPostings
+						}
+
+					}
+
+					return t
+				})
+
+				newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
+				if err != nil {
+					panic(err)
 				}
 
-				return t
-			})
+				err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
+				if err != nil {
+					panic(err)
+				}
+				return true
 
-			newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
-			if err != nil {
-				panic(err)
+			case "n":
+				return false
+
+			default:
+				panic("TODO invalid command")
 			}
 
-			err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
-			if err != nil {
-				panic(err)
-			}
-			return true
-
-		case "n":
-			return false
-
-		default:
-			panic("TODO invalid command")
 		}
 
 	}
