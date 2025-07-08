@@ -48,7 +48,7 @@ func showDiff(expected_ any, got_ any) {
 }
 
 func fixSnapshot(testResult testResult, failedAssertion specs_format.AssertionMismatch[any]) bool {
-	if !interactiveMode {
+	if !opts.interactive {
 		return false
 	}
 
@@ -236,12 +236,12 @@ type testResult struct {
 	Result specs_format.TestCaseResult
 }
 
-func testPaths(paths []string) {
+func testPaths() {
 	testFiles := 0
 	failedTestFiles := 0
 
 	var allTests []testResult
-	for _, path := range paths {
+	for _, path := range opts.paths {
 		path = strings.TrimSuffix(path, "/")
 
 		glob := fmt.Sprintf(path + "/*.num.specs.json")
@@ -277,7 +277,7 @@ func testPaths(paths []string) {
 		rerun := showFailingTestCase(test_)
 		if rerun {
 			fmt.Print("\033[H\033[2J")
-			testPaths(paths)
+			testPaths()
 			return
 		}
 	}
@@ -286,8 +286,6 @@ func testPaths(paths []string) {
 	printFilesStats(allTests)
 
 }
-
-var interactiveMode = false
 
 func printFilesStats(allTests []testResult) {
 	failedTests := utils.Filter(allTests, func(t testResult) bool {
@@ -363,15 +361,35 @@ func printFilesStats(allTests []testResult) {
 
 }
 
-var testCmd = &cobra.Command{
-	Use:   "test <path>",
-	Short: "Test a numscript file, using the corresponding spec file",
-	Args:  cobra.MatchAll(),
-	Run: func(cmd *cobra.Command, paths []string) {
-		if len(paths) == 0 {
-			paths = []string{"."}
-		}
+type testArgs struct {
+	paths       []string
+	interactive bool
+}
 
-		testPaths(paths)
-	},
+var opts = testArgs{}
+
+func getTestCmd() *cobra.Command {
+
+	cmd := &cobra.Command{
+		Use:   "test <path>",
+		Short: "Test a numscript file, using the corresponding spec file",
+		Args:  cobra.MatchAll(),
+		Run: func(cmd *cobra.Command, paths []string) {
+
+			if len(paths) == 0 {
+				paths = []string{"."}
+			}
+
+			opts.paths = paths
+			testPaths()
+		},
+	}
+
+	// A poor man's feature flag
+	// that's a post-mvp feature so we'll keep it as dead code for now
+	if false {
+		cmd.Flags().BoolVar(&opts.interactive, "experimental-interactive", false, "Interactively update the expectations with the received value")
+	}
+
+	return cmd
 }
