@@ -2,10 +2,13 @@ package specs_format
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"reflect"
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/utils"
 )
 
 // --- Specs:
@@ -24,10 +27,12 @@ type TestCase struct {
 	Meta     interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
 
 	// Expectations
+	ExpectMissingFunds   bool                         `json:"expect.missingFunds,omitempty"`
 	ExpectedPostings     []interpreter.Posting        `json:"expect.postings"`
 	ExpectedTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
 	ExpectedAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
-	ExpectMissingFunds   bool                         `json:"expect.missingFunds,omitempty"`
+	ExpectedVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
+	ExpectedMovements    Movements                    `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -52,6 +57,10 @@ type SpecsResult struct {
 func runAssertion(failedAssertions []AssertionMismatch[any], assertion string, expected any, got any) []AssertionMismatch[any] {
 	eq := reflect.DeepEqual(expected, got)
 	if !eq {
+		fmt.Printf("%#v\n", expected)
+		fmt.Printf("%#v\n", got)
+		fmt.Printf("exp type: %T\n", expected)
+		fmt.Printf("got type: %T\n", got)
 		return append(failedAssertions, AssertionMismatch[any]{
 			Assertion: assertion,
 			Expected:  expected,
@@ -142,6 +151,22 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				)
 			}
 
+			if testCase.ExpectedVolumes != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.volumes",
+					testCase.ExpectedVolumes,
+					getVolumes(result.Postings, balances),
+				)
+			}
+
+			if testCase.ExpectedMovements != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.movements",
+					testCase.ExpectedMovements,
+					getMovements(result.Postings),
+				)
+			}
+
 		}
 
 		pass := len(failedAssertions) == 0
@@ -191,4 +216,42 @@ type AssertionMismatch[T any] struct {
 	Assertion string `json:"assertion"`
 	Expected  T      `json:"expected,omitempty"`
 	Got       T      `json:"got,omitempty"`
+}
+
+// TODO test
+type Movements = map[string]map[string]map[string]*big.Int
+
+func getMovements(postings []interpreter.Posting) Movements {
+	m := Movements{}
+
+	for _, posting := range postings {
+		assetsMap := utils.NestedMapGetOrPutDefault(m, posting.Source, posting.Destination, func() map[string]*big.Int {
+			return map[string]*big.Int{}
+		})
+
+		amt := utils.MapGetOrPutDefault(assetsMap, posting.Asset, func() *big.Int {
+			return new(big.Int)
+		})
+
+		amt.Add(amt, posting.Amount)
+	}
+
+	return m
+}
+
+func getVolumes(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
+	balances := initialBalances.DeepClone()
+	for _, posting := range postings {
+		sourceBalance := utils.NestedMapGetOrPutDefault(balances, posting.Source, posting.Asset, func() *big.Int {
+			return new(big.Int)
+		})
+		sourceBalance.Sub(sourceBalance, posting.Amount)
+
+		destinationBalance := utils.NestedMapGetOrPutDefault(balances, posting.Destination, posting.Asset, func() *big.Int {
+			return new(big.Int)
+		})
+		destinationBalance.Add(destinationBalance, posting.Amount)
+	}
+
+	return balances
 }
