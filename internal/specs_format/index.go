@@ -66,7 +66,6 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 	specsResult := SpecsResult{}
 
 	for _, testCase := range specs.TestCases {
-		// TODO merge balances, vars, meta
 		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
 		balances := mergeBalances(specs.Balances, testCase.Balances)
 		vars := mergeVars(specs.Vars, testCase.Vars)
@@ -91,7 +90,6 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 		var failedAssertions []AssertionMismatch[any]
 
-		// TODO recover err on missing funds
 		if err != nil {
 			_, ok := err.(interpreter.MissingFundsErr)
 			if !ok {
