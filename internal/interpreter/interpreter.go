@@ -46,7 +46,10 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 		outputAccountBalance := AccountBalance{}
 		outputBalance[queriedAccount] = outputAccountBalance
 
-		accountBalanceLookup := s.Balances.fetchAccountBalances(queriedAccount)
+		accountBalanceLookup := utils.MapGetOrPutDefault(s.Balances, queriedAccount, func() AccountBalance {
+			return AccountBalance{}
+		})
+
 		for _, curr := range queriedCurrencies {
 			n := new(big.Int)
 			outputAccountBalance[curr] = n

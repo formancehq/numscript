@@ -65,3 +65,21 @@ func Map[T any, U any](slice []T, f func(x T) U) []U {
 	}
 	return ret
 }
+
+func MapGetOrPutDefault[T any](m map[string]T, key string, getDefault func() T) T {
+	lookup, ok := m[key]
+	if !ok {
+		default_ := getDefault()
+		m[key] = default_
+		return default_
+	}
+	return lookup
+}
+
+func NestedMapGetOrPutDefault[T any](m map[string]map[string]T, key1 string, key2 string, getDefault func() T) T {
+	m1 := MapGetOrPutDefault(m, key1, func() map[string]T {
+		return map[string]T{}
+	})
+
+	return MapGetOrPutDefault(m1, key2, getDefault)
+}
