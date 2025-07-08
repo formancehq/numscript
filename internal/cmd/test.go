@@ -84,12 +84,14 @@ func showFailingTestCase(testResult testResult) (rerun bool) {
 		fmt.Println()
 	}
 
-	fmt.Print(ansi.Underline("EXPECT:\n\n"))
-
+	fmt.Println()
 	fmt.Println(ansi.ColorGreen("- Expected"))
 	fmt.Println(ansi.ColorRed("+ Received\n"))
 
 	for _, failedAssertion := range result.FailedAssertions {
+
+		fmt.Println(ansi.Underline(failedAssertion.Assertion))
+		fmt.Println()
 		showDiff(failedAssertion.Expected, failedAssertion.Got)
 
 		if interactiveMode {
