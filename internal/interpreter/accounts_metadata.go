@@ -5,7 +5,7 @@ import (
 )
 
 func (m AccountsMetadata) fetchAccountMetadata(account string) AccountMetadata {
-	return defaultMapGet(m, account, func() AccountMetadata {
+	return utils.MapGetOrPutDefault(m, account, func() AccountMetadata {
 		return AccountMetadata{}
 	})
 }
@@ -15,7 +15,7 @@ func (m AccountsMetadata) DeepClone() AccountsMetadata {
 	for account, accountBalances := range m {
 		for asset, metadataValue := range accountBalances {
 			clonedAccountBalances := cloned.fetchAccountMetadata(account)
-			defaultMapGet(clonedAccountBalances, asset, func() string {
+			utils.MapGetOrPutDefault(clonedAccountBalances, asset, func() string {
 				return metadataValue
 			})
 		}
@@ -25,7 +25,7 @@ func (m AccountsMetadata) DeepClone() AccountsMetadata {
 
 func (m AccountsMetadata) Merge(update AccountsMetadata) {
 	for acc, accBalances := range update {
-		cachedAcc := defaultMapGet(m, acc, func() AccountMetadata {
+		cachedAcc := utils.MapGetOrPutDefault(m, acc, func() AccountMetadata {
 			return AccountMetadata{}
 		})
 

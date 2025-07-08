@@ -7,18 +7,11 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func (b Balances) fetchAccountBalances(account string) AccountBalance {
-	return defaultMapGet(b, account, func() AccountBalance {
-		return AccountBalance{}
-	})
-}
-
 func (b Balances) DeepClone() Balances {
 	cloned := make(Balances)
 	for account, accountBalances := range b {
 		for asset, amount := range accountBalances {
-			clonedAccountBalances := cloned.fetchAccountBalances(account)
-			defaultMapGet(clonedAccountBalances, asset, func() *big.Int {
+			utils.NestedMapGetOrPutDefault(cloned, account, asset, func() *big.Int {
 				return new(big.Int).Set(amount)
 			})
 		}
@@ -44,15 +37,13 @@ func coloredAsset(asset string, color *string) string {
 // Get the (account, asset) tuple from the Balances
 // if the tuple is not present, it will write a big.NewInt(0) in it and return it
 func (b Balances) fetchBalance(account string, uncoloredAsset string, color string) *big.Int {
-	accountBalances := b.fetchAccountBalances(account)
-
-	return defaultMapGet(accountBalances, coloredAsset(uncoloredAsset, &color), func() *big.Int {
+	return utils.NestedMapGetOrPutDefault(b, account, coloredAsset(uncoloredAsset, &color), func() *big.Int {
 		return new(big.Int)
 	})
 }
 
 func (b Balances) has(account string, asset string) bool {
-	accountBalances := defaultMapGet(b, account, func() AccountBalance {
+	accountBalances := utils.MapGetOrPutDefault(b, account, func() AccountBalance {
 		return AccountBalance{}
 	})
 
@@ -81,7 +72,7 @@ func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
 func (b Balances) Merge(update Balances) {
 	// merge queried balance
 	for acc, accBalances := range update {
-		cachedAcc := defaultMapGet(b, acc, func() AccountBalance {
+		cachedAcc := utils.MapGetOrPutDefault(b, acc, func() AccountBalance {
 			return AccountBalance{}
 		})
 
