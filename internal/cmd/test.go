@@ -47,6 +47,61 @@ func showDiff(expected_ any, got_ any) {
 	}
 }
 
+func fixSnapshot(testResult testResult, failedAssertion specs_format.AssertionMismatch[any]) bool {
+	if !interactiveMode {
+		return false
+	}
+
+	fmt.Println(ansi.ColorBrightBlack(
+		fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
+			ansi.ColorBrightYellow("u"),
+			ansi.ColorBrightYellow("n"),
+		)))
+
+	reader := bufio.NewReader(os.Stdin)
+	line, _, err := reader.ReadLine()
+	if err != nil {
+		panic(err)
+	}
+
+	switch string(line) {
+	case "u":
+		testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
+			// TODO check there are no duplicate "It"
+			if t.It == testResult.Result.It {
+				switch failedAssertion.Expected {
+				case "expect.postings":
+					t.ExpectedPostings = failedAssertion.Expected.([]interpreter.Posting)
+
+				default:
+					panic("TODO implement")
+
+				}
+
+			}
+
+			return t
+		})
+
+		newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+
+		err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+		return true
+
+	case "n":
+		return false
+
+	default:
+		panic("TODO invalid command")
+	}
+}
+
 func showFailingTestCase(testResult testResult) (rerun bool) {
 	specsFilePath := testResult.File
 	result := testResult.Result
@@ -94,56 +149,9 @@ func showFailingTestCase(testResult testResult) (rerun bool) {
 		fmt.Println()
 		showDiff(failedAssertion.Expected, failedAssertion.Got)
 
-		if interactiveMode {
-			fmt.Println(ansi.ColorBrightBlack(
-				fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
-					ansi.ColorBrightYellow("u"),
-					ansi.ColorBrightYellow("n"),
-				)))
-
-			reader := bufio.NewReader(os.Stdin)
-			line, _, err := reader.ReadLine()
-			if err != nil {
-				panic(err)
-			}
-
-			switch string(line) {
-			case "u":
-				testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
-					// TODO check there are no duplicate "It"
-					if t.It == testResult.Result.It {
-						switch failedAssertion.Expected {
-						case "expect.postings":
-							t.ExpectedPostings = failedAssertion.Expected.([]interpreter.Posting)
-
-						default:
-							panic("TODO implement")
-
-						}
-
-					}
-
-					return t
-				})
-
-				newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
-				if err != nil {
-					panic(err)
-				}
-
-				err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
-				if err != nil {
-					panic(err)
-				}
-				return true
-
-			case "n":
-				return false
-
-			default:
-				panic("TODO invalid command")
-			}
-
+		rerun := fixSnapshot(testResult, failedAssertion)
+		if rerun {
+			return true
 		}
 
 	}
