@@ -181,7 +181,21 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 		os.Exit(1)
 	}
 
-	out := specs_format.Check(parseResult.Value, specs)
+	out, iErr := specs_format.Check(parseResult.Value, specs)
+	if iErr != nil {
+		rng := iErr.GetRange()
+
+		errFile := fmt.Sprintf("\nError: %s:%d:%d\n\n", numscriptFileName, rng.Start.Line+1, rng.Start.Character+1)
+
+		os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
+
+		os.Stderr.Write([]byte(iErr.Error()))
+		if rng.Start != rng.End {
+			os.Stderr.Write([]byte("\n"))
+			os.Stderr.Write([]byte(iErr.GetRange().ShowOnSource(parseResult.Source)))
+		}
+		os.Exit(1)
+	}
 
 	if out.Total == 0 {
 		fmt.Println(ansi.ColorRed("Empty test suite!"))
