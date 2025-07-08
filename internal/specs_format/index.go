@@ -2,7 +2,6 @@ package specs_format
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"reflect"
 
@@ -54,13 +53,9 @@ type SpecsResult struct {
 	Cases   []TestCaseResult
 }
 
-func runAssertion(failedAssertions []AssertionMismatch[any], assertion string, expected any, got any) []AssertionMismatch[any] {
-	eq := reflect.DeepEqual(expected, got)
+func runAssertion[T any](failedAssertions []AssertionMismatch[any], assertion string, expected T, got T, cmp func(T, T) bool) []AssertionMismatch[any] {
+	eq := cmp(expected, got)
 	if !eq {
-		fmt.Printf("%#v\n", expected)
-		fmt.Printf("%#v\n", got)
-		fmt.Printf("exp type: %T\n", expected)
-		fmt.Printf("got type: %T\n", got)
 		return append(failedAssertions, AssertionMismatch[any]{
 			Assertion: assertion,
 			Expected:  expected,
@@ -124,10 +119,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectedPostings != nil {
-				failedAssertions = runAssertion(failedAssertions,
+				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.postings",
 					testCase.ExpectedPostings,
 					result.Postings,
+					reflect.DeepEqual,
 				)
 			}
 
@@ -136,18 +132,20 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				for k, v := range result.Metadata {
 					metadata[k] = v.String()
 				}
-				failedAssertions = runAssertion(failedAssertions,
+				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.txMeta",
 					testCase.ExpectedTxMeta,
 					metadata,
+					reflect.DeepEqual,
 				)
 			}
 
 			if testCase.ExpectedAccountsMeta != nil {
-				failedAssertions = runAssertion(failedAssertions,
+				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.accountsMeta",
 					testCase.ExpectedAccountsMeta,
 					result.AccountsMetadata,
+					reflect.DeepEqual,
 				)
 			}
 
@@ -156,14 +154,16 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					"expect.volumes",
 					testCase.ExpectedVolumes,
 					getVolumes(result.Postings, balances),
+					interpreter.CompareBalances,
 				)
 			}
 
 			if testCase.ExpectedMovements != nil {
-				failedAssertions = runAssertion(failedAssertions,
+				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.movements",
 					testCase.ExpectedMovements,
 					getMovements(result.Postings),
+					reflect.DeepEqual,
 				)
 			}
 

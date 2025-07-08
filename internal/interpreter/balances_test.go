@@ -62,3 +62,20 @@ func TestPrettyPrintBalance(t *testing.T) {
 
 	snaps.MatchSnapshot(t, fullBalance.PrettyPrint())
 }
+
+func TestCmpMaps(t *testing.T) {
+
+	b1 := Balances{
+		"alice": AccountBalance{
+			"EUR": big.NewInt(100),
+		},
+	}
+
+	b2 := Balances{
+		"alice": AccountBalance{
+			"EUR": big.NewInt(42),
+		},
+	}
+
+	require.Equal(t, false, CompareBalances(b1, b2))
+}

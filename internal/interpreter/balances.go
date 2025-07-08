@@ -94,3 +94,9 @@ func (b Balances) PrettyPrint() string {
 	}
 	return utils.CsvPretty(header, rows, true)
 }
+
+func CompareBalances(b1 Balances, b2 Balances) bool {
+	return utils.Map2Cmp(b1, b2, func(ab1, ab2 *big.Int) bool {
+		return ab1.Cmp(ab2) == 0
+	})
+}
