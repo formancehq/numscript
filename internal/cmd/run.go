@@ -20,7 +20,7 @@ const (
 	OutputFormatJson   = "json"
 )
 
-type Args struct {
+type runArgs struct {
 	VariablesOpt string
 	BalancesOpt  string
 	MetaOpt      string
@@ -37,7 +37,7 @@ type inputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-func (o *inputOpts) fromRaw(opts Args) error {
+func (o *inputOpts) fromRaw(opts runArgs) error {
 	if opts.RawOpt == "" {
 		return nil
 	}
@@ -49,7 +49,7 @@ func (o *inputOpts) fromRaw(opts Args) error {
 	return nil
 }
 
-func (o *inputOpts) fromStdin(opts Args) error {
+func (o *inputOpts) fromStdin(opts runArgs) error {
 	if !opts.StdinFlag {
 		return nil
 	}
@@ -66,7 +66,7 @@ func (o *inputOpts) fromStdin(opts Args) error {
 	return nil
 }
 
-func (o *inputOpts) fromOptions(path string, opts Args) error {
+func (o *inputOpts) fromOptions(path string, opts runArgs) error {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
@@ -107,7 +107,7 @@ func (o *inputOpts) fromOptions(path string, opts Args) error {
 	return nil
 }
 
-func run(path string, opts Args) error {
+func run(path string, opts runArgs) error {
 	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(interpreter.AccountsMetadata),
@@ -181,7 +181,7 @@ func showPretty(result *interpreter.ExecutionResult) {
 }
 
 func getRunCmd() *cobra.Command {
-	opts := Args{}
+	opts := runArgs{}
 
 	cmd := cobra.Command{
 		Use:   "run",
