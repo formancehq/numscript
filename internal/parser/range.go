@@ -6,13 +6,13 @@ import (
 )
 
 type Position struct {
-	Character int
-	Line      int
+	Character int `json:"character"`
+	Line      int `json:"line"`
 }
 
 type Range struct {
-	Start Position
-	End   Position
+	Start Position `json:"start"`
+	End   Position `json:"end"`
 }
 
 type Ranged interface {

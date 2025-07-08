@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"encoding/json"
 	"math/big"
 	"slices"
 	"strings"
@@ -120,6 +121,21 @@ type Diagnostic struct {
 	Range parser.Range
 	Kind  DiagnosticKind
 	Id    int32
+}
+
+func (d Diagnostic) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Range parser.Range `json:"range"`
+		Kind  any          `json:"diagnostic"`
+		Id    int32        `json:"id"`
+	}{
+		Range: d.Range,
+		Kind: map[string]any{ // Custom representation for Kind
+			"message":  d.Kind.Message(),
+			"severity": d.Kind.Severity(),
+		},
+		Id: d.Id,
+	})
 }
 
 type CheckResult struct {
