@@ -16,7 +16,7 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    main: ./internal/numscript/numscript.go
+    main: ./internal/cli/numscript.go
     goos:
       - linux
       - windows
