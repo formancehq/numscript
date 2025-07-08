@@ -41,7 +41,9 @@ func TestRunSpecsSimple(t *testing.T) {
 	err := json.Unmarshal([]byte(j), &specs)
 	require.Nil(t, err)
 
-	out := specs_format.Check(exampleProgram.Value, specs)
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
 		Failing: 0,
@@ -106,7 +108,9 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 	err := json.Unmarshal([]byte(j), &specs)
 	require.Nil(t, err)
 
-	out := specs_format.Check(exampleProgram.Value, specs)
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
 		Failing: 0,
@@ -169,7 +173,9 @@ func TestRunWithMissingBalance(t *testing.T) {
 	err := json.Unmarshal([]byte(j), &specs)
 	require.Nil(t, err)
 
-	out := specs_format.Check(exampleProgram.Value, specs)
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
 		Failing: 1,
@@ -221,7 +227,9 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 	err := json.Unmarshal([]byte(j), &specs)
 	require.Nil(t, err)
 
-	out := specs_format.Check(exampleProgram.Value, specs)
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
 		Failing: 1,
@@ -271,7 +279,9 @@ func TestNullPostingsIsNoop(t *testing.T) {
 	err := json.Unmarshal([]byte(j), &specs)
 	require.Nil(t, err)
 
-	out := specs_format.Check(exampleProgram.Value, specs)
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
 	require.Equal(t, specs_format.SpecsResult{
 		Total:   1,
 		Failing: 0,

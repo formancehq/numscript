@@ -62,7 +62,7 @@ func runAssertion(failedAssertions []AssertionMismatch[any], assertion string, e
 	return failedAssertions
 }
 
-func Check(program parser.Program, specs Specs) SpecsResult {
+func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.InterpreterError) {
 	specsResult := SpecsResult{}
 
 	for _, testCase := range specs.TestCases {
@@ -93,16 +93,17 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 
 		// TODO recover err on missing funds
 		if err != nil {
-			if _, ok := err.(interpreter.MissingFundsErr); ok {
-				if !testCase.ExpectMissingFunds {
-					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-						Assertion: "expect.missingFunds",
-						Expected:  false,
-						Got:       true,
-					})
-				}
-			} else {
-				panic(err)
+			_, ok := err.(interpreter.MissingFundsErr)
+			if !ok {
+				return SpecsResult{}, err
+			}
+
+			if !testCase.ExpectMissingFunds {
+				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+					Assertion: "expect.missingFunds",
+					Expected:  false,
+					Got:       true,
+				})
 			}
 
 		} else {
@@ -162,7 +163,7 @@ func Check(program parser.Program, specs Specs) SpecsResult {
 		})
 	}
 
-	return specsResult
+	return specsResult, nil
 }
 
 func mergeVars(v1 interpreter.VariablesMap, v2 interpreter.VariablesMap) interpreter.VariablesMap {
