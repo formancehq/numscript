@@ -206,7 +206,7 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	}
 
 	if out.Total == 0 {
-		fmt.Println(ansi.ColorRed("Empty test suite!"))
+		fmt.Println(ansi.ColorRed("Empty test suite: " + specsFilePath))
 		os.Exit(1)
 	} else if out.Failing == 0 {
 		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests)", out.Total))
