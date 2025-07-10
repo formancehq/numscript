@@ -24,7 +24,7 @@ You can install the `numscript` cli with one of the following ways:
 **Using curl**
 
 ```sh
-curl -sSf https://raw.githubusercontent.com/formancehq/numscript/refs/heads/main/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/formancehq/numscript/main/install.sh | bash
 ```
 
 **Using golang toolchain**
