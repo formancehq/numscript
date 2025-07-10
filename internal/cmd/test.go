@@ -352,7 +352,7 @@ func printFilesStats(allTests []testResult) {
 		testsUI := strings.Join(testUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestsUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", testsCount))
 
-		fmt.Print(paddedLabel(testsLabel) + " " + testsUI + " " + totalTestsUI)
+		fmt.Println(paddedLabel(testsLabel) + " " + testsUI + " " + totalTestsUI)
 
 		if failedTestsCount != 0 {
 			os.Exit(1)
