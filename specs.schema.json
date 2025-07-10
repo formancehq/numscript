@@ -63,13 +63,6 @@
       "required": ["it"]
     },
 
-    "Bigint": {
-      "oneOf": [
-        { "type": "string", "pattern": "^-?\\d+$" },
-        { "type": "number" }
-      ]
-    },
-
     "Balances": {
       "type": "object",
       "description": "Map of account names to asset balances",
@@ -80,7 +73,7 @@
           "additionalProperties": false,
           "patternProperties": {
             "^([A-Z]+(/[0-9]+)?)$": {
-              "$ref": "#/definitions/Bigint"
+              "type": "number"
             }
           }
         }
@@ -127,7 +120,7 @@
               "type": "object",
               "patternProperties": {
                 "^([A-Z]+(/[0-9]+)?)$": {
-                  "$ref": "#/definitions/Bigint"
+                  "type": "number"
                 }
               }
             }
@@ -146,7 +139,7 @@
           "pattern": "^([A-Z]+(/[0-9]+)?)$"
         },
         "amount": {
-          "$ref": "#/definitions/Bigint"
+          "type": "number"
         }
       },
       "required": ["source", "destination", "asset", "amount"]
