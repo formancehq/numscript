@@ -30,5 +30,5 @@ curl -sSf https://raw.githubusercontent.com/formancehq/numscript/refs/heads/main
 **Using golang toolchain**
 
 ```sh
-go install github.com/formancehq/numscript/cmd/numscript.go@latest
+go install github.com/formancehq/numscript/cmd/numscript@latest
 ```
