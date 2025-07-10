@@ -61,7 +61,7 @@ func TestParseSpecs(t *testing.T) {
 						"EUR": big.NewInt(42),
 					},
 				},
-				ExpectedPostings: []interpreter.Posting{
+				ExpectPostings: []interpreter.Posting{
 					{
 						Source:      "src",
 						Destination: "dest",

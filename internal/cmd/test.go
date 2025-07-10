@@ -71,7 +71,7 @@ func fixSnapshot(testResult testResult, failedAssertion specs_format.AssertionMi
 			if t.It == testResult.Result.It {
 				switch failedAssertion.Expected {
 				case "expect.postings":
-					t.ExpectedPostings = failedAssertion.Expected.([]interpreter.Posting)
+					t.ExpectPostings = failedAssertion.Expected.([]interpreter.Posting)
 
 				default:
 					panic("TODO implement")
