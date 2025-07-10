@@ -26,12 +26,12 @@ type TestCase struct {
 	Meta     interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
 
 	// Expectations
-	ExpectMissingFunds   bool                         `json:"expect.missingFunds,omitempty"`
-	ExpectedPostings     []interpreter.Posting        `json:"expect.postings"`
-	ExpectedTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
-	ExpectedAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
-	ExpectedVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
-	ExpectedMovements    Movements                    `json:"expect.movements,omitempty"`
+	ExpectMissingFunds bool                         `json:"expect.missingFunds,omitempty"`
+	ExpectPostings     []interpreter.Posting        `json:"expect.postings"`
+	ExpectTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
+	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
+	ExpectVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
+	ExpectMovements    Movements                    `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -118,50 +118,50 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				})
 			}
 
-			if testCase.ExpectedPostings != nil {
+			if testCase.ExpectPostings != nil {
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.postings",
-					testCase.ExpectedPostings,
+					testCase.ExpectPostings,
 					result.Postings,
 					reflect.DeepEqual,
 				)
 			}
 
-			if testCase.ExpectedTxMeta != nil {
+			if testCase.ExpectTxMeta != nil {
 				metadata := map[string]string{}
 				for k, v := range result.Metadata {
 					metadata[k] = v.String()
 				}
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.txMeta",
-					testCase.ExpectedTxMeta,
+					testCase.ExpectTxMeta,
 					metadata,
 					reflect.DeepEqual,
 				)
 			}
 
-			if testCase.ExpectedAccountsMeta != nil {
+			if testCase.ExpectAccountsMeta != nil {
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.accountsMeta",
-					testCase.ExpectedAccountsMeta,
+					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
 					reflect.DeepEqual,
 				)
 			}
 
-			if testCase.ExpectedVolumes != nil {
+			if testCase.ExpectVolumes != nil {
 				failedAssertions = runAssertion(failedAssertions,
 					"expect.volumes",
-					testCase.ExpectedVolumes,
+					testCase.ExpectVolumes,
 					getVolumes(result.Postings, balances),
 					interpreter.CompareBalances,
 				)
 			}
 
-			if testCase.ExpectedMovements != nil {
+			if testCase.ExpectMovements != nil {
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.movements",
-					testCase.ExpectedMovements,
+					testCase.ExpectMovements,
 					getMovements(result.Postings),
 					reflect.DeepEqual,
 				)
