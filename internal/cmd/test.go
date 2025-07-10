@@ -185,7 +185,7 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	var specs specs_format.Specs
 	err = json.Unmarshal([]byte(specsFileContent), &specs)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		os.Stderr.Write([]byte(ansi.ColorRed(err.Error())))
 		os.Exit(1)
 	}
 
