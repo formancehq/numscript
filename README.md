@@ -17,6 +17,18 @@ The language server features include:
 - Detect document symbols
 - Go to definition
 
-### Build locally
-If you have the golang toolchain installed locally, you can run `go install ./internal/numscript/numscript.go` to build the cli from source, which you'll be able to run by executing the `numscript` command
-Otherwise, you can download it from this repo's [releases](https://github.com/formancehq/numscript/releases)
+### Installation
+
+You can install the `numscript` cli with one of the following ways:
+
+**Using curl**
+
+```sh
+curl -sSf https://raw.githubusercontent.com/formancehq/numscript/refs/heads/main/install.sh | bash
+```
+
+**Using golang toolchain**
+
+```sh
+go install github.com/formancehq/numscript/cmd/numscript.go@latest
+```
