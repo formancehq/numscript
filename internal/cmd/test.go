@@ -371,9 +371,12 @@ var opts = testArgs{}
 func getTestCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "test <path>",
-		Short: "Test a numscript file, using the corresponding spec file",
-		Args:  cobra.MatchAll(),
+		Use:   "test folder...",
+		Short: "Test numscript file using the numscript specs format",
+		Long: `Searches for any <file>.num.specs files in the given directory (or directories),
+and tests the corresponding <file>.num file (if any).
+Defaults to "." if there are no given paths`,
+		Args: cobra.MatchAll(),
 		Run: func(cmd *cobra.Command, paths []string) {
 
 			if len(paths) == 0 {
