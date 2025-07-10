@@ -54,10 +54,14 @@ else
     BIN="numscript"
 fi
 
-sudo mv "$BIN" /usr/local/bin/
-chmod +x /usr/local/bin/"$BIN"
+
+INSTALL_PATH="$HOME/.local/bin"
+mkdir -p "$INSTALL_PATH"
+
+mv "$BIN" "$INSTALL_PATH"
+chmod +x "$INSTALL_PATH/$BIN"
 
 rm "$FILENAME"
 
-echo "✅ Installed $BIN to /usr/local/bin"
+echo "✅ Installed $BIN to $INSTALL_PATH"
 echo "🎉 Done!"
