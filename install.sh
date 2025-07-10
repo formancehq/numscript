@@ -50,7 +50,7 @@ if [ "$PLATFORM" = "Windows" ]; then
     unzip "$FILENAME"
     BIN="numscript.exe"
 else
-    tar -xvf "$FILENAME"
+    tar -xf "$FILENAME" numscript
     BIN="numscript"
 fi
 
