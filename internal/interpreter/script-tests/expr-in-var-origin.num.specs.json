@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "expr in var origin",
+      "expect.postings": []
+    }
+  ]
+}

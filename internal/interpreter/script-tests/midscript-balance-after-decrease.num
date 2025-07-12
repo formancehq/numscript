@@ -1,0 +1,9 @@
+send [USD/2 3] (
+	source = @acc
+	destination = @world
+)
+
+send balance(@acc, USD/2) (
+	source = @world
+	destination = @dest
+)

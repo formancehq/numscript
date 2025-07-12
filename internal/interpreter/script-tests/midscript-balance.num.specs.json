@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "midscript balance",
+      "balances": {
+        "acc": {
+          "USD/2": 42
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 42,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

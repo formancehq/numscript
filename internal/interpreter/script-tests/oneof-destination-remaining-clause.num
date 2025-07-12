@@ -1,0 +1,8 @@
+send [GEM 100] (
+	source = @world
+	destination = oneof {
+		max [GEM 9] to @a
+		max [GEM 10] to @b
+		remaining to @rem
+	}
+)

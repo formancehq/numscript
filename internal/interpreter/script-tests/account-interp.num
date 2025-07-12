@@ -1,0 +1,6 @@
+vars {
+	number $id
+	string $status
+	account $acc
+}
+set_tx_meta("k", @acc:$id:$status:$acc)

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "oneof destination remaining clause",
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 100,
+          "source": "world",
+          "destination": "rem"
+        }
+      ]
+    }
+  ]
+}
