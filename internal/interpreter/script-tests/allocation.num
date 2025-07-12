@@ -1,0 +1,12 @@
+vars {
+	account $rider
+	account $driver
+}
+send [GEM 15] (
+	source = $rider
+	destination = {
+		80% to $driver
+		8% to @a
+		12% to @b
+	}
+)

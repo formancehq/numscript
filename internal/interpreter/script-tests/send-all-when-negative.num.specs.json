@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all when balance is negative (no postings)",
+      "balances": {
+        "users:001": { "USD/2": -100 }
+      },
+      "expect.postings": []
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with overdraft when balance is negative",
+      "balances": {
+        "users:001": { "USD/2": -100 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 50,
+          "source": "users:001",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

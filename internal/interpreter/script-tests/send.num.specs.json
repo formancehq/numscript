@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends money from alice to bob",
+      "balances": {
+        "alice": { "EUR/2": 100 }
+      },
+      "expect.postings": [
+        {
+          "asset": "EUR/2",
+          "amount": 100,
+          "source": "alice",
+          "destination": "bob"
+        }
+      ]
+    }
+  ]
+}

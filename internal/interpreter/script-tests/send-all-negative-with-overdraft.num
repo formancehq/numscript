@@ -1,0 +1,4 @@
+send [USD/2 *] (
+	source = @users:001 allowing overdraft up to [USD/2 150]
+	destination = @platform
+)

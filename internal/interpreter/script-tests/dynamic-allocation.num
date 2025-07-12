@@ -1,0 +1,11 @@
+vars {
+	portion $p
+}
+send [GEM 15] (
+	source = @a
+	destination = {
+		80% to @b
+		$p to @c
+		remaining to @d
+	}
+)

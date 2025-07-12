@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses dynamic allocation with variables",
+      "balances": {
+        "a": { "GEM": 15 }
+      },
+      "vars": {
+        "p": "15%"
+      },
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 13,
+          "source": "a",
+          "destination": "b"
+        },
+        {
+          "asset": "GEM",
+          "amount": 2,
+          "source": "a",
+          "destination": "c"
+        }
+      ]
+    }
+  ]
+}

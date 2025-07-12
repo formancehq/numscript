@@ -1,0 +1,10 @@
+vars {
+	portion $por
+}
+send [COIN 3] (
+	source = @world
+	destination = {
+		$por to @a
+		remaining kept
+	}
+)

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses portion syntax correctly",
+      "vars": {
+        "por": "1/3"
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 1,
+          "source": "world",
+          "destination": "a"
+        }
+      ]
+    }
+  ]
+}

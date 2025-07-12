@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses multiple sources",
+      "balances": {
+        "users:001": { "GEM": 3 },
+        "payments:001": { "GEM": 12 }
+      },
+      "vars": {
+        "balance": "users:001",
+        "payment": "payments:001",
+        "seller": "users:002"
+      },
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 3,
+          "source": "users:001",
+          "destination": "users:002"
+        },
+        {
+          "asset": "GEM",
+          "amount": 12,
+          "source": "payments:001",
+          "destination": "users:002"
+        }
+      ]
+    }
+  ]
+}

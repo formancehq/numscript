@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles bad portion syntax with error",
+      "vars": {
+        "por": "not a portion"
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

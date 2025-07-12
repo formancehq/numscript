@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "allocates funds with percentages",
+      "balances": {
+        "users:001": { "GEM": 15 }
+      },
+      "vars": {
+        "rider": "users:001",
+        "driver": "users:002"
+      },
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 13,
+          "source": "users:001",
+          "destination": "users:002"
+        },
+        {
+          "asset": "GEM",
+          "amount": 1,
+          "source": "users:001",
+          "destination": "a"
+        },
+        {
+          "asset": "GEM",
+          "amount": 1,
+          "source": "users:001",
+          "destination": "b"
+        }
+      ]
+    }
+  ]
+}

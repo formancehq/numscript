@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles variables from JSON",
+      "balances": {
+        "users:001": { "EUR/2": 1000 }
+      },
+      "vars": {
+        "por": "42%",
+        "rider": "users:001",
+        "driver": "users:002",
+        "description": "midnight ride",
+        "nb": "1",
+        "ass": "EUR/2"
+      },
+      "expect.postings": [
+        {
+          "asset": "EUR/2",
+          "amount": 999,
+          "source": "users:001",
+          "destination": "users:002"
+        }
+      ],
+      "expect.txMeta": {
+        "description": "midnight ride",
+        "ride": "1",
+        "por": "21/50"
+      }
+    }
+  ]
+}
