@@ -3,7 +3,14 @@
   "testCases": [
     {
       "it": "handles zero postings",
-      "expect.postings": []
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 100,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
     }
   ]
 }
