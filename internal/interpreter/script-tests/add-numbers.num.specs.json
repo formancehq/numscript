@@ -4,7 +4,7 @@
     {
       "it": "adds numbers",
       "expect.txMeta": {
-        "k": 3
+        "k": "3"
       }
     }
   ]
