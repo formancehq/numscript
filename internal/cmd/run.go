@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -21,7 +20,7 @@ const (
 	OutputFormatJson   = "json"
 )
 
-type Args struct {
+type runArgs struct {
 	VariablesOpt string
 	BalancesOpt  string
 	MetaOpt      string
@@ -38,7 +37,7 @@ type inputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-func (o *inputOpts) fromRaw(opts Args) {
+func (o *inputOpts) fromRaw(opts runArgs) {
 	if opts.RawOpt == "" {
 		return
 	}
@@ -49,7 +48,7 @@ func (o *inputOpts) fromRaw(opts Args) {
 	}
 }
 
-func (o *inputOpts) fromStdin(opts Args) {
+func (o *inputOpts) fromStdin(opts runArgs) {
 	if !opts.StdinFlag {
 		return
 	}
@@ -65,7 +64,7 @@ func (o *inputOpts) fromStdin(opts Args) {
 	}
 }
 
-func (o *inputOpts) fromOptions(path string, opts Args) {
+func (o *inputOpts) fromOptions(path string, opts runArgs) {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
@@ -103,7 +102,7 @@ func (o *inputOpts) fromOptions(path string, opts Args) {
 	}
 }
 
-func run(path string, opts Args) {
+func run(path string, opts runArgs) {
 	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(interpreter.AccountsMetadata),
@@ -164,25 +163,19 @@ func showJson(result *interpreter.ExecutionResult) {
 }
 
 func showPretty(result *interpreter.ExecutionResult) {
-	fmt.Println(ansi.ColorCyan("Postings:"))
-	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(postingsJson))
 
-	fmt.Println()
+	fmt.Println("Postings:")
+	fmt.Println(interpreter.PrettyPrintPostings(result.Postings))
 
-	fmt.Println(ansi.ColorCyan("Meta:"))
-	txMetaJson, err := json.MarshalIndent(result.Metadata, "", "  ")
-	if err != nil {
-		panic(err)
+	if len(result.Metadata) != 0 {
+		fmt.Println("Meta:")
+		fmt.Println(interpreter.PrettyPrintMeta(result.Metadata))
 	}
-	fmt.Println(string(txMetaJson))
+
 }
 
 func getRunCmd() *cobra.Command {
-	opts := Args{}
+	opts := runArgs{}
 
 	cmd := cobra.Command{
 		Use:   "run",

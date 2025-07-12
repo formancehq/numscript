@@ -46,7 +46,10 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 		outputAccountBalance := AccountBalance{}
 		outputBalance[queriedAccount] = outputAccountBalance
 
-		accountBalanceLookup := s.Balances.fetchAccountBalances(queriedAccount)
+		accountBalanceLookup := utils.MapGetOrPutDefault(s.Balances, queriedAccount, func() AccountBalance {
+			return AccountBalance{}
+		})
+
 		for _, curr := range queriedCurrencies {
 			n := new(big.Int)
 			outputAccountBalance[curr] = n
@@ -599,7 +602,7 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 
 func (s *programState) cloneState() func() {
 	fsBackup := s.fundsStack.Clone()
-	balancesBackup := s.CachedBalances.deepClone()
+	balancesBackup := s.CachedBalances.DeepClone()
 
 	return func() {
 		s.fundsStack = fsBackup
@@ -988,4 +991,22 @@ func CalculateSafeWithdraw(
 ) *big.Int {
 	safe := CalculateMaxSafeWithdraw(balance, overdraft)
 	return utils.MinBigInt(safe, requestedAmount)
+}
+
+func PrettyPrintPostings(postings []Posting) string {
+	var rows [][]string
+	for _, posting := range postings {
+		row := []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+		rows = append(rows, row)
+	}
+	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
+}
+
+func PrettyPrintMeta(meta Metadata) string {
+	m := map[string]string{}
+	for k, v := range meta {
+		m[k] = v.String()
+	}
+
+	return utils.CsvPrettyMap("Name", "Value", m)
 }

@@ -77,7 +77,7 @@ func (st *programState) runBalancesQuery() error {
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	st.CachedBalances.mergeBalance(queriedBalances)
+	st.CachedBalances.Merge(queriedBalances)
 
 	return nil
 }
