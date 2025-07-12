@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "oneof all failing",
+      "expect.missingFunds": true
+    }
+  ]
+}

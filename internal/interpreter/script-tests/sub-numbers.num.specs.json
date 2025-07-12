@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "subtracts numbers",
+      "expect.txMeta": {
+        "k": 9
+      }
+    }
+  ]
+}

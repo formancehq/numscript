@@ -1,0 +1,8 @@
+send [GEM *] (
+	source = oneof {
+		@s1
+		@s2
+		@s3
+	}
+	destination = @dest
+)

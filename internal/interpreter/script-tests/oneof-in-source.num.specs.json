@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "oneof in source",
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 15,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "subtracts monetaries",
+      "expect.txMeta": {
+        "k": {
+          "asset": "USD/2",
+          "amount": 7
+        }
+      }
+    }
+  ]
+}

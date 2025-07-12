@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "oneof in send all",
+      "balances": {
+        "s1": {
+          "GEM": 10
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 10,
+          "source": "s1",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

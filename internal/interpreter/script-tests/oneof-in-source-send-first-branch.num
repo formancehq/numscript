@@ -1,0 +1,7 @@
+send [GEM 15] (
+	source = oneof {
+		@a allowing unbounded overdraft
+		@empty
+	}
+	destination = @dest
+)
