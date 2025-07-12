@@ -1,0 +1,7 @@
+send [USD 200] (
+	source = oneof {
+		@alice
+		{@alice @world}
+	}
+	destination = @dest
+)

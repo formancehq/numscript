@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "do not exceed overdraft",
+      "balances": {
+        "s": {
+          "COIN": -2
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 3,
+          "source": "s",
+          "destination": "dest"
+        },
+        {
+          "asset": "COIN",
+          "amount": 7,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

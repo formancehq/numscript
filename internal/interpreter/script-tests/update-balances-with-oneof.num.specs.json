@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "update balances with oneof",
+      "balances": {
+        "alice": {
+          "USD": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD",
+          "amount": 100,
+          "source": "alice",
+          "destination": "dest"
+        },
+        {
+          "asset": "USD",
+          "amount": 100,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}
