@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color with asset precision",
+      "expect.postings": [
+        {
+          "asset": "USD_COL/4",
+          "amount": 10,
+          "source": "src",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}
