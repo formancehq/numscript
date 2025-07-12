@@ -3,6 +3,7 @@
   "title": "Specs",
   "type": "object",
   "additionalProperties": false,
+  "required": ["testCases"],
   "properties": {
     "$schema": { "type": "string" },
     "balances": {
