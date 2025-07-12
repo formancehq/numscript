@@ -3,7 +3,17 @@
   "testCases": [
     {
       "it": "uses simple balance function",
-      "expect.postings": []
+      "balances": {
+        "alice": { "USD/2": 10 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 10,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
     }
   ]
 }
