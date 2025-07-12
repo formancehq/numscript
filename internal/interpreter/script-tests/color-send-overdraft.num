@@ -1,0 +1,4 @@
+send [COIN 100] (
+	source = @acc \ "RED" allowing unbounded overdraft
+	destination = @dest
+)

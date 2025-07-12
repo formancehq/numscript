@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color restrict balance",
+      "balances": {
+        "acc": {
+          "COIN": 1,
+          "COIN_RED": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN_RED",
+          "amount": 20,
+          "source": "acc",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

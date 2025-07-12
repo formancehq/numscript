@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color send overdraft",
+      "expect.postings": [
+        {
+          "asset": "COIN_RED",
+          "amount": 100,
+          "source": "acc",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

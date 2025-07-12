@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color restrict balance when missing funds",
+      "balances": {
+        "acc": {
+          "COIN": 100,
+          "COIN_RED": 1
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}
