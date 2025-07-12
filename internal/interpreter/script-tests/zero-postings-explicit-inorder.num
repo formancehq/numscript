@@ -1,7 +1,8 @@
-send [GEM 0] (
-	source = @world
-	destination = {
-		1/2 to @dest1
-		1/2 to @dest2
+send [COIN 0] (
+	source = {
+		@a
+		@b
+		@c
 	}
+	destination = @dest
 )

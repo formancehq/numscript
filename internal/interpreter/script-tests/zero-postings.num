@@ -1,4 +1,7 @@
-send [GEM 0] (
-	source = @world
+send [COIN 100] (
+	source = {
+		@a
+		@world
+	}
 	destination = @dest
 )
