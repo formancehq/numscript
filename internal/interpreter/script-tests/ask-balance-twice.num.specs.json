@@ -4,11 +4,11 @@
     {
       "it": "asks balance twice",
       "balances": {
-        "alice": { "COIN": 10 }
+        "alice": { "USD/2": 10 }
       },
       "expect.postings": [
         {
-          "asset": "COIN",
+          "asset": "USD/2",
           "amount": 10,
           "source": "alice",
           "destination": "dest"

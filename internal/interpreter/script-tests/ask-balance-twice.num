@@ -1,6 +1,7 @@
 vars {
-	monetary $bal = balance(@alice, COIN)
+	monetary $bal = balance(@alice, USD/2)
 }
+
 send $bal (
 	source = @alice
 	destination = @dest
