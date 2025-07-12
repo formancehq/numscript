@@ -27,6 +27,8 @@
   "definitions": {
     "TestCase": {
       "type": "object",
+      "required": ["it"],
+      "additionalProperties": false,
       "properties": {
         "it": {
           "type": "string",
@@ -57,11 +59,15 @@
         "expect.txMeta": {
           "$ref": "#/definitions/TxMetadata"
         },
+
+        "expect.accountsMeta": {
+          "$ref": "#/definitions/AccountsMetadata"
+        },
+
         "expect.missingFunds": {
           "type": "boolean"
         }
-      },
-      "required": ["it"]
+      }
     },
 
     "Balances": {
