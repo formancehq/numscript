@@ -4,13 +4,13 @@
     {
       "it": "uses balance function",
       "balances": {
-        "src": { "COIN": 42 }
+        "a": { "EUR/2": 123 }
       },
       "expect.postings": [
         {
-          "asset": "COIN",
-          "amount": 42,
-          "source": "src",
+          "asset": "EUR/2",
+          "amount": 123,
+          "source": "world",
           "destination": "dest"
         }
       ]
