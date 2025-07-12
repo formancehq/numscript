@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles zero postings explicit allotment",
+      "expect.postings": []
+    }
+  ]
+}

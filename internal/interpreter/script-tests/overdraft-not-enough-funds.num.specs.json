@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles overdraft not enough funds",
+      "balances": {
+        "users:2345:main": {
+          "USD/2": 8000
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 1000,
+          "source": "users:2345:credit",
+          "destination": "payments:4567"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 1200,
+          "source": "users:2345:main",
+          "destination": "payments:4567"
+        }
+      ]
+    }
+  ]
+}

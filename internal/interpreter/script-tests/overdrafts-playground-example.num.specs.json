@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles overdrafts playground example",
+      "balances": {
+        "users:001": {
+          "USD/2": 25
+        },
+        "users:002": {
+          "USD/2": 25
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 25,
+          "source": "users:001",
+          "destination": "platform"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 75,
+          "source": "users:002",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

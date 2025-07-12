@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles cascading sources",
+      "balances": {
+        "users:001": {
+          "USD/2": 25
+        },
+        "users:002": {
+          "USD/2": 25
+        },
+        "users:003": {
+          "USD/2": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 25,
+          "source": "users:001",
+          "destination": "platform"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 25,
+          "source": "users:002",
+          "destination": "platform"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 50,
+          "source": "users:003",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

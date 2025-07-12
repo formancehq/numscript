@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles overdraft when not enough funds",
+      "balances": {
+        "users:1234": {
+          "COIN": 1
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

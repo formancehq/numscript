@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles max with unbounded overdraft",
+      "balances": {
+        "account1": {
+          "COIN": 10000
+        },
+        "account2": {
+          "COIN": 10000
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 10,
+          "source": "account1",
+          "destination": "world"
+        },
+        {
+          "asset": "COIN",
+          "amount": 90,
+          "source": "account2",
+          "destination": "world"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles nested remaining",
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 10,
+          "source": "world",
+          "destination": "a"
+        },
+        {
+          "asset": "COIN",
+          "amount": 20,
+          "source": "world",
+          "destination": "b"
+        },
+        {
+          "asset": "COIN",
+          "amount": 70,
+          "source": "world",
+          "destination": "c"
+        }
+      ]
+    }
+  ]
+}

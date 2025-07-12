@@ -1,0 +1,8 @@
+send [USD/2 100] (
+	source = {
+		@users:001
+		@users:002
+		@users:003
+	}
+	destination = @platform
+)

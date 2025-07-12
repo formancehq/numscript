@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses different assets with same source account",
+      "vars": {
+        "a_account": "world"
+      },
+      "balances": {
+        "account1": {
+          "A": 100
+        },
+        "account2": {
+          "B": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "A",
+          "amount": 100,
+          "source": "world",
+          "destination": "account1"
+        },
+        {
+          "asset": "B",
+          "amount": 100,
+          "source": "world",
+          "destination": "account2"
+        }
+      ]
+    }
+  ]
+}

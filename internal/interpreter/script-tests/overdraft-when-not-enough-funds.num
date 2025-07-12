@@ -1,0 +1,4 @@
+send [COIN 100] (
+ source = @users:1234 allowing overdraft up to [COIN 10]
+ destination = @dest
+)

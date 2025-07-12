@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles unbounded overdraft when not enough funds",
+      "balances": {
+        "users:001": {
+          "USD/2": 25
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 100,
+          "source": "users:001",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

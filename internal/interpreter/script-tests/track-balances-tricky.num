@@ -1,0 +1,7 @@
+send [COIN *] (
+	source = @foo
+	destination = {
+		max [COIN 10] to @bar
+		remaining to @baz
+	}
+)

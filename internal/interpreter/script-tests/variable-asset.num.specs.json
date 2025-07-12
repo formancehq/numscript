@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles variable asset",
+      "vars": {
+        "ass": "USD"
+      },
+      "balances": {
+        "alice": {
+          "USD": 10
+        },
+        "bob": {
+          "USD": 10
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD",
+          "amount": 10,
+          "source": "alice",
+          "destination": "swap"
+        },
+        {
+          "asset": "USD",
+          "amount": 5,
+          "source": "bob",
+          "destination": "swap"
+        },
+        {
+          "asset": "USD",
+          "amount": 10,
+          "source": "swap",
+          "destination": "alice_2"
+        },
+        {
+          "asset": "USD",
+          "amount": 5,
+          "source": "swap",
+          "destination": "bob_2"
+        }
+      ]
+    }
+  ]
+}
