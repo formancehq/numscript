@@ -1,0 +1,4 @@
+send [COIN *] (
+	source = @src \ ""
+	destination = @dest
+)

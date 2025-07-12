@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color inorder send all",
+      "balances": {
+        "src": {
+          "COIN": 100,
+          "COIN_RED": 20,
+          "COIN_BLUE": 30
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN_RED",
+          "amount": 20,
+          "source": "src",
+          "destination": "dest"
+        },
+        {
+          "asset": "COIN_BLUE",
+          "amount": 30,
+          "source": "src",
+          "destination": "dest"
+        },
+        {
+          "asset": "COIN",
+          "amount": 100,
+          "source": "src",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

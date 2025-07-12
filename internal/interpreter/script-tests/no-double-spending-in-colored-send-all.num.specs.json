@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "no double spending in colored send all",
+      "balances": {
+        "src": {
+          "COIN": 100,
+          "COIN_X": 20
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN_X",
+          "amount": 20,
+          "source": "src",
+          "destination": "dest"
+        },
+        {
+          "asset": "COIN",
+          "amount": 100,
+          "source": "src",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}
