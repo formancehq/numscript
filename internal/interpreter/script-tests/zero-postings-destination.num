@@ -1,7 +1,7 @@
-send [GEM 0] (
+send [COIN 100] (
 	source = @world
 	destination = {
-		@dest1
-		@dest2
+		max [COIN 0] to @d1
+		remaining to @d2
 	}
 )
