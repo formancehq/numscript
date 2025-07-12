@@ -4,21 +4,15 @@
     {
       "it": "uses balance twice",
       "balances": {
-        "a": {
-          "EUR/2": 100
+        "src": {
+          "COIN": 50
         }
       },
       "expect.postings": [
         {
-          "asset": "EUR/2",
-          "amount": 100,
-          "source": "world",
-          "destination": "dest"
-        },
-        {
-          "asset": "EUR/2",
-          "amount": 100,
-          "source": "world",
+          "asset": "COIN",
+          "amount": 50,
+          "source": "src",
           "destination": "dest"
         }
       ]
