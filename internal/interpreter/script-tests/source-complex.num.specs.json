@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles complex source structure",
+      "balances": {
+        "a": { "COIN": 1000 },
+        "b": { "COIN": 40 },
+        "c": { "COIN": 1000 },
+        "d": { "COIN": 1000 }
+      },
+      "vars": {
+        "max": "COIN 120"
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 4,
+          "source": "a",
+          "destination": "platform"
+        },
+        {
+          "asset": "COIN",
+          "amount": 40,
+          "source": "b",
+          "destination": "platform"
+        },
+        {
+          "asset": "COIN",
+          "amount": 56,
+          "source": "c",
+          "destination": "platform"
+        },
+        {
+          "asset": "COIN",
+          "amount": 100,
+          "source": "d",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

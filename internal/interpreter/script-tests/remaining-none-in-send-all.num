@@ -1,0 +1,7 @@
+send [COIN *] (
+	source = @src
+	destination = {
+		100% to @dest
+		remaining to @rem
+	}
+)

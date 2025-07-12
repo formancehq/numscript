@@ -1,0 +1,7 @@
+send [COIN 100] (
+	source = {
+		max [COIN 40] from @src1
+		@src2
+	}
+	destination = @platform
+)

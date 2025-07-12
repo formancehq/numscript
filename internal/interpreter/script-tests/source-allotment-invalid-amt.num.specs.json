@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles source allotment with insufficient funds",
+      "balances": {
+        "a": { "COIN": 1 }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

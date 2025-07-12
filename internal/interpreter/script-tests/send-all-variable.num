@@ -1,0 +1,9 @@
+vars {
+	account $src 
+	account $dest 
+}
+
+send [USD/2 *] (
+	source = $src
+	destination = $dest
+)

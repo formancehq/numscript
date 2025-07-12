@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with overdraft",
+      "balances": {
+        "src": { "USD/2": 1000 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 1010,
+          "source": "src",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

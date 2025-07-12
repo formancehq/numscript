@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses simple balance function",
+      "expect.postings": []
+    }
+  ]
+}

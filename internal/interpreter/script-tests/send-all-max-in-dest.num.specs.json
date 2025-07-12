@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with max in destination",
+      "balances": {
+        "src": { "USD/2": 100 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 10,
+          "source": "src",
+          "destination": "d1"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 90,
+          "source": "src",
+          "destination": "d2"
+        }
+      ]
+    }
+  ]
+}

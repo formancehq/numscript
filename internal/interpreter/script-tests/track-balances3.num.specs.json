@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "tracks balances with kept and remaining",
+      "balances": {
+        "foo": { "COIN": 2000 }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 1000,
+          "source": "foo",
+          "destination": "bar"
+        },
+        {
+          "asset": "COIN",
+          "amount": 1000,
+          "source": "foo",
+          "destination": "bar"
+        }
+      ]
+    }
+  ]
+}

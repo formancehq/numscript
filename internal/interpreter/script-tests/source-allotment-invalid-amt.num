@@ -1,0 +1,7 @@
+send [COIN 100] (
+	source = {
+		10% from @a
+		remaining from @world
+	}
+	destination = @d
+)

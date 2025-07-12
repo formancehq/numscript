@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "caps amount when less than needed",
+      "balances": {
+        "src1": { "COIN": 1000 },
+        "src2": { "COIN": 1000 }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 40,
+          "source": "src1",
+          "destination": "platform"
+        },
+        {
+          "asset": "COIN",
+          "amount": 60,
+          "source": "src2",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

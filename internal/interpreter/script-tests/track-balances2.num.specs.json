@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "tracks balances with insufficient funds",
+      "balances": {
+        "a": { "COIN": 60 }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

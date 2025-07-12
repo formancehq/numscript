@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles overlapping source accounts",
+      "balances": {
+        "a": { "COIN": 99 },
+        "b": { "COIN": 3 }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 3,
+          "source": "b",
+          "destination": "world"
+        },
+        {
+          "asset": "COIN",
+          "amount": 96,
+          "source": "a",
+          "destination": "world"
+        }
+      ]
+    }
+  ]
+}

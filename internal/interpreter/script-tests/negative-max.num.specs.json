@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses negative max with world fallback",
+      "balances": {
+        "src": { "USD/2": 0 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 100,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

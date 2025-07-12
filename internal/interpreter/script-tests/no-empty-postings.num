@@ -1,0 +1,7 @@
+send [GEM 2] (
+	source = @world
+	destination = {
+		90% to @a
+		10% to @b
+	}
+)

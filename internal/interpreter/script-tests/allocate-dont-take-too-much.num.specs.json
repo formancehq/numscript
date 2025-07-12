@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "allocates without taking too much",
+      "balances": {
+        "users:001": { "CREDIT": 100 },
+        "users:002": { "CREDIT": 110 }
+      },
+      "expect.postings": [
+        {
+          "asset": "CREDIT",
+          "amount": 100,
+          "source": "users:001",
+          "destination": "foo"
+        },
+        {
+          "asset": "CREDIT",
+          "amount": 100,
+          "source": "users:002",
+          "destination": "bar"
+        }
+      ]
+    }
+  ]
+}

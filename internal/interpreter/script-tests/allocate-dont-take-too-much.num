@@ -1,0 +1,10 @@
+send [CREDIT 200] (
+	source = {
+		@users:001
+		@users:002
+	}
+	destination = {
+		1/2 to @foo
+		1/2 to @bar
+	}
+)

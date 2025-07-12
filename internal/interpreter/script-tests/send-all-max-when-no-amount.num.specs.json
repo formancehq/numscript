@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with max when no amount available",
+      "balances": {
+        "src1": { "USD/2": 0 }
+      },
+      "expect.postings": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "keeps remaining in order",
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 1,
+          "source": "world",
+          "destination": "a"
+        }
+      ]
+    }
+  ]
+}

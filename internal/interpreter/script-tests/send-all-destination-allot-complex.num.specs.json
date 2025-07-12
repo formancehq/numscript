@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with complex destination allotment",
+      "balances": {
+        "users:001": { "USD/2": 15 },
+        "users:002": { "USD/2": 15 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 10,
+          "source": "users:001",
+          "destination": "d1"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 5,
+          "source": "users:001",
+          "destination": "d2"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 15,
+          "source": "users:002",
+          "destination": "d2"
+        }
+      ]
+    }
+  ]
+}

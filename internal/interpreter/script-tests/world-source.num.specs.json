@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "uses world as fallback source",
+      "balances": {
+        "a": { "GEM": 1 }
+      },
+      "expect.postings": [
+        {
+          "asset": "GEM",
+          "amount": 1,
+          "source": "a",
+          "destination": "b"
+        },
+        {
+          "asset": "GEM",
+          "amount": 14,
+          "source": "world",
+          "destination": "b"
+        }
+      ]
+    }
+  ]
+}

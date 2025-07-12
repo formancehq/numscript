@@ -1,0 +1,12 @@
+vars {
+	number $num
+	number $den
+}
+
+send [COIN 9] (
+	source = @world
+	destination = {
+		$num/3 to @a
+		2/$den to @b
+	}
+)

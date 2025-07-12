@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all with variables",
+      "balances": {
+        "users:001": { "USD/2": 17 }
+      },
+      "vars": {
+        "src": "users:001",
+        "dest": "platform"
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 17,
+          "source": "users:001",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+send [COIN 50] (
+	source = @a
+	destination = @z
+)
+send [COIN 50] (
+	source = @a
+	destination = @z
+)

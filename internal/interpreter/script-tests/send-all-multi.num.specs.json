@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends all from multiple sources",
+      "balances": {
+        "users:001:wallet": { "USD/2": 19 },
+        "users:001:credit": { "USD/2": 22 }
+      },
+      "expect.postings": [
+        {
+          "asset": "USD/2",
+          "amount": 19,
+          "source": "users:001:wallet",
+          "destination": "platform"
+        },
+        {
+          "asset": "USD/2",
+          "amount": 22,
+          "source": "users:001:credit",
+          "destination": "platform"
+        }
+      ]
+    }
+  ]
+}

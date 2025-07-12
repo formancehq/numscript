@@ -1,0 +1,12 @@
+vars {
+	monetary $bal1 = balance(@src, COIN)
+	monetary $bal2 = balance(@src, COIN)
+}
+send $bal1 (
+	source = @src
+	destination = @dest1
+)
+send $bal2 (
+	source = @src
+	destination = @dest2
+)

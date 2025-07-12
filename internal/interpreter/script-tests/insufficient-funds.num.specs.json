@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "handles insufficient funds error",
+      "balances": {
+        "users:001": { "GEM": 3 },
+        "payments:001": { "GEM": 12 }
+      },
+      "vars": {
+        "balance": "users:001",
+        "payment": "payments:001",
+        "seller": "users:002"
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}
