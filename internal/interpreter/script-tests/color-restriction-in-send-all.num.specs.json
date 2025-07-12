@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "color restriction in send all",
+      "balances": {
+        "src": {
+          "COIN_RED": 42
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN_RED",
+          "amount": 42,
+          "source": "src",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}
