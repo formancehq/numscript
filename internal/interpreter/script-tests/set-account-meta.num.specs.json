@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "outputs the metadata",
+      "expect.accountsMeta": {
+        "acc": {
+          "num": "42",
+          "str": "abc",
+          "asset": "COIN",
+          "account": "acc",
+          "portion": "2/7",
+          "portion-perc": "1/100"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "outputs the metadata",
+      "expect.txMeta": {
+        "num": "42",
+        "str": "abc",
+        "asset": "COIN",
+        "account": "acc",
+        "portion": "3/25"
+      }
+    }
+  ]
+}

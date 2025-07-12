@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "outputs the metadata",
+      "accountsMeta": {
+        "acc": {
+          "initial": "0",
+          "overridden": "1"
+        }
+      },
+      "expect.accountsMeta": {
+        "acc": {
+          "overridden": "100",
+          "new": "2"
+        }
+      }
+    }
+  ]
+}

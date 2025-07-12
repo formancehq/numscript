@@ -1,0 +1,5 @@
+set_tx_meta("num", 42)
+set_tx_meta("str", "abc")
+set_tx_meta("asset", COIN)
+set_tx_meta("account", @acc)
+set_tx_meta("portion", 12%)
