@@ -1,5 +1,6 @@
 {
   "$schema": "../../../specs.schema.json",
+  "featureFlags": ["experimental-oneof"],
   "testCases": [
     {
       "it": "oneof in source",

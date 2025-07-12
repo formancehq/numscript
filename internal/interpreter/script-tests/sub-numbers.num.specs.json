@@ -4,7 +4,7 @@
     {
       "it": "subtracts numbers",
       "expect.txMeta": {
-        "k": 9
+        "k": "9"
       }
     }
   ]

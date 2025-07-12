@@ -4,10 +4,7 @@
     {
       "it": "subtracts monetaries",
       "expect.txMeta": {
-        "k": {
-          "asset": "USD/2",
-          "amount": 7
-        }
+        "k": "USD/2 7"
       }
     }
   ]

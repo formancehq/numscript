@@ -1,5 +1,6 @@
 {
   "$schema": "../../../specs.schema.json",
+  "featureFlags": ["experimental-asset-colors"],
   "testCases": [
     {
       "it": "no double spending in colored send all",

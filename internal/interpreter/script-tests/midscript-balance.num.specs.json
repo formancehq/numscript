@@ -1,5 +1,6 @@
 {
   "$schema": "../../../specs.schema.json",
+  "featureFlags": ["experimental-mid-script-function-call"],
   "testCases": [
     {
       "it": "midscript balance",

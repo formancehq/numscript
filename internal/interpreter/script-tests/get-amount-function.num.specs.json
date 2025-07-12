@@ -1,10 +1,11 @@
 {
   "$schema": "../../../specs.schema.json",
+  "featureFlags": ["experimental-get-amount-function"],
   "testCases": [
     {
       "it": "get amount function",
       "expect.txMeta": {
-        "amt": 100
+        "amt": "100"
       }
     }
   ]

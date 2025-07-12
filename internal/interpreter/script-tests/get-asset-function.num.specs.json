@@ -1,5 +1,6 @@
 {
   "$schema": "../../../specs.schema.json",
+  "featureFlags": ["experimental-get-asset-function"],
   "testCases": [
     {
       "it": "get asset function",
