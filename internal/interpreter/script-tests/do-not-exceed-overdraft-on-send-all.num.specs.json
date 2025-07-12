@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "do not exceed overdraft on send all",
+      "balances": {
+        "s": {
+          "COIN": -4
+        }
+      },
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 1,
+          "source": "s",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}

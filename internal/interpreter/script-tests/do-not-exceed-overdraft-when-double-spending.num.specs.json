@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "do not exceed overdraft when double spending",
+      "expect.postings": [
+        {
+          "asset": "COIN",
+          "amount": 5,
+          "source": "s",
+          "destination": "dest"
+        },
+        {
+          "asset": "COIN",
+          "amount": 5,
+          "source": "world",
+          "destination": "dest"
+        }
+      ]
+    }
+  ]
+}
