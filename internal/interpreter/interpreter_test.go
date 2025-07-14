@@ -159,7 +159,7 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 
 	// TEMP
 
-	name := camelToDash(t.Name())
+	name := strings.ReplaceAll(camelToDash(t.Name()), "/", "::")
 
 	writeErr := os.WriteFile("./script-tests/"+name+".num", []byte(replaceTabsWithSpaces(testCase.source)), 0644)
 	require.Nil(t, writeErr)
