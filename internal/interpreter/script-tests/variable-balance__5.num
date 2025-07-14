@@ -1,0 +1,15 @@
+
+  vars {
+    monetary $max = balance(@maxAcc, COIN)
+  }
+  send [COIN 200] (
+    source = {
+      50% from {
+        max [COIN 4] from @a
+        @b
+        @c
+      }
+      remaining from max $max from @d
+    }
+    destination = @platform
+  )
