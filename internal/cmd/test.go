@@ -159,6 +159,20 @@ func showFailingTestCase(testResult testResult) (rerun bool) {
 	return false
 }
 
+func showErr(filename string, script string, err interpreter.InterpreterError) {
+	rng := err.GetRange()
+
+	errFile := fmt.Sprintf("\nError: %s:%d:%d\n\n", filename, rng.Start.Line+1, rng.Start.Character+1)
+	os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
+
+	os.Stderr.Write([]byte(err.Error() + "\n\n"))
+
+	if rng.Start != rng.End {
+		os.Stderr.Write([]byte("\n"))
+		os.Stderr.Write([]byte(rng.ShowOnSource(script) + "\n"))
+	}
+}
+
 func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	if !strings.HasSuffix(specsFilePath, ".num.specs.json") {
 		panic("Wrong name")
@@ -173,8 +187,12 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	}
 
 	parseResult := parser.Parse(string(numscriptContent))
-	// TODO assert no parse err
-	// TODO we might want to do static checking
+	if len(parseResult.Errors) != 0 {
+		for _, err := range parseResult.Errors {
+			showErr(numscriptFileName, string(numscriptContent), err)
+		}
+		os.Exit(1)
+	}
 
 	specsFileContent, err := os.ReadFile(specsFilePath)
 	if err != nil {
@@ -185,23 +203,14 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 	var specs specs_format.Specs
 	err = json.Unmarshal([]byte(specsFileContent), &specs)
 	if err != nil {
-		os.Stderr.Write([]byte(ansi.ColorRed(err.Error())))
+		os.Stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s\n\n", specsFilePath))))
+		os.Stderr.Write([]byte(err.Error() + "\n"))
 		os.Exit(1)
 	}
 
 	out, iErr := specs_format.Check(parseResult.Value, specs)
 	if iErr != nil {
-		rng := iErr.GetRange()
-
-		errFile := fmt.Sprintf("\nError: %s:%d:%d\n\n", numscriptFileName, rng.Start.Line+1, rng.Start.Character+1)
-
-		os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
-
-		os.Stderr.Write([]byte(iErr.Error()))
-		if rng.Start != rng.End {
-			os.Stderr.Write([]byte("\n"))
-			os.Stderr.Write([]byte(iErr.GetRange().ShowOnSource(parseResult.Source)))
-		}
+		showErr(numscriptFileName, string(numscriptContent), iErr)
 		os.Exit(1)
 	}
 
@@ -251,6 +260,11 @@ func testPaths() {
 			panic(err)
 		}
 		testFiles += len(files)
+
+		if len(files) == 0 {
+			os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
+			os.Exit(1)
+		}
 
 		for _, file := range files {
 			specs, out := test(file)

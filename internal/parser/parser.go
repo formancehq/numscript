@@ -12,8 +12,12 @@ import (
 )
 
 type ParserError struct {
-	Range Range
-	Msg   string
+	Range
+	Msg string
+}
+
+func (e ParserError) Error() string {
+	return e.Msg
 }
 
 type ParseResult struct {
