@@ -1,0 +1,6 @@
+
+   send [COIN 20] (
+    source = @acc \ "RED"
+    destination = @dest
+  )
+

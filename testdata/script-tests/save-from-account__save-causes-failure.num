@@ -1,0 +1,7 @@
+
+     save [USD/2 1] from @alice
+
+     send [USD/2 30] (
+        source = @alice
+        destination = @bob
+     )

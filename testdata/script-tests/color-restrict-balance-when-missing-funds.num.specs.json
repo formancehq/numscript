@@ -1,0 +1,17 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "acc": {
+          "COIN": 100,
+          "COIN_RED": 1
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}
