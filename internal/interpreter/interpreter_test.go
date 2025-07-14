@@ -81,9 +81,7 @@ func NewTestCase() TestCase {
 		meta:     machine.AccountsMetadata{},
 		balances: make(map[string]map[string]*big.Int),
 		expected: CaseResult{
-			Postings:   []machine.Posting{},
-			TxMetadata: make(map[string]machine.Value),
-			Error:      nil,
+			Error: nil,
 		},
 	}
 }
