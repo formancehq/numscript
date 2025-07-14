@@ -1,0 +1,8 @@
+send [COIN 100] (
+  source = {
+    60% from @a
+    35.5% from @b
+    4.5% from @c
+  }
+  destination = @d
+)

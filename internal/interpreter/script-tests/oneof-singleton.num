@@ -1,0 +1,6 @@
+
+send [GEM 10] (
+  source = oneof { @a }
+  destination = @dest
+)
+

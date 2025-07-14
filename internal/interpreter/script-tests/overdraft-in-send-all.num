@@ -1,0 +1,4 @@
+send [USD/2 *] (
+  source = @src allowing overdraft up to [USD/2 10]
+  destination = @dest
+)

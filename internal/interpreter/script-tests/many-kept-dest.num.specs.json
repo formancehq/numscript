@@ -1,0 +1,26 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "src": {
+          "USD/2": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "d2",
+          "amount": 12,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "rem",
+          "amount": 78,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

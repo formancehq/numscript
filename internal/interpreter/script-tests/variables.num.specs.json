@@ -1,0 +1,31 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:001": {
+          "EUR/2": 1000
+        }
+      },
+      "vars": {
+        "ass": "EUR/2",
+        "description": "midnight ride",
+        "driver": "users:002",
+        "nb": "1",
+        "rider": "users:001"
+      },
+      "expect.postings": [
+        {
+          "source": "users:001",
+          "destination": "users:002",
+          "amount": 999,
+          "asset": "EUR/2"
+        }
+      ],
+      "expect.txMeta": {
+        "description": "midnight ride",
+        "ride": "1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "featureFlags": [
+    "experimental-get-amount-function"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.txMeta": {
+        "amt": "100"
+      }
+    }
+  ]
+}

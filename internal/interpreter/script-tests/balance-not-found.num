@@ -1,0 +1,9 @@
+
+vars {
+  monetary $balance = balance(@a, EUR/2)
+}
+
+send $balance (
+  source = @world
+  destination = @dest
+)

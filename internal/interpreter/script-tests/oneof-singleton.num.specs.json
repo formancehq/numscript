@@ -1,0 +1,23 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "a": {
+          "GEM": 10
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

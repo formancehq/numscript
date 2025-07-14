@@ -1,0 +1,14 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.txMeta": {
+        "account": "acc",
+        "asset": "COIN",
+        "num": "42",
+        "portion": "3/25",
+        "str": "abc"
+      }
+    }
+  ]
+}

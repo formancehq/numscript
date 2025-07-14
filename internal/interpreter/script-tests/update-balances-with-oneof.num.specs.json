@@ -1,0 +1,29 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "alice": {
+          "USD": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

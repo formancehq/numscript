@@ -1,0 +1,5 @@
+
+  vars {
+    number $x = 1 + 2
+  }
+

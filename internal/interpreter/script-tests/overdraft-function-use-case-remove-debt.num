@@ -1,0 +1,14 @@
+
+   vars { monetary $amt = overdraft(@user:001, USD/2) }
+
+
+  // we have at most 1000 USD/2 to remove user:001's debt
+   send [USD/2 1000] (
+     source = @world
+     destination = {
+      // but we send at most what we need to cancel the debt
+      max $amt to @user:001
+      remaining kept
+    }
+   )
+

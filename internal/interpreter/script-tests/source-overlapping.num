@@ -1,0 +1,11 @@
+send [COIN 99] (
+  source = {
+    15% from {
+      @b
+      @a
+    }
+    30% from @a
+    remaining from @a
+  }
+  destination = @world
+)

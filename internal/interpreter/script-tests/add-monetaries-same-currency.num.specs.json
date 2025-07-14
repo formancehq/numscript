@@ -1,0 +1,15 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 3,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

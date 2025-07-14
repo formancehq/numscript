@@ -1,0 +1,8 @@
+
+  set_account_meta(@acc, "num", 42)
+  set_account_meta(@acc, "str", "abc")
+  set_account_meta(@acc, "asset", COIN)
+  set_account_meta(@acc, "account", @acc)
+  set_account_meta(@acc, "portion", 2/7)
+  set_account_meta(@acc, "portion-perc", 1%)
+
