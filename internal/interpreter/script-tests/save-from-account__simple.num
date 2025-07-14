@@ -1,0 +1,10 @@
+
+     save [USD 10] from @alice
+
+     send [USD 30] (
+        source = {
+         @alice
+         @world
+        }
+        destination = @bob
+     )
