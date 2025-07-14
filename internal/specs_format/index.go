@@ -27,7 +27,7 @@ type TestCase struct {
 
 	// Expectations
 	ExpectMissingFunds bool                         `json:"expect.missingFunds,omitempty"`
-	ExpectPostings     []interpreter.Posting        `json:"expect.postings"`
+	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
 	ExpectTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
 	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
 	ExpectVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
