@@ -1,0 +1,19 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "accountsMeta": {
+        "acc": {
+          "initial": "0",
+          "overridden": "1"
+        }
+      },
+      "expect.accountsMeta": {
+        "acc": {
+          "new": "2",
+          "overridden": "100"
+        }
+      }
+    }
+  ]
+}

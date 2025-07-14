@@ -1,0 +1,4 @@
+send [GEM *] (
+  source = @foo
+  destination = @bar
+)

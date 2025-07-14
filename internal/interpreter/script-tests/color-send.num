@@ -1,0 +1,6 @@
+
+   send [COIN 100] (
+    source = @world \ "RED"
+    destination = @dest
+  )
+

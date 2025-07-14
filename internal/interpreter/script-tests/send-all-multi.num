@@ -1,0 +1,8 @@
+send [USD/2 *] (
+  source = {
+    @users:001:wallet
+    @users:001:credit
+  }
+  destination = @platform
+)
+

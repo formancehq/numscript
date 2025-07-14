@@ -1,0 +1,8 @@
+
+send [COIN 100] (
+source = {
+  max [COIN 10] from @account1 allowing unbounded overdraft
+  @account2
+}
+destination = @world
+)

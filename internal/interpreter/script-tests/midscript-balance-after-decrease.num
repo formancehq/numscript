@@ -1,0 +1,14 @@
+
+  // @acc has [10 USD/2] initially
+
+  send [USD/2 3] (
+    source = @acc
+    destination = @world
+  )
+
+  // @acc has [7 USD/2] left
+   send balance(@acc, USD/2) (
+     source = @world
+     destination = @dest
+   )
+

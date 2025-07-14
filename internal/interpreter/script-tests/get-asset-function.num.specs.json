@@ -1,0 +1,13 @@
+{
+  "featureFlags": [
+    "experimental-get-asset-function"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.txMeta": {
+        "asset": "ABC"
+      }
+    }
+  ]
+}

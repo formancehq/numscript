@@ -1,0 +1,14 @@
+
+send [USD/2 10000] (
+  source = {
+    // first, pull from the user balance
+    @users:1234:main
+    // then, pull from the user's vouchers,
+    // fairly using the ones that expire first
+    @users:1234:vouchers:2024-01-31
+    @users:1234:vouchers:2024-02-17
+    @users:1234:vouchers:2024-03-22
+  }
+  destination = @orders:4567:payment
+  )
+

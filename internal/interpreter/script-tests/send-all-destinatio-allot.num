@@ -1,0 +1,7 @@
+send [USD/2 *] (
+  source = @users:001
+  destination = {
+    1/3 to @d1
+    2/3 to @d2
+  }
+)

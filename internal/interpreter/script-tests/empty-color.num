@@ -1,0 +1,6 @@
+
+   send [COIN *] (
+    source = @src \ "" // <- same as just '@src'
+    destination = @dest
+  )
+

@@ -1,0 +1,35 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:001": {
+          "USD/2": 15
+        },
+        "users:002": {
+          "USD/2": 15
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:001",
+          "destination": "d1",
+          "amount": 10,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:001",
+          "destination": "d2",
+          "amount": 5,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:002",
+          "destination": "d2",
+          "amount": 15,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

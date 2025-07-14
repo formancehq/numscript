@@ -1,0 +1,40 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "sales:042": {
+          "EUR/2": 2500
+        },
+        "users:053": {
+          "EUR/2": 500
+        }
+      },
+      "vars": {
+        "sale": "sales:042"
+      },
+      "accountsMeta": {
+        "sales:042": {
+          "seller": "users:053"
+        },
+        "users:053": {
+          "commission": "12.5%"
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "sales:042",
+          "destination": "users:053",
+          "amount": 88,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "sales:042",
+          "destination": "platform",
+          "amount": 12,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}

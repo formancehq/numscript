@@ -1,0 +1,18 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "vars": {
+        "amt": "99999223372036854775807"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 99999223372036854775807,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

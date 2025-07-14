@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"math/big"
+	"os"
+	"regexp"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
 	machine "github.com/formancehq/numscript/internal/interpreter"
+	"github.com/formancehq/numscript/internal/specs_format"
 
 	"testing"
 
@@ -152,6 +156,87 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	assert.Equal(t, expected.Postings, execResult.Postings)
 	assert.Equal(t, expected.TxMetadata, execResult.Metadata)
 	assert.Equal(t, expected.AccountMetadata, execResult.AccountsMetadata)
+
+	// TEMP
+
+	name := camelToDash(t.Name())
+
+	writeErr := os.WriteFile("./script-tests/"+name+".num", []byte(replaceTabsWithSpaces(testCase.source)), 0644)
+	require.Nil(t, writeErr)
+
+	tc := specs_format.TestCase{
+		It: "-",
+	}
+	// --- GIVEN
+	if len(testCase.balances) != 0 {
+		tc.Balances = testCase.balances
+	}
+	if len(testCase.vars) != 0 {
+		tc.Vars = testCase.vars
+	}
+
+	if len(testCase.meta) != 0 {
+		tc.Meta = testCase.meta
+	}
+
+	// --- EXPECT
+	if testCase.expected.Postings != nil {
+		tc.ExpectPostings = testCase.expected.Postings
+	}
+
+	if len(testCase.expected.TxMetadata) != 0 {
+		strMeta := map[string]string{}
+		for k, v := range testCase.expected.TxMetadata {
+			strMeta[k] = v.String()
+		}
+		tc.ExpectTxMeta = strMeta
+	}
+
+	if len(testCase.expected.AccountMetadata) != 0 {
+		tc.ExpectAccountsMeta = testCase.expected.AccountMetadata
+	}
+
+	specs := specs_format.Specs{
+		TestCases: []specs_format.TestCase{tc},
+	}
+	if flagName != "" {
+		specs.FeatureFlags = []string{flagName}
+	}
+
+	bytes, jErr := json.MarshalIndent(specs, "", "  ")
+	require.Nil(t, jErr)
+
+	writeErr = os.WriteFile("./script-tests/"+name+".num.specs.json", append(bytes, '\n'), 0644)
+	require.Nil(t, writeErr)
+}
+
+func replaceTabsWithSpaces(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		// Remove the first tab in the line, if any
+		if idx := strings.Index(line, "\t"); idx != -1 {
+			line = line[:idx] + line[idx+1:]
+		}
+		// Replace any remaining tabs with two spaces
+		line = strings.ReplaceAll(line, "\t", "  ")
+		lines[i] = line
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+// camelToDash converts CamelCase or snake_case to dash-case.
+func camelToDash(s string) string {
+	s = strings.TrimPrefix(s, "Test")
+
+	// Insert a dash before any uppercase letter (except the first)
+	re := regexp.MustCompile(`([a-z0-9])([A-Z])`)
+	s = re.ReplaceAllString(s, `${1}-${2}`)
+
+	// Convert snake_case to dash-case
+	s = strings.ReplaceAll(s, "_", "-")
+
+	// Lowercase the whole string
+	return strings.ToLower(s)
 }
 
 func TestStaticStore(t *testing.T) {

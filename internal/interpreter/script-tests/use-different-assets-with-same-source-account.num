@@ -1,0 +1,11 @@
+vars {
+account $a_account
+}
+send [A 100] (
+source = $a_account allowing unbounded overdraft
+destination = @account1
+)
+send [B 100] (
+source = @world
+destination = @account2
+)

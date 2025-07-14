@@ -1,0 +1,18 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:1234": {}
+      },
+      "expect.postings": [
+        {
+          "source": "users:1234",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+vars {
+  account $sale
+  account $seller = meta($sale, "seller")
+  portion $commission = meta($seller, "commission")
+}
+send [EUR/2 100] (
+  source = $sale
+  destination = {
+    remaining to $seller
+    $commission to @platform
+  }
+)

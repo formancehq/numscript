@@ -1,0 +1,16 @@
+
+send [GEM 100] (
+  source = @world
+  destination = {
+    10% to {
+      remaining to {
+        100% to {
+          max [GEM 1] to @dest1
+          remaining kept
+        }
+      }
+    }
+    remaining to @dest2
+  }
+)
+

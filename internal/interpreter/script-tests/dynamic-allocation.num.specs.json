@@ -1,0 +1,29 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "a": {
+          "GEM": 15
+        }
+      },
+      "vars": {
+        "p": "15%"
+      },
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "b",
+          "amount": 13,
+          "asset": "GEM"
+        },
+        {
+          "source": "a",
+          "destination": "c",
+          "amount": 2,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "featureFlags": [
+    "experimental-overdraft-function"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "acc": {
+          "EUR/2": 100
+        }
+      }
+    }
+  ]
+}

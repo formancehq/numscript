@@ -1,0 +1,18 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD_COL/4"
+        }
+      ]
+    }
+  ]
+}
