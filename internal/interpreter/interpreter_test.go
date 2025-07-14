@@ -3,8 +3,10 @@ package interpreter_test
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"math/big"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -19,6 +21,53 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const scriptsFolder = "../../testdata/script-tests"
+
+func TestMain(t *testing.T) {
+
+	paths, err := getNumscriptFilePaths()
+	require.Nil(t, err)
+
+	for _, path := range paths {
+		numscript, err := os.ReadFile(path)
+		require.Nil(t, err)
+
+		parseResult := parser.Parse(string(numscript))
+		require.Empty(t, parseResult.Errors)
+
+		specsFile, err := os.ReadFile(path + ".specs.json")
+		require.Nil(t, err)
+
+		var specs specs_format.Specs
+		err = json.Unmarshal([]byte(specsFile), &specs)
+		require.Nil(t, err)
+
+		out, err := specs_format.Check(parseResult.Value, specs)
+		require.Nil(t, err)
+
+		for _, tc := range out.Cases {
+			for _, failed := range tc.FailedAssertions {
+				t.Fatalf("%s > %s > %s", path, tc.It, failed.Assertion)
+			}
+		}
+	}
+}
+
+func getNumscriptFilePaths() ([]string, error) {
+	var paths []string
+	err := filepath.WalkDir(scriptsFolder, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(path, ".num") {
+			paths = append(paths, path)
+		}
+
+		return nil
+	})
+	return paths, err
+}
 
 type TestCase struct {
 	source   string
@@ -161,7 +210,7 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 
 	name := strings.ReplaceAll(camelToDash(t.Name()), "/", "__")
 
-	writeErr := os.WriteFile("./script-tests/"+name+".num", []byte(replaceTabsWithSpaces(testCase.source)), 0644)
+	writeErr := os.WriteFile(scriptsFolder+"/"+name+".num", []byte(replaceTabsWithSpaces(testCase.source)), 0644)
 	require.Nil(t, writeErr)
 
 	tc := specs_format.TestCase{
@@ -206,7 +255,7 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	bytes, jErr := json.MarshalIndent(specs, "", "  ")
 	require.Nil(t, jErr)
 
-	writeErr = os.WriteFile("./script-tests/"+name+".num.specs.json", append(bytes, '\n'), 0644)
+	writeErr = os.WriteFile(scriptsFolder+"/"+name+".num.specs.json", append(bytes, '\n'), 0644)
 	require.Nil(t, writeErr)
 }
 
