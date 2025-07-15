@@ -27,7 +27,7 @@
             pkgs = import nixpkgs {
               inherit system;
               overlays = [ self.overlays.default nur.overlays.default ];
-              config.allowUnfree = true;
+              config = { allowUnfree = true; };
             };
           in
           f { pkgs = pkgs; system = system; }
