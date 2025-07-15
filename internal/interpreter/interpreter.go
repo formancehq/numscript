@@ -537,7 +537,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return nil, InvalidAllotmentInSendAll{}
 
 	default:
-		utils.NonExhaustiveMatchPanic[error](source)
+		_ = utils.NonExhaustiveMatchPanic[error](source)
 		return nil, nil
 	}
 }

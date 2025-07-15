@@ -70,7 +70,7 @@ func HoverOn(program parser.Program, position parser.Position) Hover {
 }
 
 func hoverOnVar(varDecl parser.VarDeclaration, position parser.Position) Hover {
-	if !varDecl.Range.Contains(position) {
+	if !varDecl.Contains(position) {
 		return nil
 	}
 
@@ -101,7 +101,7 @@ func hoverOnSentValue(sentValue parser.SentValue, position parser.Position) Hove
 }
 
 func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Position) Hover {
-	if !saveStatement.Range.Contains(position) {
+	if !saveStatement.Contains(position) {
 		return nil
 	}
 
@@ -119,7 +119,7 @@ func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Po
 }
 
 func hoverOnSendStatement(sendStatement parser.SendStatement, position parser.Position) Hover {
-	if !sendStatement.Range.Contains(position) {
+	if !sendStatement.Contains(position) {
 		return nil
 	}
 
@@ -238,7 +238,7 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 	case *parser.SourceAllotment:
 		for _, item := range source.Items {
 			// TODO binary search
-			if !item.Range.Contains(position) {
+			if !item.Contains(position) {
 				continue
 			}
 
@@ -288,7 +288,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 	case *parser.DestinationInorder:
 		for _, inorderClause := range source.Clauses {
 			// TODO binary search
-			if !inorderClause.Range.Contains(position) {
+			if !inorderClause.Contains(position) {
 				continue
 			}
 
@@ -311,7 +311,7 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 	case *parser.DestinationAllotment:
 		for _, item := range source.Items {
 			// TODO binary search
-			if !item.Range.Contains(position) {
+			if !item.Contains(position) {
 				continue
 			}
 
@@ -338,11 +338,11 @@ func hoverOnDestination(destination parser.Destination, position parser.Position
 }
 
 func hoverOnFnCall(callStatement parser.FnCall, position parser.Position) Hover {
-	if !callStatement.Range.Contains(position) {
+	if !callStatement.Contains(position) {
 		return nil
 	}
 
-	if callStatement.Caller.Range.Contains(position) {
+	if callStatement.Caller.Contains(position) {
 		return &BuiltinFnHover{
 			Range:   callStatement.Caller.Range,
 			Node:    &callStatement,

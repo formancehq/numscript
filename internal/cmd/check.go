@@ -13,8 +13,8 @@ import (
 func check(path string) {
 	dat, err := os.ReadFile(path)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
-		return
+		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+		os.Exit(1)
 	}
 
 	res := analysis.CheckSource(string(dat))

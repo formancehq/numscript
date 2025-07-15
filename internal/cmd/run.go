@@ -38,39 +38,40 @@ type inputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-func (o *inputOpts) fromRaw(opts Args) {
+func (o *inputOpts) fromRaw(opts Args) error {
 	if opts.RawOpt == "" {
-		return
+		return nil
 	}
 
 	err := json.Unmarshal([]byte(opts.RawOpt), o)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("invalid raw input JSON: %w", err)
 	}
+	return nil
 }
 
-func (o *inputOpts) fromStdin(opts Args) {
+func (o *inputOpts) fromStdin(opts Args) error {
 	if !opts.StdinFlag {
-		return
+		return nil
 	}
 
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error reading from stdin: %w", err)
 	}
 
 	err = json.Unmarshal(bytes, o)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("invalid stdin JSON: %w", err)
 	}
+	return nil
 }
 
-func (o *inputOpts) fromOptions(path string, opts Args) {
+func (o *inputOpts) fromOptions(path string, opts Args) error {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
-			os.Stderr.Write([]byte(err.Error()))
-			return
+			return fmt.Errorf("error reading script file: %w", err)
 		}
 		o.Script = string(numscriptContent)
 	}
@@ -78,46 +79,56 @@ func (o *inputOpts) fromOptions(path string, opts Args) {
 	if opts.BalancesOpt != "" {
 		content, err := os.ReadFile(opts.BalancesOpt)
 		if err != nil {
-			os.Stderr.Write([]byte(err.Error()))
-			return
+			return fmt.Errorf("error reading balances file: %w", err)
 		}
-		json.Unmarshal(content, &o.Balances)
+		if err := json.Unmarshal(content, &o.Balances); err != nil {
+			return fmt.Errorf("invalid balances JSON: %w", err)
+		}
 	}
 
 	if opts.MetaOpt != "" {
 		content, err := os.ReadFile(opts.MetaOpt)
 		if err != nil {
-			os.Stderr.Write([]byte(err.Error()))
-			return
+			return fmt.Errorf("error reading metadata file: %w", err)
 		}
-		json.Unmarshal(content, &o.Meta)
+		if err := json.Unmarshal(content, &o.Meta); err != nil {
+			return fmt.Errorf("invalid metadata JSON: %w", err)
+		}
 	}
 
 	if opts.VariablesOpt != "" {
 		content, err := os.ReadFile(opts.VariablesOpt)
 		if err != nil {
-			os.Stderr.Write([]byte(err.Error()))
-			return
+			return fmt.Errorf("error reading variables file: %w", err)
 		}
-		json.Unmarshal(content, &o.Variables)
+		if err := json.Unmarshal(content, &o.Variables); err != nil {
+			return fmt.Errorf("invalid variables JSON: %w", err)
+		}
 	}
+	return nil
 }
 
-func run(path string, opts Args) {
+func run(path string, opts Args) error {
 	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(interpreter.AccountsMetadata),
 		Balances:  make(interpreter.Balances),
 	}
 
-	opt.fromRaw(opts)
-	opt.fromOptions(path, opts)
-	opt.fromStdin(opts)
+	if err := opt.fromRaw(opts); err != nil {
+		return err
+	}
+	if err := opt.fromOptions(path, opts); err != nil {
+		return err
+	}
+	if err := opt.fromStdin(opts); err != nil {
+		return err
+	}
 
 	parseResult := parser.Parse(opt.Script)
 	if len(parseResult.Errors) != 0 {
-		os.Stderr.Write([]byte(parser.ParseErrorsToString(parseResult.Errors, opt.Script)))
-		os.Exit(1)
+		fmt.Fprint(os.Stderr, parser.ParseErrorsToString(parseResult.Errors, opt.Script))
+		return fmt.Errorf("parsing failed")
 	}
 
 	featureFlags := map[string]struct{}{}
@@ -132,42 +143,39 @@ func run(path string, opts Args) {
 
 	if err != nil {
 		rng := err.GetRange()
-		os.Stderr.Write([]byte(err.Error()))
+		fmt.Fprint(os.Stderr, err.Error())
 		if rng.Start != rng.End {
-			os.Stderr.Write([]byte("\n"))
-			os.Stderr.Write([]byte(err.GetRange().ShowOnSource(parseResult.Source)))
+			fmt.Fprint(os.Stderr, "\n")
+			fmt.Fprint(os.Stderr, err.GetRange().ShowOnSource(parseResult.Source))
 		}
-		os.Exit(1)
-		return
+		return fmt.Errorf("execution failed")
 	}
 
 	switch opts.OutFormatOpt {
 	case OutputFormatJson:
-		showJson(result)
+		return showJson(result)
 	case OutputFormatPretty:
-		showPretty(result)
+		return showPretty(result)
 	default:
-		// TODO handle err
-		panic("Invalid option: " + opts.OutFormatOpt)
+		return fmt.Errorf("invalid output format: %s", opts.OutFormatOpt)
 	}
-
 }
 
-func showJson(result *interpreter.ExecutionResult) {
+func showJson(result *interpreter.ExecutionResult) error {
 	out, err := json.Marshal(result)
 	if err != nil {
-		// TODO handle err
-		panic(err)
+		return fmt.Errorf("error marshaling result to JSON: %w", err)
 	}
 
-	os.Stdout.Write(out)
+	_, err = os.Stdout.Write(out)
+	return err
 }
 
-func showPretty(result *interpreter.ExecutionResult) {
+func showPretty(result *interpreter.ExecutionResult) error {
 	fmt.Println(ansi.ColorCyan("Postings:"))
 	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error marshaling postings: %w", err)
 	}
 	fmt.Println(string(postingsJson))
 
@@ -176,9 +184,10 @@ func showPretty(result *interpreter.ExecutionResult) {
 	fmt.Println(ansi.ColorCyan("Meta:"))
 	txMetaJson, err := json.MarshalIndent(result.Metadata, "", "  ")
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error marshaling metadata: %w", err)
 	}
 	fmt.Println(string(txMetaJson))
+	return nil
 }
 
 func getRunCmd() *cobra.Command {
@@ -188,12 +197,12 @@ func getRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Evaluate a numscript file",
 		Long:  "Evaluate a numscript file, using the balances, the current metadata and the variables values as input.",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			var path string
 			if len(args) > 0 {
 				path = args[0]
 			}
-			run(path, opts)
+			return run(path, opts)
 		},
 	}
 

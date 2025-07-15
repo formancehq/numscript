@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"slices"
 
@@ -29,15 +30,17 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri lsp_types.DocumentUR
 		CheckResult: checkResult,
 	})
 
-	var diagnostics []lsp_types.Diagnostic = make([]lsp_types.Diagnostic, 0)
+	var diagnostics = make([]lsp_types.Diagnostic, 0)
 	for _, diagnostic := range checkResult.Diagnostics {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	conn.SendNotification("textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
+	if err := conn.SendNotification("textDocument/publishDiagnostics", lsp_types.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
-	})
+	}); err != nil {
+		log.Printf("lsp: error publishing diagnostics: %v", err)
+	}
 }
 
 func (state *State) handleHover(params lsp_types.HoverParams) *lsp_types.Hover {
@@ -280,7 +283,9 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 		}),
 
 		jsonrpc2.NewRequestHandler("shutdown", jsonrpc2.SyncHandling, func(_ any, conn *jsonrpc2.Conn) any {
-			conn.SendNotification("exit", nil)
+			if err := conn.SendNotification("exit", nil); err != nil {
+				log.Printf("lsp: error sending exit notification: %v", err)
+			}
 			return nil
 		}),
 	)

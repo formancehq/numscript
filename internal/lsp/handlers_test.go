@@ -111,13 +111,16 @@ type TestClient struct {
 }
 
 func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentIdentifier, string, json.RawMessage) {
-	c.conn.SendNotification("textDocument/didOpen", lsp_types.DidOpenTextDocumentParams{
+	err := c.conn.SendNotification("textDocument/didOpen", lsp_types.DidOpenTextDocumentParams{
 		TextDocument: lsp_types.TextDocumentItem{
 			URI:        lsp_types.DocumentURI(uri),
 			LanguageID: "numscript",
 			Text:       text,
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	docIdent := lsp_types.TextDocumentIdentifier{
 		URI: lsp_types.DocumentURI(uri),

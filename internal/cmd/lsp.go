@@ -11,7 +11,7 @@ var lspCmd = &cobra.Command{
 	Short:  "Run the lsp server",
 	Long:   "Run the lsp server. This command is usually meant to be used for editors integration.",
 	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		lsp.RunServer()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return lsp.RunServer()
 	},
 }
