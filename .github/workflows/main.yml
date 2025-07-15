@@ -39,8 +39,6 @@ jobs:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       - run: >
           nix develop --impure --command just pre-commit
-        env:
-          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
       - name: Get changed files
         id: changed-files
         shell: bash
@@ -67,8 +65,6 @@ jobs:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       - run: >
           nix develop --impure --command just tests
-        env:
-          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
       - name: Upload coverage reports to Codecov with GitHub Action
         uses: codecov/codecov-action@v5.4.3
         env:
