@@ -29,7 +29,7 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri lsp_types.DocumentUR
 		CheckResult: checkResult,
 	})
 
-	var diagnostics []lsp_types.Diagnostic = make([]lsp_types.Diagnostic, 0)
+	var diagnostics = make([]lsp_types.Diagnostic, 0)
 	for _, diagnostic := range checkResult.Diagnostics {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}

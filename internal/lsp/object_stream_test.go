@@ -45,7 +45,7 @@ func TestObjectStreamRead(t *testing.T) {
 	}
 	strMsg, _ := json.Marshal(sentMsg)
 
-	in.Write([]byte(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(strMsg), strMsg)))
+	fmt.Fprintf(in, "Content-Length: %d\r\n\r\n%s", len(strMsg), strMsg)
 
 	receivedMsg, err := stream.ReadMessage()
 	require.Nil(t, err)

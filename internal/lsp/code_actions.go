@@ -29,7 +29,7 @@ func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) lsp_
 
 	lastVarEnd := program.Vars.Declarations[len(program.Vars.Declarations)-1].End
 
-	varsEndPosition := program.Vars.Range.End
+	varsEndPosition := program.Vars.End
 	varsEndPosition.Character--
 
 	return lsp_types.TextEdit{
