@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 	"sync/atomic"
 
@@ -53,10 +54,12 @@ func NewRequestHandler[Params any](method string, strategy HandlingStrategy, han
 				if raw != nil {
 					err := json.Unmarshal([]byte(raw), &payload)
 					if err != nil {
-						conn.stream.WriteMessage(Response{
+						if err := conn.stream.WriteMessage(Response{
 							ID:    id,
 							Error: &ErrInvalidParams,
-						})
+						}); err != nil {
+							log.Printf("jsonrpc2: error writing invalid params response: %v", err)
+						}
 						return
 					}
 				}
@@ -68,10 +71,12 @@ func NewRequestHandler[Params any](method string, strategy HandlingStrategy, han
 					panic(err)
 				}
 
-				conn.stream.WriteMessage(Response{
+				if err := conn.stream.WriteMessage(Response{
 					ID:     id,
 					Result: bytes,
-				})
+				}); err != nil {
+					log.Printf("jsonrpc2: error writing response: %v", err)
+				}
 			}
 
 			switch strategy {
@@ -180,11 +185,15 @@ func (s *Conn) SendRequest(method string, params any) (json.RawMessage, *Respons
 	s.pendingRequests[freshId] = ch
 	s.pendingRequestMu.Unlock()
 
-	go s.stream.WriteMessage(Request{
-		ID:     freshId,
-		Method: method,
-		Params: bytes,
-	})
+	go func() {
+		if err := s.stream.WriteMessage(Request{
+			ID:     freshId,
+			Method: method,
+			Params: bytes,
+		}); err != nil {
+			log.Printf("jsonrpc2: error sending request %s: %v", method, err)
+		}
+	}()
 
 	response := <-ch
 
@@ -214,12 +223,13 @@ func (s *Conn) SendNotification(method string, params any) error {
 	})
 }
 
-func (s *Conn) Close() {
-	s.stream.Close()
+func (s *Conn) Close() error {
+	err := s.stream.Close()
 	for _, ch := range s.pendingRequests {
 		close(ch)
 	}
 	s.opened = false
+	return err
 }
 
 func (s *Conn) handleRequest(request Request) error {
@@ -233,10 +243,14 @@ func (s *Conn) handleRequest(request Request) error {
 	} else {
 		handler, ok := s.requestsHandlers[request.Method]
 		if !ok {
-			go s.stream.WriteMessage(Response{
-				ID:    request.ID,
-				Error: &ErrMethodNotFound,
-			})
+			go func() {
+				if err := s.stream.WriteMessage(Response{
+					ID:    request.ID,
+					Error: &ErrMethodNotFound,
+				}); err != nil {
+					log.Printf("jsonrpc2: error writing method not found response: %v", err)
+				}
+			}()
 			return nil
 		}
 

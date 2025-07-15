@@ -148,7 +148,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		return nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[error](source)
+		_ = utils.NonExhaustiveMatchPanic[error](source)
 		return nil
 	}
 }

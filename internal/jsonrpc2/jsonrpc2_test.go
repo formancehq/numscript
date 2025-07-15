@@ -42,9 +42,10 @@ func TestHandleNotification(t *testing.T) {
 		}),
 	)
 
-	client.SendNotification("greet", NotifParams{
+	err := client.SendNotification("greet", NotifParams{
 		Value: "Hello!",
 	})
+	require.NoError(t, err)
 
 	require.Equal(t, "Hello!", <-ch)
 }

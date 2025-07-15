@@ -26,16 +26,18 @@ func recoverPanic() {
 	}
 
 	errMsg := fmt.Sprintf("[uncaught panic]@%s: %s\n%s\n", Version, r, string(debug.Stack()))
-	os.Stderr.Write([]byte(errMsg))
+	fmt.Fprint(os.Stderr, errMsg)
 	sentry.CaptureMessage(errMsg)
 	sentry.Flush(2 * time.Second)
 }
 
 func main() {
-	sentry.Init(sentry.ClientOptions{
+	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              "https://b8b6cfd5dab95e1258d80963c3db73bf@o4504394442539008.ingest.us.sentry.io/4507623538884608",
 		AttachStacktrace: true,
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize Sentry: %v\n", err)
+	}
 
 	defer recoverPanic()
 	defer sentry.Flush(2 * time.Second)
