@@ -49,6 +49,7 @@
               pkgs.nur.repos.goreleaser.goreleaser-pro
               just
               goperf
+              antlr
             ];
           };
         }
