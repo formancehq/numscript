@@ -170,7 +170,7 @@ func showJson(result *interpreter.ExecutionResult) error {
 	return err
 }
 
-func showPretty(result *interpreter.ExecutionResult) {
+func showPretty(result *interpreter.ExecutionResult) error {
 	fmt.Println("Postings:")
 	fmt.Println(interpreter.PrettyPrintPostings(result.Postings))
 
@@ -178,6 +178,8 @@ func showPretty(result *interpreter.ExecutionResult) {
 		fmt.Println("Meta:")
 		fmt.Println(interpreter.PrettyPrintMeta(result.Metadata))
 	}
+
+	return nil
 }
 
 func getRunCmd() *cobra.Command {
