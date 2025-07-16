@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +18,148 @@ import (
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
+
+type rawSpec struct {
+	NumscriptPath    string
+	SpecsPath        string
+	NumscriptContent string
+	SpecsFileContent []byte
+}
+
+func readSpecsFiles() []rawSpec {
+	var specs []rawSpec
+
+	for _, path := range opts.paths {
+		path = strings.TrimSuffix(path, "/")
+
+		specsFilePaths, err := filepath.Glob(path + "/*.num.specs.json")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(specsFilePaths) == 0 {
+			_, _ = os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
+			os.Exit(1)
+		}
+
+		for _, specsFilePath := range specsFilePaths {
+			numscriptFileName := strings.TrimSuffix(specsFilePath, ".specs.json")
+
+			// TODO Improve err message ("no matching numscript for specsfile")
+			numscriptContent, err := os.ReadFile(numscriptFileName)
+			if err != nil {
+				_, _ = os.Stderr.Write([]byte(err.Error()))
+				os.Exit(1)
+			}
+
+			specsFileContent, err := os.ReadFile(specsFilePath)
+			if err != nil {
+				_, _ = os.Stderr.Write([]byte(err.Error()))
+				os.Exit(1)
+			}
+
+			specs = append(specs, rawSpec{
+				NumscriptPath:    numscriptFileName,
+				SpecsPath:        specsFilePath,
+				NumscriptContent: string(numscriptContent),
+				SpecsFileContent: specsFileContent,
+			})
+		}
+	}
+
+	return specs
+}
+
+func runRawSpecs(stdout io.Writer, stderr io.Writer, rawSpecs []rawSpec) bool {
+	if len(rawSpecs) == 0 {
+		_, _ = stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
+		return false
+	}
+
+	failedTestFiles := 0
+
+	var allTests []testResult
+
+	for _, rawSpec := range rawSpecs {
+		specs, out, ok := runRawSpec(stdout, stderr, rawSpec)
+		if !ok {
+			return false
+		}
+
+		// Count tests
+		isTestFailed := slices.ContainsFunc(out.Cases, func(tc specs_format.TestCaseResult) bool {
+			return tc.Pass
+		})
+		if isTestFailed {
+			failedTestFiles += 1
+		}
+
+		for _, caseResult := range out.Cases {
+			allTests = append(allTests, testResult{
+				Specs:  specs,
+				Result: caseResult,
+				File:   rawSpec.SpecsPath,
+			})
+		}
+
+	}
+
+	for _, test_ := range allTests {
+		showFailingTestCase(stderr, test_)
+	}
+
+	// Stats
+	return printFilesStats(stdout, allTests)
+
+}
+
+func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec rawSpec) (specs_format.Specs, specs_format.SpecsResult, bool) {
+	parseResult := parser.Parse(rawSpec.NumscriptContent)
+	if len(parseResult.Errors) != 0 {
+		for _, err := range parseResult.Errors {
+			showErr(stderr, rawSpec.NumscriptPath, rawSpec.NumscriptContent, err)
+		}
+		return specs_format.Specs{}, specs_format.SpecsResult{}, false
+	}
+
+	var specs specs_format.Specs
+	err := json.Unmarshal(rawSpec.SpecsFileContent, &specs)
+	if err != nil {
+		_, _ = stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s.specs.json\n\n", rawSpec.NumscriptPath))))
+		_, _ = stderr.Write([]byte(err.Error() + "\n"))
+		return specs_format.Specs{}, specs_format.SpecsResult{}, false
+	}
+
+	out, iErr := specs_format.Check(parseResult.Value, specs)
+
+	if iErr != nil {
+		showErr(stderr, rawSpec.NumscriptPath, rawSpec.NumscriptContent, iErr)
+		return specs_format.Specs{}, specs_format.SpecsResult{}, false
+	}
+
+	if out.Total == 0 {
+		fmt.Fprintln(stdout, ansi.ColorRed("Empty test suite: "+rawSpec.SpecsPath))
+		return specs_format.Specs{}, specs_format.SpecsResult{}, false
+	} else if out.Failing == 0 {
+		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests)", out.Total))
+		fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorGreen("✓"), rawSpec.NumscriptPath, testsCount)
+	} else {
+		failedTestsCount := ansi.ColorRed(fmt.Sprintf("%d failed", out.Failing))
+
+		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests | %s)", out.Total, failedTestsCount))
+		fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorRed("❯"), rawSpec.NumscriptPath, testsCount)
+
+		for _, result := range out.Cases {
+			if result.Pass {
+				continue
+			}
+
+			fmt.Fprintf(stdout, "  %s %s\n", ansi.ColorRed("×"), result.It)
+		}
+	}
+
+	return specs, out, true
+}
 
 func showDiff(w io.Writer, expected_ any, got_ any) {
 	dmp := diffmatchpatch.New()
@@ -48,196 +189,66 @@ func showDiff(w io.Writer, expected_ any, got_ any) {
 	}
 }
 
-func fixSnapshot(testResult testResult, failedAssertion specs_format.AssertionMismatch[any]) bool {
-	if !opts.interactive {
-		return false
+func showFailingTestCase(w io.Writer, testResult testResult) {
+	if testResult.Result.Pass {
+		return
 	}
 
-	fmt.Println(ansi.ColorBrightBlack(
-		fmt.Sprintf("\nPress %s to update snapshot, %s to go the the next one",
-			ansi.ColorBrightYellow("u"),
-			ansi.ColorBrightYellow("n"),
-		)))
-
-	reader := bufio.NewReader(os.Stdin)
-	line, _, err := reader.ReadLine()
-	if err != nil {
-		panic(err)
-	}
-
-	switch string(line) {
-	case "u":
-		testResult.Specs.TestCases = utils.Map(testResult.Specs.TestCases, func(t specs_format.TestCase) specs_format.TestCase {
-			// TODO check there are no duplicate "It"
-			if t.It == testResult.Result.It {
-				switch failedAssertion.Expected {
-				case "expect.postings":
-					t.ExpectPostings = failedAssertion.Expected.([]interpreter.Posting)
-
-				default:
-					panic("TODO implement")
-
-				}
-
-			}
-
-			return t
-		})
-
-		newSpecs, err := json.MarshalIndent(testResult.Specs, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-
-		err = os.WriteFile(testResult.File, newSpecs, os.ModePerm)
-		if err != nil {
-			panic(err)
-		}
-		return true
-
-	case "n":
-		return false
-
-	default:
-		panic("TODO invalid command")
-	}
-}
-
-func showFailingTestCase(testResult testResult) (rerun bool) {
 	specsFilePath := testResult.File
 	result := testResult.Result
 
-	if result.Pass {
-		return false
-	}
-
-	fmt.Print("\n\n")
+	fmt.Fprint(w, "\n\n")
 
 	failColor := ansi.Compose(ansi.BgRed, ansi.ColorLight, ansi.Bold)
-	fmt.Print(failColor(" FAIL "))
-	fmt.Println(ansi.ColorRed(" " + specsFilePath + " > " + result.It))
+	fmt.Fprint(w, failColor(" FAIL "))
+	fmt.Fprintln(w, ansi.ColorRed(" "+specsFilePath+" > "+result.It))
 
 	showGiven := len(result.Balances) != 0 || len(result.Meta) != 0 || len(result.Vars) != 0
 	if showGiven {
-		fmt.Println(ansi.Underline("\nGIVEN:"))
+		fmt.Fprintln(w, ansi.Underline("\nGIVEN:"))
 	}
 
 	if len(result.Balances) != 0 {
-		fmt.Println()
-		fmt.Println(result.Balances.PrettyPrint())
-		fmt.Println()
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, result.Balances.PrettyPrint())
+		fmt.Fprintln(w)
 	}
 
 	if len(result.Meta) != 0 {
-		fmt.Println()
-		fmt.Println(result.Meta.PrettyPrint())
-		fmt.Println()
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, result.Meta.PrettyPrint())
+		fmt.Fprintln(w)
 	}
 
 	if len(result.Vars) != 0 {
-		fmt.Println()
-		fmt.Println(utils.CsvPrettyMap("Name", "Value", result.Vars))
-		fmt.Println()
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, utils.CsvPrettyMap("Name", "Value", result.Vars))
+		fmt.Fprintln(w)
 	}
 
-	fmt.Println()
-	fmt.Println(ansi.ColorGreen("- Expected"))
-	fmt.Println(ansi.ColorRed("+ Received\n"))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, ansi.ColorGreen("- Expected"))
+	fmt.Fprintln(w, ansi.ColorRed("+ Received\n"))
 
 	for _, failedAssertion := range result.FailedAssertions {
-
-		fmt.Println(ansi.Underline(failedAssertion.Assertion))
-		fmt.Println()
-		showDiff(os.Stdout, failedAssertion.Expected, failedAssertion.Got)
-
-		rerun := fixSnapshot(testResult, failedAssertion)
-		if rerun {
-			return true
-		}
-
+		fmt.Fprintln(w, ansi.Underline(failedAssertion.Assertion))
+		fmt.Fprintln(w)
+		showDiff(w, failedAssertion.Expected, failedAssertion.Got)
 	}
-
-	return false
 }
 
-func showErr(filename string, script string, err interpreter.InterpreterError) {
+// TODO take writer
+func showErr(stderr io.Writer, filename string, script string, err interpreter.InterpreterError) {
 	rng := err.GetRange()
 
 	errFile := fmt.Sprintf("\nError: %s:%d:%d\n\n", filename, rng.Start.Line+1, rng.Start.Character+1)
-	_, _ = os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
-
-	_, _ = os.Stderr.Write([]byte(err.Error() + "\n\n"))
+	_, _ = stderr.Write([]byte(ansi.ColorRed(errFile)))
+	_, _ = stderr.Write([]byte(err.Error() + "\n\n"))
 
 	if rng.Start != rng.End {
-		_, _ = os.Stderr.Write([]byte("\n"))
-		_, _ = os.Stderr.Write([]byte(rng.ShowOnSource(script) + "\n"))
+		_, _ = stderr.Write([]byte("\n"))
+		_, _ = stderr.Write([]byte(rng.ShowOnSource(script) + "\n"))
 	}
-}
-
-func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
-	if !strings.HasSuffix(specsFilePath, ".num.specs.json") {
-		panic("Wrong name")
-	}
-
-	numscriptFileName := strings.TrimSuffix(specsFilePath, ".specs.json")
-
-	numscriptContent, err := os.ReadFile(numscriptFileName)
-	if err != nil {
-		_, _ = os.Stderr.Write([]byte(err.Error()))
-		os.Exit(1)
-	}
-
-	parseResult := parser.Parse(string(numscriptContent))
-	if len(parseResult.Errors) != 0 {
-		for _, err := range parseResult.Errors {
-			showErr(numscriptFileName, string(numscriptContent), err)
-		}
-		os.Exit(1)
-	}
-
-	specsFileContent, err := os.ReadFile(specsFilePath)
-	if err != nil {
-		_, _ = os.Stderr.Write([]byte(err.Error()))
-		os.Exit(1)
-	}
-
-	var specs specs_format.Specs
-	err = json.Unmarshal([]byte(specsFileContent), &specs)
-	if err != nil {
-		_, _ = os.Stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s\n\n", specsFilePath))))
-		_, _ = os.Stderr.Write([]byte(err.Error() + "\n"))
-		os.Exit(1)
-	}
-
-	out, iErr := specs_format.Check(parseResult.Value, specs)
-	if iErr != nil {
-		showErr(numscriptFileName, string(numscriptContent), iErr)
-		os.Exit(1)
-	}
-
-	if out.Total == 0 {
-		fmt.Println(ansi.ColorRed("Empty test suite: " + specsFilePath))
-		os.Exit(1)
-	} else if out.Failing == 0 {
-		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests)", out.Total))
-		fmt.Printf("%s %s %s\n", ansi.ColorGreen("✓"), numscriptFileName, testsCount)
-	} else {
-		failedTestsCount := ansi.ColorRed(fmt.Sprintf("%d failed", out.Failing))
-
-		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests | %s)", out.Total, failedTestsCount))
-		fmt.Printf("%s %s %s\n", ansi.ColorRed("❯"), numscriptFileName, testsCount)
-
-		for _, result := range out.Cases {
-			if result.Pass {
-				continue
-			}
-
-			fmt.Printf("  %s %s\n", ansi.ColorRed("×"), result.It)
-		}
-
-	}
-
-	return specs, out
 }
 
 type testResult struct {
@@ -246,63 +257,7 @@ type testResult struct {
 	Result specs_format.TestCaseResult
 }
 
-func testPaths() {
-	testFiles := 0
-	failedTestFiles := 0
-
-	var allTests []testResult
-	for _, path := range opts.paths {
-		path = strings.TrimSuffix(path, "/")
-
-		glob := fmt.Sprintf(path + "/*.num.specs.json")
-
-		files, err := filepath.Glob(glob)
-		if err != nil {
-			panic(err)
-		}
-		testFiles += len(files)
-
-		if len(files) == 0 {
-			_, _ = os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
-			os.Exit(1)
-		}
-
-		for _, file := range files {
-			specs, out := test(file)
-
-			for _, testCase := range out.Cases {
-				allTests = append(allTests, testResult{
-					Specs:  specs,
-					File:   file,
-					Result: testCase,
-				})
-			}
-
-			// Count tests
-			isTestFailed := slices.ContainsFunc(out.Cases, func(tc specs_format.TestCaseResult) bool {
-				return tc.Pass
-			})
-			if isTestFailed {
-				failedTestFiles += 1
-			}
-		}
-	}
-
-	for _, test_ := range allTests {
-		rerun := showFailingTestCase(test_)
-		if rerun {
-			fmt.Print("\033[H\033[2J")
-			testPaths()
-			return
-		}
-	}
-
-	// Stats
-	printFilesStats(allTests)
-
-}
-
-func printFilesStats(allTests []testResult) {
+func printFilesStats(w io.Writer, allTests []testResult) bool {
 	failedTests := utils.Filter(allTests, func(t testResult) bool {
 		return !t.Result.Pass
 	})
@@ -315,7 +270,7 @@ func printFilesStats(allTests []testResult) {
 		return ansi.ColorBrightBlack(fmt.Sprintf(" %*s ", maxLen, s))
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	// Files stats
 	{
@@ -340,10 +295,10 @@ func printFilesStats(allTests []testResult) {
 		}
 		testFilesUI := strings.Join(testFilesUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestFilesUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", filesCount))
-		fmt.Print(paddedLabel(testFilesLabel) + " " + testFilesUI + " " + totalTestFilesUI)
+		fmt.Fprint(w, paddedLabel(testFilesLabel)+" "+testFilesUI+" "+totalTestFilesUI)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	// Tests stats
 	{
@@ -367,21 +322,26 @@ func printFilesStats(allTests []testResult) {
 		testsUI := strings.Join(testUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestsUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", testsCount))
 
-		fmt.Println(paddedLabel(testsLabel) + " " + testsUI + " " + totalTestsUI)
+		fmt.Fprintln(w, paddedLabel(testsLabel)+" "+testsUI+" "+totalTestsUI)
 
-		if failedTestsCount != 0 {
-			os.Exit(1)
-		}
+		return failedTestsCount == 0
 	}
 
 }
 
 type testArgs struct {
-	paths       []string
-	interactive bool
+	paths []string
 }
 
 var opts = testArgs{}
+
+func runTestCmd() {
+	files := readSpecsFiles()
+	pass := runRawSpecs(os.Stdout, os.Stderr, files)
+	if !pass {
+		os.Exit(1)
+	}
+}
 
 func getTestCmd() *cobra.Command {
 
@@ -399,14 +359,8 @@ Defaults to "." if there are no given paths`,
 			}
 
 			opts.paths = paths
-			testPaths()
+			runTestCmd()
 		},
-	}
-
-	// A poor man's feature flag
-	// that's a post-mvp feature so we'll keep it as dead code for now
-	if false {
-		cmd.Flags().BoolVar(&opts.interactive, "experimental-interactive", false, "Interactively update the expectations with the received value")
 	}
 
 	return cmd

@@ -1,8 +1,36 @@
 
 [TestShowDiff - 1]
 [90m  {[0m
+[90m    "common": "ok",[0m
 [32m-   "x": 42[0m
 [31m+   "x": 100[0m
 [90m  }[0m
+
+---
+
+[TestSingleTest - 1]
+[31m❯[0m exmaple.num [90m(2 tests | [31m1 failed[0m[90m)[0m
+  [31m×[0m tfailing
+
+
+[1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > tfailing[0m
+
+[32m- Expected[0m
+[31m+ Received
+[0m
+[4mexpect.postings[0m
+
+[90m  [[0m
+[90m    {[0m
+[32m-     "source": "wrong-source",[0m
+[31m+     "source": "world",[0m
+[90m      "destination": "dest",[0m
+[90m      "amount": 100,[0m
+[90m      "asset": "USD/2"[0m
+[90m    }[0m
+[90m  ][0m
+
+[90m Test files [0m [1m[91m1 failed[0m[1m[0m [90m(1)[0m
+[90m      Tests [0m [1m[91m1 failed[0m[1m[0m[90m | [0m[1m[92m1 passed[0m[1m[0m [90m(2)[0m
 
 ---
