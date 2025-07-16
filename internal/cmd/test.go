@@ -238,7 +238,6 @@ func showFailingTestCase(w io.Writer, testResult testResult) {
 	}
 }
 
-// TODO take writer
 func showErr(stderr io.Writer, filename string, script string, err interpreter.InterpreterError) {
 	rng := err.GetRange()
 
