@@ -127,7 +127,7 @@ func TestComplexAssertions(t *testing.T) {
 	snaps.MatchSnapshot(t, out.String())
 }
 
-func TestNoFilesErrr(t *testing.T) {
+func TestNoFilesErr(t *testing.T) {
 	var out bytes.Buffer
 	success := runRawSpecs(&out, &out, []rawSpec{})
 	require.False(t, success)
