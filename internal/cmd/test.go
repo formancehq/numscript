@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,7 +20,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-func showDiff(expected_ any, got_ any) {
+func showDiff(w io.Writer, expected_ any, got_ any) {
 	dmp := diffmatchpatch.New()
 
 	expected, _ := json.MarshalIndent(expected_, "", "  ")
@@ -37,11 +38,11 @@ func showDiff(expected_ any, got_ any) {
 			}
 			switch diff.Type {
 			case diffmatchpatch.DiffDelete:
-				fmt.Println(ansi.ColorGreen("- " + line))
+				fmt.Fprintln(w, ansi.ColorGreen("- "+line))
 			case diffmatchpatch.DiffInsert:
-				fmt.Println(ansi.ColorRed("+ " + line))
+				fmt.Fprintln(w, ansi.ColorRed("+ "+line))
 			case diffmatchpatch.DiffEqual:
-				fmt.Println(ansi.ColorBrightBlack("  " + line))
+				fmt.Fprintln(w, ansi.ColorBrightBlack("  "+line))
 			}
 		}
 	}
@@ -147,7 +148,7 @@ func showFailingTestCase(testResult testResult) (rerun bool) {
 
 		fmt.Println(ansi.Underline(failedAssertion.Assertion))
 		fmt.Println()
-		showDiff(failedAssertion.Expected, failedAssertion.Got)
+		showDiff(os.Stdout, failedAssertion.Expected, failedAssertion.Got)
 
 		rerun := fixSnapshot(testResult, failedAssertion)
 		if rerun {
