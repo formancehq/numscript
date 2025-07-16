@@ -29,7 +29,7 @@ func CsvPretty(
 	}
 
 	// -- Find paddings
-	var maxLengths []int = make([]int, len(header))
+	var maxLengths = make([]int, len(header))
 	for fieldIndex, fieldName := range header {
 		maxLen := len(fieldName)
 

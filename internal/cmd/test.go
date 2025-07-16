@@ -163,13 +163,13 @@ func showErr(filename string, script string, err interpreter.InterpreterError) {
 	rng := err.GetRange()
 
 	errFile := fmt.Sprintf("\nError: %s:%d:%d\n\n", filename, rng.Start.Line+1, rng.Start.Character+1)
-	os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
+	_, _ = os.Stderr.Write([]byte(ansi.ColorRed(errFile)))
 
-	os.Stderr.Write([]byte(err.Error() + "\n\n"))
+	_, _ = os.Stderr.Write([]byte(err.Error() + "\n\n"))
 
 	if rng.Start != rng.End {
-		os.Stderr.Write([]byte("\n"))
-		os.Stderr.Write([]byte(rng.ShowOnSource(script) + "\n"))
+		_, _ = os.Stderr.Write([]byte("\n"))
+		_, _ = os.Stderr.Write([]byte(rng.ShowOnSource(script) + "\n"))
 	}
 }
 
@@ -182,7 +182,7 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 
 	numscriptContent, err := os.ReadFile(numscriptFileName)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		_, _ = os.Stderr.Write([]byte(err.Error()))
 		os.Exit(1)
 	}
 
@@ -196,15 +196,15 @@ func test(specsFilePath string) (specs_format.Specs, specs_format.SpecsResult) {
 
 	specsFileContent, err := os.ReadFile(specsFilePath)
 	if err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		_, _ = os.Stderr.Write([]byte(err.Error()))
 		os.Exit(1)
 	}
 
 	var specs specs_format.Specs
 	err = json.Unmarshal([]byte(specsFileContent), &specs)
 	if err != nil {
-		os.Stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s\n\n", specsFilePath))))
-		os.Stderr.Write([]byte(err.Error() + "\n"))
+		_, _ = os.Stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s\n\n", specsFilePath))))
+		_, _ = os.Stderr.Write([]byte(err.Error() + "\n"))
 		os.Exit(1)
 	}
 
@@ -262,7 +262,7 @@ func testPaths() {
 		testFiles += len(files)
 
 		if len(files) == 0 {
-			os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
+			_, _ = os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
 			os.Exit(1)
 		}
 

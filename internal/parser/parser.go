@@ -83,7 +83,7 @@ func Parse(input string) ParseResult {
 func ParseErrorsToString(errors []ParserError, source string) string {
 	buf := "Got errors while parsing:\n"
 	for _, err := range errors {
-		buf += err.Msg + "\n" + err.Range.ShowOnSource(source) + "\n"
+		buf += err.Msg + "\n" + err.ShowOnSource(source) + "\n"
 	}
 	return buf
 }
