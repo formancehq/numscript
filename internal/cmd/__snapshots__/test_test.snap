@@ -86,3 +86,53 @@ GIVEN:[0m
 [90m      Tests [0m [1m[91m1 failed[0m[1m[0m[90m | [0m[1m[92m1 passed[0m[1m[0m [90m(2)[0m
 
 ---
+
+[TestNoFilesErrr - 1]
+[31mNo specs files found
+[0m
+---
+
+[TestParseErrSpecs - 1]
+[31m
+Error: example.num.specs.json
+
+[0minvalid character 'o' in literal null (expecting 'u')
+
+---
+
+[TestSchemaErrSpecs - 1]
+[31m
+Error: example.num.specs.json
+
+[0mjson: cannot unmarshal number into Go struct field Specs.balances of type interpreter.Balances
+
+---
+
+[TestNumscriptParseErr - 1]
+[31m
+Error: example.num:1:1
+
+[0mtoken recognition error at: '!'
+
+[31m
+Error: example.num:1:5
+
+[0mmismatched input '<EOF>' expecting '('
+
+
+  0 | !err
+    |     ~~~~
+
+---
+
+[TestRuntimeErr - 1]
+[31m
+Error: example.num:1:29
+
+[0mInvalid value received. Expecting value of type account (got ops! instead)
+
+
+  0 | send [USD/2 100] ( source = "ops!" destination = @world)
+    |                             ~~~~~~
+
+---

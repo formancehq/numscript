@@ -126,3 +126,87 @@ func TestComplexAssertions(t *testing.T) {
 
 	snaps.MatchSnapshot(t, out.String())
 }
+
+func TestNoFilesErrr(t *testing.T) {
+	var out bytes.Buffer
+	success := runRawSpecs(&out, &out, []rawSpec{})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestParseErrSpecs(t *testing.T) {
+	var out bytes.Buffer
+
+	success := runRawSpecs(&out, &out, []rawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(`
+		not a json
+	`),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestSchemaErrSpecs(t *testing.T) {
+	var out bytes.Buffer
+
+	success := runRawSpecs(&out, &out, []rawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(`
+		{ "balances": 42 }
+	`),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestNumscriptParseErr(t *testing.T) {
+	var out bytes.Buffer
+
+	success := runRawSpecs(&out, &out, []rawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "!err",
+			SpecsFileContent: []byte(`
+		{ }
+	`),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestRuntimeErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `
+		{
+			"testCases": [
+				{
+					"it": "runs",
+					"expect.missingFunds": false
+				}
+			] 
+		}
+	`
+
+	success := runRawSpecs(&out, &out, []rawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: `send [USD/2 100] ( source = "ops!" destination = @world)`,
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
