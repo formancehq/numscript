@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -38,30 +37,12 @@ func NonNeg(a *big.Int) *big.Int {
 	return MaxBigInt(a, big.NewInt(0))
 }
 
-func Unmarshal[T any](raw json.RawMessage) (*T, error) {
-	var value T
-	err := json.Unmarshal(raw, &value)
-	if err != nil {
-		return nil, err
-	}
-	return &value, err
-}
-
 func Filter[T any](slice []T, predicate func(x T) bool) []T {
 	var ret []T
 	for _, x := range slice {
 		if predicate(x) {
 			ret = append(ret, x)
 		}
-	}
-	return ret
-}
-
-func Map[T any, U any](slice []T, f func(x T) U) []U {
-	// TODO make
-	var ret []U
-	for _, x := range slice {
-		ret = append(ret, f(x))
 	}
 	return ret
 }
