@@ -76,22 +76,12 @@ func runRawSpecs(stdout io.Writer, stderr io.Writer, rawSpecs []rawSpec) bool {
 		return false
 	}
 
-	failedTestFiles := 0
-
 	var allTests []testResult
 
 	for _, rawSpec := range rawSpecs {
 		specs, out, ok := runRawSpec(stdout, stderr, rawSpec)
 		if !ok {
 			return false
-		}
-
-		// Count tests
-		isTestFailed := slices.ContainsFunc(out.Cases, func(tc specs_format.TestCaseResult) bool {
-			return tc.Pass
-		})
-		if isTestFailed {
-			failedTestFiles += 1
 		}
 
 		for _, caseResult := range out.Cases {
