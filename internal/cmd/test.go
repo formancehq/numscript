@@ -234,6 +234,7 @@ func showFailingTestCase(w io.Writer, testResult testResult) {
 		fmt.Fprintln(w, ansi.Underline(failedAssertion.Assertion))
 		fmt.Fprintln(w)
 		showDiff(w, failedAssertion.Expected, failedAssertion.Got)
+		fmt.Fprintln(w)
 	}
 }
 

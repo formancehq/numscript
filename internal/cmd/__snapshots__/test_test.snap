@@ -9,7 +9,7 @@
 ---
 
 [TestSingleTest - 1]
-[31m❯[0m exmaple.num [90m(2 tests | [31m1 failed[0m[90m)[0m
+[31m❯[0m example.num [90m(2 tests | [31m1 failed[0m[90m)[0m
   [31m×[0m tfailing
 
 
@@ -29,6 +29,58 @@
 [90m      "asset": "USD/2"[0m
 [90m    }[0m
 [90m  ][0m
+
+
+[90m Test files [0m [1m[91m1 failed[0m[1m[0m [90m(1)[0m
+[90m      Tests [0m [1m[91m1 failed[0m[1m[0m[90m | [0m[1m[92m1 passed[0m[1m[0m [90m(2)[0m
+
+---
+
+[TestComplexAssertions - 1]
+[31m❯[0m example.num [90m(2 tests | [31m1 failed[0m[90m)[0m
+  [31m×[0m send when there are enough funds
+
+
+[1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > send when there are enough funds[0m
+[4m
+GIVEN:[0m
+
+| [36mAccount[0m | [36mAsset[0m | [36mBalance[0m |
+| alice   | USD/2 | 9999    |
+
+
+[32m- Expected[0m
+[31m+ Received
+[0m
+[4mexpect.missingFunds[0m
+
+[32m- true[0m
+[31m+ false[0m
+
+[4mexpect.volumes[0m
+
+[90m  {[0m
+[90m    "alice": {[0m
+[32m-     "USD/2": -100[0m
+[31m+     "USD/2": 9899[0m
+[90m    },[0m
+[90m    "dest": {[0m
+[32m-     "USD/2": 1[0m
+[31m+     "USD/2": 100[0m
+[90m    }[0m
+[90m  }[0m
+
+[4mexpect.movements[0m
+
+[90m  {[0m
+[90m    "alice": {[0m
+[90m      "dest": {[0m
+[32m-       "EUR": 100[0m
+[31m+       "USD/2": 100[0m
+[90m      }[0m
+[90m    }[0m
+[90m  }[0m
+
 
 [90m Test files [0m [1m[91m1 failed[0m[1m[0m [90m(1)[0m
 [90m      Tests [0m [1m[91m1 failed[0m[1m[0m[90m | [0m[1m[92m1 passed[0m[1m[0m [90m(2)[0m
