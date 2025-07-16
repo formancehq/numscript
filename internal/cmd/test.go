@@ -138,23 +138,23 @@ func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec rawSpec) (specs_form
 	}
 
 	if out.Total == 0 {
-		fmt.Fprintln(stdout, ansi.ColorRed("Empty test suite: "+rawSpec.SpecsPath))
+		_, _ = fmt.Fprintln(stdout, ansi.ColorRed("Empty test suite: "+rawSpec.SpecsPath))
 		return specs_format.Specs{}, specs_format.SpecsResult{}, false
 	} else if out.Failing == 0 {
 		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests)", out.Total))
-		fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorGreen("✓"), rawSpec.NumscriptPath, testsCount)
+		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorGreen("✓"), rawSpec.NumscriptPath, testsCount)
 	} else {
 		failedTestsCount := ansi.ColorRed(fmt.Sprintf("%d failed", out.Failing))
 
 		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests | %s)", out.Total, failedTestsCount))
-		fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorRed("❯"), rawSpec.NumscriptPath, testsCount)
+		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorRed("❯"), rawSpec.NumscriptPath, testsCount)
 
 		for _, result := range out.Cases {
 			if result.Pass {
 				continue
 			}
 
-			fmt.Fprintf(stdout, "  %s %s\n", ansi.ColorRed("×"), result.It)
+			_, _ = fmt.Fprintf(stdout, "  %s %s\n", ansi.ColorRed("×"), result.It)
 		}
 	}
 
@@ -179,11 +179,11 @@ func showDiff(w io.Writer, expected_ any, got_ any) {
 			}
 			switch diff.Type {
 			case diffmatchpatch.DiffDelete:
-				fmt.Fprintln(w, ansi.ColorGreen("- "+line))
+				_, _ = fmt.Fprintln(w, ansi.ColorGreen("- "+line))
 			case diffmatchpatch.DiffInsert:
-				fmt.Fprintln(w, ansi.ColorRed("+ "+line))
+				_, _ = fmt.Fprintln(w, ansi.ColorRed("+ "+line))
 			case diffmatchpatch.DiffEqual:
-				fmt.Fprintln(w, ansi.ColorBrightBlack("  "+line))
+				_, _ = fmt.Fprintln(w, ansi.ColorBrightBlack("  "+line))
 			}
 		}
 	}
@@ -197,44 +197,44 @@ func showFailingTestCase(w io.Writer, testResult testResult) {
 	specsFilePath := testResult.File
 	result := testResult.Result
 
-	fmt.Fprint(w, "\n\n")
+	_, _ = fmt.Fprint(w, "\n\n")
 
 	failColor := ansi.Compose(ansi.BgRed, ansi.ColorLight, ansi.Bold)
-	fmt.Fprint(w, failColor(" FAIL "))
-	fmt.Fprintln(w, ansi.ColorRed(" "+specsFilePath+" > "+result.It))
+	_, _ = fmt.Fprint(w, failColor(" FAIL "))
+	_, _ = fmt.Fprintln(w, ansi.ColorRed(" "+specsFilePath+" > "+result.It))
 
 	showGiven := len(result.Balances) != 0 || len(result.Meta) != 0 || len(result.Vars) != 0
 	if showGiven {
-		fmt.Fprintln(w, ansi.Underline("\nGIVEN:"))
+		_, _ = fmt.Fprintln(w, ansi.Underline("\nGIVEN:"))
 	}
 
 	if len(result.Balances) != 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, result.Balances.PrettyPrint())
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, result.Balances.PrettyPrint())
+		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(result.Meta) != 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, result.Meta.PrettyPrint())
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, result.Meta.PrettyPrint())
+		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(result.Vars) != 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, utils.CsvPrettyMap("Name", "Value", result.Vars))
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, utils.CsvPrettyMap("Name", "Value", result.Vars))
+		_, _ = fmt.Fprintln(w)
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, ansi.ColorGreen("- Expected"))
-	fmt.Fprintln(w, ansi.ColorRed("+ Received\n"))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, ansi.ColorGreen("- Expected"))
+	_, _ = fmt.Fprintln(w, ansi.ColorRed("+ Received\n"))
 
 	for _, failedAssertion := range result.FailedAssertions {
-		fmt.Fprintln(w, ansi.Underline(failedAssertion.Assertion))
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, ansi.Underline(failedAssertion.Assertion))
+		_, _ = fmt.Fprintln(w)
 		showDiff(w, failedAssertion.Expected, failedAssertion.Got)
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -270,7 +270,7 @@ func printFilesStats(w io.Writer, allTests []testResult) bool {
 		return ansi.ColorBrightBlack(fmt.Sprintf(" %*s ", maxLen, s))
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Files stats
 	{
@@ -295,10 +295,10 @@ func printFilesStats(w io.Writer, allTests []testResult) bool {
 		}
 		testFilesUI := strings.Join(testFilesUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestFilesUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", filesCount))
-		fmt.Fprint(w, paddedLabel(testFilesLabel)+" "+testFilesUI+" "+totalTestFilesUI)
+		_, _ = fmt.Fprint(w, paddedLabel(testFilesLabel)+" "+testFilesUI+" "+totalTestFilesUI)
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Tests stats
 	{
@@ -322,7 +322,7 @@ func printFilesStats(w io.Writer, allTests []testResult) bool {
 		testsUI := strings.Join(testUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestsUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", testsCount))
 
-		fmt.Fprintln(w, paddedLabel(testsLabel)+" "+testsUI+" "+totalTestsUI)
+		_, _ = fmt.Fprintln(w, paddedLabel(testsLabel)+" "+testsUI+" "+totalTestsUI)
 
 		return failedTestsCount == 0
 	}
