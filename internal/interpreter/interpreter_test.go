@@ -1,6 +1,7 @@
 package interpreter_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io/fs"
@@ -23,47 +24,40 @@ import (
 const scriptsFolder = "../../testdata/script-tests"
 
 func TestMain(t *testing.T) {
-	paths, err := getNumscriptFilePaths()
-	require.Nil(t, err)
-
-	for _, path := range paths {
-		numscript, err := os.ReadFile(path)
-		require.Nil(t, err)
-
-		parseResult := parser.Parse(string(numscript))
-		require.Empty(t, parseResult.Errors)
-
-		specsFile, err := os.ReadFile(path + ".specs.json")
-		require.Nil(t, err)
-
-		var specs specs_format.Specs
-		err = json.Unmarshal([]byte(specsFile), &specs)
-		require.Nil(t, err)
-
-		out, err := specs_format.Check(parseResult.Value, specs)
-		require.Nil(t, err)
-
-		for _, tc := range out.Cases {
-			for _, failed := range tc.FailedAssertions {
-				t.Fatalf("%s > %s > %s", path, tc.It, failed.Assertion)
-			}
-		}
-	}
-}
-
-func getNumscriptFilePaths() ([]string, error) {
-	var paths []string
+	var specs []specs_format.RawSpec
 	err := filepath.WalkDir(scriptsFolder, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(path, ".num") {
-			paths = append(paths, path)
+
+		if !strings.HasSuffix(path, ".num") {
+			return nil
 		}
+
+		numscript, err := os.ReadFile(path)
+		require.Nil(t, err)
+
+		specsFile, err := os.ReadFile(path + ".specs.json")
+		require.Nil(t, err)
+
+		specs = append(specs, specs_format.RawSpec{
+			NumscriptPath:    path,
+			SpecsPath:        path + ".specs.json",
+			NumscriptContent: string(numscript),
+			SpecsFileContent: specsFile,
+		})
 
 		return nil
 	})
-	return paths, err
+	require.Nil(t, err)
+
+	var buf bytes.Buffer
+	buf.WriteByte('\n')
+	ok := specs_format.RunSpecs(&buf, &buf, specs)
+	if !ok {
+		t.Log(buf.String())
+		t.Fail()
+	}
 }
 
 type TestCase struct {
