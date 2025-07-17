@@ -1,16 +1,17 @@
-package cmd
+package specs_format_test
 
 import (
 	"bytes"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
 
 func TestShowDiff(t *testing.T) {
 	var buf bytes.Buffer
-	showDiff(
+	specs_format.ShowDiff(
 		&buf,
 		map[string]any{
 			"common": "ok",
@@ -59,7 +60,7 @@ func TestSingleTest(t *testing.T) {
 		}
 	`
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
@@ -113,7 +114,7 @@ func TestComplexAssertions(t *testing.T) {
 		}
 	`
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
@@ -129,7 +130,7 @@ func TestComplexAssertions(t *testing.T) {
 
 func TestNoFilesErr(t *testing.T) {
 	var out bytes.Buffer
-	success := runRawSpecs(&out, &out, []rawSpec{})
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{})
 	require.False(t, success)
 	snaps.MatchSnapshot(t, out.String())
 }
@@ -137,7 +138,7 @@ func TestNoFilesErr(t *testing.T) {
 func TestParseErrSpecs(t *testing.T) {
 	var out bytes.Buffer
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
@@ -154,7 +155,7 @@ func TestParseErrSpecs(t *testing.T) {
 func TestSchemaErrSpecs(t *testing.T) {
 	var out bytes.Buffer
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
@@ -171,7 +172,7 @@ func TestSchemaErrSpecs(t *testing.T) {
 func TestNumscriptParseErr(t *testing.T) {
 	var out bytes.Buffer
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
@@ -199,7 +200,7 @@ func TestRuntimeErr(t *testing.T) {
 		}
 	`
 
-	success := runRawSpecs(&out, &out, []rawSpec{
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
 		{
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
