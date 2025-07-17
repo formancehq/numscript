@@ -23,7 +23,7 @@ import (
 
 const scriptsFolder = "../../testdata/script-tests"
 
-func TestMain(t *testing.T) {
+func TestScripts(t *testing.T) {
 	var specs []specs_format.RawSpec
 	err := filepath.WalkDir(scriptsFolder, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
