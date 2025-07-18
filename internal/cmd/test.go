@@ -10,56 +10,75 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func readSpecsFiles() []specs_format.RawSpec {
+func readSpecFile(path string) (specs_format.RawSpec, error) {
+	numscriptFileName := strings.TrimSuffix(path, ".specs.json")
+
+	numscriptContent, err := os.ReadFile(numscriptFileName)
+	if err != nil {
+		return specs_format.RawSpec{}, nil
+	}
+
+	specsFileContent, err := os.ReadFile(path)
+	if err != nil {
+		return specs_format.RawSpec{}, err
+	}
+
+	return specs_format.RawSpec{
+		NumscriptPath:    numscriptFileName,
+		SpecsPath:        path,
+		NumscriptContent: string(numscriptContent),
+		SpecsFileContent: specsFileContent,
+	}, nil
+}
+
+func readSpecsFiles() ([]specs_format.RawSpec, error) {
 	var specs []specs_format.RawSpec
 
 	for _, root := range opts.paths {
 		root = strings.TrimSuffix(root, "/")
 
-		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-
-			// Skip directories
-			if d.IsDir() {
-				return nil
-			}
-
-			if !strings.HasSuffix(path, ".num.specs.json") {
-				return nil
-			}
-
-			numscriptFileName := strings.TrimSuffix(path, ".specs.json")
-
-			numscriptContent, err := os.ReadFile(numscriptFileName)
-			if err != nil {
-				return err
-			}
-
-			specsFileContent, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			specs = append(specs, specs_format.RawSpec{
-				NumscriptPath:    numscriptFileName,
-				SpecsPath:        path,
-				NumscriptContent: string(numscriptContent),
-				SpecsFileContent: specsFileContent,
-			})
-
-			return nil
-		})
-
+		info, err := os.Stat(root)
 		if err != nil {
 			_, _ = os.Stderr.Write([]byte(err.Error()))
 			os.Exit(1)
 		}
 
+		if !info.IsDir() {
+			rawSpec, err := readSpecFile(root)
+			if err != nil {
+				return nil, err
+			}
+
+			specs = append(specs, rawSpec)
+			continue
+		}
+
+		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories
+			if d.IsDir() || !strings.HasSuffix(path, ".num.specs.json") {
+				return nil
+			}
+
+			rawSpec, err := readSpecFile(path)
+			if err != nil {
+				return err
+			}
+
+			specs = append(specs, rawSpec)
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
-	return specs
+	return specs, nil
 }
 
 type testArgs struct {
@@ -69,7 +88,13 @@ type testArgs struct {
 var opts = testArgs{}
 
 func runTestCmd() {
-	files := readSpecsFiles()
+	files, err := readSpecsFiles()
+	if err != nil {
+		_, _ = os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
+		return
+	}
+
 	pass := specs_format.RunSpecs(os.Stdout, os.Stderr, files)
 	if !pass {
 		os.Exit(1)
