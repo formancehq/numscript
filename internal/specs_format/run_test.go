@@ -28,7 +28,7 @@ func TestRunSpecsSimple(t *testing.T) {
 		"testCases": [
 			{
 				"it": "t1",
-				"vars": { "source": "src", "amount": "42" },
+				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 9999 } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
@@ -87,11 +87,11 @@ func TestRunSpecsSimple(t *testing.T) {
 
 func TestRunSpecsMergeOuter(t *testing.T) {
 	j := `{
-		"vars": { "source": "src", "amount": "42" },
+		"variables": { "source": "src", "amount": "42" },
 		"balances": { "src": { "USD": 10 } },
 		"testCases": [
 			{
-				"vars": { "amount": "1" },
+				"variables": { "amount": "1" },
 				"balances": {
 					"src": { "EUR": 2 },
 					"dest": { "USD": 1 }
@@ -161,7 +161,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 		"testCases": [
 			{
 				"it": "t1",
-				"vars": { "source": "src", "amount": "42" },
+				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
 				"expect.missingFunds": false,
 				"expect.postings": null
@@ -214,7 +214,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 		"testCases": [
 			{
 				"it": "t1",
-				"vars": { "source": "src", "amount": "42" },
+				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 1 }
@@ -268,7 +268,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 		"testCases": [
 			{
 				"it": "t1",
-				"vars": { "source": "src", "amount": "42" },
+				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
 				"expect.postings": null
 			}

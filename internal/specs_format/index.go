@@ -14,22 +14,22 @@ import (
 type Specs struct {
 	FeatureFlags []string                     `json:"featureFlags,omitempty"`
 	Balances     interpreter.Balances         `json:"balances,omitempty"`
-	Vars         interpreter.VariablesMap     `json:"vars,omitempty"`
-	Meta         interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
+	Vars         interpreter.VariablesMap     `json:"variables,omitempty"`
+	Meta         interpreter.AccountsMetadata `json:"metadata,omitempty"`
 	TestCases    []TestCase                   `json:"testCases,omitempty"`
 }
 
 type TestCase struct {
 	It       string                       `json:"it"`
 	Balances interpreter.Balances         `json:"balances,omitempty"`
-	Vars     interpreter.VariablesMap     `json:"vars,omitempty"`
-	Meta     interpreter.AccountsMetadata `json:"accountsMeta,omitempty"`
+	Vars     interpreter.VariablesMap     `json:"variables,omitempty"`
+	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
 
 	// Expectations
 	ExpectMissingFunds bool                         `json:"expect.missingFunds,omitempty"`
 	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
-	ExpectTxMeta       map[string]string            `json:"expect.txMeta,omitempty"`
-	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.accountsMeta,omitempty"`
+	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
 	ExpectVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
 	ExpectMovements    Movements                    `json:"expect.movements,omitempty"`
 }
@@ -38,8 +38,8 @@ type TestCaseResult struct {
 	It       string                       `json:"it"`
 	Pass     bool                         `json:"pass"`
 	Balances interpreter.Balances         `json:"balances"`
-	Vars     interpreter.VariablesMap     `json:"vars"`
-	Meta     interpreter.AccountsMetadata `json:"accountsMeta"`
+	Vars     interpreter.VariablesMap     `json:"variables"`
+	Meta     interpreter.AccountsMetadata `json:"metadata"`
 
 	// Assertions
 	FailedAssertions []AssertionMismatch[any] `json:"failedAssertions"`

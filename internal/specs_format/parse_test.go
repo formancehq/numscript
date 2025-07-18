@@ -17,7 +17,7 @@ func TestParseSpecs(t *testing.T) {
   "balances": {
     "alice": { "EUR": 200 }
   },
-  "vars": {
+  "variables": {
     "amt": "200"
   },
   "testCases": [

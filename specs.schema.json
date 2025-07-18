@@ -9,10 +9,10 @@
     "balances": {
       "$ref": "#/definitions/Balances"
     },
-    "vars": {
+    "variables": {
       "$ref": "#/definitions/VariablesMap"
     },
-    "accountsMeta": {
+    "metadata": {
       "$ref": "#/definitions/AccountsMetadata"
     },
     "testCases": {
@@ -37,10 +37,10 @@
         "balances": {
           "$ref": "#/definitions/Balances"
         },
-        "vars": {
+        "variables": {
           "$ref": "#/definitions/VariablesMap"
         },
-        "accountsMeta": {
+        "metadata": {
           "$ref": "#/definitions/AccountsMetadata"
         },
         "expect.postings": {
@@ -56,11 +56,11 @@
           "$ref": "#/definitions/Movements"
         },
 
-        "expect.txMeta": {
+        "expect.txMetadata": {
           "$ref": "#/definitions/TxMetadata"
         },
 
-        "expect.accountsMeta": {
+        "expect.metadata": {
           "$ref": "#/definitions/AccountsMetadata"
         },
 
