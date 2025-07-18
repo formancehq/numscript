@@ -115,13 +115,23 @@ func getRunCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "run",
 		Short: "Evaluate a numscript file",
-		Long:  "Evaluate a numscript file, using the balances, the current metadata and the variables values as input.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var path string
-			if len(args) > 0 {
-				path = args[0]
+		Long: `Evaluate a numscript file, taking as inputs a json file containing balances, variables and metadata.
+
+The inputs file has to have the same name as the numscript file plus a ".inputs.json" suffix, for example:
+run folder/my-script.num
+will expect a 'folder/my-script.num.inputs.json' file where to read inputs from.
+
+You can use explicitly specify where the inputs file should be using the optional --inputs argument.
+`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			path := args[0]
+
+			err := run(path, opts)
+			if err != nil {
+				fmt.Fprint(os.Stderr, err)
+				os.Exit(1)
 			}
-			return run(path, opts)
 		},
 	}
 
