@@ -1,13 +1,13 @@
 
 [TestPrettyCsv - 1]
-| [36mAccount[0m | [36mAsset[0m | [36mBalance[0m |
+| [36mAccount[0m | [36mAsset   [0m | [36mBalance[0m |
 | alice   | EUR/2    | 1       |
 | alice   | USD/1234 | 999999  |
 | bob     | BTC      | 3       |
 ---
 
 [TestPrettyCsvMap - 1]
-| [36mName[0m           | [36mValue[0m |
+| [36mName                   [0m | [36mValue[0m |
 | a                       | 0     |
 | b                       | 12345 |
 | very-very-very-long-key |       |
