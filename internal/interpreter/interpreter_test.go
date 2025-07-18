@@ -4,11 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/fs"
 	"math/big"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
 	machine "github.com/formancehq/numscript/internal/interpreter"
@@ -24,36 +20,12 @@ import (
 const scriptsFolder = "../../testdata/script-tests"
 
 func TestScripts(t *testing.T) {
-	var specs []specs_format.RawSpec
-	err := filepath.WalkDir(scriptsFolder, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !strings.HasSuffix(path, ".num") {
-			return nil
-		}
-
-		numscript, err := os.ReadFile(path)
-		require.Nil(t, err)
-
-		specsFile, err := os.ReadFile(path + ".specs.json")
-		require.Nil(t, err)
-
-		specs = append(specs, specs_format.RawSpec{
-			NumscriptPath:    path,
-			SpecsPath:        path + ".specs.json",
-			NumscriptContent: string(numscript),
-			SpecsFileContent: specsFile,
-		})
-
-		return nil
-	})
+	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
 	require.Nil(t, err)
 
 	var buf bytes.Buffer
 	buf.WriteByte('\n')
-	ok := specs_format.RunSpecs(&buf, &buf, specs)
+	ok := specs_format.RunSpecs(&buf, &buf, rawSpecs)
 	if !ok {
 		t.Log(buf.String())
 		t.Fail()
