@@ -1,0 +1,42 @@
+{
+  "$schema": "./specs.schema.json",
+  "testCases": [
+    {
+      "it": "matches sources and destinations allotments",
+      "balances": {
+        "src1": {
+          "USD": 999
+        },
+        "src2": {
+          "USD": 999
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src1",
+          "destination": "dest1",
+          "amount": 8,
+          "asset": "USD"
+        },
+        {
+          "source": "src2",
+          "destination": "dest1",
+          "amount": 16,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest1",
+          "amount": 15,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest2",
+          "amount": 38,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+vars {
+  monetary $alice_ovedraft = overdraft(@alice, EUR)
+}
+
+send $alice_ovedraft (
+  source = @world
+  destination = @alice
+)

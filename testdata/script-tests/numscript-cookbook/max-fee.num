@@ -1,0 +1,20 @@
+// properties:
+// $fee * $amt <= $cap -> movements(@world, @fees, USD) == $fee * $amt
+// $fee * $amt > $cap -> movements(@world, @fees, USD) == $cap
+
+vars {
+  number $amt
+  number $cap
+  portion $fee
+}
+
+send [USD $amt] (
+  source = @world
+  destination = {
+    $fee to {
+      max [USD $cap] to @fees
+      remaining to @dest
+    }
+    remaining to @dest
+  }
+)

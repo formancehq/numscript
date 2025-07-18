@@ -1,0 +1,56 @@
+{
+  "$schema": "./specs.schema.json",
+  "featureFlags": [
+    "experimental-overdraft-function",
+    "experimental-mid-script-function-call",
+    "experimental-oneof"
+  ],
+  "vars": {
+    "amt": "100"
+  },
+  "testCases": [
+    {
+      "it": "should be a noop when all balances are >= 0",
+      "balances": { "alice": { "EUR": 100 }, "bob": { "EUR": 200 } },
+      "expect.postings": []
+    },
+    {
+      "it": "should prioritize alice when both have missing funds",
+      "balances": {
+        "alice": { "EUR": -120 },
+        "bob": { "EUR": -120 }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "alice",
+          "amount": 100,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "doesn't send funds to alice if there aren't enough funds for the account to be topped-up",
+      "balances": {
+        "alice": { "EUR": -80 },
+        "bob": { "EUR": -120 }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "bob",
+          "amount": 100,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "funds are kept if there are spare funds",
+      "balances": {
+        "alice": { "EUR": -10 },
+        "bob": { "EUR": -20 }
+      },
+      "expect.postings": []
+    }
+  ]
+}

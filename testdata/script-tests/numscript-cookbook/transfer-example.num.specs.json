@@ -1,0 +1,45 @@
+{
+  "$schema": "./specs.schema.json",
+  "featureFlags": [
+    "experimental-overdraft-function",
+    "experimental-mid-script-function-call",
+    "experimental-oneof"
+  ],
+  "vars": {
+    "amt": "100",
+    "dest": "alice"
+  },
+  "testCases": [
+    {
+      "it": "should authorize transfer if both wallet and bank accounts display enough balance",
+      "balances": {
+        "wallet": { "EUR": 100 },
+        "bank_account": { "EUR": -100 }
+      },
+      "expect.postings": [
+        {
+          "source": "wallet",
+          "destination": "alice",
+          "amount": 100,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "should not authorize transfer if wallet does not display enough balance and bank account does",
+      "balances": {
+        "wallet": { "EUR": 50 },
+        "bank_account": { "EUR": -100 }
+      },
+      "expect.missingFunds": true
+    },
+    {
+      "it": "should not authorize transfer if bank account does not display enough balance and wallet does",
+      "balances": {
+        "wallet": { "EUR": 100 },
+        "bank_account": { "EUR": -50 }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}
