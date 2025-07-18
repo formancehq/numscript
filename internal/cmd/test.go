@@ -15,7 +15,7 @@ func readSpecFile(path string) (specs_format.RawSpec, error) {
 
 	numscriptContent, err := os.ReadFile(numscriptFileName)
 	if err != nil {
-		return specs_format.RawSpec{}, nil
+		return specs_format.RawSpec{}, err
 	}
 
 	specsFileContent, err := os.ReadFile(path)
