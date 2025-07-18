@@ -1,0 +1,8 @@
+
+send [COIN 10] (
+  source = {
+    @s allowing overdraft up to [COIN -10] 
+  }
+  destination = @dest
+)
+

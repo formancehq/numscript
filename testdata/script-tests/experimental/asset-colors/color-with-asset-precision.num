@@ -1,0 +1,6 @@
+
+   send [USD/4 10] (
+    source = @src \ "COL" allowing unbounded overdraft
+    destination = @dest
+  )
+

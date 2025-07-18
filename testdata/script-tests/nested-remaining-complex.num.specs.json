@@ -1,0 +1,38 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "orders:1234": {
+          "EUR/2": 10000
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "orders:1234",
+          "destination": "platform:commission:sales_tax",
+          "amount": 300,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "orders:1234",
+          "destination": "users:1234:cashback",
+          "amount": 60,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "orders:1234",
+          "destination": "platform:commission:revenue",
+          "amount": 1140,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "orders:1234",
+          "destination": "merchants:6789",
+          "amount": 8500,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "featureFlags": [
+    "experimental-mid-script-function-call"
+  ],
+  "testCases": [
+    {
+      "it": "-"
+    }
+  ]
+}

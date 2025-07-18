@@ -1,0 +1,16 @@
+
+send [USD/2 100] (
+  source = @users:1234 allowing unbounded overdraft
+  destination = @payments:4567
+)
+
+send [USD/2 6000] (
+  source = {
+    // let the user pay with their credit account first,
+    @users:2345:credit allowing overdraft up to [USD/2 1000]
+    // then, use their main balance
+    @users:2345:main
+  }
+  destination = @payments:4567
+)
+

@@ -1,0 +1,9 @@
+
+send [GEM 15] (
+  source = oneof {
+    @a allowing overdraft up to [GEM 14] // this doesn't succeed
+    @world
+  }
+  destination = @dest
+)
+

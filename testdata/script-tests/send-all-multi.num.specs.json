@@ -1,0 +1,29 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:001:credit": {
+          "USD/2": 22
+        },
+        "users:001:wallet": {
+          "USD/2": 19
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:001:wallet",
+          "destination": "platform",
+          "amount": 19,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:001:credit",
+          "destination": "platform",
+          "amount": 22,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

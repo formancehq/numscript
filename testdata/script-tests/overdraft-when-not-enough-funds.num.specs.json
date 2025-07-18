@@ -1,0 +1,13 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:1234": {
+          "COIN": 1
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

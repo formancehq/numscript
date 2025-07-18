@@ -1,0 +1,14 @@
+
+    vars {
+      monetary $mon
+    }
+
+     save $mon from @alice
+
+     send [USD 30] (
+        source = {
+         @alice
+         @world
+        }
+        destination = @bob
+     )

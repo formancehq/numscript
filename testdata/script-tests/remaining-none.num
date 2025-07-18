@@ -1,0 +1,7 @@
+send [COIN 10] (
+  source = @world
+  destination = {
+    max [COIN 10] to @a
+    remaining to @b
+  }
+)

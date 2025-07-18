@@ -1,0 +1,13 @@
+
+    vars {
+      asset $ass
+    }
+     save [$ass 10] from @alice
+
+     send [$ass 30] (
+        source = {
+         @alice
+         @world
+        }
+        destination = @bob
+     )

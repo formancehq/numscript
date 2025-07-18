@@ -1,0 +1,12 @@
+
+   vars { number $amt }
+
+   send [USD/2 $amt] (
+     source = @world
+     destination = {
+      100% to @dest
+      remaining kept
+    }
+   )
+
+

@@ -1,0 +1,6 @@
+
+   send [COIN 1] + [COIN 2] (
+     source = @world
+     destination = @dest
+   )
+

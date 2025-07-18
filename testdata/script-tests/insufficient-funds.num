@@ -1,0 +1,12 @@
+vars {
+  account $balance
+  account $payment
+  account $seller
+}
+send [GEM 16] (
+  source = {
+    $balance
+    $payment
+  }
+  destination = $seller
+)

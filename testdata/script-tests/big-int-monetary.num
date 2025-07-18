@@ -1,0 +1,12 @@
+
+   vars { monetary $amt }
+
+   send $amt (
+     source = @world
+     destination = {
+      100% to @dest
+      remaining kept
+    }
+   )
+
+

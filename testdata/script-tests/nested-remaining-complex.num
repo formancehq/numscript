@@ -1,0 +1,19 @@
+
+send [EUR/2 10000] (
+  source = @orders:1234
+  destination = {
+    15% to {
+      20% to @platform:commission:sales_tax
+      remaining to {
+        5% to {
+          // users
+          max [EUR/2 1000] to @users:1234:cashback
+          remaining kept
+        }
+        remaining to @platform:commission:revenue
+      }
+    }
+    remaining to @merchants:6789
+  }
+)
+

@@ -1,0 +1,38 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "a": {
+          "COIN": 100
+        },
+        "b": {
+          "COIN": 100
+        },
+        "c": {
+          "COIN": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "d",
+          "amount": 61,
+          "asset": "COIN"
+        },
+        {
+          "source": "b",
+          "destination": "d",
+          "amount": 35,
+          "asset": "COIN"
+        },
+        {
+          "source": "c",
+          "destination": "d",
+          "amount": 4,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

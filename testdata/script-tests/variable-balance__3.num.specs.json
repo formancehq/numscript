@@ -1,0 +1,32 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "A": {
+          "USD/2": 40
+        },
+        "C": {
+          "USD/2": 90
+        }
+      },
+      "variables": {
+        "acc": "A"
+      },
+      "expect.postings": [
+        {
+          "source": "A",
+          "destination": "B",
+          "amount": 40,
+          "asset": "USD/2"
+        },
+        {
+          "source": "C",
+          "destination": "D",
+          "amount": 60,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:001": {
+          "CREDIT": 100
+        },
+        "users:002": {
+          "CREDIT": 110
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:001",
+          "destination": "foo",
+          "amount": 100,
+          "asset": "CREDIT"
+        },
+        {
+          "source": "users:002",
+          "destination": "bar",
+          "amount": 100,
+          "asset": "CREDIT"
+        }
+      ]
+    }
+  ]
+}

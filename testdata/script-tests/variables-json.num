@@ -1,0 +1,15 @@
+vars {
+  account $rider
+  account $driver
+  string   $description
+  number   $nb
+  asset   $ass
+  portion $por
+}
+send [$ass 999] (
+  source=$rider
+  destination=$driver
+)
+set_tx_meta("description", $description)
+set_tx_meta("ride", $nb)
+set_tx_meta("por", $por)

@@ -1,0 +1,8 @@
+send [USD/2 *] (
+  source = @src
+  destination = {
+    max [USD/2 10] to @d1
+    remaining to @d2
+  }
+)
+

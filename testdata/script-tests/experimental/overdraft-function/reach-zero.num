@@ -1,0 +1,15 @@
+vars {
+  number $amt
+  monetary $invoice_001_overdraft = overdraft(@invoice:001, USD/2)
+  monetary $invoice_002_overdraft = overdraft(@invoice:002, USD/2)
+}
+
+
+send [USD/2 $amt] (
+  source = @world
+  destination = {
+    max $invoice_001_overdraft to @invoice:001
+    max $invoice_002_overdraft to @invoice:002
+    remaining kept
+  }
+)

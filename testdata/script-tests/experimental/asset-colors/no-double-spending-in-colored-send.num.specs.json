@@ -1,0 +1,30 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "src": {
+          "COIN": 99999,
+          "COIN_X": 20
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 20,
+          "asset": "COIN_X"
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 80,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "s": {
+          "COIN": -2
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "s",
+          "destination": "dest",
+          "amount": 3,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 7,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

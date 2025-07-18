@@ -1,0 +1,12 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "foo": {
+          "GEM": 0
+        }
+      }
+    }
+  ]
+}

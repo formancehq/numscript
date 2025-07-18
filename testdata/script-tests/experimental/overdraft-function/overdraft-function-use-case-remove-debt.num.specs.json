@@ -1,0 +1,23 @@
+{
+  "featureFlags": [
+    "experimental-overdraft-function"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "user:001": {
+          "USD/2": -100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "user:001",
+          "amount": 100,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

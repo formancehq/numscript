@@ -1,0 +1,6 @@
+
+send [USD/2 100] (
+  source = @empty allowing unbounded overdraft
+  destination = @dest
+)
+

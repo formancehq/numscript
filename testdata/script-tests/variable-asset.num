@@ -1,0 +1,21 @@
+
+   vars {
+     asset $ass
+     monetary $bal = balance(@alice, $ass)
+   }
+
+   send [$ass 15] (
+     source = {
+       @alice
+       @bob
+     }
+     destination = @swap
+   )
+
+   send [$ass *] (
+     source = @swap
+     destination = {
+       max $bal to @alice_2
+       remaining to @bob_2
+     }
+   )

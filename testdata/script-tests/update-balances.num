@@ -1,0 +1,11 @@
+
+// @alice balance is 100 initially
+send [USD 200] (
+source = {
+  @alice
+  @alice
+  @world
+}
+destination = @dest
+)
+

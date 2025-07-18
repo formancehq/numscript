@@ -1,0 +1,10 @@
+send [COIN 100] (
+  source = {
+    // a doesn't have enough amount
+    10% from @a
+
+    // world has, but the computation has already failed
+    remaining from @world
+  }
+  destination = @d
+)

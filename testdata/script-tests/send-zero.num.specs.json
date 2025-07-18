@@ -1,0 +1,10 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "src": {}
+      }
+    }
+  ]
+}

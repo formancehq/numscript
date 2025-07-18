@@ -1,0 +1,15 @@
+
+  vars {
+    account $acc
+    monetary $initial = balance($acc, USD/2)
+  }
+  send [USD/2 100] (
+    source = {
+    $acc
+    @C
+    }
+    destination = {
+    max $initial to @B
+    remaining to @D
+    }
+  )

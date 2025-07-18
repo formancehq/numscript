@@ -1,0 +1,21 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest1",
+          "amount": 1,
+          "asset": "GEM"
+        },
+        {
+          "source": "world",
+          "destination": "dest2",
+          "amount": 90,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

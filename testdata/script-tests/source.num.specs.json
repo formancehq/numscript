@@ -1,0 +1,34 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "payments:001": {
+          "GEM": 12
+        },
+        "users:001": {
+          "GEM": 3
+        }
+      },
+      "variables": {
+        "balance": "users:001",
+        "payment": "payments:001",
+        "seller": "users:002"
+      },
+      "expect.postings": [
+        {
+          "source": "users:001",
+          "destination": "users:002",
+          "amount": 3,
+          "asset": "GEM"
+        },
+        {
+          "source": "payments:001",
+          "destination": "users:002",
+          "amount": 12,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

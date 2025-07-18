@@ -1,0 +1,14 @@
+
+send [COIN 10] (
+  source = {
+    // should pull 2
+    @s allowing overdraft up to [COIN 2]
+
+    // should pull other 3 (otherwise the overdraft exceeds 5)
+    @s allowing overdraft up to [COIN 5]
+
+    @world
+  }
+  destination = @dest
+)
+

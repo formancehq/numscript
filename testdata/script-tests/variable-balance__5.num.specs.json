@@ -1,0 +1,50 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "a": {
+          "COIN": 1000
+        },
+        "b": {
+          "COIN": 40
+        },
+        "c": {
+          "COIN": 1000
+        },
+        "d": {
+          "COIN": 1000
+        },
+        "maxAcc": {
+          "COIN": 120
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "platform",
+          "amount": 4,
+          "asset": "COIN"
+        },
+        {
+          "source": "b",
+          "destination": "platform",
+          "amount": 40,
+          "asset": "COIN"
+        },
+        {
+          "source": "c",
+          "destination": "platform",
+          "amount": 56,
+          "asset": "COIN"
+        },
+        {
+          "source": "d",
+          "destination": "platform",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

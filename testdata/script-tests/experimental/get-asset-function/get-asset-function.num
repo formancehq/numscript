@@ -1,0 +1,6 @@
+
+   vars { asset $a = get_asset([ABC 100]) }
+
+   set_tx_meta("asset", $a)
+
+

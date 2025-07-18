@@ -1,0 +1,6 @@
+
+   send [COIN *] (
+    source = @src \ "RED"
+    destination = @dest
+  )
+

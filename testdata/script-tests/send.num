@@ -1,0 +1,4 @@
+send [EUR/2 100] (
+  source=@alice
+  destination=@bob
+)

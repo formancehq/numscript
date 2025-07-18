@@ -1,0 +1,10 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.txMetadata": {
+        "k": "3"
+      }
+    }
+  ]
+}
