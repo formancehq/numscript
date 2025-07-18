@@ -511,10 +511,10 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 		if source.Bounded == nil {
 			res.unboundedAccountInSend = source.Address
-		}
+			if res.unboundedSend {
+				res.pushDiagnostic(source.Address.GetRange(), InvalidUnboundedAccount{})
+			}
 
-		if res.unboundedSend {
-			res.pushDiagnostic(source.Address.GetRange(), InvalidUnboundedAccount{})
 		}
 
 		res.checkExpression(source.Address, TypeAccount)

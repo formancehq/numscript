@@ -464,6 +464,47 @@ send [COIN 100] (
 	)
 }
 
+func TestInvalidUnboundedAccount(t *testing.T) {
+	t.Parallel()
+
+	input := `
+send [COIN *] (
+  source = {
+    @s allowing unbounded overdraft
+  }
+  destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@s", 0),
+				Kind:  analysis.InvalidUnboundedAccount{},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestNoInvalidUnboundedAccountWhenBounded(t *testing.T) {
+	t.Parallel()
+
+	input := `
+send [COIN *] (
+  source = {
+    @s allowing overdraft up to [COIN 2]
+  }
+  destination = @dest
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic(nil),
+		checkSource(input),
+	)
+}
+
 func TestWrongTypeForDestAllotmentPortion(t *testing.T) {
 	t.Parallel()
 
