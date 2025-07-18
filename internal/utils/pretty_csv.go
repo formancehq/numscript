@@ -48,10 +48,11 @@ func CsvPretty(
 	{
 		var partialRow []string
 		for index, fieldName := range header {
-			partialRow = append(partialRow, fmt.Sprintf("| %-*s ",
+			paddedHeader := fmt.Sprintf("%-*s",
 				maxLengths[index],
-				ansi.ColorCyan(fieldName),
-			))
+				fieldName,
+			)
+			partialRow = append(partialRow, fmt.Sprintf("| %s ", ansi.ColorCyan(paddedHeader)))
 		}
 		partialRow = append(partialRow, "|")
 		allRows = append(allRows, strings.Join(partialRow, ""))
