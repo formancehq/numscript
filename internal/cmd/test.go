@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/spf13/cobra"
 )
@@ -13,42 +13,50 @@ import (
 func readSpecsFiles() []specs_format.RawSpec {
 	var specs []specs_format.RawSpec
 
-	for _, path := range opts.paths {
-		path = strings.TrimSuffix(path, "/")
+	for _, root := range opts.paths {
+		root = strings.TrimSuffix(root, "/")
 
-		specsFilePaths, err := filepath.Glob(path + "/*.num.specs.json")
-		if err != nil {
-			panic(err)
-		}
-
-		if len(specsFilePaths) == 0 {
-			_, _ = os.Stderr.Write([]byte(ansi.ColorRed("No specs files found\n")))
-			os.Exit(1)
-		}
-
-		for _, specsFilePath := range specsFilePaths {
-			numscriptFileName := strings.TrimSuffix(specsFilePath, ".specs.json")
-
-			// TODO Improve err message ("no matching numscript for specsfile")
-			numscriptContent, err := os.ReadFile(numscriptFileName)
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				_, _ = os.Stderr.Write([]byte(err.Error()))
-				os.Exit(1)
+				return err
 			}
 
-			specsFileContent, err := os.ReadFile(specsFilePath)
+			// Skip directories
+			if d.IsDir() {
+				return nil
+			}
+
+			if !strings.HasSuffix(path, ".num.specs.json") {
+				return nil
+			}
+
+			numscriptFileName := strings.TrimSuffix(path, ".specs.json")
+
+			numscriptContent, err := os.ReadFile(numscriptFileName)
 			if err != nil {
-				_, _ = os.Stderr.Write([]byte(err.Error()))
-				os.Exit(1)
+				return err
+			}
+
+			specsFileContent, err := os.ReadFile(path)
+			if err != nil {
+				return err
 			}
 
 			specs = append(specs, specs_format.RawSpec{
 				NumscriptPath:    numscriptFileName,
-				SpecsPath:        specsFilePath,
+				SpecsPath:        path,
 				NumscriptContent: string(numscriptContent),
 				SpecsFileContent: specsFileContent,
 			})
+
+			return nil
+		})
+
+		if err != nil {
+			_, _ = os.Stderr.Write([]byte(err.Error()))
+			os.Exit(1)
 		}
+
 	}
 
 	return specs
