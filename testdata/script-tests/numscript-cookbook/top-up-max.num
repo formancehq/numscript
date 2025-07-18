@@ -1,0 +1,14 @@
+vars {
+  monetary $jon_balance = balance(@jon, EUR/2)
+
+  // The amount to send
+  monetary $amt
+
+  // The end balance we don't want to exceed
+  monetary $limit
+}
+
+send $amt (
+  source = max $limit - $jon_balance from @alice
+  destination = @jon 
+)

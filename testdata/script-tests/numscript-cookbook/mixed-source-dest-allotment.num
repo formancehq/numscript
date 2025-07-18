@@ -1,0 +1,11 @@
+send [USD 77] (
+  source = {
+    10% from @src1
+    20% from @src2
+    remaining from @world
+  }
+  destination = {
+    1/2 to @dest1
+    1/2 to @dest2
+  }
+)

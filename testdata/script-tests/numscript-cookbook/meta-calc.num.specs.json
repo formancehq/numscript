@@ -1,0 +1,16 @@
+{
+  "$schema": "./specs.schema.json",
+  "featureFlags": [
+    "experimental-overdraft-function",
+    "experimental-mid-script-function-call",
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "sets the expected meta",
+      "expect.txMeta": {
+        "key": "11/2"
+      }
+    }
+  ]
+}

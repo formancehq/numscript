@@ -1,0 +1,4 @@
+send [USD *] (
+  source = max [USD 100] from @src
+  destination = @dest
+)

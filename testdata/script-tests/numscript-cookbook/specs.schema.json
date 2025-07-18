@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Specs",
+  "type": "object",
+  "properties": {
+    "balances": {
+      "$ref": "#/definitions/Balances"
+    },
+    "vars": {
+      "$ref": "#/definitions/VariablesMap"
+    },
+    "accountsMeta": {
+      "$ref": "#/definitions/AccountsMetadata"
+    },
+    "testCases": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/TestCase" }
+    },
+    "featureFlags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "definitions": {
+    "TestCase": {
+      "type": "object",
+      "properties": {
+        "it": {
+          "type": "string",
+          "description": "Test case description"
+        },
+        "balances": {
+          "$ref": "#/definitions/Balances"
+        },
+        "vars": {
+          "$ref": "#/definitions/VariablesMap"
+        },
+        "accountsMeta": {
+          "$ref": "#/definitions/AccountsMetadata"
+        },
+        "expect.postings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Posting" }
+        },
+        "expect.txMeta": {
+          "$ref": "#/definitions/TxMetadata"
+        },
+        "expect.missingFunds": {
+          "type": "boolean"
+        }
+      },
+      "required": ["it"]
+    },
+
+    "Balances": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Z]+$": {
+              "oneOf": [
+                { "type": "string", "pattern": "^-?\\d+(\\.\\d+)?$" },
+                { "type": "number" }
+              ]
+            }
+          }
+        }
+      },
+      "description": "Map of account names to asset balances"
+    },
+
+    "VariablesMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "object", "array", "null"]
+      }
+    },
+
+    "AccountsMetadata": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "TxMetadata": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "string"
+        }
+      }
+    },
+
+    "Posting": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "destination": { "type": "string" },
+        "asset": { "type": "string" },
+        "amount": {
+          "oneOf": [
+            { "type": "string", "pattern": "^-?\\d+(\\.\\d+)?$" },
+            { "type": "number" }
+          ]
+        }
+      },
+      "required": ["source", "destination", "asset", "amount"]
+    }
+  }
+}

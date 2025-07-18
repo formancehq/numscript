@@ -1,0 +1,5 @@
+vars {
+  number $x = 10 + 1
+}
+
+set_tx_meta("key", $x/2)

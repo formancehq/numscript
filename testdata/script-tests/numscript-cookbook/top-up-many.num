@@ -1,0 +1,13 @@
+vars {
+  number $amt
+}
+
+
+send [EUR $amt] (
+  source = @world
+  destination = oneof {
+    max overdraft(@alice, EUR) to @alice
+    max overdraft(@bob, EUR) to @bob
+    remaining kept
+  }
+)
