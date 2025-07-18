@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -21,7 +20,7 @@ const (
 	OutputFormatJson   = "json"
 )
 
-type Args struct {
+type runArgs struct {
 	VariablesOpt string
 	BalancesOpt  string
 	MetaOpt      string
@@ -38,7 +37,7 @@ type inputOpts struct {
 	Balances  interpreter.Balances         `json:"balances"`
 }
 
-func (o *inputOpts) fromRaw(opts Args) error {
+func (o *inputOpts) fromRaw(opts runArgs) error {
 	if opts.RawOpt == "" {
 		return nil
 	}
@@ -50,7 +49,7 @@ func (o *inputOpts) fromRaw(opts Args) error {
 	return nil
 }
 
-func (o *inputOpts) fromStdin(opts Args) error {
+func (o *inputOpts) fromStdin(opts runArgs) error {
 	if !opts.StdinFlag {
 		return nil
 	}
@@ -67,7 +66,7 @@ func (o *inputOpts) fromStdin(opts Args) error {
 	return nil
 }
 
-func (o *inputOpts) fromOptions(path string, opts Args) error {
+func (o *inputOpts) fromOptions(path string, opts runArgs) error {
 	if path != "" {
 		numscriptContent, err := os.ReadFile(path)
 		if err != nil {
@@ -108,7 +107,7 @@ func (o *inputOpts) fromOptions(path string, opts Args) error {
 	return nil
 }
 
-func run(path string, opts Args) error {
+func run(path string, opts runArgs) error {
 	opt := inputOpts{
 		Variables: make(map[string]string),
 		Meta:      make(interpreter.AccountsMetadata),
@@ -172,26 +171,19 @@ func showJson(result *interpreter.ExecutionResult) error {
 }
 
 func showPretty(result *interpreter.ExecutionResult) error {
-	fmt.Println(ansi.ColorCyan("Postings:"))
-	postingsJson, err := json.MarshalIndent(result.Postings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshaling postings: %w", err)
-	}
-	fmt.Println(string(postingsJson))
+	fmt.Println("Postings:")
+	fmt.Println(interpreter.PrettyPrintPostings(result.Postings))
 
-	fmt.Println()
-
-	fmt.Println(ansi.ColorCyan("Meta:"))
-	txMetaJson, err := json.MarshalIndent(result.Metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshaling metadata: %w", err)
+	if len(result.Metadata) != 0 {
+		fmt.Println("Meta:")
+		fmt.Println(interpreter.PrettyPrintMeta(result.Metadata))
 	}
-	fmt.Println(string(txMetaJson))
+
 	return nil
 }
 
 func getRunCmd() *cobra.Command {
-	opts := Args{}
+	opts := runArgs{}
 
 	cmd := cobra.Command{
 		Use:   "run",

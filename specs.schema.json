@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Specs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testCases"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "balances": {
+      "$ref": "#/definitions/Balances"
+    },
+    "variables": {
+      "$ref": "#/definitions/VariablesMap"
+    },
+    "metadata": {
+      "$ref": "#/definitions/AccountsMetadata"
+    },
+    "testCases": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/TestCase" }
+    },
+    "featureFlags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "definitions": {
+    "TestCase": {
+      "type": "object",
+      "required": ["it"],
+      "additionalProperties": false,
+      "properties": {
+        "it": {
+          "type": "string",
+          "description": "Test case description"
+        },
+        "balances": {
+          "$ref": "#/definitions/Balances"
+        },
+        "variables": {
+          "$ref": "#/definitions/VariablesMap"
+        },
+        "metadata": {
+          "$ref": "#/definitions/AccountsMetadata"
+        },
+        "expect.postings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Posting" }
+        },
+
+        "expect.volumes": {
+          "$ref": "#/definitions/Balances"
+        },
+
+        "expect.movements": {
+          "$ref": "#/definitions/Movements"
+        },
+
+        "expect.txMetadata": {
+          "$ref": "#/definitions/TxMetadata"
+        },
+
+        "expect.metadata": {
+          "$ref": "#/definitions/AccountsMetadata"
+        },
+
+        "expect.missingFunds": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "Balances": {
+      "type": "object",
+      "description": "Map of account names to asset balances",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^([A-Z]+(/[0-9]+)?)$": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+
+    "VariablesMap": {
+      "type": "object",
+      "description": "Map of variable name to variable stringified value",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": { "type": "string" }
+      }
+    },
+
+    "AccountsMetadata": {
+      "type": "object",
+      "description": "Map of an account metadata to the account's metadata",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+
+    "TxMetadata": {
+      "type": "object",
+      "description": "Map from a metadata's key to the transaction's metadata stringied value",
+      "additionalProperties": { "type": "string" }
+    },
+
+    "Movements": {
+      "type": "object",
+      "description": "The funds sent from an account to another",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
+              "type": "object",
+              "patternProperties": {
+                "^([A-Z]+(/[0-9]+)?)$": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "Posting": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "destination": { "type": "string" },
+        "asset": {
+          "type": "string",
+          "pattern": "^([A-Z]+(/[0-9]+)?)$"
+        },
+        "amount": {
+          "type": "number"
+        }
+      },
+      "required": ["source", "destination", "asset", "amount"]
+    }
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,9 +42,40 @@ func TestCloneBalances(t *testing.T) {
 		},
 	}
 
-	cloned := fullBalance.deepClone()
+	cloned := fullBalance.DeepClone()
 
 	fullBalance["alice"]["USD/2"].Set(big.NewInt(42))
 
 	require.Equal(t, big.NewInt(2), cloned["alice"]["USD/2"])
+}
+
+func TestPrettyPrintBalance(t *testing.T) {
+	fullBalance := Balances{
+		"alice": AccountBalance{
+			"EUR/2":    big.NewInt(1),
+			"USD/1234": big.NewInt(999999),
+		},
+		"bob": AccountBalance{
+			"BTC": big.NewInt(3),
+		},
+	}
+
+	snaps.MatchSnapshot(t, fullBalance.PrettyPrint())
+}
+
+func TestCmpMaps(t *testing.T) {
+
+	b1 := Balances{
+		"alice": AccountBalance{
+			"EUR": big.NewInt(100),
+		},
+	}
+
+	b2 := Balances{
+		"alice": AccountBalance{
+			"EUR": big.NewInt(42),
+		},
+	}
+
+	require.Equal(t, false, CompareBalances(b1, b2))
 }
