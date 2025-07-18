@@ -1,11 +1,9 @@
 {
-  "featureFlags": [
-    "experimental-get-amount-function"
-  ],
+  "featureFlags": ["experimental-get-amount-function"],
   "testCases": [
     {
       "it": "-",
-      "expect.txMeta": {
+      "expect.txMetadata": {
         "amt": "100"
       }
     }

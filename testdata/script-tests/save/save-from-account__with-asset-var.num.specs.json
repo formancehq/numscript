@@ -7,7 +7,7 @@
           "USD": 20
         }
       },
-      "vars": {
+      "variables": {
         "ass": "USD"
       },
       "expect.postings": [

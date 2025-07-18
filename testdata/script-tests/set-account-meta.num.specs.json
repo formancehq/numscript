@@ -2,7 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "expect.accountsMeta": {
+      "expect.metadata": {
         "acc": {
           "account": "acc",
           "asset": "COIN",

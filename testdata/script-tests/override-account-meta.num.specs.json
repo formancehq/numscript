@@ -2,13 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "accountsMeta": {
+      "metadata": {
         "acc": {
           "initial": "0",
           "overridden": "1"
         }
       },
-      "expect.accountsMeta": {
+      "expect.metadata": {
         "acc": {
           "new": "2",
           "overridden": "100"

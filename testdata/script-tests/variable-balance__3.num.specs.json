@@ -10,7 +10,7 @@
           "USD/2": 90
         }
       },
-      "vars": {
+      "variables": {
         "acc": "A"
       },
       "expect.postings": [

@@ -1,16 +1,14 @@
 {
-  "featureFlags": [
-    "experimental-account-interpolation"
-  ],
+  "featureFlags": ["experimental-account-interpolation"],
   "testCases": [
     {
       "it": "-",
-      "vars": {
+      "variables": {
         "acc": "user:001",
         "id": "42",
         "status": "pending"
       },
-      "expect.txMeta": {
+      "expect.txMetadata": {
         "k": "acc:42:pending:user:001"
       }
     }

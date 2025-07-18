@@ -2,7 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMeta": {
+      "expect.txMetadata": {
         "account": "acc",
         "asset": "COIN",
         "num": "42",

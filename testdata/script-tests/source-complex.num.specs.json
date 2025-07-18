@@ -16,7 +16,7 @@
           "COIN": 1000
         }
       },
-      "vars": {
+      "variables": {
         "max": "COIN 120"
       },
       "expect.postings": [

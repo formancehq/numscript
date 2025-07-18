@@ -10,10 +10,10 @@
           "EUR/2": 500
         }
       },
-      "vars": {
+      "variables": {
         "sale": "sales:042"
       },
-      "accountsMeta": {
+      "metadata": {
         "sales:042": {
           "seller": "users:053"
         },

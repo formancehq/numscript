@@ -2,7 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "vars": {
+      "variables": {
         "den": "3",
         "num": "1"
       },

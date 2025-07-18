@@ -11,7 +11,7 @@
         },
         "swap": {}
       },
-      "vars": {
+      "variables": {
         "ass": "USD"
       },
       "expect.postings": [

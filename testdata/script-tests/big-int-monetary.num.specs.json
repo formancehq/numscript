@@ -2,7 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "vars": {
+      "variables": {
         "amt": "USD/123 99999223372036854775807"
       },
       "expect.postings": [

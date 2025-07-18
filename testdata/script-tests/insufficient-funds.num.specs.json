@@ -10,7 +10,7 @@
           "GEM": 3
         }
       },
-      "vars": {
+      "variables": {
         "balance": "users:001",
         "payment": "payments:001",
         "seller": "users:002"

@@ -7,7 +7,7 @@
           "EUR/2": 1000
         }
       },
-      "vars": {
+      "variables": {
         "ass": "EUR/2",
         "description": "midnight ride",
         "driver": "users:002",
@@ -22,7 +22,7 @@
           "asset": "EUR/2"
         }
       ],
-      "expect.txMeta": {
+      "expect.txMetadata": {
         "description": "midnight ride",
         "ride": "1"
       }

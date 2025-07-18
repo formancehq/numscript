@@ -7,7 +7,7 @@
           "GEM": 15
         }
       },
-      "vars": {
+      "variables": {
         "driver": "users:002",
         "rider": "users:001"
       },

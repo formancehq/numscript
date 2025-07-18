@@ -10,7 +10,7 @@
           "B": 100
         }
       },
-      "vars": {
+      "variables": {
         "a_account": "world"
       },
       "expect.postings": [

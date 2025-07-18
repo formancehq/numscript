@@ -2,7 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMeta": {
+      "expect.txMetadata": {
         "k": "9"
       }
     }

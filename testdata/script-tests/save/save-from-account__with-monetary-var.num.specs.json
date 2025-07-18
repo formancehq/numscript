@@ -7,7 +7,7 @@
           "USD": 20
         }
       },
-      "vars": {
+      "variables": {
         "mon": "USD 10"
       },
       "expect.postings": [

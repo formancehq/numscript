@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/29a351f9aa5ae03d72b85f55981e52dd57e81c07/specs.schema.json",
-  "vars": {
+  "variables": {
     "amt": "100"
   },
   "featureFlags": ["experimental-overdraft-function"],
