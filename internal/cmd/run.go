@@ -54,7 +54,7 @@ func run(scriptPath string, opts RunArgs) error {
 	var inputs InputsFile
 	err = json.Unmarshal(inputsContent, &inputs)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse inputs file '%s' as JSON: %w", inputsPath, err)
 	}
 
 	featureFlags := map[string]struct{}{}
