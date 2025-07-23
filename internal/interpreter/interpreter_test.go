@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const scriptsFolder = "../../testdata/script-tests"
+const scriptsFolder = "testdata/script-tests"
 
 func TestScripts(t *testing.T) {
 	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
