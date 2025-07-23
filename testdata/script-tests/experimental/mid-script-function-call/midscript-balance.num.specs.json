@@ -1,0 +1,23 @@
+{
+  "featureFlags": [
+    "experimental-mid-script-function-call"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "acc": {
+          "USD/2": 42
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 42,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

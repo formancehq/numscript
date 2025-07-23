@@ -1,0 +1,20 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:001": {
+          "USD/2": 17
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:001",
+          "destination": "platform",
+          "amount": 17,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

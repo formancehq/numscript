@@ -1,0 +1,7 @@
+
+vars { monetary $v = balance(@src, COIN) }
+
+send $v (
+  source = @src
+  destination = @dest
+)

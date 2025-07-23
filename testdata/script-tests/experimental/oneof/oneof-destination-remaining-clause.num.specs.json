@@ -1,0 +1,18 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "rem",
+          "amount": 100,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

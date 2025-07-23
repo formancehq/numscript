@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/29a351f9aa5ae03d72b85f55981e52dd57e81c07/specs.schema.json",
+  "variables": {
+    "amt": "100"
+  },
+  "featureFlags": ["experimental-overdraft-function"],
+  "testCases": [
+    {
+      "balances": {
+        "invoice:001": { "USD/2": -999 }
+      },
+      "it": "only sends to the first one if there's not enough funds to top-up its balance",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "invoice:001",
+          "amount": 100,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "balances": {
+        "invoice:001": { "USD/2": -99 },
+        "invoice:002": { "USD/2": -999 }
+      },
+      "it": "it sends to the second source after topping-up the first one",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "invoice:001",
+          "amount": 99,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "invoice:002",
+          "amount": 1,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "balances": {
+        "invoice:001": { "USD/2": -2 },
+        "invoice:002": { "USD/2": -3 }
+      },
+      "it": "it keeps the spare amount",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "invoice:001",
+          "amount": 2,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "invoice:002",
+          "amount": 3,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

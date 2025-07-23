@@ -1,0 +1,6 @@
+
+   vars { number $a = get_amount([ABC 100]) }
+
+   set_tx_meta("amt", $a)
+
+

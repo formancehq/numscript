@@ -1,0 +1,47 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:1234:main": {
+          "USD/2": 5000
+        },
+        "users:1234:vouchers:2024-01-31": {
+          "USD/2": 1000
+        },
+        "users:1234:vouchers:2024-02-17": {
+          "USD/2": 3000
+        },
+        "users:1234:vouchers:2024-03-22": {
+          "USD/2": 10000
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:1234:main",
+          "destination": "orders:4567:payment",
+          "amount": 5000,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:1234:vouchers:2024-01-31",
+          "destination": "orders:4567:payment",
+          "amount": 1000,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:1234:vouchers:2024-02-17",
+          "destination": "orders:4567:payment",
+          "amount": 3000,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:1234:vouchers:2024-03-22",
+          "destination": "orders:4567:payment",
+          "amount": 1000,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

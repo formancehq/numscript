@@ -1,0 +1,11 @@
+{
+  "featureFlags": ["experimental-get-asset-function"],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.txMetadata": {
+        "asset": "ABC"
+      }
+    }
+  ]
+}

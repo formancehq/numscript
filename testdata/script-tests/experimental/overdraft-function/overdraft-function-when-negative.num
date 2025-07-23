@@ -1,0 +1,9 @@
+
+   vars { monetary $amt = overdraft(@acc, EUR/2) }
+
+   send $amt (
+     source = @world
+     destination = @dest
+   )
+
+

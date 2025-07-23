@@ -1,0 +1,21 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "payments:001": {
+          "GEM": 12
+        },
+        "users:001": {
+          "GEM": 3
+        }
+      },
+      "variables": {
+        "balance": "users:001",
+        "payment": "payments:001",
+        "seller": "users:002"
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "users:2345:credit": {},
+        "users:2345:main": {
+          "USD/2": 8000
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "users:1234",
+          "destination": "payments:4567",
+          "amount": 100,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:2345:credit",
+          "destination": "payments:4567",
+          "amount": 1000,
+          "asset": "USD/2"
+        },
+        {
+          "source": "users:2345:main",
+          "destination": "payments:4567",
+          "amount": 5000,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

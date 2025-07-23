@@ -1,0 +1,13 @@
+{
+  "featureFlags": [
+    "experimental-overdraft-function"
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "acc": {}
+      }
+    }
+  ]
+}

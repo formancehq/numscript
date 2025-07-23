@@ -1,0 +1,19 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "metadata": {
+        "acc": {
+          "initial": "0",
+          "overridden": "1"
+        }
+      },
+      "expect.metadata": {
+        "acc": {
+          "new": "2",
+          "overridden": "100"
+        }
+      }
+    }
+  ]
+}

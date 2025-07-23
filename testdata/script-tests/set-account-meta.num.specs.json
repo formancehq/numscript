@@ -1,0 +1,17 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.metadata": {
+        "acc": {
+          "account": "acc",
+          "asset": "COIN",
+          "num": "42",
+          "portion": "2/7",
+          "portion-perc": "1/100",
+          "str": "abc"
+        }
+      }
+    }
+  ]
+}

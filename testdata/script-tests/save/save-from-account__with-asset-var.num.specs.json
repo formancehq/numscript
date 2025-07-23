@@ -1,0 +1,29 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "alice": {
+          "USD": 20
+        }
+      },
+      "variables": {
+        "ass": "USD"
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "bob",
+          "amount": 10,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "bob",
+          "amount": 20,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}
