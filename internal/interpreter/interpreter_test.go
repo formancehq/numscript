@@ -20,6 +20,8 @@ import (
 const scriptsFolder = "testdata/script-tests"
 
 func TestScripts(t *testing.T) {
+	t.Parallel()
+
 	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
 	require.Nil(t, err)
 
