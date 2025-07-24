@@ -124,14 +124,17 @@ will expect a 'folder/my-script.num.inputs.json' file where to read inputs from.
 You can use explicitly specify where the inputs file should be using the optional --inputs argument.
 `,
 		Args: cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			path := args[0]
 
 			err := run(path, opts)
 			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				os.Exit(1)
+				cmd.SilenceErrors = true
+				cmd.SilenceUsage = true
+				return err
 			}
+
+			return nil
 		},
 	}
 
