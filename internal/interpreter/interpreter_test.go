@@ -421,8 +421,6 @@ func TestNegativeBalanceLiteral(t *testing.T) {
 	test(t, tc)
 }
 
-// TODO TestVariablesParsing, TestSetVarsFromJSON, TestResolveResources, TestResolveBalances, TestMachine
-
 func TestOverdraftBadCurrency(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `
