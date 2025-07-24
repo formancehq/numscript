@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../specs.schema.json",
+  "variables": {
+    "cap": "10",
+    "fee": "10%"
+  },
+  "testCases": [
+    {
+      "it": "it sends 10% of the fee when lower than cap",
+      "variables": {
+        "amt": "10"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 1,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 9,
+          "asset": "USD"
+        }
+      ]
+    },
+    {
+      "it": "it caps the fee to the $cap",
+      "variables": {
+        "amt": "500"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 10,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 40,
+          "asset": "USD"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 450,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

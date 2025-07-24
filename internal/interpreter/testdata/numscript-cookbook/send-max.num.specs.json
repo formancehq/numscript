@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../specs.schema.json",
+  "testCases": [
+    {
+      "it": "is capped to USD100 when balance is higher",
+      "balances": {
+        "src": { "USD": 999 }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "USD"
+        }
+      ]
+    },
+    {
+      "it": "allows sending less than the cap when balance is not enough",
+      "balances": {
+        "src": { "USD": 42 }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 42,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

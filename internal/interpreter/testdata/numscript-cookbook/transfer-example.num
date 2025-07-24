@@ -1,0 +1,11 @@
+vars {
+  number $amt
+  account $dest
+  monetary $bank_overdraft = overdraft(@bank_account, EUR)
+}
+
+send [EUR $amt] (
+  source = max $bank_overdraft from @wallet
+  destination = $dest
+)
+

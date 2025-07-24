@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../../specs.schema.json",
+  "variables": {
+    "amt": "10"
+  },
+  "featureFlags": ["experimental-oneof"],
+  "testCases": [
+    {
+      "it": "sends from the first source when there is enough balance",
+      "balances": {
+        "s1": {
+          "USD": 999
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "s1",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD"
+        }
+      ]
+    },
+    {
+      "it": "sends from the second one when it has enough balance but the first one doesn't",
+      "balances": {
+        "s1": {
+          "USD": 9
+        },
+        "s2": {
+          "USD": 999
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "s2",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD"
+        }
+      ]
+    },
+    {
+      "it": "sends partially from both when none of them has enough balance on its own",
+      "balances": {
+        "s1": {
+          "USD": 6
+        },
+        "s2": {
+          "USD": 9
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "s1",
+          "destination": "dest",
+          "amount": 6,
+          "asset": "USD"
+        },
+        {
+          "source": "s2",
+          "destination": "dest",
+          "amount": 4,
+          "asset": "USD"
+        }
+      ]
+    },
+    {
+      "it": "fails if there aren't enough funds between all sources",
+      "balances": {
+        "s1": {
+          "USD": 5
+        },
+        "s2": {
+          "USD": 4
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}
