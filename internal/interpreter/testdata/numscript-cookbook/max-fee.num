@@ -1,7 +1,3 @@
-// properties:
-// $fee * $amt <= $cap -> movements(@world, @fees, USD) == $fee * $amt
-// $fee * $amt > $cap -> movements(@world, @fees, USD) == $cap
-
 vars {
   number $amt
   number $cap
