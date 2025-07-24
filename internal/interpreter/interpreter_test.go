@@ -17,9 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const scriptsFolder = "../../testdata/script-tests"
+const scriptsFolder = "testdata/script-tests"
 
 func TestScripts(t *testing.T) {
+	t.Parallel()
+
 	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
 	require.Nil(t, err)
 
@@ -418,8 +420,6 @@ func TestNegativeBalanceLiteral(t *testing.T) {
 	}
 	test(t, tc)
 }
-
-// TODO TestVariablesParsing, TestSetVarsFromJSON, TestResolveResources, TestResolveBalances, TestMachine
 
 func TestOverdraftBadCurrency(t *testing.T) {
 	tc := NewTestCase()
