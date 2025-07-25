@@ -4,7 +4,8 @@
       "it": "-",
       "balances": {
         "a": {}
-      }
+      },
+      "expect.postings": []
     }
   ]
 }

@@ -6,7 +6,8 @@
         "src": {
           "USD/2": 0
         }
-      }
+      },
+      "expect.postings": []
     }
   ]
 }
