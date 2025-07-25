@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
   "variables": {
     "amt": "EUR/2 100",
     "limit": "EUR/2 150"
@@ -8,7 +9,6 @@
       "EUR/2": 9999
     }
   },
-  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
   "testCases": [
     {
       "it": "should send the amount when destination doesn't reach 150",
