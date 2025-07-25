@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "variables": {
+    "amt": "EUR/2 100",
+    "limit": "EUR/2 150"
+  },
+  "balances": {
+    "alice": {
+      "EUR/2": 9999
+    }
+  },
+  "testCases": [
+    {
+      "it": "should send the amount when destination doesn't reach 150",
+      "balances": {
+        "jon": {
+          "EUR/2": 0
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "jon",
+          "amount": 100,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "should send the amount when destination doesn't reach 150 (2)",
+      "balances": {
+        "jon": {
+          "EUR/2": 50
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "jon",
+          "amount": 100,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "should fail if the end balance would exceed 150",
+      "balances": {
+        "jon": {
+          "EUR/2": 51
+        }
+      },
+      "expect.missingFunds": true
+    }
+  ]
+}

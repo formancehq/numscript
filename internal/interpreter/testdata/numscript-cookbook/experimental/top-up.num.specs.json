@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-overdraft-function"],
+  "testCases": [
+    {
+      "it": "should not emit postings",
+      "balances": { "alice": { "EUR": 100 } },
+      "expect.postings": []
+    },
+    {
+      "it": "should send the missing amount to an overdraft account",
+      "balances": { "alice": { "EUR": -100 } },
+      "expect.volumes": {
+        "alice": { "EUR": 0 },
+        "world": { "EUR": -100 }
+      },
+      "expect.movements": {
+        "world": {
+          "alice": { "EUR": 100 }
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "alice",
+          "amount": 100,
+          "asset": "EUR"
+        }
+      ]
+    }
+  ]
+}
