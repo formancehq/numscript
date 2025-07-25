@@ -2,4 +2,9 @@ vars {
   number $x = 10 + 1
 }
 
+send [USD/2 10] (
+  source = @world
+  destination = @alice
+)
+
 set_tx_meta("key", $x/2)
