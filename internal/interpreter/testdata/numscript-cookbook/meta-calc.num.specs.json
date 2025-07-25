@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../specs.schema.json",
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
   "featureFlags": [
     "experimental-overdraft-function",
     "experimental-mid-script-function-call",

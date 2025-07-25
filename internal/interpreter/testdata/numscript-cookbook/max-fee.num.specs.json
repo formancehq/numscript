@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../specs.schema.json",
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
   "variables": {
     "cap": "10",
     "fee": "10%"
