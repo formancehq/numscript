@@ -3,7 +3,7 @@
   "featureFlags": ["experimental-overdraft-function"],
   "testCases": [
     {
-      "it": "should be a noop for positive balances",
+      "it": "should not emit postings",
       "balances": { "alice": { "EUR": 100 } },
       "expect.postings": []
     },
