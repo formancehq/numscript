@@ -9,7 +9,8 @@
         "acc": {
           "EUR/2": 100
         }
-      }
+      },
+      "expect.postings": []
     }
   ]
 }

@@ -5,7 +5,8 @@
       "balances": {
         "a": {},
         "b": {}
-      }
+      },
+      "expect.postings": []
     }
   ]
 }

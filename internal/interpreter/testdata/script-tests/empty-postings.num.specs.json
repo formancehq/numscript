@@ -6,7 +6,8 @@
         "foo": {
           "GEM": 0
         }
-      }
+      },
+      "expect.postings": []
     }
   ]
 }
