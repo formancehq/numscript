@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/gkampitakis/go-snaps v0.5.13
+	github.com/gkampitakis/go-snaps v0.5.14
 	github.com/sergi/go-diff v1.0.0
 )
 
