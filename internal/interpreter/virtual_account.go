@@ -87,7 +87,8 @@ func send(
 				Asset:       coloredAsset(asset, &color),
 			}}
 		case VirtualAccount:
-			panic("TODO2")
+			// should be unreachable
+			panic("Unhandled: send from addr to virtual account")
 		}
 
 	case VirtualAccount:
@@ -101,7 +102,8 @@ func send(
 			})
 
 		case VirtualAccount:
-			panic("TODO4")
+			// should be unreachable
+			panic("Unhandled: send from virtual account to virtual account")
 		}
 
 	}
