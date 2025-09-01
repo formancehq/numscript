@@ -121,9 +121,8 @@ var Builtins = map[string]FnCallResolution{
 		Docs:   "create a virtual account",
 		VersionConstraints: []VersionClause{
 			{
-				// TODO flag
-				Version: parser.NewVersionInterpreter(0, 0, 17),
-				// FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+				Version:     parser.NewVersionInterpreter(0, 0, 20),
+				FeatureFlag: flags.ExperimentalVirtualAccount,
 			},
 		},
 	},
