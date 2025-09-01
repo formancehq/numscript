@@ -156,6 +156,12 @@ func getAmount(
 	return mon.Amount, nil
 }
 
-func virtual() Value {
-	return Account{Repr: NewVirtualAccount()}
+func virtual(
+	s *programState,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalVirtualAccount)
+	if err != nil {
+		return nil, err
+	}
+	return Account{Repr: NewVirtualAccount()}, nil
 }

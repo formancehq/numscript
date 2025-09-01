@@ -195,7 +195,7 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
 	case analysis.FnVarOriginVirtual:
-		return virtual(), nil
+		return virtual(s)
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
