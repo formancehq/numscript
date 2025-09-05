@@ -26,7 +26,7 @@ func overdraft(
 		return nil, err
 	}
 
-	balance_, err := getBalance(s, *account, *asset)
+	balance_, err := getBalance(s, Account{Repr: AccountAddress(*account)}, *asset)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func balance(
 ) (*Monetary, InterpreterError) {
 	// TODO more precise args range location
 	p := NewArgsParser(args)
-	account := parseArg(p, r, expectAccountAddress)
+	account := parseArg(p, r, expectAccount)
 	asset := parseArg(p, r, expectAsset)
 	err := p.parse()
 	if err != nil {
@@ -102,7 +102,7 @@ func balance(
 
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, NegativeBalanceError{
-			Account: Account{AccountAddress(*account)},
+			Account: *account,
 			Amount:  *balance,
 		}
 	}

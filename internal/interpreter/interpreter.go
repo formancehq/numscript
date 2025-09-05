@@ -990,16 +990,42 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 // Utility function to get the balance
 func getBalance(
 	s *programState,
-	account string,
+	account Account,
 	asset string,
 ) (*big.Int, InterpreterError) {
-	s.batchQuery(account, asset, nil)
-	fetchBalanceErr := s.runBalancesQuery()
-	if fetchBalanceErr != nil {
-		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+	switch accountRepr := account.Repr.(type) {
+	case AccountAddress:
+		account := string(accountRepr)
+		s.batchQuery(account, asset, nil)
+		fetchBalanceErr := s.runBalancesQuery()
+		if fetchBalanceErr != nil {
+			return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
+		}
+		balance := s.CachedBalances.fetchBalance(account, asset, "")
+		return balance, nil
+
+	case VirtualAccount:
+		fs := accountRepr.credits[s.CurrentAsset]
+		if fs == nil {
+			return big.NewInt(0), nil
+		}
+
+		lst := fs.senders
+		sum := big.NewInt(0)
+
+		for lst != nil {
+			if lst.Head.Color == "" {
+				sum.Add(sum, lst.Head.Amount)
+			}
+			lst = lst.Tail
+		}
+		return sum, nil
+
+	default:
+		utils.NonExhaustiveMatchPanic[any](account.Repr)
+		return nil, nil
+
 	}
-	balance := s.CachedBalances.fetchBalance(account, asset, "")
-	return balance, nil
 
 }
 
