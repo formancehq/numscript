@@ -32,7 +32,7 @@ type TestCase struct {
 	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
 	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
 	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
+	ExpectEndBalances  interpreter.Balances         `json:"expect.endBalances,omitempty"`
 	ExpectMovements    Movements                    `json:"expect.movements,omitempty"`
 }
 
@@ -166,10 +166,10 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				)
 			}
 
-			if testCase.ExpectVolumes != nil {
+			if testCase.ExpectEndBalances != nil {
 				failedAssertions = runAssertion(failedAssertions,
-					"expect.volumes",
-					testCase.ExpectVolumes,
+					"expect.endBalances",
+					testCase.ExpectEndBalances,
 					getVolumes(result.Postings, balances),
 					interpreter.CompareBalances,
 				)

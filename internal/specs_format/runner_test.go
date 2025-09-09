@@ -92,7 +92,7 @@ func TestComplexAssertions(t *testing.T) {
 					"balances": {
 						"alice": { "USD/2": 9999 }
 					},
-					"expect.volumes": {
+					"expect.endBalances": {
 							"alice": { "USD/2": -100 },
 							"dest": { "USD/2": 1 }
 					},

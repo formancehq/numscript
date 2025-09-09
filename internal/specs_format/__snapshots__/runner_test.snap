@@ -57,7 +57,7 @@ GIVEN:[0m
 [32m- true[0m
 [31m+ false[0m
 
-[4mexpect.volumes[0m
+[4mexpect.endBalances[0m
 
 [90m  {[0m
 [90m    "alice": {[0m
