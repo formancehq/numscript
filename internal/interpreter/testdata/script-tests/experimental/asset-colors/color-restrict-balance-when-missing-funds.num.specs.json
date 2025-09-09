@@ -1,7 +1,5 @@
 {
-  "featureFlags": [
-    "experimental-asset-colors"
-  ],
+  "featureFlags": ["experimental-asset-colors"],
   "testCases": [
     {
       "it": "-",
@@ -11,7 +9,7 @@
           "COIN_RED": 1
         }
       },
-      "expect.missingFunds": true
+      "expect.errMissingFunds": true
     }
   ]
 }

@@ -163,7 +163,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
-				"expect.missingFunds": false,
+				"expect.errMissingFunds": false,
 				"expect.postings": null
 			}
 		]
@@ -196,7 +196,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
 					{
-						Assertion: "expect.missingFunds",
+						Assertion: "expect.errMissingFunds",
 						Expected:  false,
 						Got:       true,
 					},
@@ -250,7 +250,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
 					{
-						Assertion: "expect.missingFunds",
+						Assertion: "expect.errMissingFunds",
 						Got:       true,
 						Expected:  false,
 					},

@@ -26,7 +26,8 @@ type TestCase struct {
 	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
 
 	// Expectations
-	ExpectMissingFunds bool                         `json:"expect.missingFunds,omitempty"`
+	ExpectMissingFunds bool `json:"expect.errMissingFunds,omitempty"`
+
 	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
 	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
 	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
@@ -102,7 +103,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if !testCase.ExpectMissingFunds {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.missingFunds",
+					Assertion: "expect.errMissingFunds",
 					Expected:  false,
 					Got:       true,
 				})
@@ -112,7 +113,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if testCase.ExpectMissingFunds {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.missingFunds",
+					Assertion: "expect.errMissingFunds",
 					Expected:  true,
 					Got:       false,
 				})
