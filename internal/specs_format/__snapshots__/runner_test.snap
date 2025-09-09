@@ -14,6 +14,12 @@
 
 
 [1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > tfailing[0m
+[4m
+GOT:[0m
+
+| [36mSource[0m | [36mDestination[0m | [36mAsset[0m | [36mAmount[0m |
+| world  | dest        | USD/2 | 100    |
+
 
 [32m- Expected[0m
 [31m+ Received
@@ -47,6 +53,12 @@ GIVEN:[0m
 
 | [36mAccount[0m | [36mAsset[0m | [36mBalance[0m |
 | alice   | USD/2 | 9999    |
+
+[4m
+GOT:[0m
+
+| [36mSource[0m | [36mDestination[0m | [36mAsset[0m | [36mAmount[0m |
+| alice  | dest        | USD/2 | 100    |
 
 
 [32m- Expected[0m

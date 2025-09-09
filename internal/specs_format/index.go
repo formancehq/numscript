@@ -206,6 +206,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			specsResult.Failing += 1
 		}
 
+		var postings []interpreter.Posting
+		if result != nil {
+			postings = result.Postings
+		}
+
 		specsResult.Cases = append(specsResult.Cases, TestCaseResult{
 			It:               testCase.It,
 			Pass:             pass,
@@ -213,7 +218,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			Balances:         balances,
 			Vars:             vars,
 			FailedAssertions: failedAssertions,
-			Postings:         result.Postings,
+			Postings:         postings,
 		})
 	}
 

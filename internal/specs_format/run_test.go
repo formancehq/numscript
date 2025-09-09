@@ -63,22 +63,15 @@ func TestRunSpecsSimple(t *testing.T) {
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
-				// ExpectedPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(42),
-				// 	},
-				// },
-				// ActualPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(42),
-				// 	},
-				// },
+
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(42),
+					},
+				},
 			},
 		},
 	}, out)
@@ -134,22 +127,14 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 					},
 				},
 				FailedAssertions: nil,
-				// ExpectedPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(1),
-				// 	},
-				// },
-				// ActualPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(1),
-				// 	},
-				// },
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(1),
+					},
+				},
 			},
 		},
 	}, out)
@@ -301,6 +286,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
+				Postings:         []interpreter.Posting{},
 			},
 		},
 	}, out)
