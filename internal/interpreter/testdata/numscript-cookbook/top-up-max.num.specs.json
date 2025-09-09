@@ -49,7 +49,7 @@
           "EUR/2": 51
         }
       },
-      "expect.errMissingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

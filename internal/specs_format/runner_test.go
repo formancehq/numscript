@@ -101,14 +101,14 @@ func TestComplexAssertions(t *testing.T) {
 							"dest": { "EUR": 100 }
 						}
 					},
-					"expect.errMissingFunds": true
+					"expect.error.missingFunds": true
 				},
 				{
 					"it": "tpassing",
 					"balances": {
 						"alice": { "USD/2": 0 }
 					},
-					"expect.errMissingFunds": true
+					"expect.error.missingFunds": true
 				}
 			] 
 		}
@@ -194,7 +194,7 @@ func TestRuntimeErr(t *testing.T) {
 			"testCases": [
 				{
 					"it": "runs",
-					"expect.errMissingFunds": false
+					"expect.error.missingFunds": false
 				}
 			] 
 		}

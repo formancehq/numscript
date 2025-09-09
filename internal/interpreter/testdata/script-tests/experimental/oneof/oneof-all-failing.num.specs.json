@@ -8,7 +8,7 @@
         "empty2": {},
         "empty3": {}
       },
-      "expect.errMissingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

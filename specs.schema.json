@@ -64,7 +64,7 @@
           "$ref": "#/definitions/AccountsMetadata"
         },
 
-        "expect.errMissingFunds": {
+        "expect.error.missingFunds": {
           "type": "boolean"
         }
       }

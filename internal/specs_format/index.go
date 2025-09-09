@@ -26,8 +26,8 @@ type TestCase struct {
 	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
 
 	// Expectations
-	ExpectMissingFunds   bool `json:"expect.errMissingFunds,omitempty"`
-	ExpectNegativeAmount bool `json:"expect.errNegativeAmount,omitempty"`
+	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
+	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
 
 	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
 	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
@@ -101,7 +101,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			case interpreter.MissingFundsErr:
 				if !testCase.ExpectMissingFunds {
 					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-						Assertion: "expect.errMissingFunds",
+						Assertion: "expect.error.missingFunds",
 						Expected:  false,
 						Got:       true,
 					})
@@ -109,7 +109,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			case interpreter.NegativeAmountErr:
 				if !testCase.ExpectNegativeAmount {
 					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-						Assertion: "expect.errNegativeAmount",
+						Assertion: "expect.error.negativeAmount",
 						Expected:  false,
 						Got:       true,
 					})
@@ -121,7 +121,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if testCase.ExpectMissingFunds {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.errMissingFunds",
+					Assertion: "expect.error.missingFunds",
 					Expected:  true,
 					Got:       false,
 				})
@@ -129,7 +129,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if testCase.ExpectNegativeAmount {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.errNegativeAmount",
+					Assertion: "expect.error.negativeAmount",
 					Expected:  true,
 					Got:       false,
 				})

@@ -52,7 +52,7 @@ GIVEN:[0m
 [32m- Expected[0m
 [31m+ Received
 [0m
-[4mexpect.errMissingFunds[0m
+[4mexpect.error.missingFunds[0m
 
 [32m- true[0m
 [31m+ false[0m
