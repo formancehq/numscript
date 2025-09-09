@@ -34,6 +34,15 @@
           "type": "string",
           "description": "Test case description"
         },
+        "focus": {
+          "type": "boolean",
+          "description": "Skip all the other tests. Just for debugging: it will result in an error exit code"
+        },
+        "skip": {
+          "type": "boolean",
+          "description": "Skip this test. Just for debugging: it will result in an error exit code"
+        },
+
         "balances": {
           "$ref": "#/definitions/Balances"
         },

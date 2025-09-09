@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"reflect"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -20,10 +21,16 @@ type Specs struct {
 }
 
 type TestCase struct {
-	It       string                       `json:"it"`
+	It string `json:"it"`
+
+	// Preconditions
 	Balances interpreter.Balances         `json:"balances,omitempty"`
 	Vars     interpreter.VariablesMap     `json:"variables,omitempty"`
 	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
+
+	// Select tests
+	Focus bool `json:"focus,omitempty"`
+	Skip  bool `json:"skip,omitempty"`
 
 	// Expectations
 	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
@@ -38,6 +45,7 @@ type TestCase struct {
 }
 
 type TestCaseResult struct {
+	Skipped  bool                         `json:"skipped"`
 	It       string                       `json:"it"`
 	Pass     bool                         `json:"pass"`
 	Balances interpreter.Balances         `json:"balances"`
@@ -56,6 +64,7 @@ type SpecsResult struct {
 	Total   uint `json:"total"`
 	Passing uint `json:"passing"`
 	Failing uint `json:"failing"`
+	Skipped uint `json:"skipped"`
 	Cases   []TestCaseResult
 }
 
@@ -74,13 +83,25 @@ func runAssertion[T any](failedAssertions []AssertionMismatch[any], assertion st
 
 func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.InterpreterError) {
 	specsResult := SpecsResult{}
+	// we need a first pass to know whether there is at least on test in focus mode
+	hasFocusedTest := slices.ContainsFunc(specs.TestCases, func(t TestCase) bool {
+		return t.Focus
+	})
 
 	for _, testCase := range specs.TestCases {
+		shouldSkip := testCase.Skip || (hasFocusedTest && !testCase.Focus)
+		if shouldSkip {
+			specsResult.Skipped += 1
+			specsResult.Cases = append(specsResult.Cases, TestCaseResult{
+				It:      testCase.It,
+				Skipped: true,
+			})
+			continue
+		}
+
 		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
 		balances := mergeBalances(specs.Balances, testCase.Balances)
 		vars := mergeVars(specs.Vars, testCase.Vars)
-
-		specsResult.Total += 1
 
 		featureFlags := make(map[string]struct{})
 		for _, flag := range specs.FeatureFlags {
@@ -222,6 +243,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		})
 	}
 
+	specsResult.Total = uint(len(specs.TestCases))
 	return specsResult, nil
 }
 

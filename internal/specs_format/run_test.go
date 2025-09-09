@@ -338,3 +338,106 @@ func TestNegativeAmt(t *testing.T) {
 	}, out)
 
 }
+
+func TestSkip(t *testing.T) {
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"skip": true
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   1,
+		Failing: 0,
+		Passing: 0,
+		Skipped: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:      "t1",
+				Pass:    false,
+				Skipped: true,
+			},
+		},
+	}, out)
+
+}
+
+func TestFocus(t *testing.T) {
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "source": "src", "amount": "10" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			},
+			{
+				"it": "t2",
+				"focus": true,
+				"variables": { "source": "src", "amount": "42" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   2,
+		Failing: 0,
+		Passing: 1,
+		Skipped: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:      "t1",
+				Skipped: true,
+			},
+
+			{
+				It:   "t2",
+				Pass: true,
+				Vars: interpreter.VariablesMap{
+					"source": "src",
+					"amount": "42",
+				},
+				Balances: interpreter.Balances{
+					"src": interpreter.AccountBalance{
+						"USD": big.NewInt(9999),
+					},
+				},
+				Meta:             interpreter.AccountsMetadata{},
+				FailedAssertions: nil,
+
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(42),
+					},
+				},
+			},
+		},
+	}, out)
+
+}
