@@ -13,6 +13,7 @@ import (
 
 // --- Specs:
 type Specs struct {
+	Schema       string                       `json:"$schema,omitempty"`
 	FeatureFlags []string                     `json:"featureFlags,omitempty"`
 	Balances     interpreter.Balances         `json:"balances,omitempty"`
 	Vars         interpreter.VariablesMap     `json:"variables,omitempty"`

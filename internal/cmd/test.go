@@ -11,9 +11,7 @@ type testArgs struct {
 	paths []string
 }
 
-var opts = testArgs{}
-
-func runTestCmd() {
+func runTestCmd(opts testArgs) {
 	files, err := specs_format.ReadSpecsFiles(opts.paths)
 	if err != nil {
 		_, _ = os.Stderr.Write([]byte(err.Error()))
@@ -37,13 +35,12 @@ and tests the corresponding <file>.num file (if any).
 Defaults to "." if there are no given paths`,
 		Args: cobra.MatchAll(),
 		Run: func(cmd *cobra.Command, paths []string) {
-
 			if len(paths) == 0 {
 				paths = []string{"."}
 			}
-
-			opts.paths = paths
-			runTestCmd()
+			runTestCmd(testArgs{
+				paths: paths,
+			})
 		},
 	}
 
