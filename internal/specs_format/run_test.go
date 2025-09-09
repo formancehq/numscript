@@ -306,3 +306,49 @@ func TestNullPostingsIsNoop(t *testing.T) {
 	}, out)
 
 }
+
+func TestNegativeAmt(t *testing.T) {
+	exampleProgram := parser.Parse(`
+		vars { number $amt }
+		send [USD $amt] (
+			source = @world
+			destination = @dest
+		)
+	`)
+
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "amt": "-100" },
+				"expect.errNegativeAmount": true
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   1,
+		Failing: 0,
+		Passing: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:   "t1",
+				Pass: true,
+				Vars: interpreter.VariablesMap{
+					"amt": "-100",
+				},
+				Balances:         interpreter.Balances{},
+				Meta:             interpreter.AccountsMetadata{},
+				FailedAssertions: nil,
+			},
+		},
+	}, out)
+
+}

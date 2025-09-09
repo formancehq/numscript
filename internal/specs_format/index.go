@@ -26,7 +26,8 @@ type TestCase struct {
 	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
 
 	// Expectations
-	ExpectMissingFunds bool `json:"expect.errMissingFunds,omitempty"`
+	ExpectMissingFunds   bool `json:"expect.errMissingFunds,omitempty"`
+	ExpectNegativeAmount bool `json:"expect.errNegativeAmount,omitempty"`
 
 	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
 	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
@@ -96,24 +97,39 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		var failedAssertions []AssertionMismatch[any]
 
 		if err != nil {
-			_, ok := err.(interpreter.MissingFundsErr)
-			if !ok {
+			switch err.(type) {
+			case interpreter.MissingFundsErr:
+				if !testCase.ExpectMissingFunds {
+					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+						Assertion: "expect.errMissingFunds",
+						Expected:  false,
+						Got:       true,
+					})
+				}
+			case interpreter.NegativeAmountErr:
+				if !testCase.ExpectNegativeAmount {
+					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+						Assertion: "expect.errNegativeAmount",
+						Expected:  false,
+						Got:       true,
+					})
+				}
+			default:
 				return SpecsResult{}, err
 			}
-
-			if !testCase.ExpectMissingFunds {
-				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.errMissingFunds",
-					Expected:  false,
-					Got:       true,
-				})
-			}
-
 		} else {
 
 			if testCase.ExpectMissingFunds {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
 					Assertion: "expect.errMissingFunds",
+					Expected:  true,
+					Got:       false,
+				})
+			}
+
+			if testCase.ExpectNegativeAmount {
+				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+					Assertion: "expect.errNegativeAmount",
 					Expected:  true,
 					Got:       false,
 				})
