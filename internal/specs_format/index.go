@@ -29,11 +29,12 @@ type TestCase struct {
 	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
 	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
 
-	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
-	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
-	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectEndBalances  interpreter.Balances         `json:"expect.endBalances,omitempty"`
-	ExpectMovements    Movements                    `json:"expect.movements,omitempty"`
+	ExpectPostings           []interpreter.Posting        `json:"expect.postings,omitempty"`
+	ExpectTxMeta             map[string]string            `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta       interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
+	ExpectEndBalances        interpreter.Balances         `json:"expect.endBalances,omitempty"`
+	ExpectEndBalancesInclude interpreter.Balances         `json:"expect.endBalances.include,omitempty"`
+	ExpectMovements          Movements                    `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -170,8 +171,17 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				failedAssertions = runAssertion(failedAssertions,
 					"expect.endBalances",
 					testCase.ExpectEndBalances,
-					getVolumes(result.Postings, balances),
+					getBalances(result.Postings, balances),
 					interpreter.CompareBalances,
+				)
+			}
+
+			if testCase.ExpectEndBalancesInclude != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.endBalances.include",
+					testCase.ExpectEndBalancesInclude,
+					getBalances(result.Postings, balances),
+					interpreter.CompareBalancesIncluding,
 				)
 			}
 
@@ -256,7 +266,7 @@ func getMovements(postings []interpreter.Posting) Movements {
 	return m
 }
 
-func getVolumes(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
+func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
 	balances := initialBalances.DeepClone()
 	for _, posting := range postings {
 		sourceBalance := utils.NestedMapGetOrPutDefault(balances, posting.Source, posting.Asset, func() *big.Int {

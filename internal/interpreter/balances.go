@@ -100,3 +100,12 @@ func CompareBalances(b1 Balances, b2 Balances) bool {
 		return ab1.Cmp(ab2) == 0
 	})
 }
+
+// Returns whether the second value is a subset of the first one
+func CompareBalancesIncluding(b1 Balances, b2 Balances) bool {
+	return utils.MapIncludes(b1, b2, func(a1 AccountBalance, a2 AccountBalance) bool {
+		return utils.MapIncludes(a1, a2, func(i1 *big.Int, i2 *big.Int) bool {
+			return i1.Cmp(i2) == 0
+		})
+	})
+}

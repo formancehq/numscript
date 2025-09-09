@@ -51,6 +51,9 @@
         "expect.endBalances": {
           "$ref": "#/definitions/Balances"
         },
+        "expect.endBalances.include": {
+          "$ref": "#/definitions/Balances"
+        },
 
         "expect.movements": {
           "$ref": "#/definitions/Movements"
