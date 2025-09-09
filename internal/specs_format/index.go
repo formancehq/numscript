@@ -44,6 +44,9 @@ type TestCaseResult struct {
 	Vars     interpreter.VariablesMap     `json:"variables"`
 	Meta     interpreter.AccountsMetadata `json:"metadata"`
 
+	// Output:
+	Postings []interpreter.Posting `json:"postings"`
+
 	// Assertions
 	FailedAssertions []AssertionMismatch[any] `json:"failedAssertions"`
 }
@@ -210,6 +213,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			Balances:         balances,
 			Vars:             vars,
 			FailedAssertions: failedAssertions,
+			Postings:         result.Postings,
 		})
 	}
 

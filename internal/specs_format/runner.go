@@ -224,6 +224,7 @@ func showFailingTestCase(w io.Writer, testResult TestResult) {
 	_, _ = fmt.Fprint(w, failColor(" FAIL "))
 	_, _ = fmt.Fprintln(w, ansi.ColorRed(" "+specsFilePath+" > "+result.It))
 
+	//  --- Preconditions
 	showGiven := len(result.Balances) != 0 || len(result.Meta) != 0 || len(result.Vars) != 0
 	if showGiven {
 		_, _ = fmt.Fprintln(w, ansi.Underline("\nGIVEN:"))
@@ -244,6 +245,19 @@ func showFailingTestCase(w io.Writer, testResult TestResult) {
 	if len(result.Vars) != 0 {
 		_, _ = fmt.Fprintln(w)
 		_, _ = fmt.Fprintln(w, utils.CsvPrettyMap("Name", "Value", result.Vars))
+		_, _ = fmt.Fprintln(w)
+	}
+
+	//  --- Outputs
+	_, _ = fmt.Fprintln(w, ansi.Underline("\nGOT:"))
+	if len(result.Postings) != 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, interpreter.PrettyPrintPostings(result.Postings))
+		_, _ = fmt.Fprintln(w)
+	} else {
+		_, _ = fmt.Fprintln(w)
+
+		_, _ = fmt.Fprintln(w, ansi.ColorBrightBlack("<no postings>"))
 		_, _ = fmt.Fprintln(w)
 	}
 
