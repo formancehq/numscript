@@ -66,7 +66,7 @@ jobs:
       - run: >
           nix develop --impure --command just tests
       - name: Upload coverage reports to Codecov with GitHub Action
-        uses: codecov/codecov-action@v5.4.3
+        uses: codecov/codecov-action@v5.5.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
