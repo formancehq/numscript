@@ -9,7 +9,7 @@
 ---
 
 [TestSingleTest - 1]
-[31m❯[0m example.num [90m(2 tests | [31m1 failed[0m[90m)[0m
+[31m❯[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[31m1 failed[0m[90m)[0m
   [31m×[0m tfailing
 
 
@@ -43,7 +43,7 @@ GOT:[0m
 ---
 
 [TestComplexAssertions - 1]
-[31m❯[0m example.num [90m(2 tests | [31m1 failed[0m[90m)[0m
+[31m❯[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[31m1 failed[0m[90m)[0m
   [31m×[0m send when there are enough funds
 
 
@@ -146,5 +146,13 @@ Error: example.num:1:29
 
   0 | send [USD/2 100] ( source = "ops!" destination = @world)
     |                             ~~~~~~
+
+---
+
+[TestFocusUi - 1]
+[32m✓[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[33m1 skipped[0m[90m)[0m
+
+[90m Test files [0m [1m[92m1 passed[0m[1m[0m [90m(1)[0m
+[90m      Tests [0m [1m[92m1 passed[0m[1m[0m[90m | [0m[1m[93m1 skipped[0m[1m[0m [90m(2)[0m
 
 ---

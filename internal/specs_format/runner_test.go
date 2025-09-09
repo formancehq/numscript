@@ -211,3 +211,48 @@ func TestRuntimeErr(t *testing.T) {
 	require.False(t, success)
 	snaps.MatchSnapshot(t, out.String())
 }
+
+func TestFocusUi(t *testing.T) {
+
+	specs := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "source": "src", "amount": "10" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			},
+			{
+				"it": "t2",
+				"focus": true,
+				"variables": { "source": "src", "amount": "42" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			}
+		]
+	}`
+
+	var out bytes.Buffer
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath: "example.num",
+			SpecsPath:     "example.num.specs.json",
+			NumscriptContent: `	vars {
+		account $source
+		number $amount
+	}
+
+	send [USD $amount] (
+		source = $source
+		destination = @dest
+	)`,
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}

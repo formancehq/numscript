@@ -243,7 +243,8 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		})
 	}
 
-	specsResult.Total = uint(len(specs.TestCases))
+	specsResult.Total = specsResult.Failing + specsResult.Passing + specsResult.Skipped
+
 	return specsResult, nil
 }
 
