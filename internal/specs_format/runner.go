@@ -134,6 +134,10 @@ func RunSpecs(stdout io.Writer, stderr io.Writer, rawSpecs []RawSpec) bool {
 
 }
 
+var passingTestIcon = ansi.ColorGreen("✓")
+var skippedTestIcon = ansi.ColorBrightBlack("↓")
+var failingTestIcon = ansi.ColorRed("×")
+
 func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec RawSpec) (Specs, SpecsResult, bool) {
 	parseResult := parser.Parse(rawSpec.NumscriptContent)
 	if len(parseResult.Errors) != 0 {
@@ -184,14 +188,17 @@ func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec RawSpec) (Specs, Spe
 	if out.Failing != 0 {
 		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorRed("❯"), rawSpec.NumscriptPath, testsCount)
 		for _, result := range out.Cases {
-			if result.Pass || result.Skipped {
-				continue
+			if result.Pass {
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", passingTestIcon, result.It)
+			} else if result.Skipped {
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", skippedTestIcon, result.It)
+			} else {
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", failingTestIcon, result.It)
 			}
 
-			_, _ = fmt.Fprintf(stdout, "  %s %s\n", ansi.ColorRed("×"), result.It)
 		}
 	} else {
-		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorGreen("✓"), rawSpec.NumscriptPath, testsCount)
+		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", passingTestIcon, rawSpec.NumscriptPath, testsCount)
 	}
 
 	return specs, out, true

@@ -11,6 +11,7 @@
 [TestSingleTest - 1]
 [31m❯[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[31m1 failed[0m[90m)[0m
   [31m×[0m tfailing
+  [32m✓[0m tpassing
 
 
 [1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > tfailing[0m
@@ -45,6 +46,7 @@ GOT:[0m
 [TestComplexAssertions - 1]
 [31m❯[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[31m1 failed[0m[90m)[0m
   [31m×[0m send when there are enough funds
+  [32m✓[0m tpassing
 
 
 [1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > send when there are enough funds[0m
