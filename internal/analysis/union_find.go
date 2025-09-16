@@ -14,10 +14,12 @@ func (t *TVar) Resolve() Type {
 		return t
 	}
 
-	resolved := t.resolution
+	resolved := t.resolution.Resolve()
 
-	// TODO path compression
-	return resolved.Resolve()
+	// This bit doesn't change the behaviour but
+	t.resolution = resolved
+
+	return resolved
 }
 
 type TVar struct {
