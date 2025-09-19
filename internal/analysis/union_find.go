@@ -11,7 +11,7 @@ type Type interface {
 }
 
 var _ Type = (*TVar)(nil)
-var _ Type = (*Asset)(nil)
+var _ Type = (*TAsset)(nil)
 
 // Impls
 
@@ -35,9 +35,9 @@ type TVar struct {
 	resolution Type
 }
 
-type Asset string
+type TAsset string
 
-func (a *Asset) Resolve() Type {
+func (a *TAsset) Resolve() Type {
 	return a
 }
 
@@ -46,9 +46,9 @@ func Unify(t1 Type, t2 Type) (ok bool) {
 	t2 = t2.Resolve()
 
 	switch t1 := t1.(type) {
-	case *Asset:
+	case *TAsset:
 		switch t2 := t2.(type) {
-		case *Asset:
+		case *TAsset:
 			return string(*t1) == string(*t2)
 
 		case *TVar:
@@ -75,7 +75,7 @@ func TypeToString(r Type) string {
 	case *TVar:
 		return fmt.Sprintf("'%p", r)
 
-	case *Asset:
+	case *TAsset:
 		return string(*r)
 	}
 

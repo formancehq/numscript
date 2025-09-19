@@ -968,3 +968,59 @@ func TestInorderRedundantWhenEmptyColored(t *testing.T) {
 		checkSource(input),
 	)
 }
+
+func TestCheckAssetMismatch(t *testing.T) {
+
+	t.Parallel()
+
+	input := `
+	
+	send [USD 100] (
+  	source = max [EUR 10] from @a
+  	destination = @dest
+)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "[EUR 10]", 0),
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestCheckAssetMismatchInVar(t *testing.T) {
+
+	t.Parallel()
+
+	input := `
+	
+vars {
+  monetary $mon
+}
+
+send [EUR 0] (
+  source = max $mon from @a
+  destination = @b
+)
+
+send [USD 0] (
+  source = max $mon from @a
+  destination = @b
+)
+
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$mon", 2),
+				// TODO shoulnd't the error be the other way around?
+				Kind: &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+			},
+		},
+		checkSource(input),
+	)
+}

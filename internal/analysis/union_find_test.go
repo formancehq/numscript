@@ -8,21 +8,21 @@ import (
 )
 
 func TestResolveConcrete(t *testing.T) {
-	t1 := analysis.Asset("USD")
+	t1 := analysis.TAsset("USD")
 	out := t1.Resolve()
 	require.Equal(t, &t1, out)
 }
 
 func TestUnifyConcreteWhenNotSame(t *testing.T) {
-	t1 := analysis.Asset("USD")
-	t2 := analysis.Asset("EUR")
+	t1 := analysis.TAsset("USD")
+	t2 := analysis.TAsset("EUR")
 	ok := analysis.Unify(&t1, &t2)
 	require.False(t, ok)
 }
 
 func TestUnifyConcreteWhenSame(t *testing.T) {
-	t1 := analysis.Asset("USD")
-	t2 := analysis.Asset("USD")
+	t1 := analysis.TAsset("USD")
+	t2 := analysis.TAsset("USD")
 	ok := analysis.Unify(&t1, &t2)
 	require.True(t, ok)
 }
@@ -42,7 +42,7 @@ func TestResolveUnbound(t *testing.T) {
 
 func TestUnifyVarWithConcrete(t *testing.T) {
 	t1 := &analysis.TVar{}
-	t2 := analysis.Asset("USD")
+	t2 := analysis.TAsset("USD")
 
 	ok := analysis.Unify(t1, &t2)
 	require.True(t, ok)
@@ -63,7 +63,7 @@ func TestUnifyTransitive(t *testing.T) {
 	ok = analysis.Unify(t1, t3)
 	require.True(t, ok)
 
-	t4 := analysis.Asset("USD")
+	t4 := analysis.TAsset("USD")
 	ok = analysis.Unify(t1, &t4)
 	require.True(t, ok)
 
@@ -85,7 +85,7 @@ func TestUnifyTransitiveInverse(t *testing.T) {
 	ok = analysis.Unify(t1, t3)
 	require.True(t, ok)
 
-	t4 := analysis.Asset("USD")
+	t4 := analysis.TAsset("USD")
 	ok = analysis.Unify(t3, &t4)
 	require.True(t, ok)
 

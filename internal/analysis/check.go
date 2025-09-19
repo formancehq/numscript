@@ -123,7 +123,6 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	version                parser.Version
 	nextDiagnosticId       int32
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
@@ -134,6 +133,50 @@ type CheckResult struct {
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
 	Diagnostics            []Diagnostic
 	Program                parser.Program
+
+	stmtType  Type
+	ExprTypes map[parser.ValueExpr]Type
+	VarTypes  map[parser.VarDeclaration]Type
+}
+
+func (r *CheckResult) getExprType(expr parser.ValueExpr) Type {
+	exprType, ok := r.ExprTypes[expr]
+	if !ok {
+		t := TVar{}
+		r.ExprTypes[expr] = &t
+		return &t
+	}
+	return exprType
+}
+
+func (r *CheckResult) getVarDeclType(decl parser.VarDeclaration) Type {
+	exprType, ok := r.VarTypes[decl]
+	if !ok {
+		t := TVar{}
+		r.VarTypes[decl] = &t
+		return &t
+	}
+	return exprType
+}
+
+func (r *CheckResult) unifyNodeWith(expr parser.ValueExpr, t Type) {
+	exprT := r.getExprType(expr)
+	r.unify(expr.GetRange(), exprT, t)
+}
+
+func (r *CheckResult) unify(rng parser.Range, t1 Type, t2 Type) {
+	ok := Unify(t1, t2)
+	if ok {
+		return
+	}
+
+	r.Diagnostics = append(r.Diagnostics, Diagnostic{
+		Range: rng,
+		Kind: &AssetMismatch{
+			Expected: TypeToString(t1),
+			Got:      TypeToString(t2),
+		},
+	})
 }
 
 func (r CheckResult) GetErrorsCount() int {
@@ -174,13 +217,15 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 
 func newCheckResult(program parser.Program) CheckResult {
 	return CheckResult{
-		version:          program.GetVersion(),
+		Program: program,
+
 		emptiedAccount:   make(map[string]struct{}),
 		declaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
-		Program:          program,
+		ExprTypes:        make(map[parser.ValueExpr]Type),
+		VarTypes:         make(map[parser.VarDeclaration]Type),
 	}
 }
 
@@ -214,6 +259,7 @@ func (res *CheckResult) check() {
 
 func (res *CheckResult) checkStatement(statement parser.Statement) {
 	res.emptiedAccount = make(map[string]struct{})
+	res.stmtType = &TVar{}
 
 	switch statement := statement.(type) {
 	case *parser.SaveStatement:
@@ -364,6 +410,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.Variable:
 		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
+			res.unifyNodeWith(lit, res.getVarDeclType(varDeclaration))
 		} else {
 			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
@@ -378,6 +425,11 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.MonetaryLiteral:
 		res.checkExpression(lit.Asset, TypeAsset)
 		res.checkExpression(lit.Amount, TypeNumber)
+		/*
+			we unify $mon and $asset in:
+			`let $mon := [$asset 42]`
+		*/
+		res.unifyNodeWith(lit, res.getExprType(lit.Asset))
 		return TypeMonetary
 
 	case *parser.BinaryInfix:
@@ -415,6 +467,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.PercentageLiteral:
 		return TypePortion
 	case *parser.AssetLiteral:
+		t := TAsset(lit.Asset)
+		res.unifyNodeWith(lit, &t)
 		return TypeAsset
 	case *parser.NumberLiteral:
 		return TypeNumber
@@ -461,6 +515,12 @@ func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 		res.checkExpression(sentValue.Asset, TypeAsset)
 	case *parser.SentValueLiteral:
 		res.checkExpression(sentValue.Monetary, TypeMonetary)
+
+		res.unifyNodeWith(sentValue.Monetary, res.stmtType)
+		res.unifyNodeWith(
+			sentValue.Monetary,
+			res.stmtType,
+		)
 	}
 }
 
@@ -537,6 +597,8 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	case *parser.SourceCapped:
 		onExit := res.enterCappedSource()
+
+		res.unifyNodeWith(source.Cap, res.stmtType)
 
 		res.checkExpression(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
