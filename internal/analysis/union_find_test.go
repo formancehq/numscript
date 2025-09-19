@@ -27,6 +27,14 @@ func TestUnifyConcreteWhenSame(t *testing.T) {
 	require.True(t, ok)
 }
 
+func TestUnifyItselfIsNoop(t *testing.T) {
+	t1 := &analysis.TVar{}
+	ok := analysis.Unify(t1, t1)
+	require.True(t, ok)
+
+	require.Same(t, t1.Resolve(), t1)
+}
+
 func TestResolveUnbound(t *testing.T) {
 	t1 := &analysis.TVar{}
 	require.Same(t, t1.Resolve(), t1)
