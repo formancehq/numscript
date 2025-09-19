@@ -1024,3 +1024,28 @@ send [USD 0] (
 		checkSource(input),
 	)
 }
+
+func TestCheckBalanceAssetConstraint(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	monetary $mon = balance(@acc, USD/2)
+}
+
+send [USD 42] (
+  source = max $mon from @a
+  destination = @b
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$mon", 1),
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "USD/2"},
+			},
+		},
+		checkSource(input),
+	)
+}

@@ -242,6 +242,7 @@ func (res *CheckResult) check() {
 
 			if varDecl.Origin != nil {
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+				res.unifyNodeWith(*varDecl.Origin, res.getVarDeclType(varDecl))
 			}
 		}
 	}
@@ -351,6 +352,13 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			type_ := sig[index]
 			res.checkExpression(arg, type_)
 		}
+
+		if fnCall.Caller.Name == FnVarOriginBalance {
+			// we run unify(<expr>, <asset>) in:
+			// <expr> := balance(@acc, <asset>)
+			assetArg := validArgs[1]
+			res.unifyNodeWith(fnCall, res.getExprType(assetArg))
+		}
 	} else {
 		for _, arg := range validArgs {
 			res.checkExpression(arg, TypeAny)
@@ -382,7 +390,7 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 	}
 }
 
-func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
+func (res *CheckResult) checkFnCall(fnCall *parser.FnCall) string {
 	returnType := TypeAny
 
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
@@ -395,7 +403,7 @@ func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
 	}
 
 	// this must come after resolution
-	res.checkFnCallArity(&fnCall)
+	res.checkFnCallArity(fnCall)
 
 	return returnType
 }
@@ -476,7 +484,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		return TypeString
 
 	case *parser.FnCall:
-		return res.checkFnCall(*lit)
+		return res.checkFnCall(lit)
 
 	default:
 		return TypeAny
