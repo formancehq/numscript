@@ -441,6 +441,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		return TypeMonetary
 
 	case *parser.BinaryInfix:
+		res.unifyNodeWith(lit.Left, res.getExprType(lit.Right))
+
 		switch lit.Operator {
 		case parser.InfixOperatorPlus:
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
