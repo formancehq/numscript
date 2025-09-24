@@ -1049,3 +1049,27 @@ send [USD 42] (
 		checkSource(input),
 	)
 }
+
+func TestInferVars(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	monetary $mon1
+	monetary $mon2
+}
+
+send $mon1 (
+  source = @a allowing overdraft up to $mon2
+  destination = @b
+)
+`
+
+	res := analysis.CheckSource(input)
+
+	t1 := res.VarTypes[res.DeclaredVars["mon1"]]
+
+	t2 := res.VarTypes[res.DeclaredVars["mon2"]]
+
+	require.Same(t, t1.Resolve(), t2.Resolve())
+}

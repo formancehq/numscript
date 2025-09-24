@@ -127,7 +127,7 @@ type CheckResult struct {
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
 	unboundedSend          bool
-	declaredVars           map[string]parser.VarDeclaration
+	DeclaredVars           map[string]parser.VarDeclaration
 	unusedVars             map[string]parser.Range
 	varResolution          map[*parser.Variable]parser.VarDeclaration
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
@@ -220,7 +220,7 @@ func newCheckResult(program parser.Program) CheckResult {
 		Program: program,
 
 		emptiedAccount:   make(map[string]struct{}),
-		declaredVars:     make(map[string]parser.VarDeclaration),
+		DeclaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
@@ -382,10 +382,10 @@ func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
 
 func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
 	// check there aren't duplicate variables
-	if _, ok := res.declaredVars[variableName.Name]; ok {
+	if _, ok := res.DeclaredVars[variableName.Name]; ok {
 		res.pushDiagnostic(variableName.Range, DuplicateVariable{Name: variableName.Name})
 	} else {
-		res.declaredVars[variableName.Name] = decl
+		res.DeclaredVars[variableName.Name] = decl
 		res.unusedVars[variableName.Name] = variableName.Range
 	}
 }
@@ -416,7 +416,7 @@ func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType strin
 func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
-		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
+		if varDeclaration, ok := res.DeclaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
 			res.unifyNodeWith(lit, res.getVarDeclType(varDeclaration))
 		} else {
@@ -523,14 +523,10 @@ func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
 		res.checkExpression(sentValue.Asset, TypeAsset)
+		res.unifyNodeWith(sentValue.Asset, res.stmtType)
 	case *parser.SentValueLiteral:
 		res.checkExpression(sentValue.Monetary, TypeMonetary)
-
 		res.unifyNodeWith(sentValue.Monetary, res.stmtType)
-		res.unifyNodeWith(
-			sentValue.Monetary,
-			res.stmtType,
-		)
 	}
 }
 
@@ -591,6 +587,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkExpression(source.Color, TypeString)
 		if source.Bounded != nil {
 			res.checkExpression(*source.Bounded, TypeMonetary)
+			res.unifyNodeWith(*source.Bounded, res.stmtType)
 		}
 
 	case *parser.SourceInorder:
@@ -611,6 +608,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.unifyNodeWith(source.Cap, res.stmtType)
 
 		res.checkExpression(source.Cap, TypeMonetary)
+		res.unifyNodeWith(source.Cap, res.stmtType)
 		res.checkSource(source.From)
 
 		onExit()
@@ -752,6 +750,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
+			res.unifyNodeWith(clause.Cap, res.stmtType)
 			res.checkKeptOrDestination(clause.To)
 		}
 		res.checkKeptOrDestination(destination.Remaining)
@@ -761,6 +760,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
+			res.unifyNodeWith(clause.Cap, res.stmtType)
 			res.checkKeptOrDestination(clause.To)
 		}
 		res.checkKeptOrDestination(destination.Remaining)
