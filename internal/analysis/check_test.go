@@ -1073,3 +1073,21 @@ send $mon1 (
 
 	require.Same(t, t1.Resolve(), t2.Resolve())
 }
+
+func TestInferGetAsset(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	asset $ass = get_asset([USD/2 100])
+}
+`
+
+	res := analysis.CheckSource(input)
+
+	v := res.DeclaredVars["ass"]
+	t1 := res.VarTypes[v]
+
+	expected := analysis.TAsset("USD/2")
+	require.Equal(t, &expected, t1.Resolve())
+}
