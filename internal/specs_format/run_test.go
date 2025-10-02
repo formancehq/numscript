@@ -63,22 +63,15 @@ func TestRunSpecsSimple(t *testing.T) {
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
-				// ExpectedPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(42),
-				// 	},
-				// },
-				// ActualPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(42),
-				// 	},
-				// },
+
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(42),
+					},
+				},
 			},
 		},
 	}, out)
@@ -134,22 +127,14 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 					},
 				},
 				FailedAssertions: nil,
-				// ExpectedPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(1),
-				// 	},
-				// },
-				// ActualPostings: []interpreter.Posting{
-				// 	{
-				// 		Source:      "src",
-				// 		Destination: "dest",
-				// 		Asset:       "USD",
-				// 		Amount:      big.NewInt(1),
-				// 	},
-				// },
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(1),
+					},
+				},
 			},
 		},
 	}, out)
@@ -163,7 +148,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
 				"balances": { "src": { "USD": 1 } },
-				"expect.missingFunds": false,
+				"expect.error.missingFunds": false,
 				"expect.postings": null
 			}
 		]
@@ -196,7 +181,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
 					{
-						Assertion: "expect.missingFunds",
+						Assertion: "expect.error.missingFunds",
 						Expected:  false,
 						Got:       true,
 					},
@@ -250,7 +235,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
 					{
-						Assertion: "expect.missingFunds",
+						Assertion: "expect.error.missingFunds",
 						Got:       true,
 						Expected:  false,
 					},
@@ -301,6 +286,156 @@ func TestNullPostingsIsNoop(t *testing.T) {
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
+				Postings:         []interpreter.Posting{},
+			},
+		},
+	}, out)
+
+}
+
+func TestNegativeAmt(t *testing.T) {
+	exampleProgram := parser.Parse(`
+		vars { number $amt }
+		send [USD $amt] (
+			source = @world
+			destination = @dest
+		)
+	`)
+
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "amt": "-100" },
+				"expect.error.negativeAmount": true
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   1,
+		Failing: 0,
+		Passing: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:   "t1",
+				Pass: true,
+				Vars: interpreter.VariablesMap{
+					"amt": "-100",
+				},
+				Balances:         interpreter.Balances{},
+				Meta:             interpreter.AccountsMetadata{},
+				FailedAssertions: nil,
+			},
+		},
+	}, out)
+
+}
+
+func TestSkip(t *testing.T) {
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"skip": true
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   1,
+		Failing: 0,
+		Passing: 0,
+		Skipped: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:      "t1",
+				Pass:    false,
+				Skipped: true,
+			},
+		},
+	}, out)
+
+}
+
+func TestFocus(t *testing.T) {
+	j := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "source": "src", "amount": "10" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			},
+			{
+				"it": "t2",
+				"focus": true,
+				"variables": { "source": "src", "amount": "42" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   2,
+		Failing: 0,
+		Passing: 1,
+		Skipped: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:      "t1",
+				Skipped: true,
+			},
+
+			{
+				It:   "t2",
+				Pass: true,
+				Vars: interpreter.VariablesMap{
+					"source": "src",
+					"amount": "42",
+				},
+				Balances: interpreter.Balances{
+					"src": interpreter.AccountBalance{
+						"USD": big.NewInt(9999),
+					},
+				},
+				Meta:             interpreter.AccountsMetadata{},
+				FailedAssertions: nil,
+
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(42),
+					},
+				},
 			},
 		},
 	}, out)

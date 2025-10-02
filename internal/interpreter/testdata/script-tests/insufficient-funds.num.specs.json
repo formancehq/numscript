@@ -15,7 +15,7 @@
         "payment": "payments:001",
         "seller": "users:002"
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

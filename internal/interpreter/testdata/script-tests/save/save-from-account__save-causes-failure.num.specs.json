@@ -7,7 +7,7 @@
           "USD/2": 30
         }
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

@@ -10,7 +10,7 @@
     {
       "it": "should send the missing amount to an overdraft account",
       "balances": { "alice": { "EUR": -100 } },
-      "expect.volumes": {
+      "expect.endBalances": {
         "alice": { "EUR": 0 },
         "world": { "EUR": -100 }
       },

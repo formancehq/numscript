@@ -31,7 +31,7 @@
         "wallet": { "EUR": 50 },
         "bank_account": { "EUR": -100 }
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     },
     {
       "it": "should not authorize transfer if bank account does not display enough balance and wallet does",
@@ -39,7 +39,7 @@
         "wallet": { "EUR": 100 },
         "bank_account": { "EUR": -50 }
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

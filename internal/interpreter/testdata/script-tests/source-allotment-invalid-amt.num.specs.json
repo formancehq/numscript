@@ -7,7 +7,7 @@
           "COIN": 1
         }
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

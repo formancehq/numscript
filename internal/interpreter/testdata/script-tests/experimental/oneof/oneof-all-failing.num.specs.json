@@ -1,7 +1,5 @@
 {
-  "featureFlags": [
-    "experimental-oneof"
-  ],
+  "featureFlags": ["experimental-oneof"],
   "testCases": [
     {
       "it": "-",
@@ -10,7 +8,7 @@
         "empty2": {},
         "empty3": {}
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

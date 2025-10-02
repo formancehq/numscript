@@ -75,7 +75,7 @@
           "USD": 4
         }
       },
-      "expect.missingFunds": true
+      "expect.error.missingFunds": true
     }
   ]
 }

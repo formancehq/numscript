@@ -134,6 +134,10 @@ func RunSpecs(stdout io.Writer, stderr io.Writer, rawSpecs []RawSpec) bool {
 
 }
 
+var passingTestIcon = ansi.ColorGreen("✓")
+var skippedTestIcon = ansi.ColorBrightBlack("↓")
+var failingTestIcon = ansi.ColorRed("×")
+
 func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec RawSpec) (Specs, SpecsResult, bool) {
 	parseResult := parser.Parse(rawSpec.NumscriptContent)
 	if len(parseResult.Errors) != 0 {
@@ -161,22 +165,40 @@ func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec RawSpec) (Specs, Spe
 	if out.Total == 0 {
 		_, _ = fmt.Fprintln(stdout, ansi.ColorRed("Empty test suite: "+rawSpec.SpecsPath))
 		return Specs{}, SpecsResult{}, false
-	} else if out.Failing == 0 {
-		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests)", out.Total))
-		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorGreen("✓"), rawSpec.NumscriptPath, testsCount)
-	} else {
-		failedTestsCount := ansi.ColorRed(fmt.Sprintf("%d failed", out.Failing))
+	}
 
-		testsCount := ansi.ColorBrightBlack(fmt.Sprintf("(%d tests | %s)", out.Total, failedTestsCount))
+	parts := []string{
+		ansi.ColorBrightBlack(fmt.Sprintf("%d tests", out.Total)),
+	}
+
+	if out.Failing != 0 {
+		parts = append(parts,
+			ansi.ColorRed(fmt.Sprintf("%d failed", out.Failing)),
+		)
+	}
+
+	if out.Skipped != 0 {
+		parts = append(parts,
+			ansi.ColorYellow(fmt.Sprintf("%d skipped", out.Skipped)),
+		)
+	}
+
+	testsCount := ansi.ColorBrightBlack("(") + strings.Join(parts, ansi.ColorBrightBlack(" | ")) + ansi.ColorBrightBlack(")")
+
+	if out.Failing != 0 {
 		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", ansi.ColorRed("❯"), rawSpec.NumscriptPath, testsCount)
-
 		for _, result := range out.Cases {
 			if result.Pass {
-				continue
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", passingTestIcon, result.It)
+			} else if result.Skipped {
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", skippedTestIcon, result.It)
+			} else {
+				_, _ = fmt.Fprintf(stdout, "  %s %s\n", failingTestIcon, result.It)
 			}
 
-			_, _ = fmt.Fprintf(stdout, "  %s %s\n", ansi.ColorRed("×"), result.It)
 		}
+	} else {
+		_, _ = fmt.Fprintf(stdout, "%s %s %s\n", passingTestIcon, rawSpec.NumscriptPath, testsCount)
 	}
 
 	return specs, out, true
@@ -211,7 +233,7 @@ func ShowDiff(w io.Writer, expected_ any, got_ any) {
 }
 
 func showFailingTestCase(w io.Writer, testResult TestResult) {
-	if testResult.Result.Pass {
+	if testResult.Result.Pass || testResult.Result.Skipped {
 		return
 	}
 
@@ -224,6 +246,7 @@ func showFailingTestCase(w io.Writer, testResult TestResult) {
 	_, _ = fmt.Fprint(w, failColor(" FAIL "))
 	_, _ = fmt.Fprintln(w, ansi.ColorRed(" "+specsFilePath+" > "+result.It))
 
+	//  --- Preconditions
 	showGiven := len(result.Balances) != 0 || len(result.Meta) != 0 || len(result.Vars) != 0
 	if showGiven {
 		_, _ = fmt.Fprintln(w, ansi.Underline("\nGIVEN:"))
@@ -244,6 +267,19 @@ func showFailingTestCase(w io.Writer, testResult TestResult) {
 	if len(result.Vars) != 0 {
 		_, _ = fmt.Fprintln(w)
 		_, _ = fmt.Fprintln(w, utils.CsvPrettyMap("Name", "Value", result.Vars))
+		_, _ = fmt.Fprintln(w)
+	}
+
+	//  --- Outputs
+	_, _ = fmt.Fprintln(w, ansi.Underline("\nGOT:"))
+	if len(result.Postings) != 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, interpreter.PrettyPrintPostings(result.Postings))
+		_, _ = fmt.Fprintln(w)
+	} else {
+		_, _ = fmt.Fprintln(w)
+
+		_, _ = fmt.Fprintln(w, ansi.ColorBrightBlack("<no postings>"))
 		_, _ = fmt.Fprintln(w)
 	}
 
@@ -273,8 +309,14 @@ func showErr(stderr io.Writer, filename string, script string, err interpreter.I
 }
 
 func printFilesStats(w io.Writer, allTests []TestResult) bool {
+	passedTests := utils.Filter(allTests, func(t TestResult) bool {
+		return t.Result.Pass
+	})
+	skippedTests := utils.Filter(allTests, func(t TestResult) bool {
+		return t.Result.Skipped
+	})
 	failedTests := utils.Filter(allTests, func(t TestResult) bool {
-		return !t.Result.Pass
+		return !t.Result.Pass && !t.Result.Skipped
 	})
 
 	testFilesLabel := "Test files"
@@ -320,7 +362,8 @@ func printFilesStats(w io.Writer, allTests []TestResult) bool {
 
 		testsCount := len(allTests)
 		failedTestsCount := len(failedTests)
-		passedTestsCount := testsCount - failedTestsCount
+		skippedTestsCount := len(skippedTests)
+		passedTestsCount := len(passedTests)
 
 		var testUIParts []string
 		if failedTestsCount != 0 {
@@ -333,13 +376,18 @@ func printFilesStats(w io.Writer, allTests []TestResult) bool {
 				ansi.Compose(ansi.ColorBrightGreen, ansi.Bold)(fmt.Sprintf("%d passed", passedTestsCount)),
 			)
 		}
+		if skippedTestsCount != 0 {
+			testUIParts = append(testUIParts,
+				ansi.Compose(ansi.ColorBrightYellow, ansi.Bold)(fmt.Sprintf("%d skipped", skippedTestsCount)),
+			)
+		}
 
 		testsUI := strings.Join(testUIParts, ansi.ColorBrightBlack(" | "))
 		totalTestsUI := ansi.ColorBrightBlack(fmt.Sprintf("(%d)", testsCount))
 
 		_, _ = fmt.Fprintln(w, paddedLabel(testsLabel)+" "+testsUI+" "+totalTestsUI)
 
-		return failedTestsCount == 0
+		return failedTestsCount+skippedTestsCount == 0
 	}
 
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"reflect"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -20,26 +21,39 @@ type Specs struct {
 }
 
 type TestCase struct {
-	It       string                       `json:"it"`
+	It string `json:"it"`
+
+	// Preconditions
 	Balances interpreter.Balances         `json:"balances,omitempty"`
 	Vars     interpreter.VariablesMap     `json:"variables,omitempty"`
 	Meta     interpreter.AccountsMetadata `json:"metadata,omitempty"`
 
+	// Select tests
+	Focus bool `json:"focus,omitempty"`
+	Skip  bool `json:"skip,omitempty"`
+
 	// Expectations
-	ExpectMissingFunds bool                         `json:"expect.missingFunds,omitempty"`
-	ExpectPostings     []interpreter.Posting        `json:"expect.postings,omitempty"`
-	ExpectTxMeta       map[string]string            `json:"expect.txMetadata,omitempty"`
-	ExpectAccountsMeta interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectVolumes      interpreter.Balances         `json:"expect.volumes,omitempty"`
-	ExpectMovements    Movements                    `json:"expect.movements,omitempty"`
+	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
+	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
+
+	ExpectPostings           []interpreter.Posting        `json:"expect.postings,omitempty"`
+	ExpectTxMeta             map[string]string            `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta       interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
+	ExpectEndBalances        interpreter.Balances         `json:"expect.endBalances,omitempty"`
+	ExpectEndBalancesInclude interpreter.Balances         `json:"expect.endBalances.include,omitempty"`
+	ExpectMovements          Movements                    `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
+	Skipped  bool                         `json:"skipped"`
 	It       string                       `json:"it"`
 	Pass     bool                         `json:"pass"`
 	Balances interpreter.Balances         `json:"balances"`
 	Vars     interpreter.VariablesMap     `json:"variables"`
 	Meta     interpreter.AccountsMetadata `json:"metadata"`
+
+	// Output:
+	Postings []interpreter.Posting `json:"postings"`
 
 	// Assertions
 	FailedAssertions []AssertionMismatch[any] `json:"failedAssertions"`
@@ -50,6 +64,7 @@ type SpecsResult struct {
 	Total   uint `json:"total"`
 	Passing uint `json:"passing"`
 	Failing uint `json:"failing"`
+	Skipped uint `json:"skipped"`
 	Cases   []TestCaseResult
 }
 
@@ -68,13 +83,25 @@ func runAssertion[T any](failedAssertions []AssertionMismatch[any], assertion st
 
 func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.InterpreterError) {
 	specsResult := SpecsResult{}
+	// we need a first pass to know whether there is at least on test in focus mode
+	hasFocusedTest := slices.ContainsFunc(specs.TestCases, func(t TestCase) bool {
+		return t.Focus
+	})
 
 	for _, testCase := range specs.TestCases {
+		shouldSkip := testCase.Skip || (hasFocusedTest && !testCase.Focus)
+		if shouldSkip {
+			specsResult.Skipped += 1
+			specsResult.Cases = append(specsResult.Cases, TestCaseResult{
+				It:      testCase.It,
+				Skipped: true,
+			})
+			continue
+		}
+
 		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
 		balances := mergeBalances(specs.Balances, testCase.Balances)
 		vars := mergeVars(specs.Vars, testCase.Vars)
-
-		specsResult.Total += 1
 
 		featureFlags := make(map[string]struct{})
 		for _, flag := range specs.FeatureFlags {
@@ -95,24 +122,39 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		var failedAssertions []AssertionMismatch[any]
 
 		if err != nil {
-			_, ok := err.(interpreter.MissingFundsErr)
-			if !ok {
+			switch err.(type) {
+			case interpreter.MissingFundsErr:
+				if !testCase.ExpectMissingFunds {
+					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+						Assertion: "expect.error.missingFunds",
+						Expected:  false,
+						Got:       true,
+					})
+				}
+			case interpreter.NegativeAmountErr:
+				if !testCase.ExpectNegativeAmount {
+					failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+						Assertion: "expect.error.negativeAmount",
+						Expected:  false,
+						Got:       true,
+					})
+				}
+			default:
 				return SpecsResult{}, err
 			}
-
-			if !testCase.ExpectMissingFunds {
-				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.missingFunds",
-					Expected:  false,
-					Got:       true,
-				})
-			}
-
 		} else {
 
 			if testCase.ExpectMissingFunds {
 				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
-					Assertion: "expect.missingFunds",
+					Assertion: "expect.error.missingFunds",
+					Expected:  true,
+					Got:       false,
+				})
+			}
+
+			if testCase.ExpectNegativeAmount {
+				failedAssertions = append(failedAssertions, AssertionMismatch[any]{
+					Assertion: "expect.error.negativeAmount",
 					Expected:  true,
 					Got:       false,
 				})
@@ -149,12 +191,21 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				)
 			}
 
-			if testCase.ExpectVolumes != nil {
+			if testCase.ExpectEndBalances != nil {
 				failedAssertions = runAssertion(failedAssertions,
-					"expect.volumes",
-					testCase.ExpectVolumes,
-					getVolumes(result.Postings, balances),
+					"expect.endBalances",
+					testCase.ExpectEndBalances,
+					getBalances(result.Postings, balances),
 					interpreter.CompareBalances,
+				)
+			}
+
+			if testCase.ExpectEndBalancesInclude != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.endBalances.include",
+					testCase.ExpectEndBalancesInclude,
+					getBalances(result.Postings, balances),
+					interpreter.CompareBalancesIncluding,
 				)
 			}
 
@@ -176,6 +227,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			specsResult.Failing += 1
 		}
 
+		var postings []interpreter.Posting
+		if result != nil {
+			postings = result.Postings
+		}
+
 		specsResult.Cases = append(specsResult.Cases, TestCaseResult{
 			It:               testCase.It,
 			Pass:             pass,
@@ -183,8 +239,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			Balances:         balances,
 			Vars:             vars,
 			FailedAssertions: failedAssertions,
+			Postings:         postings,
 		})
 	}
+
+	specsResult.Total = specsResult.Failing + specsResult.Passing + specsResult.Skipped
 
 	return specsResult, nil
 }
@@ -239,7 +298,7 @@ func getMovements(postings []interpreter.Posting) Movements {
 	return m
 }
 
-func getVolumes(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
+func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
 	balances := initialBalances.DeepClone()
 	for _, posting := range postings {
 		sourceBalance := utils.NestedMapGetOrPutDefault(balances, posting.Source, posting.Asset, func() *big.Int {

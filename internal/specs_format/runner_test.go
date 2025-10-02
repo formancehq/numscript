@@ -92,7 +92,7 @@ func TestComplexAssertions(t *testing.T) {
 					"balances": {
 						"alice": { "USD/2": 9999 }
 					},
-					"expect.volumes": {
+					"expect.endBalances": {
 							"alice": { "USD/2": -100 },
 							"dest": { "USD/2": 1 }
 					},
@@ -101,14 +101,14 @@ func TestComplexAssertions(t *testing.T) {
 							"dest": { "EUR": 100 }
 						}
 					},
-					"expect.missingFunds": true
+					"expect.error.missingFunds": true
 				},
 				{
 					"it": "tpassing",
 					"balances": {
 						"alice": { "USD/2": 0 }
 					},
-					"expect.missingFunds": true
+					"expect.error.missingFunds": true
 				}
 			] 
 		}
@@ -194,7 +194,7 @@ func TestRuntimeErr(t *testing.T) {
 			"testCases": [
 				{
 					"it": "runs",
-					"expect.missingFunds": false
+					"expect.error.missingFunds": false
 				}
 			] 
 		}
@@ -205,6 +205,51 @@ func TestRuntimeErr(t *testing.T) {
 			NumscriptPath:    "example.num",
 			SpecsPath:        "example.num.specs.json",
 			NumscriptContent: `send [USD/2 100] ( source = "ops!" destination = @world)`,
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestFocusUi(t *testing.T) {
+
+	specs := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "source": "src", "amount": "10" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			},
+			{
+				"it": "t2",
+				"focus": true,
+				"variables": { "source": "src", "amount": "42" },
+				"balances": { "src": { "USD": 9999 } },
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			}
+		]
+	}`
+
+	var out bytes.Buffer
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath: "example.num",
+			SpecsPath:     "example.num.specs.json",
+			NumscriptContent: `	vars {
+		account $source
+		number $amount
+	}
+
+	send [USD $amount] (
+		source = $source
+		destination = @dest
+	)`,
 			SpecsFileContent: []byte(specs),
 		},
 	})

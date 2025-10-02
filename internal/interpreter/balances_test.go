@@ -79,3 +79,67 @@ func TestCmpMaps(t *testing.T) {
 
 	require.Equal(t, false, CompareBalances(b1, b2))
 }
+
+func TestCmpMapsIncluding(t *testing.T) {
+
+	t.Run("including (subset)", func(t *testing.T) {
+		b1 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+			"bob": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+		}
+
+		b2 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+		}
+
+		require.Equal(t, true, CompareBalancesIncluding(b1, b2))
+	})
+
+	t.Run("different value", func(t *testing.T) {
+		b1 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+			"bob": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+		}
+
+		b2 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(0),
+			},
+		}
+
+		require.Equal(t, false, CompareBalancesIncluding(b1, b2))
+	})
+
+	t.Run("extra value", func(t *testing.T) {
+		b1 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+			"bob": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+		}
+
+		b2 := Balances{
+			"alice": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+
+			"extra-value": AccountBalance{
+				"EUR": big.NewInt(100),
+			},
+		}
+
+		require.Equal(t, false, CompareBalancesIncluding(b1, b2))
+	})
+}
