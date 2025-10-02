@@ -11,6 +11,36 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResult) {
+	balances, ok := balancesRaw.(map[string]any)
+	if !ok {
+		return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected an object as balances, got: <%#v>", balancesRaw))
+	}
+
+	iBalances := interpreter.Balances{}
+	for account, assetsRaw := range balances {
+		if iBalances[account] == nil {
+			iBalances[account] = interpreter.AccountBalance{}
+		}
+
+		assets, ok := assetsRaw.(map[string]any)
+		if !ok {
+			return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected nested object for account %v", account))
+		}
+
+		for asset, amountRaw := range assets {
+			amount, ok := amountRaw.(float64)
+			if !ok {
+				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
+			}
+
+			n, _ := big.NewFloat(amount).Int(new(big.Int))
+			iBalances[account][asset] = n
+		}
+	}
+	return iBalances, nil
+}
+
 func addEvalTool(s *server.MCPServer) {
 	tool := mcp.NewTool("evaluate",
 		mcp.WithDescription("Evaluate a numscript program"),
@@ -56,31 +86,9 @@ func addEvalTool(s *server.MCPServer) {
 			mcp.NewToolResultError(parsed.Errors[0].Msg)
 		}
 
-		balancesRaw, ok := request.GetArguments()["balances"].(map[string]any)
-		if !ok {
-			return mcp.NewToolResultError(fmt.Sprintf("Expected an object as balances, got: <%#v>", request.GetArguments()["balances"])), nil
-		}
-
-		iBalances := interpreter.Balances{}
-		for account, assetsRaw := range balancesRaw {
-			if iBalances[account] == nil {
-				iBalances[account] = interpreter.AccountBalance{}
-			}
-
-			assets, ok := assetsRaw.(map[string]any)
-			if !ok {
-				return mcp.NewToolResultError(fmt.Sprintf("Expected nested object for account %v", account)), nil
-			}
-
-			for asset, amountRaw := range assets {
-				amount, ok := amountRaw.(float64)
-				if !ok {
-					return mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw)), nil
-				}
-
-				n, _ := big.NewFloat(amount).Int(new(big.Int))
-				iBalances[account][asset] = n
-			}
+		balances, mcpErr := parseBalancesJson(request.GetArguments()["balances"])
+		if mcpErr != nil {
+			return mcpErr, nil
 		}
 
 		out, iErr := interpreter.RunProgram(
@@ -88,7 +96,7 @@ func addEvalTool(s *server.MCPServer) {
 			parsed.Value,
 			map[string]string{},
 			interpreter.StaticStore{
-				Balances: interpreter.Balances(iBalances),
+				Balances: balances,
 			},
 			map[string]struct{}{},
 		)
