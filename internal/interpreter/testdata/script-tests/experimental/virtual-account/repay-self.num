@@ -1,0 +1,14 @@
+vars {
+	account $alice_virtual = virtual()
+}
+send [USD/2 *] (
+  source = @alice
+  destination = $alice_virtual
+)
+send [USD/2 10] (
+  source = $alice_virtual allowing unbounded overdraft
+  destination = {
+    1/2 to @dest
+    remaining kept
+  }
+)

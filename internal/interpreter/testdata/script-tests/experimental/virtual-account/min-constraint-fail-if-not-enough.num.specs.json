@@ -1,0 +1,83 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-virtual-account"],
+  "testCases": [
+    {
+      "it": "amt=100",
+      "variables": { "amt": "100" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 5,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 5,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 90,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=10",
+      "variables": { "amt": "10" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 5,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=6",
+      "variables": { "amt": "6" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 5,
+          "asset": "EUR"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=5",
+      "variables": { "amt": "5" },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "fees",
+          "amount": 5,
+          "asset": "EUR"
+        }
+      ]
+    },
+    {
+      "it": "amt=3",
+      "variables": { "amt": "3" },
+      "expect.missingFunds": true
+    }
+  ]
+}
