@@ -26,6 +26,7 @@ func Execute(options CliOptions) {
 	rootCmd.AddCommand(lspCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(getTestCmd())
+	rootCmd.AddCommand(getTestInitCmd())
 	rootCmd.AddCommand(getRunCmd())
 
 	if err := rootCmd.Execute(); err != nil {
