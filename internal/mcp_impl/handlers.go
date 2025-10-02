@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -83,7 +84,11 @@ func addEvalTool(s *server.MCPServer) {
 		parsed := parser.Parse(script)
 		if len(parsed.Errors) != 0 {
 			// TODO return all errors
-			mcp.NewToolResultError(parsed.Errors[0].Msg)
+			out := make([]string, len(parsed.Errors))
+			for index, err := range parsed.Errors {
+				out[index] = err.Msg
+			}
+			mcp.NewToolResultError(strings.Join(out, ", "))
 		}
 
 		balances, mcpErr := parseBalancesJson(request.GetArguments()["balances"])
