@@ -24,6 +24,7 @@ func Execute(options CliOptions) {
 	rootCmd.Version = options.Version
 
 	rootCmd.AddCommand(lspCmd)
+	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(getTestCmd())
 	rootCmd.AddCommand(getTestInitCmd())
