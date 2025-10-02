@@ -1017,8 +1017,7 @@ send [USD 0] (
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$mon", 2),
-				// TODO shoulnd't the error be the other way around?
-				Kind: &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
 			},
 		},
 		checkSource(input),

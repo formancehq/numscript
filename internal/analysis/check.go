@@ -609,9 +609,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		onExit := res.enterCappedSource()
 
 		res.unifyNodeWith(source.Cap, res.stmtType)
-
 		res.checkExpression(source.Cap, TypeMonetary)
-		res.unifyNodeWith(source.Cap, res.stmtType)
 		res.checkSource(source.From)
 
 		onExit()
