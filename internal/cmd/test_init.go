@@ -44,9 +44,15 @@ func getTestInitCmd() *cobra.Command {
 	return cmd
 }
 
-func mkDefaultVar(decl parser.VarDeclaration) string {
-	defaultCurr := "USD/2"
+func mkDefaultVar(decl parser.VarDeclaration, varsTypes map[parser.VarDeclaration]analysis.Type) string {
 	defaultAmt := 100
+	defaultCurr := "USD/2"
+
+	asset := varsTypes[decl].Resolve()
+	switch asset := asset.(type) {
+	case *analysis.TAsset:
+		defaultCurr = string(*asset)
+	}
 
 	switch decl.Type.Name {
 
@@ -86,6 +92,8 @@ func runTestInitCmd(opts testInitArgs) error {
 		return fmt.Errorf("parsing failed")
 	}
 
+	checkResult := analysis.CheckProgram(parseResult.Value)
+
 	// parseResult.Value.Vars
 
 	// TODO we should have an ad-hoc api for this
@@ -98,7 +106,7 @@ func runTestInitCmd(opts testInitArgs) error {
 				continue
 			}
 
-			value := mkDefaultVar(decl)
+			value := mkDefaultVar(decl, checkResult.VarTypes)
 			vars[decl.Name.Name] = value
 		}
 	}
