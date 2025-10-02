@@ -127,6 +127,19 @@ func (TypeMismatch) Severity() Severity {
 	return ErrorSeverity
 }
 
+type AssetMismatch struct {
+	Expected string
+	Got      string
+}
+
+func (e AssetMismatch) Message() string {
+	return fmt.Sprintf("Asset mismatch (expected '%s', got '%s' instead)", e.Expected, e.Got)
+}
+
+func (AssetMismatch) Severity() Severity {
+	return ErrorSeverity
+}
+
 type RemainingIsNotLast struct{}
 
 func (e RemainingIsNotLast) Message() string {

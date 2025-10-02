@@ -123,17 +123,60 @@ type Diagnostic struct {
 }
 
 type CheckResult struct {
-	version                parser.Version
 	nextDiagnosticId       int32
 	unboundedAccountInSend parser.ValueExpr
 	emptiedAccount         map[string]struct{}
 	unboundedSend          bool
-	declaredVars           map[string]parser.VarDeclaration
+	DeclaredVars           map[string]parser.VarDeclaration
 	unusedVars             map[string]parser.Range
 	varResolution          map[*parser.Variable]parser.VarDeclaration
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
 	Diagnostics            []Diagnostic
 	Program                parser.Program
+
+	stmtType  Type
+	ExprTypes map[parser.ValueExpr]Type
+	VarTypes  map[parser.VarDeclaration]Type
+}
+
+func (r *CheckResult) getExprType(expr parser.ValueExpr) Type {
+	exprType, ok := r.ExprTypes[expr]
+	if !ok {
+		t := TVar{}
+		r.ExprTypes[expr] = &t
+		return &t
+	}
+	return exprType
+}
+
+func (r *CheckResult) getVarDeclType(decl parser.VarDeclaration) Type {
+	exprType, ok := r.VarTypes[decl]
+	if !ok {
+		t := TVar{}
+		r.VarTypes[decl] = &t
+		return &t
+	}
+	return exprType
+}
+
+func (r *CheckResult) unifyNodeWith(expr parser.ValueExpr, t Type) {
+	exprT := r.getExprType(expr)
+	r.unify(expr.GetRange(), exprT, t)
+}
+
+func (r *CheckResult) unify(rng parser.Range, t1 Type, t2 Type) {
+	ok := Unify(t1, t2)
+	if ok {
+		return
+	}
+
+	r.Diagnostics = append(r.Diagnostics, Diagnostic{
+		Range: rng,
+		Kind: &AssetMismatch{
+			Expected: TypeToString(t1),
+			Got:      TypeToString(t2),
+		},
+	})
 }
 
 func (r CheckResult) GetErrorsCount() int {
@@ -174,13 +217,15 @@ func (r CheckResult) ResolveBuiltinFn(v *parser.FnCallIdentifier) FnCallResoluti
 
 func newCheckResult(program parser.Program) CheckResult {
 	return CheckResult{
-		version:          program.GetVersion(),
+		Program: program,
+
 		emptiedAccount:   make(map[string]struct{}),
-		declaredVars:     make(map[string]parser.VarDeclaration),
+		DeclaredVars:     make(map[string]parser.VarDeclaration),
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
-		Program:          program,
+		ExprTypes:        make(map[parser.ValueExpr]Type),
+		VarTypes:         make(map[parser.VarDeclaration]Type),
 	}
 }
 
@@ -197,6 +242,7 @@ func (res *CheckResult) check() {
 
 			if varDecl.Origin != nil {
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+				res.unifyNodeWith(*varDecl.Origin, res.getVarDeclType(varDecl))
 			}
 		}
 	}
@@ -214,6 +260,7 @@ func (res *CheckResult) check() {
 
 func (res *CheckResult) checkStatement(statement parser.Statement) {
 	res.emptiedAccount = make(map[string]struct{})
+	res.stmtType = &TVar{}
 
 	switch statement := statement.(type) {
 	case *parser.SaveStatement:
@@ -305,6 +352,16 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			type_ := sig[index]
 			res.checkExpression(arg, type_)
 		}
+
+		switch fnCall.Caller.Name {
+		case FnVarOriginBalance, FnVarOriginOverdraft:
+			// we run unify(<expr>, <asset>) in:
+			// <expr> := balance(@acc, <asset>)
+			res.unifyNodeWith(fnCall, res.getExprType(validArgs[1]))
+
+		case FnVarOriginGetAsset:
+			res.unifyNodeWith(fnCall, res.getExprType(validArgs[0]))
+		}
 	} else {
 		for _, arg := range validArgs {
 			res.checkExpression(arg, TypeAny)
@@ -328,15 +385,15 @@ func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
 
 func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
 	// check there aren't duplicate variables
-	if _, ok := res.declaredVars[variableName.Name]; ok {
+	if _, ok := res.DeclaredVars[variableName.Name]; ok {
 		res.pushDiagnostic(variableName.Range, DuplicateVariable{Name: variableName.Name})
 	} else {
-		res.declaredVars[variableName.Name] = decl
+		res.DeclaredVars[variableName.Name] = decl
 		res.unusedVars[variableName.Name] = variableName.Range
 	}
 }
 
-func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
+func (res *CheckResult) checkFnCall(fnCall *parser.FnCall) string {
 	returnType := TypeAny
 
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
@@ -349,7 +406,7 @@ func (res *CheckResult) checkFnCall(fnCall parser.FnCall) string {
 	}
 
 	// this must come after resolution
-	res.checkFnCallArity(&fnCall)
+	res.checkFnCallArity(fnCall)
 
 	return returnType
 }
@@ -362,8 +419,9 @@ func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType strin
 func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
-		if varDeclaration, ok := res.declaredVars[lit.Name]; ok {
+		if varDeclaration, ok := res.DeclaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
+			res.unifyNodeWith(lit, res.getVarDeclType(varDeclaration))
 		} else {
 			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
@@ -378,9 +436,16 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.MonetaryLiteral:
 		res.checkExpression(lit.Asset, TypeAsset)
 		res.checkExpression(lit.Amount, TypeNumber)
+		/*
+			we unify $mon and $asset in:
+			`let $mon := [$asset 42]`
+		*/
+		res.unifyNodeWith(lit, res.getExprType(lit.Asset))
 		return TypeMonetary
 
 	case *parser.BinaryInfix:
+		res.unifyNodeWith(lit.Left, res.getExprType(lit.Right))
+
 		switch lit.Operator {
 		case parser.InfixOperatorPlus:
 			return res.checkInfixOverload(lit, []string{TypeNumber, TypeMonetary})
@@ -415,6 +480,8 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.PercentageLiteral:
 		return TypePortion
 	case *parser.AssetLiteral:
+		t := TAsset(lit.Asset)
+		res.unifyNodeWith(lit, &t)
 		return TypeAsset
 	case *parser.NumberLiteral:
 		return TypeNumber
@@ -422,7 +489,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 		return TypeString
 
 	case *parser.FnCall:
-		return res.checkFnCall(*lit)
+		return res.checkFnCall(lit)
 
 	default:
 		return TypeAny
@@ -459,8 +526,10 @@ func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
 		res.checkExpression(sentValue.Asset, TypeAsset)
+		res.unifyNodeWith(sentValue.Asset, res.stmtType)
 	case *parser.SentValueLiteral:
 		res.checkExpression(sentValue.Monetary, TypeMonetary)
+		res.unifyNodeWith(sentValue.Monetary, res.stmtType)
 	}
 }
 
@@ -521,6 +590,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 		res.checkExpression(source.Color, TypeString)
 		if source.Bounded != nil {
 			res.checkExpression(*source.Bounded, TypeMonetary)
+			res.unifyNodeWith(*source.Bounded, res.stmtType)
 		}
 
 	case *parser.SourceInorder:
@@ -538,6 +608,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.SourceCapped:
 		onExit := res.enterCappedSource()
 
+		res.unifyNodeWith(source.Cap, res.stmtType)
 		res.checkExpression(source.Cap, TypeMonetary)
 		res.checkSource(source.From)
 
@@ -680,6 +751,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 	case *parser.DestinationInorder:
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
+			res.unifyNodeWith(clause.Cap, res.stmtType)
 			res.checkKeptOrDestination(clause.To)
 		}
 		res.checkKeptOrDestination(destination.Remaining)
@@ -689,6 +761,7 @@ func (res *CheckResult) checkDestination(destination parser.Destination) {
 
 		for _, clause := range destination.Clauses {
 			res.checkExpression(clause.Cap, TypeMonetary)
+			res.unifyNodeWith(clause.Cap, res.stmtType)
 			res.checkKeptOrDestination(clause.To)
 		}
 		res.checkKeptOrDestination(destination.Remaining)

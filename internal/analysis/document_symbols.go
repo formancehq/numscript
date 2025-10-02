@@ -25,7 +25,7 @@ type DocumentSymbol struct {
 // results are sorted by start position
 func (r *CheckResult) GetSymbols() []DocumentSymbol {
 	var symbols []DocumentSymbol
-	for k, v := range r.declaredVars {
+	for k, v := range r.DeclaredVars {
 		symbols = append(symbols, DocumentSymbol{
 			Name:           k,
 			Kind:           DocumentSymbolVariable,

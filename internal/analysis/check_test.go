@@ -968,3 +968,125 @@ func TestInorderRedundantWhenEmptyColored(t *testing.T) {
 		checkSource(input),
 	)
 }
+
+func TestCheckAssetMismatch(t *testing.T) {
+
+	t.Parallel()
+
+	input := `
+	
+	send [USD 100] (
+  	source = max [EUR 10] from @a
+  	destination = @dest
+)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "[EUR 10]", 0),
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestCheckAssetMismatchInVar(t *testing.T) {
+
+	t.Parallel()
+
+	input := `
+	
+vars {
+  monetary $mon
+}
+
+send [EUR 0] (
+  source = max $mon from @a
+  destination = @b
+)
+
+send [USD 0] (
+  source = max $mon from @a
+  destination = @b
+)
+
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$mon", 2),
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestCheckBalanceAssetConstraint(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	monetary $mon = balance(@acc, USD/2)
+}
+
+send [USD 42] (
+  source = max $mon from @a
+  destination = @b
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "$mon", 1),
+				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "USD/2"},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestInferVars(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	monetary $mon1
+	monetary $mon2
+}
+
+send $mon1 (
+  source = @a allowing overdraft up to $mon2
+  destination = @b
+)
+`
+
+	res := analysis.CheckSource(input)
+
+	t1 := res.VarTypes[res.DeclaredVars["mon1"]]
+
+	t2 := res.VarTypes[res.DeclaredVars["mon2"]]
+
+	require.Same(t, t1.Resolve(), t2.Resolve())
+}
+
+func TestInferGetAsset(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	asset $ass = get_asset([USD/2 100])
+}
+`
+
+	res := analysis.CheckSource(input)
+
+	v := res.DeclaredVars["ass"]
+	t1 := res.VarTypes[v]
+
+	expected := analysis.TAsset("USD/2")
+	require.Equal(t, &expected, t1.Resolve())
+}
