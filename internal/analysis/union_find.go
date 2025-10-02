@@ -25,7 +25,8 @@ func (t *TVar) Resolve() Type {
 		return t
 	}
 
-	// This bit doesn't change the behaviour but
+	// This bit doesn't change the behaviour but allows to return the path right away
+	// the next time we call Resolve()
 	t.resolution = resolved
 
 	return resolved
