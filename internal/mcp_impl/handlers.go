@@ -42,6 +42,26 @@ func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResu
 	return iBalances, nil
 }
 
+func parseVarsJson(varsRaw any) (map[string]string, *mcp.CallToolResult) {
+	vars, ok := varsRaw.(map[string]any)
+	if !ok {
+		return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected an object as vars, got: <%#v>", varsRaw))
+	}
+
+	iVars := map[string]string{}
+	for key, rawValue := range vars {
+
+		value, ok := rawValue.(string)
+		if !ok {
+			return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected stringified var, got: %v", key))
+		}
+
+		iVars[key] = value
+	}
+
+	return iVars, nil
+}
+
 func addEvalTool(s *server.MCPServer) {
 	tool := mcp.NewTool("evaluate",
 		mcp.WithDescription("Evaluate a numscript program"),
@@ -75,7 +95,6 @@ func addEvalTool(s *server.MCPServer) {
 		),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-
 		script, err := request.RequireString("script")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
@@ -96,10 +115,15 @@ func addEvalTool(s *server.MCPServer) {
 			return mcpErr, nil
 		}
 
+		vars, mcpErr := parseVarsJson(request.GetArguments()["vars"])
+		if mcpErr != nil {
+			return mcpErr, nil
+		}
+
 		out, iErr := interpreter.RunProgram(
 			context.Background(),
 			parsed.Value,
-			map[string]string{},
+			vars,
 			interpreter.StaticStore{
 				Balances: balances,
 			},
