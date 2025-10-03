@@ -179,6 +179,10 @@ func RunServer() error {
 		"0.0.1",
 		server.WithToolCapabilities(false),
 		server.WithRecovery(),
+		server.WithInstructions(`
+		You're a numscript expert AI assistant. Numscript is a DSL that allows modelling finantial transaction in an easy and declarative way. Numscript scripts alwasy terminate.
+		`),
+		// TODO add prompt
 	)
 	addEvalTool(s)
 	addCheckTool(s)
