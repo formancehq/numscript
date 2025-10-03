@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -136,6 +137,41 @@ func addEvalTool(s *server.MCPServer) {
 	})
 }
 
+func addCheckTool(s *server.MCPServer) {
+	tool := mcp.NewTool("check",
+		mcp.WithDescription("Check a program for parsing error or static analysis errors"),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithOpenWorldHintAnnotation(false),
+		mcp.WithString("script",
+			mcp.Required(),
+			mcp.Description("The numscript source"),
+		),
+	)
+
+	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		script, err := request.RequireString("script")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		checkResult := analysis.CheckSource(script)
+
+		var errors []any
+		for _, d := range checkResult.Diagnostics {
+			errors = append(errors, map[string]any{
+				"kind":     d.Kind.Message(),
+				"severity": analysis.SeverityToString(d.Kind.Severity()),
+				"span":     d.Range,
+			})
+		}
+
+		return mcp.NewToolResultJSON(map[string]any{
+			"errors": errors,
+		})
+	})
+}
+
 func RunServer() error {
 	// Create a new MCP server
 	s := server.NewMCPServer(
@@ -145,6 +181,7 @@ func RunServer() error {
 		server.WithRecovery(),
 	)
 	addEvalTool(s)
+	addCheckTool(s)
 
 	// Start the server
 	if err := server.ServeStdio(s); err != nil {
