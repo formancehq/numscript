@@ -4,24 +4,24 @@ import (
 	"fmt"
 
 	"github.com/formancehq/numscript/internal/analysis"
-	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/formancehq/numscript/internal/parser"
+	"go.lsp.dev/protocol"
 )
 
-func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) lsp_types.TextEdit {
+func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) protocol.TextEdit {
 	declarationLine := fmt.Sprintf("\n  %s $%s\n", diagnostic.Type, diagnostic.Name)
 
 	if program.Vars == nil || len(program.Vars.Declarations) == 0 {
-		var rng lsp_types.Range
+		var rng protocol.Range
 		text := fmt.Sprintf("vars {%s}", declarationLine)
 
 		if program.Vars != nil {
-			rng = toLspRange(program.Vars.Range)
+			rng = *toLspRange(program.Vars.Range)
 		} else {
 			text += "\n\n"
 		}
 
-		return lsp_types.TextEdit{
+		return protocol.TextEdit{
 			NewText: text,
 			Range:   rng,
 		}
@@ -32,9 +32,9 @@ func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) lsp_
 	varsEndPosition := program.Vars.End
 	varsEndPosition.Character--
 
-	return lsp_types.TextEdit{
+	return protocol.TextEdit{
 		NewText: declarationLine,
-		Range: lsp_types.Range{
+		Range: protocol.Range{
 			Start: ParserToLspPosition(lastVarEnd),
 			End:   ParserToLspPosition(varsEndPosition),
 		},
