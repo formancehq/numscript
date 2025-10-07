@@ -94,12 +94,7 @@ func runTestInitCmd(opts testInitArgs) error {
 
 	checkResult := analysis.CheckProgram(parseResult.Value)
 
-	// parseResult.Value.Vars
-
-	// TODO we should have an ad-hoc api for this
-	// TODO parse vars
 	vars := map[string]string{}
-
 	if parseResult.Value.Vars != nil {
 		for _, decl := range parseResult.Value.Vars.Declarations {
 			if decl.Origin != nil {
@@ -129,10 +124,8 @@ func runTestInitCmd(opts testInitArgs) error {
 	)
 
 	if iErr != nil {
-		panic(iErr)
+		return iErr
 	}
-
-	// TODO check iErr is catchable err
 
 	specs := specs_format.Specs{
 		Schema:   "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
@@ -170,17 +163,27 @@ func (s TestInitStore) GetBalances(_ context.Context, q interpreter.BalanceQuery
 				return new(big.Int).Set(s.DefaultBalance)
 			})
 
-			outpuAccountBalance := utils.MapGetOrPutDefault(outputBalance, queriedAccount, func() interpreter.AccountBalance {
+			outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, queriedAccount, func() interpreter.AccountBalance {
 				return interpreter.AccountBalance{}
 			})
 
-			outpuAccountBalance[curr] = new(big.Int).Set(amt)
+			outputAccountBalance[curr] = new(big.Int).Set(amt)
 		}
 	}
 
 	return outputBalance, nil
 }
 
-func (s TestInitStore) GetAccountsMetadata(context.Context, interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
-	panic("TODO")
+func (s TestInitStore) GetAccountsMetadata(c context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	outputMeta := interpreter.AccountsMetadata{}
+	for queriedAccount, queriedCurrencies := range q {
+		for _, curr := range queriedCurrencies {
+			outputAccountMeta := utils.MapGetOrPutDefault(outputMeta, queriedAccount, func() interpreter.AccountMetadata {
+				return interpreter.AccountMetadata{}
+			})
+			outputAccountMeta[curr] = ""
+		}
+	}
+
+	return outputMeta, nil
 }
