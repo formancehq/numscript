@@ -121,7 +121,7 @@ func addEvalTool(s *server.MCPServer) {
 		}
 
 		out, iErr := interpreter.RunProgram(
-			context.Background(),
+			ctx,
 			parsed.Value,
 			vars,
 			interpreter.StaticStore{
