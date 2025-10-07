@@ -78,18 +78,11 @@ func mkDefaultVar(decl parser.VarDeclaration, varsTypes map[parser.VarDeclaratio
 	return ""
 }
 
-func runTestInitCmd(opts testInitArgs) error {
-	// TODO check there isn't a specsfile already
-
-	numscriptContent, err := os.ReadFile(opts.path)
-	if err != nil {
-		return err
-	}
-
-	parseResult := parser.Parse(string(numscriptContent))
+func MakeSpecsFile(source string) (specs_format.Specs, error) {
+	parseResult := parser.Parse(source)
 	if len(parseResult.Errors) != 0 {
-		fmt.Fprint(os.Stderr, parser.ParseErrorsToString(parseResult.Errors, string(numscriptContent)))
-		return fmt.Errorf("parsing failed")
+		fmt.Fprint(os.Stderr, parser.ParseErrorsToString(parseResult.Errors, source))
+		return specs_format.Specs{}, fmt.Errorf("parsing failed")
 	}
 
 	checkResult := analysis.CheckProgram(parseResult.Value)
@@ -106,37 +99,95 @@ func runTestInitCmd(opts testInitArgs) error {
 		}
 	}
 
-	featureFlags := map[string]struct{}{}
+	return makeSpecsFile(
+		parseResult.Value,
+		vars,
+		map[string]struct{}{},
+		big.NewInt(100),
+	)
+}
+
+func makeSpecsFile(
+	program parser.Program,
+	vars map[string]string,
+	featureFlags map[string]struct{},
+	defaultBalance *big.Int,
+) (specs_format.Specs, error) {
 
 	store := TestInitStore{
 		// TODO use max of numeric vars as default
-		DefaultBalance: big.NewInt(1000),
+		DefaultBalance: defaultBalance,
 		Balances:       make(interpreter.Balances),
 		Meta:           make(interpreter.AccountsMetadata),
 	}
 
 	res, iErr := interpreter.RunProgram(
 		context.Background(),
-		parseResult.Value,
+		program,
 		vars,
 		store,
 		featureFlags,
 	)
 
 	if iErr != nil {
-		return iErr
+		missingFundsErr, missingFunds := iErr.(interpreter.MissingFundsErr)
+		if missingFunds {
+			// TODO we could have better heuristics with a balance for each account/asset pair
+			return makeSpecsFile(
+				program,
+				vars,
+				featureFlags,
+				&missingFundsErr.Needed,
+			)
+		}
+
+		expFeatErr, missingFeatureFlag := iErr.(interpreter.ExperimentalFeature)
+		if missingFeatureFlag {
+			featureFlags[expFeatErr.FlagName] = struct{}{}
+			return makeSpecsFile(
+				program,
+				vars,
+				featureFlags,
+				&missingFundsErr.Needed,
+			)
+		}
+
+		return specs_format.Specs{}, iErr
+	}
+
+	var featureFlags_ []string
+	for k := range featureFlags {
+		featureFlags_ = append(featureFlags_, k)
 	}
 
 	specs := specs_format.Specs{
-		Schema:   "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
-		Balances: store.Balances,
-		Vars:     vars,
+		Schema:       "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+		Balances:     store.Balances,
+		Vars:         vars,
+		FeatureFlags: featureFlags_,
 		TestCases: []specs_format.TestCase{
 			{
 				It:             "example spec",
 				ExpectPostings: res.Postings,
 			},
 		},
+	}
+
+	return specs, nil
+}
+
+func runTestInitCmd(opts testInitArgs) error {
+	// TODO check there isn't a specsfile already
+
+	numscriptContent, err := os.ReadFile(opts.path)
+	if err != nil {
+		return err
+	}
+
+	specs, err := MakeSpecsFile(string(numscriptContent))
+
+	if err != nil {
+		return err
 	}
 
 	marshaled, _ := json.MarshalIndent(specs, "", "  ")
