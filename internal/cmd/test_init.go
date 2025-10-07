@@ -44,11 +44,11 @@ func getTestInitCmd() *cobra.Command {
 	return cmd
 }
 
-func mkDefaultVar(decl parser.VarDeclaration, varsTypes map[parser.VarDeclaration]analysis.Type) string {
+func mkDefaultVar(decl parser.VarDeclaration, checkResult analysis.CheckResult) string {
 	defaultAmt := 100
 	defaultCurr := "USD/2"
 
-	asset := varsTypes[decl].Resolve()
+	asset := checkResult.GetVarDeclType(decl)
 	switch asset := asset.(type) {
 	case *analysis.TAsset:
 		defaultCurr = string(*asset)
@@ -94,7 +94,7 @@ func MakeSpecsFile(source string) (specs_format.Specs, error) {
 				continue
 			}
 
-			value := mkDefaultVar(decl, checkResult.VarTypes)
+			value := mkDefaultVar(decl, checkResult)
 			vars[decl.Name.Name] = value
 		}
 	}

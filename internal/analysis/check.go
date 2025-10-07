@@ -135,32 +135,32 @@ type CheckResult struct {
 	Program                parser.Program
 
 	stmtType  Type
-	ExprTypes map[parser.ValueExpr]Type
-	VarTypes  map[parser.VarDeclaration]Type
+	exprTypes map[parser.ValueExpr]Type
+	varTypes  map[parser.VarDeclaration]Type
 }
 
-func (r *CheckResult) getExprType(expr parser.ValueExpr) Type {
-	exprType, ok := r.ExprTypes[expr]
+func (r *CheckResult) GetExprType(expr parser.ValueExpr) Type {
+	exprType, ok := r.exprTypes[expr]
 	if !ok {
 		t := TVar{}
-		r.ExprTypes[expr] = &t
+		r.exprTypes[expr] = &t
 		return &t
 	}
-	return exprType
+	return exprType.Resolve()
 }
 
-func (r *CheckResult) getVarDeclType(decl parser.VarDeclaration) Type {
-	exprType, ok := r.VarTypes[decl]
+func (r *CheckResult) GetVarDeclType(decl parser.VarDeclaration) Type {
+	exprType, ok := r.varTypes[decl]
 	if !ok {
 		t := TVar{}
-		r.VarTypes[decl] = &t
+		r.varTypes[decl] = &t
 		return &t
 	}
-	return exprType
+	return exprType.Resolve()
 }
 
 func (r *CheckResult) unifyNodeWith(expr parser.ValueExpr, t Type) {
-	exprT := r.getExprType(expr)
+	exprT := r.GetExprType(expr)
 	r.unify(expr.GetRange(), exprT, t)
 }
 
@@ -224,8 +224,8 @@ func newCheckResult(program parser.Program) CheckResult {
 		unusedVars:       make(map[string]parser.Range),
 		varResolution:    make(map[*parser.Variable]parser.VarDeclaration),
 		fnCallResolution: make(map[*parser.FnCallIdentifier]FnCallResolution),
-		ExprTypes:        make(map[parser.ValueExpr]Type),
-		VarTypes:         make(map[parser.VarDeclaration]Type),
+		exprTypes:        make(map[parser.ValueExpr]Type),
+		varTypes:         make(map[parser.VarDeclaration]Type),
 	}
 }
 
@@ -242,7 +242,7 @@ func (res *CheckResult) check() {
 
 			if varDecl.Origin != nil {
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
-				res.unifyNodeWith(*varDecl.Origin, res.getVarDeclType(varDecl))
+				res.unifyNodeWith(*varDecl.Origin, res.GetVarDeclType(varDecl))
 			}
 		}
 	}
@@ -357,10 +357,10 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 		case FnVarOriginBalance, FnVarOriginOverdraft:
 			// we run unify(<expr>, <asset>) in:
 			// <expr> := balance(@acc, <asset>)
-			res.unifyNodeWith(fnCall, res.getExprType(validArgs[1]))
+			res.unifyNodeWith(fnCall, res.GetExprType(validArgs[1]))
 
 		case FnVarOriginGetAsset:
-			res.unifyNodeWith(fnCall, res.getExprType(validArgs[0]))
+			res.unifyNodeWith(fnCall, res.GetExprType(validArgs[0]))
 		}
 	} else {
 		for _, arg := range validArgs {
@@ -421,7 +421,7 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 	case *parser.Variable:
 		if varDeclaration, ok := res.DeclaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
-			res.unifyNodeWith(lit, res.getVarDeclType(varDeclaration))
+			res.unifyNodeWith(lit, res.GetVarDeclType(varDeclaration))
 		} else {
 			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
@@ -440,11 +440,11 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			we unify $mon and $asset in:
 			`let $mon := [$asset 42]`
 		*/
-		res.unifyNodeWith(lit, res.getExprType(lit.Asset))
+		res.unifyNodeWith(lit, res.GetExprType(lit.Asset))
 		return TypeMonetary
 
 	case *parser.BinaryInfix:
-		res.unifyNodeWith(lit.Left, res.getExprType(lit.Right))
+		res.unifyNodeWith(lit.Left, res.GetExprType(lit.Right))
 
 		switch lit.Operator {
 		case parser.InfixOperatorPlus:

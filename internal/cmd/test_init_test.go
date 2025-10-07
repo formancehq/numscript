@@ -25,6 +25,15 @@ func TestMakeSpecsFileRetryForMissingFunds(t *testing.T) {
 	}, out.Balances)
 }
 
+func TestUnusedVars(t *testing.T) {
+	out, err := cmd.MakeSpecsFile(`
+		vars { monetary $m }
+ `)
+
+	require.Nil(t, err)
+	require.Equal(t, interpreter.VariablesMap{"m": "USD/2 100"}, out.Vars)
+}
+
 func TestMakeSpecsFileRetryForMissingFeatureFlags(t *testing.T) {
 	out, err := cmd.MakeSpecsFile(`
 		send [USD/2 10000] (
