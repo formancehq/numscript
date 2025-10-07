@@ -6,8 +6,8 @@ import (
 
 	"github.com/formancehq/numscript/internal/jsonrpc2"
 	"github.com/formancehq/numscript/internal/lsp"
-	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/stretchr/testify/require"
+	"go.lsp.dev/protocol"
 )
 
 func TestServerReadWrite(t *testing.T) {
@@ -28,9 +28,11 @@ func TestServerReadWrite(t *testing.T) {
 		response.ID,
 	)
 
-	var init lsp_types.InitializeResult
+	var init protocol.InitializeResult
 	err := json.Unmarshal(response.Result, &init)
 	require.Nil(t, err)
 
-	require.True(t, init.Capabilities.HoverProvider)
+	b, ok := init.Capabilities.HoverProvider.(bool)
+	require.True(t, ok, "cast init.Capabilities.HoverProvider to bool")
+	require.True(t, b)
 }

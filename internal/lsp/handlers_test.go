@@ -6,10 +6,10 @@ import (
 
 	"github.com/formancehq/numscript/internal/jsonrpc2"
 	"github.com/formancehq/numscript/internal/lsp"
-	"github.com/formancehq/numscript/internal/lsp/lsp_types"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
+	"go.lsp.dev/protocol"
 )
 
 func TestDiagnostics(t *testing.T) {
@@ -110,10 +110,10 @@ type TestClient struct {
 	diagnostics chan json.RawMessage
 }
 
-func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentIdentifier, string, json.RawMessage) {
-	err := c.conn.SendNotification("textDocument/didOpen", lsp_types.DidOpenTextDocumentParams{
-		TextDocument: lsp_types.TextDocumentItem{
-			URI:        lsp_types.DocumentURI(uri),
+func (c *TestClient) OpenFile(uri string, text string) (protocol.TextDocumentIdentifier, string, json.RawMessage) {
+	err := c.conn.SendNotification("textDocument/didOpen", protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        protocol.DocumentURI(uri),
 			LanguageID: "numscript",
 			Text:       text,
 		},
@@ -122,31 +122,31 @@ func (c *TestClient) OpenFile(uri string, text string) (lsp_types.TextDocumentId
 		panic(err)
 	}
 
-	docIdent := lsp_types.TextDocumentIdentifier{
-		URI: lsp_types.DocumentURI(uri),
+	docIdent := protocol.TextDocumentIdentifier{
+		URI: protocol.DocumentURI(uri),
 	}
 
 	return docIdent, text, <-c.diagnostics
 }
 
-func (c *TestClient) Hover(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
-	return c.conn.SendRequest("textDocument/hover", lsp_types.HoverParams{
-		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
+func (c *TestClient) Hover(doc protocol.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
+	return c.conn.SendRequest("textDocument/hover", protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: doc,
 			Position:     lsp.ParserToLspPosition(position),
 		},
 	})
 }
 
-func (c *TestClient) GetSymbols(doc lsp_types.TextDocumentIdentifier) (json.RawMessage, *jsonrpc2.ResponseError) {
-	return c.conn.SendRequest("textDocument/documentSymbol", lsp_types.DocumentSymbolParams{
+func (c *TestClient) GetSymbols(doc protocol.TextDocumentIdentifier) (json.RawMessage, *jsonrpc2.ResponseError) {
+	return c.conn.SendRequest("textDocument/documentSymbol", protocol.DocumentSymbolParams{
 		TextDocument: doc,
 	})
 }
 
-func (c *TestClient) GotoDefinition(doc lsp_types.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
-	return c.conn.SendRequest("textDocument/definition", lsp_types.DefinitionParams{
-		TextDocumentPositionParams: lsp_types.TextDocumentPositionParams{
+func (c *TestClient) GotoDefinition(doc protocol.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
+	return c.conn.SendRequest("textDocument/definition", protocol.DefinitionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: doc,
 			Position:     lsp.ParserToLspPosition(position),
 		},
