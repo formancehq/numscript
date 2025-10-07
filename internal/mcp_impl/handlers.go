@@ -103,7 +103,6 @@ func addEvalTool(s *server.MCPServer) {
 
 		parsed := parser.Parse(script)
 		if len(parsed.Errors) != 0 {
-			// TODO return all errors
 			out := make([]string, len(parsed.Errors))
 			for index, err := range parsed.Errors {
 				out[index] = err.Msg
