@@ -1066,9 +1066,8 @@ send $mon1 (
 
 	res := analysis.CheckSource(input)
 
-	t1 := res.VarTypes[res.DeclaredVars["mon1"]]
-
-	t2 := res.VarTypes[res.DeclaredVars["mon2"]]
+	t1 := res.GetVarDeclType(res.DeclaredVars["mon1"])
+	t2 := res.GetVarDeclType(res.DeclaredVars["mon2"])
 
 	require.Same(t, t1.Resolve(), t2.Resolve())
 }
@@ -1085,7 +1084,7 @@ vars {
 	res := analysis.CheckSource(input)
 
 	v := res.DeclaredVars["ass"]
-	t1 := res.VarTypes[v]
+	t1 := res.GetVarDeclType(v)
 
 	expected := analysis.TAsset("USD/2")
 	require.Equal(t, &expected, t1.Resolve())
