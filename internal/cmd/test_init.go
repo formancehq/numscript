@@ -115,7 +115,6 @@ func makeSpecsFile(
 ) (specs_format.Specs, error) {
 
 	store := TestInitStore{
-		// TODO use max of numeric vars as default
 		DefaultBalance: defaultBalance,
 		Balances:       make(interpreter.Balances),
 		Meta:           make(interpreter.AccountsMetadata),
