@@ -32,7 +32,7 @@ func GetInlayHints(
 			continue
 		}
 
-		t := checkResult.VarTypes[decl]
+		t := checkResult.GetVarDeclType(decl)
 
 		hints = append(hints, InlayHint{
 			Position: decl.Type.End,
