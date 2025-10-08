@@ -82,3 +82,42 @@ func TypeToString(r Type) string {
 
 	return utils.NonExhaustiveMatchPanic[string](r)
 }
+
+type TypePrinter struct {
+	nextId uint16
+	store  map[*TVar]uint16
+}
+
+func NewTypePrinter() TypePrinter {
+	return TypePrinter{
+		nextId: 0,
+		store:  make(map[*TVar]uint16),
+	}
+}
+
+func (p *TypePrinter) getVarId(v *TVar) uint16 {
+	prev, ok := p.store[v]
+	if ok {
+		return prev
+	}
+
+	id := p.nextId
+	p.nextId += 1
+	p.store[v] = id
+	return id
+}
+
+func (p *TypePrinter) Print(r Type) string {
+	r = r.Resolve()
+	switch r := r.(type) {
+	case *TVar:
+		return fmt.Sprintf("'t%d", p.getVarId(r))
+
+	case *TAsset:
+		return string(*r)
+
+	}
+
+	return utils.NonExhaustiveMatchPanic[string](r)
+
+}
