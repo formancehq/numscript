@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-virtual-account", "experimental-oneof"],
+  "testCases": [
+    {
+      "it": "just enough balance",
+      "balances": {
+        "alice": { "USD/2": 5 }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "more than enough but less than 100%",
+      "balances": {
+        "alice": { "USD/2": 6 }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "fail when less than the half TODO double check",
+      "balances": {
+        "alice": { "USD/2": 2 }
+      }
+    },
+    {
+      "it": "more than 100%",
+      "balances": {
+        "alice": { "USD/2": 100 }
+      },
+      "expect.postings": [
+        {
+          "source": "alice",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

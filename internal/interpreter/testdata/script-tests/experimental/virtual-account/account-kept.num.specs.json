@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-virtual-account"],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}
