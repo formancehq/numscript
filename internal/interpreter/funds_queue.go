@@ -78,7 +78,7 @@ func (s *fundsQueue) Pull(maxAmount *big.Int, color *string) []Sender {
 	out := newFundsQueue([]Sender{})
 	offset := 0
 
-	for maxAmount.Cmp(big.NewInt(0)) != 0 && len(s.senders) > offset {
+	for maxAmount.Sign() > 0 && len(s.senders) > offset {
 
 		frontSender := s.senders[offset]
 
@@ -91,7 +91,11 @@ func (s *fundsQueue) Pull(maxAmount *big.Int, color *string) []Sender {
 		case -1: // not enough
 			maxAmount.Sub(maxAmount, frontSender.Amount)
 			out.Push(frontSender)
-			s.senders = slices.Delete(s.senders, offset, offset+1)
+			if offset == 0 {
+				s.senders = s.senders[1:]
+			} else {
+				s.senders = slices.Delete(s.senders, offset, offset+1)
+			}
 		case 1: // more than enough
 			out.Push(Sender{
 				Name:   frontSender.Name,
@@ -102,7 +106,11 @@ func (s *fundsQueue) Pull(maxAmount *big.Int, color *string) []Sender {
 			return out.senders
 		case 0: // exactly enough
 			out.Push(s.senders[offset])
-			s.senders = slices.Delete(s.senders, offset, offset+1)
+			if offset == 0 {
+				s.senders = s.senders[1:]
+			} else {
+				s.senders = slices.Delete(s.senders, offset, offset+1)
+			}
 			return out.senders
 		}
 	}
