@@ -1,0 +1,20 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": {
+        "memo:main": { "EUR/2": 99999999 }
+      },
+      "variables": {},
+      "metadata": {},
+      "expect.postings": [
+        {
+          "source": "memo:main",
+          "destination": "world",
+          "asset": "EUR/2",
+          "amount": 100
+        }
+      ]
+    }
+  ]
+}

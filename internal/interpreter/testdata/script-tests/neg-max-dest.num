@@ -1,0 +1,7 @@
+send [EUR/2 100] (
+  source = @memo:main
+  destination = {
+    max [EUR/2 0]-[EUR/2 10] to @qonto:main
+    remaining to @world
+  }
+)
