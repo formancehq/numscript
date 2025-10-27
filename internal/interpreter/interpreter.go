@@ -763,7 +763,8 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 				break
 			}
 
-			err = handler(destinationClause.To, utils.MinBigInt(cap, remainingAmount))
+			amountToReceive := utils.MaxBigInt(utils.MinBigInt(cap, remainingAmount), big.NewInt(0))
+			err = handler(destinationClause.To, amountToReceive)
 			if err != nil {
 				return err
 			}
