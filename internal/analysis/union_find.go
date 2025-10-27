@@ -111,7 +111,7 @@ func (p *TypePrinter) Print(r Type) string {
 	r = r.Resolve()
 	switch r := r.(type) {
 	case *TVar:
-		return fmt.Sprintf("'t%d", p.getVarId(r))
+		return fmt.Sprintf("asset_%d", p.getVarId(r))
 
 	case *TAsset:
 		return string(*r)
