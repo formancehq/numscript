@@ -54,7 +54,7 @@ func parseVarsJson(varsRaw any) (map[string]string, *mcp.CallToolResult) {
 
 		value, ok := rawValue.(string)
 		if !ok {
-			return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected stringified var, got: %v", key))
+			return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected %s var to be a string, got: %T instead", key, rawValue))
 		}
 
 		iVars[key] = value
@@ -130,7 +130,7 @@ func addEvalTool(s *server.MCPServer) {
 			map[string]struct{}{},
 		)
 		if iErr != nil {
-			mcp.NewToolResultError(iErr.Error())
+			return mcp.NewToolResultError(iErr.Error()), nil
 		}
 		return mcp.NewToolResultJSON(*out)
 	})
@@ -181,7 +181,6 @@ func RunServer() error {
 		server.WithInstructions(`
 		You're a Numscript expert AI assistant. Numscript is a DSL that allows modeling financial transactions in an easy and declarative way. Numscript scripts always terminate.
 		`),
-		// TODO add prompt
 	)
 	addEvalTool(s)
 	addCheckTool(s)
