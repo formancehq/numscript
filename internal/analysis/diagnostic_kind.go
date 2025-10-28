@@ -36,6 +36,21 @@ func SeverityToAnsiString(s Severity) string {
 	}
 }
 
+func SeverityToString(s Severity) string {
+	switch s {
+	case ErrorSeverity:
+		return "Error"
+	case WarningSeverity:
+		return "Warning"
+	case Information:
+		return "Info"
+	case Hint:
+		return "Hint"
+	default:
+		return utils.NonExhaustiveMatchPanic[string](s)
+	}
+}
+
 type DiagnosticKind interface {
 	Message() string
 	Severity() Severity
