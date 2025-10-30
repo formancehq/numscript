@@ -1,0 +1,19 @@
+vars {
+  account $v = virtual()
+}
+send [USD 10] (
+  source = @world
+  destination = $v
+)
+send [USD *] (
+  source = $v
+  destination = {
+    max [USD 5] to @dest
+    remaining kept
+  }
+)
+
+send [USD *] (
+  source = $v
+  destination = @other
+)

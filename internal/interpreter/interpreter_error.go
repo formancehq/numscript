@@ -114,7 +114,7 @@ func (e InvalidTypeErr) Error() string {
 
 type NegativeBalanceError struct {
 	parser.Range
-	Account string
+	Account Account
 	Amount  big.Int
 }
 

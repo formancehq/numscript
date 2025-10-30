@@ -5,9 +5,9 @@ import (
 )
 
 type Sender struct {
-	Name   string
-	Amount *big.Int
-	Color  string
+	Account AccountValue
+	Amount  *big.Int
+	Color   string
 }
 
 type stack[T any] struct {
@@ -76,15 +76,15 @@ func (s *fundsStack) compactTop() {
 			continue
 		}
 
-		if first.Name != second.Name || first.Color != second.Color {
+		if first.Account != second.Account || first.Color != second.Color {
 			return
 		}
 
 		s.senders = &stack[Sender]{
 			Head: Sender{
-				Name:   first.Name,
-				Color:  first.Color,
-				Amount: new(big.Int).Add(first.Amount, second.Amount),
+				Account: first.Account,
+				Color:   first.Color,
+				Amount:  new(big.Int).Add(first.Amount, second.Amount),
 			},
 			Tail: s.senders.Tail.Tail,
 		}
@@ -152,9 +152,9 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 		case 1: // more than enough
 			s.senders = &stack[Sender]{
 				Head: Sender{
-					Name:   available.Name,
-					Color:  available.Color,
-					Amount: new(big.Int).Sub(available.Amount, requiredAmount),
+					Account: available.Account,
+					Color:   available.Color,
+					Amount:  new(big.Int).Sub(available.Amount, requiredAmount),
 				},
 				Tail: s.senders,
 			}
@@ -162,9 +162,9 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 
 		case 0: // exactly the same
 			out = append(out, Sender{
-				Name:   available.Name,
-				Color:  available.Color,
-				Amount: new(big.Int).Set(requiredAmount),
+				Account: available.Account,
+				Color:   available.Color,
+				Amount:  new(big.Int).Set(requiredAmount),
 			})
 			return out
 		}
