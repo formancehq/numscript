@@ -19,11 +19,14 @@ import (
 // => {EUR/2: 100, EUR: 1}
 func findSolution(
 	neededAmt *big.Int,
-	neededAmtScale int,
-	scales map[int]*big.Int,
-) map[int]*big.Int {
+	neededAmtScale int64,
+	scales map[int64]*big.Int,
+) map[int64]*big.Int {
+	// we clone neededAmt so that we can update it
+	neededAmt = new(big.Int).Set(neededAmt)
+
 	type scalePair struct {
-		scale  int
+		scale  int64
 		amount *big.Int
 	}
 
@@ -37,45 +40,45 @@ func findSolution(
 
 	// Sort in ASC order (e.g. EUR, EUR/2, ..)
 	slices.SortFunc(assets, func(p scalePair, other scalePair) int {
-		return p.scale - other.scale
+		return int(p.scale - other.scale)
 	})
 
-	out := map[int]*big.Int{}
+	out := map[int64]*big.Int{}
 
 	left := new(big.Int).Set(neededAmt)
 
 	for _, p := range assets {
-		// "left <= 0"
-		if left.Cmp(big.NewInt(0)) != 1 {
-			break
-		}
+		scaleDiff := neededAmtScale - p.scale
 
-		scaleDiff := p.scale - neededAmtScale
+		exp := big.NewInt(scaleDiff)
+		exp.Abs(exp)
+		exp.Exp(big.NewInt(10), exp, nil)
+
+		// scalingFactor := 10 ^ (neededAmtScale - p.scale)
+		// note that 10^0 == 1 and 10^(-n) == 1/(10^n)
+		scalingFactor := new(big.Rat).SetInt(exp)
 		if scaleDiff < 0 {
-			scaleDiff = -scaleDiff
+			scalingFactor.Inv(scalingFactor)
 		}
 
-		scalingFactor := new(big.Int).Exp(
-			big.NewInt(10),
-			big.NewInt(int64(scaleDiff)),
-			nil,
-		)
+		allowed := new(big.Int).Mul(p.amount, scalingFactor.Num())
+		allowed.Div(allowed, scalingFactor.Denom())
 
-		if p.scale > neededAmtScale {
-			allowed := new(big.Int).Div(p.amount, scalingFactor)
-			taken := utils.MinBigInt(left, allowed)
-			left.Sub(left, taken)
-			out[p.scale] = new(big.Int).Mul(taken, scalingFactor)
-		} else if p.scale < neededAmtScale {
-			allowed := new(big.Int).Mul(p.amount, scalingFactor)
-			taken := utils.MinBigInt(left, allowed)
-			left.Sub(left, taken)
-			out[p.scale] = new(big.Int).Div(taken, scalingFactor)
-		} else {
-			allowed := p.amount
-			taken := utils.MinBigInt(left, allowed)
-			left.Sub(left, taken)
-			out[p.scale] = new(big.Int).Set(taken)
+		taken := utils.MinBigInt(allowed, neededAmt)
+
+		intPart := new(big.Int).Mul(taken, scalingFactor.Denom())
+		intPart.Div(intPart, scalingFactor.Num())
+
+		if intPart.Cmp(big.NewInt(0)) == 0 {
+			continue
+		}
+
+		neededAmt.Sub(neededAmt, taken)
+		out[p.scale] = intPart
+
+		// if neededAmt <= 0
+		if neededAmt.Cmp(big.NewInt(0)) != 1 {
+			return out
 		}
 	}
 
