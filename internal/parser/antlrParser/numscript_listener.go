@@ -82,6 +82,9 @@ type NumscriptListener interface {
 	// EnterSrcAccountBoundedOverdraft is called when entering the srcAccountBoundedOverdraft production.
 	EnterSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
 
+	// EnterSrcAccountWithScaling is called when entering the srcAccountWithScaling production.
+	EnterSrcAccountWithScaling(c *SrcAccountWithScalingContext)
+
 	// EnterSrcAccount is called when entering the srcAccount production.
 	EnterSrcAccount(c *SrcAccountContext)
 
@@ -213,6 +216,9 @@ type NumscriptListener interface {
 
 	// ExitSrcAccountBoundedOverdraft is called when exiting the srcAccountBoundedOverdraft production.
 	ExitSrcAccountBoundedOverdraft(c *SrcAccountBoundedOverdraftContext)
+
+	// ExitSrcAccountWithScaling is called when exiting the srcAccountWithScaling production.
+	ExitSrcAccountWithScaling(c *SrcAccountWithScalingContext)
 
 	// ExitSrcAccount is called when exiting the srcAccount production.
 	ExitSrcAccount(c *SrcAccountContext)
