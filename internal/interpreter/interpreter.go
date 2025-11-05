@@ -51,12 +51,26 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 		})
 
 		for _, curr := range queriedCurrencies {
-			n := new(big.Int)
-			outputAccountBalance[curr] = n
+			baseAsset, isCatchAll := strings.CutSuffix(curr, "/*")
+			if isCatchAll {
 
-			if i, ok := accountBalanceLookup[curr]; ok {
-				n.Set(i)
+				for k, v := range accountBalanceLookup {
+					matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
+					if !matchesAsset {
+						continue
+					}
+					outputAccountBalance[k] = new(big.Int).Set(v)
+				}
+
+			} else {
+				n := new(big.Int)
+				outputAccountBalance[curr] = n
+
+				if i, ok := accountBalanceLookup[curr]; ok {
+					n.Set(i)
+				}
 			}
+
 		}
 	}
 
