@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "testCases": [
+    {
+      "it": "upscales to an higher currency if possible",
+      "balances": {
+        "src": { "EUR": 99, "EUR/2": 1 }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR",
+          "amount": 4
+        }
+      ]
+    }
+  ]
+}

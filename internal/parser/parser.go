@@ -237,6 +237,13 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 			Address: parseValueExpr(sourceCtx.GetAddress()),
 		}
 
+	case *antlrParser.SrcAccountWithScalingContext:
+		return &SourceWithScaling{
+			Range:   ctxToRange(sourceCtx),
+			Color:   parseColorConstraint(sourceCtx.ColorConstraint()),
+			Address: parseValueExpr(sourceCtx.GetAddress()),
+		}
+
 	case *antlrParser.SrcAccountBoundedOverdraftContext:
 		varMon := parseValueExpr(sourceCtx.GetMaxOvedraft())
 

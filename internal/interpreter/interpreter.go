@@ -556,6 +556,9 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		}
 		return s.sendAllToAccount(source.Address, cap, source.Color)
 
+	case *parser.SourceWithScaling:
+		panic("TODO implement")
+
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
 		for _, subSource := range source.Sources {
@@ -676,6 +679,9 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cap = utils.NonNeg(upTo)
 		}
 		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
+
+	case *parser.SourceWithScaling:
+		panic("TODO implement")
 
 	case *parser.SourceInorder:
 		totalLeft := new(big.Int).Set(amount)
