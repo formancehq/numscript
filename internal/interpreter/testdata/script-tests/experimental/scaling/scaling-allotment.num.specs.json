@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "balances": {
+    "acc1": {
+      "EUR/2": 50
+    }
+  },
+  "testCases": [
+    {
+      "it": "casts all the avlb",
+      "balances": {
+        "acc2": {
+          "EUR/3": 500
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "acc2",
+          "destination": "acc2:scaling",
+          "amount": 500,
+          "asset": "EUR/3"
+        },
+        {
+          "source": "acc2:scaling",
+          "destination": "acc2",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}
