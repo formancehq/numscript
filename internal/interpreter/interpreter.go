@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
@@ -571,7 +572,50 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return s.sendAllToAccount(source.Address, cap, source.Color)
 
 	case *parser.SourceWithScaling:
-		panic("TODO implement")
+		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		acc, ok := s.CachedBalances[*account]
+		if !ok {
+			panic("TODO accountBal not found")
+		}
+
+		sol, totSent := findSolutionUnbounded(
+			assetScale,
+			getAssets(acc, baseAsset),
+		)
+
+		for _, convAmt := range sol {
+			scale := convAmt.scale
+			convAmt := convAmt.amount
+
+			// here we manually emit postings based on the known solution,
+			// and update balances accordingly
+			asset := buildScaledAsset(baseAsset, scale)
+			s.Postings = append(s.Postings, Posting{
+				Source:      *account,
+				Destination: fmt.Sprintf("%s:scaling", *account),
+				Amount:      new(big.Int).Set(convAmt),
+				Asset:       asset,
+			})
+			acc[asset].Sub(acc[asset], convAmt)
+		}
+
+		s.Postings = append(s.Postings, Posting{
+			Source:      fmt.Sprintf("%s:scaling", *account),
+			Destination: *account,
+			Amount:      new(big.Int).Set(totSent),
+			Asset:       s.CurrentAsset,
+		})
+		accBalance := utils.MapGetOrPutDefault(acc, s.CurrentAsset, func() *big.Int {
+			return big.NewInt(0)
+		})
+		accBalance.Add(accBalance, totSent)
+
+		return s.trySendingToAccount(source.Address, totSent, big.NewInt(0), source.Color)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
@@ -683,6 +727,59 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 	case *parser.SourceAccount:
 		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
+	case *parser.SourceWithScaling:
+		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		acc, ok := s.CachedBalances[*account]
+		if !ok {
+			panic("TODO accountBal not found")
+		}
+
+		sol := findSolution(
+			amount,
+			assetScale,
+			getAssets(acc, baseAsset),
+		)
+
+		if sol == nil {
+			// we already know we are failing, but we're delegating to the "standard" (non-scaled) mode
+			// so that we get a somewhat helpful (although limited) error message
+			return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
+		}
+
+		for _, pair := range sol {
+			scale := pair.scale
+			sending := pair.amount
+			// here we manually emit postings based on the known solution,
+			// and update balances accordingly
+			asset := buildScaledAsset(baseAsset, scale)
+			s.Postings = append(s.Postings, Posting{
+				Source:      *account,
+				Destination: fmt.Sprintf("%s:scaling", *account),
+				Amount:      new(big.Int).Set(sending),
+				Asset:       asset,
+			})
+			acc[asset].Sub(acc[asset], sending)
+		}
+
+		s.Postings = append(s.Postings, Posting{
+			Source:      fmt.Sprintf("%s:scaling", *account),
+			Destination: *account,
+			Amount:      new(big.Int).Set(amount),
+			Asset:       s.CurrentAsset,
+		})
+
+		accBalance := utils.MapGetOrPutDefault(acc, s.CurrentAsset, func() *big.Int {
+			return big.NewInt(0)
+		})
+		accBalance.Add(accBalance, amount)
+
+		return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
+
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
@@ -693,9 +790,6 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cap = utils.NonNeg(upTo)
 		}
 		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
-
-	case *parser.SourceWithScaling:
-		panic("TODO implement")
 
 	case *parser.SourceInorder:
 		totalLeft := new(big.Int).Set(amount)

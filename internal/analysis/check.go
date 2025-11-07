@@ -677,6 +677,10 @@ func (res *CheckResult) checkSource(source parser.Source) {
 			res.unifyNodeWith(*source.Bounded, res.stmtType)
 		}
 
+	case *parser.SourceWithScaling:
+		res.checkExpression(source.Address, TypeAccount)
+		res.checkExpression(source.Color, TypeString)
+
 	case *parser.SourceInorder:
 		for _, source := range source.Sources {
 			res.checkSource(source)

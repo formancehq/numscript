@@ -1,0 +1,5 @@
+send [EUR/2 *] (
+  source = @src with scaling
+  destination = @dest
+)
+

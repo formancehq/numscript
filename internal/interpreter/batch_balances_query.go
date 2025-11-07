@@ -98,6 +98,20 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		st.batchQuery(*account, st.CurrentAsset, color)
 		return nil
 
+	case *parser.SourceWithScaling:
+		account, err := evaluateExprAs(st, source.Address, expectAccount)
+		if err != nil {
+			return err
+		}
+
+		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		if err != nil {
+			return err
+		}
+
+		st.batchQuery(*account, assetToScaledAsset(st.CurrentAsset), color)
+		return nil
+
 	case *parser.SourceOverdraft:
 		// Skip balance tracking when balance is overdraft
 		if source.Bounded == nil {
