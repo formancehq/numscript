@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
@@ -634,6 +635,40 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 	case *parser.SourceAccount:
 		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
+	case *parser.SourceWithScaling:
+		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		acc, ok := s.CachedBalances[*account]
+		if !ok {
+			panic("TODO accountBal not found")
+		}
+
+		sol := findSolution(
+			amount,
+			assetScale,
+			getAssets(acc, baseAsset),
+		)
+
+		fmt.Printf("### SOL: %#v\n\n", sol)
+
+		tot := big.NewInt(0)
+		for k, sending := range sol {
+			oldAsset := s.CurrentAsset
+			s.CurrentAsset = buildScaledAsset(baseAsset, k)
+			got, err := s.trySendingToAccount(source.Address, sending, big.NewInt(0), source.Color)
+			s.CurrentAsset = oldAsset
+			if err != nil {
+				return nil, err
+			}
+
+			tot.Add(tot, got)
+		}
+		return new(big.Int).Set(amount), nil
+
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
@@ -644,9 +679,6 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			cap = utils.NonNeg(upTo)
 		}
 		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
-
-	case *parser.SourceWithScaling:
-		panic("TODO implement")
 
 	case *parser.SourceInorder:
 		totalLeft := new(big.Int).Set(amount)

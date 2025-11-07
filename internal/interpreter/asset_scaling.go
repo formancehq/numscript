@@ -1,11 +1,54 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
+
+func assetToScaledAsset(asset string) string {
+	// GPT-generated TODO double check
+	parts := strings.Split(asset, "/")
+	if len(parts) == 1 {
+		return asset + "/*"
+	}
+	return parts[0] + "/*"
+}
+
+func buildScaledAsset(baseAsset string, scale int64) string {
+	if scale == 0 {
+		return baseAsset
+	}
+	return fmt.Sprintf("%s/%d", baseAsset, scale)
+}
+
+func getAssetScale(asset string) (string, int64) {
+	parts := strings.Split(asset, "/")
+	if len(parts) == 2 {
+		scale, err := strconv.ParseInt(parts[1], 10, 64)
+		if err == nil {
+			return parts[0], scale
+		}
+		// fallback if parsing fails
+		return parts[0], 0
+	}
+	return asset, 0
+}
+
+func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
+	result := make(map[int64]*big.Int)
+	for asset, amount := range balance {
+		if strings.HasPrefix(asset, baseAsset) {
+			_, scale := getAssetScale(asset)
+			result[scale] = amount
+		}
+	}
+	return result
+}
 
 // e.g.
 //
