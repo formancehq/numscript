@@ -653,21 +653,32 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			getAssets(acc, baseAsset),
 		)
 
-		fmt.Printf("### SOL: %#v\n\n", sol)
-
-		tot := big.NewInt(0)
-		for k, sending := range sol {
-			oldAsset := s.CurrentAsset
-			s.CurrentAsset = buildScaledAsset(baseAsset, k)
-			got, err := s.trySendingToAccount(source.Address, sending, big.NewInt(0), source.Color)
-			s.CurrentAsset = oldAsset
-			if err != nil {
-				return nil, err
-			}
-
-			tot.Add(tot, got)
+		for scale, sending := range sol {
+			// here we manually emit postings based on the known solution,
+			// and update balances accordingly
+			asset := buildScaledAsset(baseAsset, scale)
+			s.Postings = append(s.Postings, Posting{
+				Source:      *account,
+				Destination: fmt.Sprintf("%s:scaling", *account),
+				Amount:      new(big.Int).Set(sending),
+				Asset:       asset,
+			})
+			acc[asset].Sub(acc[asset], sending)
 		}
-		return new(big.Int).Set(amount), nil
+
+		s.Postings = append(s.Postings, Posting{
+			Source:      fmt.Sprintf("%s:scaling", *account),
+			Destination: *account,
+			Amount:      new(big.Int).Set(amount),
+			Asset:       s.CurrentAsset,
+		})
+
+		accBalance := utils.MapGetOrPutDefault(acc, s.CurrentAsset, func() *big.Int {
+			return big.NewInt(0)
+		})
+		accBalance.Add(accBalance, amount)
+
+		return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
