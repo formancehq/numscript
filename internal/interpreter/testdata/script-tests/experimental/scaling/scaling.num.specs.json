@@ -84,6 +84,13 @@
           "amount": 400
         }
       ]
+    },
+    {
+      "it": "fails when there aren't enough funds",
+      "balances": {
+        "src": { "EUR": 1, "EUR/2": 200, "EUR/3": 10 }
+      },
+      "expect.error.missingFunds": true
     }
   ]
 }
