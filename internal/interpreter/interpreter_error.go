@@ -7,6 +7,15 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+type InternalError struct {
+	parser.Range
+	Posting Posting
+}
+
+func (e InternalError) Error() string {
+	return fmt.Sprintf("The script produced a posting with invalid values: %v", e.Posting)
+}
+
 type MissingFundsErr struct {
 	parser.Range
 	Asset     string

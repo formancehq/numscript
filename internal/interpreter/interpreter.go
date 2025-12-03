@@ -225,6 +225,40 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 	return nil
 }
 
+// https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
+func checkAccountName(addr string) bool {
+	const SegmentRegex = "[a-zA-Z0-9_-]+"
+	const Pattern = "^" + SegmentRegex + "(:" + SegmentRegex + ")*$"
+	var Regexp = regexp.MustCompile(Pattern)
+	return Regexp.Match([]byte(addr))
+}
+
+// https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
+func checkAssetName(v string) bool {
+	const Pattern = `[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?`
+	var Regexp = regexp.MustCompile("^" + Pattern + "$")
+	return Regexp.Match([]byte(v))
+}
+
+// Check the following invariants:
+//   - no negative postings
+//   - no invalid account names
+//   - no invalid asset names
+func checkPostingInvariants(posting Posting) InterpreterError {
+	isAmtNegative := posting.Amount.Cmp(big.NewInt(0)) == -1
+
+	isInvalidPosting := (isAmtNegative ||
+		!checkAssetName(posting.Asset) ||
+		!checkAccountName(posting.Source) ||
+		!checkAccountName(posting.Destination))
+
+	if isInvalidPosting {
+		return InternalError{Posting: posting}
+	}
+
+	return nil
+}
+
 func RunProgram(
 	ctx context.Context,
 	program parser.Program,
@@ -271,6 +305,13 @@ func RunProgram(
 
 	for _, statement := range program.Statements {
 		err := st.runStatement(statement)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, posting := range st.Postings {
+		err := checkPostingInvariants(posting)
 		if err != nil {
 			return nil, err
 		}
