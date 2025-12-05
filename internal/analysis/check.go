@@ -295,6 +295,10 @@ func (res *CheckResult) checkBoundVars() {
 			continue
 		}
 
+		if varDecl.Type == nil {
+			continue
+		}
+
 		var boundAssetType BoundAssetType
 		switch varDecl.Type.Name {
 		case TypeAsset:
