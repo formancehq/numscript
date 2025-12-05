@@ -172,7 +172,7 @@ func (r *CheckResult) unify(rng parser.Range, t1 Type, t2 Type) {
 
 	r.Diagnostics = append(r.Diagnostics, Diagnostic{
 		Range: rng,
-		Kind: &AssetMismatch{
+		Kind: AssetMismatch{
 			Expected: TypeToString(t1),
 			Got:      TypeToString(t2),
 		},
@@ -255,6 +255,58 @@ func (res *CheckResult) check() {
 	// after static AST traversal is complete, check for unused vars
 	for name, rng := range res.unusedVars {
 		res.pushDiagnostic(rng, UnusedVar{Name: name})
+	}
+
+	res.checkBoundVars()
+}
+
+func (res *CheckResult) checkBoundVars() {
+	if res.Program.Vars == nil {
+		return
+	}
+
+	// heuristic: we skipCheck if we already emit type mismatch or asset mismatch
+	// even though they could have been related to a different part of the program
+	// the rationale is that
+	// 1. it'd be hard to track whose variable the unification error belong from and it would require adding injustified complexity
+	// 2. we don't have to "pollute" the diagnostics with so many errors all at once
+	skipCheck := slices.ContainsFunc(res.Diagnostics, func(d Diagnostic) bool {
+		_, isAssetMismatch := d.Kind.(AssetMismatch)
+		if isAssetMismatch {
+			return true
+		}
+
+		_, isTypeMismatch := d.Kind.(TypeMismatch)
+		return isTypeMismatch
+	})
+
+	if skipCheck {
+		return
+	}
+
+	for _, varDecl := range res.Program.Vars.Declarations {
+		if varDecl.Origin != nil {
+			continue
+		}
+
+		t := res.GetVarDeclType(varDecl)
+		boundType, isBound := t.(*TAsset)
+		if !isBound {
+			continue
+		}
+
+		var boundAssetType BoundAssetType
+		switch varDecl.Type.Name {
+		case TypeAsset:
+			boundAssetType = BoundAssetTypeAsset
+		case TypeMonetary:
+			boundAssetType = BoundAssetTypeMonetary
+		}
+
+		res.pushDiagnostic(varDecl.Range, BoundAsset{
+			BoundAssetType: boundAssetType,
+			InferredAsset:  string(*boundType),
+		})
 	}
 }
 
