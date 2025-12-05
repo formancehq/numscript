@@ -44,6 +44,12 @@ func (s *BaseNumscriptListener) EnterVariableExpr(ctx *VariableExprContext) {}
 // ExitVariableExpr is called when production variableExpr is exited.
 func (s *BaseNumscriptListener) ExitVariableExpr(ctx *VariableExprContext) {}
 
+// EnterPrefixExpr is called when production prefixExpr is entered.
+func (s *BaseNumscriptListener) EnterPrefixExpr(ctx *PrefixExprContext) {}
+
+// ExitPrefixExpr is called when production prefixExpr is exited.
+func (s *BaseNumscriptListener) ExitPrefixExpr(ctx *PrefixExprContext) {}
+
 // EnterInfixExpr is called when production infixExpr is entered.
 func (s *BaseNumscriptListener) EnterInfixExpr(ctx *InfixExprContext) {}
 

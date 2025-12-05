@@ -468,6 +468,16 @@ func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) strin
 			return TypeAny
 		}
 
+	case *parser.Prefix:
+		switch lit.Operator {
+		case parser.PrefixOperatorMinus:
+			res.unifyNodeWith(lit, res.GetExprType(lit.Expr))
+			return res.checkHasOneOfTypes(lit.Expr, []string{TypeNumber, TypeMonetary})
+
+		default:
+			return TypeAny
+		}
+
 	case *parser.AccountInterpLiteral:
 		res.checkAccountInterpolationVersion(*lit)
 
@@ -507,6 +517,20 @@ func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []st
 	res.pushDiagnostic(bin.Left.GetRange(), TypeMismatch{
 		Expected: strings.Join(allowed, "|"),
 		Got:      leftType,
+	})
+	return TypeAny
+}
+
+func (res *CheckResult) checkHasOneOfTypes(expr parser.ValueExpr, allowed []string) string {
+	exprType := res.checkTypeOf(expr, allowed[0])
+
+	if exprType == TypeAny || slices.Contains(allowed, exprType) {
+		return exprType
+	}
+
+	res.pushDiagnostic(expr.GetRange(), TypeMismatch{
+		Expected: strings.Join(allowed, "|"),
+		Got:      exprType,
 	})
 	return TypeAny
 }
@@ -670,6 +694,19 @@ func (res CheckResult) tryEvaluatingNumberExpr(expr parser.ValueExpr) *big.Int {
 
 	case *parser.NumberLiteral:
 		return big.NewInt(int64(expr.Number))
+
+	case *parser.Prefix:
+		switch expr.Operator {
+		case parser.PrefixOperatorMinus:
+			evExpr := res.tryEvaluatingNumberExpr(expr.Expr)
+			if evExpr == nil {
+				return nil
+			}
+			return new(big.Int).Neg(evExpr)
+
+		default:
+			return nil
+		}
 
 	case *parser.BinaryInfix:
 		switch expr.Operator {

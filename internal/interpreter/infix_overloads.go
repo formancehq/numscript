@@ -80,3 +80,26 @@ func (m Monetary) evalSub(st *programState, other parser.ValueExpr) (Value, Inte
 	}, nil
 
 }
+
+type opNeg interface {
+	evalNeg(st *programState) (Value, InterpreterError)
+}
+
+var _ opNeg = (*MonetaryInt)(nil)
+var _ opNeg = (*Monetary)(nil)
+
+func (m MonetaryInt) evalNeg(st *programState) (Value, InterpreterError) {
+	m1 := big.Int(m)
+	neg := new(big.Int).Neg(&m1)
+	return MonetaryInt(*neg), nil
+}
+
+func (m Monetary) evalNeg(st *programState) (Value, InterpreterError) {
+	m1 := big.Int(m.Amount)
+	neg := new(big.Int).Neg(&m1)
+	return Monetary{
+		Asset:  m.Asset,
+		Amount: MonetaryInt(*neg),
+	}, nil
+
+}
