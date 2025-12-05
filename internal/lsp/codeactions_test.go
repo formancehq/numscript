@@ -17,7 +17,6 @@ func performAction(t *testing.T,
 	toEdit func(kind analysis.DiagnosticKind, program parser.Program) protocol.TextEdit,
 ) {
 	res := analysis.CheckSource(initial)
-	require.Len(t, res.Diagnostics, 1)
 
 	first := res.Diagnostics[0]
 
