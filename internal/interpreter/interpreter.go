@@ -105,8 +105,13 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	if !ok {
 		return Monetary{}, InvalidNumberLiteral{Source: rawAmount}
 	}
+
+	parsedAsset, err := NewAsset(asset)
+	if err != nil {
+		return Monetary{}, err
+	}
 	mon := Monetary{
-		Asset:  Asset(asset),
+		Asset:  parsedAsset,
 		Amount: MonetaryInt(*n),
 	}
 	return mon, nil
@@ -127,7 +132,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 		return Portion(*bi), nil
 	case analysis.TypeAsset:
-		return Asset(rawValue), nil
+		return NewAsset(rawValue)
 	case analysis.TypeNumber:
 		n, ok := new(big.Int).SetString(rawValue, 10)
 		if !ok {
