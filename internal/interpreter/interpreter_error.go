@@ -230,6 +230,15 @@ func (e InvalidAccountName) Error() string {
 	return fmt.Sprintf("Invalid account name: @%s", e.Name)
 }
 
+type InvalidAsset struct {
+	parser.Range
+	Name string
+}
+
+func (e InvalidAsset) Error() string {
+	return fmt.Sprintf("Invalid asset name: %s", e.Name)
+}
+
 type InvalidNestedMeta struct {
 	parser.Range
 }

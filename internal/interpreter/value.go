@@ -3,7 +3,6 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-	"regexp"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -32,10 +31,17 @@ func (Portion) value()        {}
 func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
-	if !validateAddress(src) {
+	if !checkAccountName(src) {
 		return AccountAddress(""), InvalidAccountName{Name: src}
 	}
 	return AccountAddress(src), nil
+}
+
+func NewAsset(src string) (Asset, InterpreterError) {
+	if !checkAssetName(src) {
+		return Asset(""), InvalidAsset{Name: src}
+	}
+	return Asset(src), nil
 }
 
 func (v MonetaryInt) MarshalJSON() ([]byte, error) {
@@ -241,13 +247,4 @@ func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 
 	sum := new(big.Int).Sub(&bi, &otherBi)
 	return MonetaryInt(*sum)
-}
-
-const segmentRegex = "[a-zA-Z0-9_-]+"
-const accountPattern = "^" + segmentRegex + "(:" + segmentRegex + ")*$"
-
-var Regexp = regexp.MustCompile(accountPattern)
-
-func validateAddress(addr string) bool {
-	return Regexp.Match([]byte(addr))
 }
