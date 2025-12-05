@@ -19,6 +19,9 @@ type NumscriptListener interface {
 	// EnterVariableExpr is called when entering the variableExpr production.
 	EnterVariableExpr(c *VariableExprContext)
 
+	// EnterPrefixExpr is called when entering the prefixExpr production.
+	EnterPrefixExpr(c *PrefixExprContext)
+
 	// EnterInfixExpr is called when entering the infixExpr production.
 	EnterInfixExpr(c *InfixExprContext)
 
@@ -150,6 +153,9 @@ type NumscriptListener interface {
 
 	// ExitVariableExpr is called when exiting the variableExpr production.
 	ExitVariableExpr(c *VariableExprContext)
+
+	// ExitPrefixExpr is called when exiting the prefixExpr production.
+	ExitPrefixExpr(c *PrefixExprContext)
 
 	// ExitInfixExpr is called when exiting the infixExpr production.
 	ExitInfixExpr(c *InfixExprContext)

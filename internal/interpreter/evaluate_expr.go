@@ -69,7 +69,6 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		return value, nil
 
 	case *parser.BinaryInfix:
-
 		switch expr.Operator {
 		case parser.InfixOperatorPlus:
 			return st.plusOp(expr.Left, expr.Right)
@@ -79,6 +78,16 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 
 		case parser.InfixOperatorDiv:
 			return st.divOp(expr.Range, expr.Left, expr.Right)
+
+		default:
+			utils.NonExhaustiveMatchPanic[any](expr.Operator)
+			return nil, nil
+		}
+
+	case *parser.Prefix:
+		switch expr.Operator {
+		case parser.PrefixOperatorMinus:
+			return st.unaryNegOp(expr.Expr)
 
 		default:
 			utils.NonExhaustiveMatchPanic[any](expr.Operator)
@@ -212,6 +221,25 @@ func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right par
 	rat := new(big.Rat).SetFrac(leftValue, rightValue)
 
 	return Portion(*rat), nil
+}
+
+func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterError) {
+	evExpr, err := evaluateExprAs(st, expr, expectOneOf(
+		expectMapped(expectMonetary, func(m Monetary) opNeg {
+			return m
+		}),
+
+		// while "x.map(identity)" is the same as "x", just writing "expectNumber" would't typecheck
+		expectMapped(expectNumber, func(bi big.Int) opNeg {
+			return MonetaryInt(bi)
+		}),
+	))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return (*evExpr).evalNeg(st)
 }
 
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {

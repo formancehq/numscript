@@ -19,6 +19,7 @@ valueExpr:
 	| NUMBER														# numberLiteral
 	| PERCENTAGE_PORTION_LITERAL									# percentagePortionLiteral
 	| monetaryLit													# monetaryLiteral
+	| op=MINUS valueExpr					# prefixExpr
 	| left = valueExpr op = DIV right = valueExpr					# infixExpr
 	| left = valueExpr op = (PLUS | MINUS) right = valueExpr		# infixExpr
 	| LPARENS valueExpr RPARENS										# parenthesizedExpr

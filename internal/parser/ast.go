@@ -18,7 +18,14 @@ func (*PercentageLiteral) valueExpr()    {}
 func (*NumberLiteral) valueExpr()        {}
 func (*StringLiteral) valueExpr()        {}
 func (*BinaryInfix) valueExpr()          {}
+func (*Prefix) valueExpr()               {}
 func (*FnCall) valueExpr()               {}
+
+type PrefixOperator string
+
+const (
+	PrefixOperatorMinus PrefixOperator = "-"
+)
 
 type InfixOperator string
 
@@ -64,6 +71,12 @@ type (
 	Variable struct {
 		Range
 		Name string
+	}
+
+	Prefix struct {
+		Range
+		Operator PrefixOperator
+		Expr     ValueExpr
 	}
 
 	BinaryInfix struct {

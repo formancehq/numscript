@@ -2173,12 +2173,19 @@ parser.Program{
                         },
                         Asset: "EUR/2",
                     },
-                    Amount: &parser.NumberLiteral{
+                    Amount: &parser.Prefix{
                         Range: parser.Range{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:16, Line:0},
                         },
-                        Number: -100,
+                        Operator: "-",
+                        Expr:     &parser.NumberLiteral{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:13, Line:0},
+                                End:   parser.Position{Character:16, Line:0},
+                            },
+                            Number: 100,
+                        },
                     },
                 },
             },

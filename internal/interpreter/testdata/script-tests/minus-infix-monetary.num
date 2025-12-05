@@ -1,0 +1,4 @@
+send [EUR/2 100] - [EUR/2 1] (
+  source = @world
+  destination = @dest
+)

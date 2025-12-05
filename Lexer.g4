@@ -38,7 +38,7 @@ PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 STRING: '"' ('\\"' | ~[\r\n"])* '"';
 
 IDENTIFIER: [a-z]+ [a-z_]*;
-NUMBER: MINUS? [0-9]+ ('_' [0-9]+)*;
+NUMBER: [0-9]+ ('_' [0-9]+)*;
 ASSET: [A-Z][A-Z0-9]* ('/' [0-9]+)?;
 
 ACCOUNT_START: '@' -> pushMode(ACCOUNT_MODE);
