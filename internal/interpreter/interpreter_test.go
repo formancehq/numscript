@@ -222,6 +222,32 @@ func TestBadPortionSyntax(t *testing.T) {
 	test(t, tc)
 }
 
+func TestBadAssetInMeta(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		asset $asset = meta(@acc, "my-asset")
+	}
+
+	send [$asset 42] (
+		source = @world
+		destination = @dest
+	)
+	`)
+	tc.meta = machine.AccountsMetadata{
+		"acc": machine.AccountMetadata{
+			"my-asset": "Aa",
+		},
+	}
+
+	tc.expected = CaseResult{
+		Postings: []Posting{},
+		Error: machine.InvalidAsset{
+			Name: "Aa",
+		},
+	}
+	test(t, tc)
+}
+
 func TestInvalidAllotInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
