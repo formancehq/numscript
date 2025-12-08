@@ -395,7 +395,9 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 	balance := st.CachedBalances.fetchBalance(*account, *asset, "")
 
 	if amt == nil {
-		balance.Set(big.NewInt(0))
+		if balance.Sign() > 0 {
+			balance.Set(big.NewInt(0))
+		}
 	} else {
 		// Do not allow negative saves
 		if amt.Cmp(big.NewInt(0)) == -1 {

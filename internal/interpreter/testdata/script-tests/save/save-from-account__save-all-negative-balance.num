@@ -1,0 +1,6 @@
+save [USD *] from @alice
+
+send [USD 10] (
+  source = @alice allowing overdraft up to [USD 30]
+  destination = @world
+)
