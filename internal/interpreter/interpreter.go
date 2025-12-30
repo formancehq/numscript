@@ -583,7 +583,8 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			panic("TODO accountBal not found")
 		}
 
-		sol, totSent := findSolutionUnbounded(
+		sol, totSent := findSolution(
+			nil,
 			assetScale,
 			getAssets(acc, baseAsset),
 		)
@@ -739,13 +740,13 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			panic("TODO accountBal not found")
 		}
 
-		sol := findSolution(
+		sol, total := findSolution(
 			amount,
 			assetScale,
 			getAssets(acc, baseAsset),
 		)
 
-		if sol == nil {
+		if amount.Cmp(total) == 1 {
 			// we already know we are failing, but we're delegating to the "standard" (non-scaled) mode
 			// so that we get a somewhat helpful (although limited) error message
 			return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
