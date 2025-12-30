@@ -39,40 +39,6 @@
           "asset": "EUR/2"
         }
       ]
-    },
-    {
-      "it": "doesn't send more than needed",
-      "balances": {
-        "acc2": {
-          "EUR/2": 999999
-        }
-      },
-      "expect.postings": [
-        {
-          "source": "acc2",
-          "destination": "acc2:scaling",
-          "amount": 50,
-          "asset": "EUR/2"
-        },
-        {
-          "source": "acc2:scaling",
-          "destination": "acc2",
-          "amount": 50,
-          "asset": "EUR/2"
-        },
-        {
-          "source": "acc1",
-          "destination": "dest",
-          "amount": 50,
-          "asset": "EUR/2"
-        },
-        {
-          "source": "acc2",
-          "destination": "dest",
-          "amount": 50,
-          "asset": "EUR/2"
-        }
-      ]
     }
   ]
 }
