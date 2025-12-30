@@ -11,7 +11,7 @@ func TestScalingZeroNeeded(t *testing.T) {
 	t.Skip()
 
 	// need [EUR/2 ]
-	sol := findSolution(
+	sol, _ := findSolution(
 		big.NewInt(0),
 		42,
 		map[int64]*big.Int{
@@ -25,7 +25,7 @@ func TestScalingZeroNeeded(t *testing.T) {
 }
 
 func TestScalingSameAsset(t *testing.T) {
-	sol := findSolution(
+	sol, _ := findSolution(
 		// Need [EUR/2 200]
 		big.NewInt(200),
 		2,
@@ -41,7 +41,7 @@ func TestScalingSameAsset(t *testing.T) {
 }
 
 func TestScalingSolutionLowerScale(t *testing.T) {
-	sol := findSolution(
+	sol, _ := findSolution(
 		big.NewInt(1),
 		0,
 		map[int64]*big.Int{
@@ -54,7 +54,7 @@ func TestScalingSolutionLowerScale(t *testing.T) {
 }
 
 func TestScalingSolutionHigherScale(t *testing.T) {
-	sol := findSolution(
+	sol, _ := findSolution(
 		// Need [EUR/2 200]
 		big.NewInt(200),
 		2,
@@ -70,7 +70,7 @@ func TestScalingSolutionHigherScale(t *testing.T) {
 }
 
 func TestScalingSolutionHigherScaleNoSolution(t *testing.T) {
-	sol := findSolution(
+	sol, _ := findSolution(
 		big.NewInt(1),
 		2,
 		map[int64]*big.Int{
@@ -81,8 +81,24 @@ func TestScalingSolutionHigherScaleNoSolution(t *testing.T) {
 	require.Nil(t, sol)
 }
 
+func TestMixedFail(t *testing.T) {
+	t.Skip()
+
+	sol, _ := findSolution(
+		big.NewInt(400),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(1),
+			2: big.NewInt(200),
+			3: big.NewInt(10),
+		})
+
+	require.Nil(t, sol)
+}
+
 func TestUnboundedScalingSameAsset(t *testing.T) {
-	sol, _ := findSolutionUnbounded(
+	sol, _ := findSolution(
+		nil,
 		// Need USD/2
 		2,
 		// Have: {EUR/2: 201}
@@ -96,7 +112,8 @@ func TestUnboundedScalingSameAsset(t *testing.T) {
 }
 
 func TestUnboundedScalingLowerAsset(t *testing.T) {
-	sol, _ := findSolutionUnbounded(
+	sol, _ := findSolution(
+		nil,
 		2,
 		map[int64]*big.Int{
 			0: big.NewInt(1),
@@ -108,7 +125,8 @@ func TestUnboundedScalingLowerAsset(t *testing.T) {
 }
 
 func TestUnboundedScalinHigherAsset(t *testing.T) {
-	sol, _ := findSolutionUnbounded(
+	sol, _ := findSolution(
+		nil,
 		2,
 		map[int64]*big.Int{
 			3: big.NewInt(10),
@@ -122,7 +140,8 @@ func TestUnboundedScalinHigherAsset(t *testing.T) {
 }
 
 func TestUnboundedScalinHigherAssetTrimRemainder(t *testing.T) {
-	sol, _ := findSolutionUnbounded(
+	sol, _ := findSolution(
+		nil,
 		2,
 		map[int64]*big.Int{
 			3: big.NewInt(15),
