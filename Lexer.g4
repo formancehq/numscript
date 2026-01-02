@@ -32,6 +32,8 @@ PLUS: '+';
 MINUS: '-';
 DIV: '/';
 RESTRICT: '\\';
+WITH: 'with';
+SCALING: 'scaling';
 
 PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 
