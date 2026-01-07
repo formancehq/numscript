@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "balances": {
+    "acc": {
+      "BTC/2": 2,
+      "BTC/8": 1000000
+    }
+  },
+  "testCases": [
+    {
+      "it": "example spec",
+      "expect.postings": [
+        {
+          "source": "acc",
+          "destination": "acc:scaling",
+          "amount": 2,
+          "asset": "BTC/2"
+        },
+        {
+          "source": "acc",
+          "destination": "acc:scaling",
+          "amount": 1000000,
+          "asset": "BTC/8"
+        },
+        {
+          "source": "acc:scaling",
+          "destination": "acc",
+          "amount": 3,
+          "asset": "BTC/2"
+        }
+      ]
+    }
+  ]
+}
