@@ -183,6 +183,9 @@ func hoverOnExpression(lit parser.ValueExpr, position parser.Position) Hover {
 			return hover
 		}
 
+	case *parser.Prefix:
+		return hoverOnExpression(lit.Expr, position)
+
 	case *parser.FnCall:
 		return hoverOnFnCall(*lit, position)
 	}

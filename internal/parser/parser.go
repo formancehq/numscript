@@ -362,6 +362,13 @@ func parseValueExpr(valueExprCtx antlrParser.IValueExprContext) ValueExpr {
 	case *antlrParser.StringLiteralContext:
 		return parseStringLiteralCtx(valueExprCtx)
 
+	case *antlrParser.PrefixExprContext:
+		return &Prefix{
+			Range:    ctxToRange(valueExprCtx),
+			Operator: PrefixOperator(valueExprCtx.GetOp().GetText()),
+			Expr:     parseValueExpr(valueExprCtx.ValueExpr()),
+		}
+
 	case *antlrParser.InfixExprContext:
 		return &BinaryInfix{
 			Range:    ctxToRange(valueExprCtx),

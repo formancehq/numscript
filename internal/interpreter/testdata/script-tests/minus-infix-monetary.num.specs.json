@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "testCases": [
+    {
+      "it": "should subtract the monetaries",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 99,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}
