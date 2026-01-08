@@ -230,19 +230,20 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 	return nil
 }
 
+const accountSegmentRegex = "[a-zA-Z0-9_-]+"
+
+var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
+
 // https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
 func checkAccountName(addr string) bool {
-	const SegmentRegex = "[a-zA-Z0-9_-]+"
-	const Pattern = "^" + SegmentRegex + "(:" + SegmentRegex + ")*$"
-	var Regexp = regexp.MustCompile(Pattern)
-	return Regexp.Match([]byte(addr))
+	return accountNameRegex.Match([]byte(addr))
 }
+
+var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?$`)
 
 // https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
 func checkAssetName(v string) bool {
-	const Pattern = `[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?`
-	var Regexp = regexp.MustCompile("^" + Pattern + "$")
-	return Regexp.Match([]byte(v))
+	return assetNameRegexp.Match([]byte(v))
 }
 
 // Check the following invariants:
