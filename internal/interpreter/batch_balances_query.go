@@ -39,7 +39,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		if err != nil {
 			return err
 		}
-		st.CurrentAsset = *asset
+		st.fundsQueue.asset = *asset
 
 		// traverse source
 		return st.findBalancesQueries(statement.Source)
@@ -95,7 +95,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		st.batchQuery(*account, st.fundsQueue.asset, color)
 		return nil
 
 	case *parser.SourceOverdraft:
@@ -113,7 +113,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		st.batchQuery(*account, st.fundsQueue.asset, color)
 		return nil
 
 	case *parser.SourceInorder:
