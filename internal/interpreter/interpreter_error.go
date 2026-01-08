@@ -7,6 +7,15 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+type InternalError struct {
+	parser.Range
+	Posting Posting
+}
+
+func (e InternalError) Error() string {
+	return fmt.Sprintf("The script produced a posting with invalid values: %v", e.Posting)
+}
+
 type MissingFundsErr struct {
 	parser.Range
 	Asset     string
@@ -219,6 +228,15 @@ type InvalidAccountName struct {
 
 func (e InvalidAccountName) Error() string {
 	return fmt.Sprintf("Invalid account name: @%s", e.Name)
+}
+
+type InvalidAsset struct {
+	parser.Range
+	Name string
+}
+
+func (e InvalidAsset) Error() string {
+	return fmt.Sprintf("Invalid asset name: %s", e.Name)
 }
 
 type InvalidNestedMeta struct {
