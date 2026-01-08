@@ -701,7 +701,7 @@ send [EUR/2 *] (
 
 	d1 := diagnostics[0]
 	assert.Equal(t,
-		&analysis.TypeMismatch{
+		analysis.TypeMismatch{
 			Expected: "number|account|string",
 			Got:      "monetary",
 		},
@@ -984,7 +984,7 @@ func TestCheckAssetMismatch(t *testing.T) {
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "[EUR 10]", 0),
-				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+				Kind:  analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
 			},
 		},
 		checkSource(input),
@@ -1017,7 +1017,7 @@ send [USD 0] (
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$mon", 2),
-				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
+				Kind:  analysis.AssetMismatch{Expected: "USD", Got: "EUR"},
 			},
 		},
 		checkSource(input),
@@ -1042,7 +1042,7 @@ send [USD 42] (
 		[]analysis.Diagnostic{
 			{
 				Range: parser.RangeOfIndexed(input, "$mon", 1),
-				Kind:  &analysis.AssetMismatch{Expected: "USD", Got: "USD/2"},
+				Kind:  analysis.AssetMismatch{Expected: "USD", Got: "USD/2"},
 			},
 		},
 		checkSource(input),
@@ -1088,4 +1088,62 @@ vars {
 
 	expected := analysis.TAsset("USD/2")
 	require.Equal(t, &expected, t1.Resolve())
+}
+
+func TestWarningWhenBoundAsset(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	asset $ass
+}
+
+send [USD/2 10] (
+	source = max [$ass 2] from @world
+	destination = @d
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind: analysis.BoundAsset{
+					BoundAssetType: analysis.BoundAssetTypeAsset,
+					InferredAsset:  "USD/2",
+				},
+				Range: parser.RangeOfIndexed(input, "asset $ass", 0),
+			},
+		},
+		checkSource(input),
+	)
+
+}
+
+func TestWarningWhenBoundMonetary(t *testing.T) {
+	t.Parallel()
+
+	input := `
+vars {
+	monetary $mon
+}
+
+send $mon (
+	source = max [COIN 2] from @world
+	destination = @d
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind: analysis.BoundAsset{
+					BoundAssetType: analysis.BoundAssetTypeMonetary,
+					InferredAsset:  "COIN",
+				},
+				Range: parser.RangeOfIndexed(input, "monetary $mon", 0),
+			},
+		},
+		checkSource(input),
+	)
+
 }

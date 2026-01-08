@@ -325,3 +325,34 @@ func (e ExperimentalFeature) Message() string {
 func (ExperimentalFeature) Severity() Severity {
 	return ErrorSeverity
 }
+
+type BoundAssetType = uint
+
+const (
+	BoundAssetTypeMonetary BoundAssetType = iota
+	BoundAssetTypeAsset
+)
+
+type BoundAsset struct {
+	BoundAssetType BoundAssetType
+	InferredAsset  string
+}
+
+func (e BoundAsset) Message() string {
+	switch e.BoundAssetType {
+	case BoundAssetTypeAsset:
+		return fmt.Sprintf(`This asset is inferred to be '%s'. Receiving a different asset will cause a runtime error.
+You may want to remove this variable and use the hardcoded value instead.`, e.InferredAsset)
+
+	case BoundAssetTypeMonetary:
+		return fmt.Sprintf(`This monetary is inferred to always have asset '%s'. Receiving a monetary of different asset will cause a runtime error.
+You may want to use a variable of type number instead.`, e.InferredAsset)
+
+	default:
+		return utils.NonExhaustiveMatchPanic[string](e)
+	}
+}
+
+func (BoundAsset) Severity() Severity {
+	return WarningSeverity
+}
