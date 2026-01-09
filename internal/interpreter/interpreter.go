@@ -572,6 +572,11 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		return s.sendAllToAccount(source.Address, cap, source.Color)
 
 	case *parser.SourceWithScaling:
+		err := s.checkFeatureFlag(flags.AssetScaling)
+		if err != nil {
+			return nil, err
+		}
+
 		account, err := evaluateExprAs(s, source.Address, expectAccount)
 		if err != nil {
 			return nil, err
@@ -729,6 +734,11 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceWithScaling:
+		err := s.checkFeatureFlag(flags.AssetScaling)
+		if err != nil {
+			return nil, err
+		}
+
 		account, err := evaluateExprAs(s, source.Address, expectAccount)
 		if err != nil {
 			return nil, err

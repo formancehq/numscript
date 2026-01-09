@@ -1,10 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
   "testCases": [
     {
       "it": "upscales to an higher currency if possible",
       "balances": {
-        "src": { "EUR": 99, "EUR/2": 1 }
+        "src": {
+          "EUR": 99,
+          "EUR/2": 1
+        }
       },
       "expect.postings": [
         {
@@ -30,7 +36,9 @@
     {
       "it": "downscales to an smaller currency if possible",
       "balances": {
-        "src": { "EUR/3": 4000 }
+        "src": {
+          "EUR/3": 4000
+        }
       },
       "expect.postings": [
         {
@@ -56,7 +64,10 @@
     {
       "it": "mix",
       "balances": {
-        "src": { "EUR": 2, "EUR/2": 200 }
+        "src": {
+          "EUR": 2,
+          "EUR/2": 200
+        }
       },
       "expect.postings": [
         {
@@ -88,7 +99,11 @@
     {
       "it": "fails when there aren't enough funds",
       "balances": {
-        "src": { "EUR": 1, "EUR/2": 200, "EUR/3": 10 }
+        "src": {
+          "EUR": 1,
+          "EUR/2": 200,
+          "EUR/3": 10
+        }
       },
       "expect.error.missingFunds": true
     }

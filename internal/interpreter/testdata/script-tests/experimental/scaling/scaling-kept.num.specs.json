@@ -1,5 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
   "balances": {
     "acc": {
       "BTC/2": 2,

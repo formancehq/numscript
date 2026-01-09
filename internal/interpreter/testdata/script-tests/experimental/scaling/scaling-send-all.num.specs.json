@@ -1,5 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
   "testCases": [
     {
       "it": "sends all the available assets that can be cast",
