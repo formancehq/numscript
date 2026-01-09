@@ -180,6 +180,12 @@ func (s *BaseNumscriptListener) EnterSrcAccountBoundedOverdraft(ctx *SrcAccountB
 func (s *BaseNumscriptListener) ExitSrcAccountBoundedOverdraft(ctx *SrcAccountBoundedOverdraftContext) {
 }
 
+// EnterSrcAccountWithScaling is called when production srcAccountWithScaling is entered.
+func (s *BaseNumscriptListener) EnterSrcAccountWithScaling(ctx *SrcAccountWithScalingContext) {}
+
+// ExitSrcAccountWithScaling is called when production srcAccountWithScaling is exited.
+func (s *BaseNumscriptListener) ExitSrcAccountWithScaling(ctx *SrcAccountWithScalingContext) {}
+
 // EnterSrcAccount is called when production srcAccount is entered.
 func (s *BaseNumscriptListener) EnterSrcAccount(ctx *SrcAccountContext) {}
 
