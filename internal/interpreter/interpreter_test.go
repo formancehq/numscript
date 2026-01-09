@@ -1155,5 +1155,5 @@ send [EUR/2 *] (
 	tc.expected = CaseResult{
 		Error: machine.InvalidUnboundedAddressInScalingAddress{},
 	}
-	test(t, tc)
+	testWithFeatureFlag(t, tc, flags.AssetScaling)
 }

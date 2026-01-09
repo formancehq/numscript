@@ -10,6 +10,7 @@ const (
 	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
 	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
 	ExperimentalAssetColors                  FeatureFlag = "experimental-asset-colors"
+	AssetScaling                             FeatureFlag = "experimental-asset-scaling"
 )
 
 var AllFlags []string = []string{
@@ -20,4 +21,5 @@ var AllFlags []string = []string{
 	ExperimentalAccountInterpolationFlag,
 	ExperimentalMidScriptFunctionCall,
 	ExperimentalAssetColors,
+	AssetScaling,
 }
