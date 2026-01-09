@@ -1140,3 +1140,20 @@ func TestSafeWithdraft(t *testing.T) {
 	})
 
 }
+
+func TestInvalidScalingWorld(t *testing.T) {
+	script := `
+send [EUR/2 *] (
+  source = @world with scaling
+  destination = @dest
+)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedAddressInScalingAddress{},
+	}
+	test(t, tc)
+}

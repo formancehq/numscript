@@ -260,3 +260,11 @@ type InvalidColor struct {
 func (e InvalidColor) Error() string {
 	return fmt.Sprintf("Invalid color name: '%s'. Only uppercase letters are allowed.", e.Color)
 }
+
+type InvalidUnboundedAddressInScalingAddress struct {
+	parser.Range
+}
+
+func (InvalidUnboundedAddressInScalingAddress) Error() string {
+	return "Invalid usage or @world account in scaling context"
+}
