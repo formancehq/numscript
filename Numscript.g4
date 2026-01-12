@@ -47,7 +47,7 @@ colorConstraint: RESTRICT valueExpr;
 source
 	: address = valueExpr colorConstraint? ALLOWING UNBOUNDED OVERDRAFT						# srcAccountUnboundedOverdraft
 	| address = valueExpr colorConstraint? ALLOWING OVERDRAFT UP TO maxOvedraft = valueExpr	#srcAccountBoundedOverdraft
-	| address = valueExpr colorConstraint? WITH SCALING	THROUGH swap=valueExpr # srcAccountWithScaling
+	| address = valueExpr WITH SCALING	THROUGH swap=valueExpr # srcAccountWithScaling
 	| valueExpr colorConstraint?		# srcAccount
 	| LBRACE allotmentClauseSrc+ RBRACE	# srcAllotment
 	| LBRACE source* RBRACE				# srcInorder

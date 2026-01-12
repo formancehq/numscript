@@ -240,7 +240,6 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	case *antlrParser.SrcAccountWithScalingContext:
 		return &SourceWithScaling{
 			Range:   ctxToRange(sourceCtx),
-			Color:   parseColorConstraint(sourceCtx.ColorConstraint()),
 			Address: parseValueExpr(sourceCtx.GetAddress()),
 			Through: parseValueExpr(sourceCtx.GetSwap()),
 		}
