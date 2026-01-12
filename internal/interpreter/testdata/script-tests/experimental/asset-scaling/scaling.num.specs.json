@@ -15,12 +15,12 @@
       "expect.postings": [
         {
           "source": "src",
-          "destination": "src:swap",
+          "destination": "swap",
           "asset": "EUR",
           "amount": 4
         },
         {
-          "source": "src:swap",
+          "source": "swap",
           "destination": "src",
           "asset": "EUR/2",
           "amount": 400
@@ -43,12 +43,12 @@
       "expect.postings": [
         {
           "source": "src",
-          "destination": "src:swap",
+          "destination": "swap",
           "asset": "EUR/3",
           "amount": 4000
         },
         {
-          "source": "src:swap",
+          "source": "swap",
           "destination": "src",
           "asset": "EUR/2",
           "amount": 400
@@ -72,18 +72,18 @@
       "expect.postings": [
         {
           "source": "src",
-          "destination": "src:swap",
+          "destination": "swap",
           "asset": "EUR",
           "amount": 2
         },
         {
           "source": "src",
-          "destination": "src:swap",
+          "destination": "swap",
           "asset": "EUR/2",
           "amount": 200
         },
         {
-          "source": "src:swap",
+          "source": "swap",
           "destination": "src",
           "asset": "EUR/2",
           "amount": 400
