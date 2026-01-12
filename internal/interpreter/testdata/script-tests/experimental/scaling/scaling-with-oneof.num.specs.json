@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-oneof",
+    "experimental-asset-scaling"
+  ],
+  "balances": {
+    "acc1": {},
+    "acc2": {
+      "EUR/2": 100
+    }
+  },
+  "testCases": [
+    {
+      "it": "fallbacks to the second branch when there's not enough",
+      "expect.postings": [
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "succeeds in the first branch",
+      "balances": {
+        "acc1": {
+          "EUR/2": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "acc1",
+          "destination": "acc1:swap",
+          "amount": 100,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc1:swap",
+          "destination": "acc1",
+          "amount": 100,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}
