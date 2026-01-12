@@ -103,6 +103,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		if err != nil {
 			return err
 		}
+		// NOTE we don't query the swap account's balance
 
 		color, err := evaluateOptExprAs(st, source.Color, expectString)
 		if err != nil {

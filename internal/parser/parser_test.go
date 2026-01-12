@@ -575,7 +575,7 @@ func TestColorRestrictionUnboundedOverdraft(t *testing.T) {
 
 func TestScalingSyntax(t *testing.T) {
 	p := parser.Parse(`send $sent (
-  source = @src with scaling
+  source = @src with scaling through @swap
   destination = @dest
 )`)
 	snaps.MatchSnapshot(t, p.Value)

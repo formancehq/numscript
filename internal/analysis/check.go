@@ -679,6 +679,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 	case *parser.SourceWithScaling:
 		res.checkExpression(source.Address, TypeAccount)
+		res.checkExpression(source.Through, TypeAccount)
 		res.checkExpression(source.Color, TypeString)
 
 	case *parser.SourceInorder:

@@ -1144,7 +1144,7 @@ func TestSafeWithdraft(t *testing.T) {
 func TestInvalidScalingWorld(t *testing.T) {
 	script := `
 send [EUR/2 *] (
-  source = @world with scaling
+  source = @world with scaling through @swap
   destination = @dest
 )
 	`

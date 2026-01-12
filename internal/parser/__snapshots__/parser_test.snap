@@ -3604,7 +3604,7 @@ parser.Program{
             Source: &parser.SourceWithScaling{
                 Range: parser.Range{
                     Start: parser.Position{Character:11, Line:1},
-                    End:   parser.Position{Character:28, Line:1},
+                    End:   parser.Position{Character:42, Line:1},
                 },
                 Color:   nil,
                 Address: &parser.AccountInterpLiteral{
@@ -3614,6 +3614,15 @@ parser.Program{
                     },
                     Parts: {
                         parser.AccountTextPart{Name:"src"},
+                    },
+                },
+                Through: &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:37, Line:1},
+                        End:   parser.Position{Character:42, Line:1},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"swap"},
                     },
                 },
             },
