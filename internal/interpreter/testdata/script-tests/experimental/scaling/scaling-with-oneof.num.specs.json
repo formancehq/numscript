@@ -13,11 +13,22 @@
   "testCases": [
     {
       "it": "fallbacks to the second branch when there's not enough",
+      "balances": {
+        "acc1": {
+          "EUR/2": 1
+        }
+      },
       "expect.postings": [
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "EUR/2"
+        },
         {
           "source": "acc2",
           "destination": "dest",
-          "amount": 100,
+          "amount": 99,
           "asset": "EUR/2"
         }
       ]
