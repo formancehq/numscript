@@ -590,7 +590,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
 		acc, ok := s.CachedBalances[*account]
 		if !ok {
-			return nil, InvalidUnboundedAddressInScalingAddress{}
+			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
 		sol, totSent := findSolution(
@@ -756,7 +756,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
 		acc, ok := s.CachedBalances[*account]
 		if !ok {
-			return nil, InvalidUnboundedAddressInScalingAddress{}
+			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
 		sol, total := findSolution(

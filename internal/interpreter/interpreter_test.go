@@ -61,6 +61,9 @@ func removeRange(e machine.InterpreterError) machine.InterpreterError {
 	case machine.MissingFundsErr:
 		e.Range = parser.Range{}
 		return e
+	case machine.InvalidUnboundedAddressInScalingAddress:
+		e.Range = parser.Range{}
+		return e
 	case machine.TypeError:
 		e.Range = parser.Range{}
 		return e
