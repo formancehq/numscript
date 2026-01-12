@@ -242,6 +242,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 			Range:   ctxToRange(sourceCtx),
 			Color:   parseColorConstraint(sourceCtx.ColorConstraint()),
 			Address: parseValueExpr(sourceCtx.GetAddress()),
+			Through: parseValueExpr(sourceCtx.GetSwap()),
 		}
 
 	case *antlrParser.SrcAccountBoundedOverdraftContext:

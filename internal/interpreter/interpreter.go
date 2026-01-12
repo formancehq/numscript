@@ -582,6 +582,11 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
+		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
 		acc, ok := s.CachedBalances[*account]
 		if !ok {
@@ -603,7 +608,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			asset := buildScaledAsset(baseAsset, scale)
 			s.Postings = append(s.Postings, Posting{
 				Source:      *account,
-				Destination: fmt.Sprintf("%s:scaling", *account),
+				Destination: fmt.Sprintf("%s:%s", *account, *scalingAccount),
 				Amount:      new(big.Int).Set(convAmt),
 				Asset:       asset,
 			})
@@ -611,7 +616,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		s.Postings = append(s.Postings, Posting{
-			Source:      fmt.Sprintf("%s:scaling", *account),
+			Source:      fmt.Sprintf("%s:%s", *account, *scalingAccount),
 			Destination: *account,
 			Amount:      new(big.Int).Set(totSent),
 			Asset:       s.CurrentAsset,
@@ -743,6 +748,10 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		if err != nil {
 			return nil, err
 		}
+		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		if err != nil {
+			return nil, err
+		}
 
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
 		acc, ok := s.CachedBalances[*account]
@@ -770,7 +779,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			asset := buildScaledAsset(baseAsset, scale)
 			s.Postings = append(s.Postings, Posting{
 				Source:      *account,
-				Destination: fmt.Sprintf("%s:scaling", *account),
+				Destination: fmt.Sprintf("%s:%s", *account, *scalingAccount),
 				Amount:      new(big.Int).Set(sending),
 				Asset:       asset,
 			})
@@ -778,7 +787,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		}
 
 		s.Postings = append(s.Postings, Posting{
-			Source:      fmt.Sprintf("%s:scaling", *account),
+			Source:      fmt.Sprintf("%s:%s", *account, *scalingAccount),
 			Destination: *account,
 			Amount:      new(big.Int).Set(amount),
 			Asset:       s.CurrentAsset,

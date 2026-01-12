@@ -189,6 +189,7 @@ type (
 		Range
 		Color   ValueExpr
 		Address ValueExpr
+		Through ValueExpr
 	}
 )
 

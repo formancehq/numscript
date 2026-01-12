@@ -1,7 +1,7 @@
 send [EUR/2 *] (
   source = {
     @acc1
-    @acc2 with scaling
+    @acc2 with scaling through @swap
   }
   destination = @dest
 )
