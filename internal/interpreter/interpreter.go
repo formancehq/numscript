@@ -764,7 +764,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			getAssets(acc, baseAsset),
 		)
 
-		if amount.Cmp(total) == 1 {
+		if sol == nil || amount.Cmp(total) == 1 {
 			// we already know we are failing, but we're delegating to the "standard" (non-scaled) mode
 			// so that we get a somewhat helpful (although limited) error message
 			return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
