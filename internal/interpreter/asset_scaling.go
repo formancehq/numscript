@@ -54,6 +54,10 @@ type scalePair struct {
 	amount *big.Int
 }
 
+// Find a set of conversions from the available "scales", to
+// [ASSET/$neededAmtScale $neededAmt], so that there's no rounding error
+// and no spare amount
+//
 // e.g.
 //
 // need=[EUR/2 100], got={EUR/2: 100, EUR: 1}
@@ -64,7 +68,10 @@ type scalePair struct {
 //
 // need=[EUR/2 199], got={EUR/2: 100, EUR: 2}
 // => {EUR/2: 100, EUR: 1}
-func findSolution(
+//
+// need=[EUR/2 1], got={EUR: 99}
+// => no solution! (if we changed 1 EUR with 100 EUR/2 we'd have 99 spare cents)
+func findScalingSolution(
 	neededAmt *big.Int, // <- can be nil
 	neededAmtScale int64,
 	scales map[int64]*big.Int,
