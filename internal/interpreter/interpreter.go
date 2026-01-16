@@ -592,7 +592,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, totSent := findSolution(
+		sol, totSent := findScalingSolution(
 			nil,
 			assetScale,
 			getAssets(acc, baseAsset),
@@ -758,7 +758,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, total := findSolution(
+		sol, total := findScalingSolution(
 			amount,
 			assetScale,
 			getAssets(acc, baseAsset),
