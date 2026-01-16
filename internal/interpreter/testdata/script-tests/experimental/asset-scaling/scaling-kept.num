@@ -1,0 +1,6 @@
+send [BTC/2 *] (
+  source = @acc with scaling through @swap
+  destination = {
+    remaining kept
+  }
+)

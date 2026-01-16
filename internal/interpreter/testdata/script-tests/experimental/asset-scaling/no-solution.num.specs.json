@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "testCases": [
+    {
+      "it": "no solution",
+      "balances": {
+        "src": {
+          "EUR": 100
+        }
+      },
+      "expect.error.missingFunds": true
+    },
+    {
+      "it": "no solution (2)",
+      "balances": {
+        "src": {
+          "EUR": 100,
+          "EUR/1": 100
+        }
+      },
+      "expect.error.missingFunds": true
+    }
+  ]
+}

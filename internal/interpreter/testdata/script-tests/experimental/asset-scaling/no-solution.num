@@ -1,0 +1,4 @@
+send [EUR/2 2] (
+  source = @src with scaling through @swap
+  destination = @dest 
+)

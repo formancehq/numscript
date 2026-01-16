@@ -61,6 +61,9 @@ func removeRange(e machine.InterpreterError) machine.InterpreterError {
 	case machine.MissingFundsErr:
 		e.Range = parser.Range{}
 		return e
+	case machine.InvalidUnboundedAddressInScalingAddress:
+		e.Range = parser.Range{}
+		return e
 	case machine.TypeError:
 		e.Range = parser.Range{}
 		return e
@@ -154,37 +157,65 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 }
 
 func TestStaticStore(t *testing.T) {
-	store := machine.StaticStore{
-		Balances: machine.Balances{
+	t.Run("request currencies", func(t *testing.T) {
+		store := machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{
+					"USD/2": big.NewInt(10),
+					"EUR/2": big.NewInt(1),
+				},
+				"b": machine.AccountBalance{
+					"USD/2": big.NewInt(10),
+					"COIN":  big.NewInt(11),
+				},
+			},
+		}
+
+		q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+			"a": []string{"USD/2"},
+		})
+		require.Equal(t, machine.Balances{
 			"a": machine.AccountBalance{
 				"USD/2": big.NewInt(10),
-				"EUR/2": big.NewInt(1),
 			},
+		}, q1)
+
+		q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+			"b": []string{"USD/2", "COIN"},
+		})
+		require.Equal(t, machine.Balances{
 			"b": machine.AccountBalance{
 				"USD/2": big.NewInt(10),
 				"COIN":  big.NewInt(11),
 			},
-		},
-	}
-
-	q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-		"a": []string{"USD/2"},
+		}, q2)
 	})
-	require.Equal(t, machine.Balances{
-		"a": machine.AccountBalance{
-			"USD/2": big.NewInt(10),
-		},
-	}, q1)
 
-	q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-		"b": []string{"USD/2", "COIN"},
+	t.Run("assets catchall", func(t *testing.T) {
+		store := machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{
+					"USD":   big.NewInt(1),
+					"USD/2": big.NewInt(2),
+					"USD/3": big.NewInt(3),
+				},
+			},
+		}
+
+		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
+			"a": []string{"USD/*"},
+		})
+		require.Nil(t, err)
+		require.Equal(t, machine.Balances{
+			"a": machine.AccountBalance{
+				"USD":   big.NewInt(1),
+				"USD/2": big.NewInt(2),
+				"USD/3": big.NewInt(3),
+			},
+		}, balances)
+
 	})
-	require.Equal(t, machine.Balances{
-		"b": machine.AccountBalance{
-			"USD/2": big.NewInt(10),
-			"COIN":  big.NewInt(11),
-		},
-	}, q2)
+
 }
 
 type CaseResult struct {
@@ -1111,4 +1142,21 @@ func TestSafeWithdraft(t *testing.T) {
 
 	})
 
+}
+
+func TestInvalidScalingWorld(t *testing.T) {
+	script := `
+send [EUR/2 *] (
+  source = @world with scaling through @swap
+  destination = @dest
+)
+	`
+
+	tc := NewTestCase()
+	tc.compile(t, script)
+
+	tc.expected = CaseResult{
+		Error: machine.InvalidUnboundedAddressInScalingAddress{},
+	}
+	testWithFeatureFlag(t, tc, flags.AssetScaling)
 }
