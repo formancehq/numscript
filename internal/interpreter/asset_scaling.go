@@ -54,6 +54,40 @@ type scalePair struct {
 	amount *big.Int
 }
 
+func getSortedAssets(scales map[int64]*big.Int) []scalePair {
+	var assets []scalePair
+	for k, v := range scales {
+		assets = append(assets, scalePair{
+			scale:  k,
+			amount: v,
+		})
+	}
+
+	// Sort in DESC order (e.g. EUR/4, .., EUR/1, EUR)
+	slices.SortFunc(assets, func(p scalePair, other scalePair) int {
+		return int(other.scale - p.scale)
+	})
+
+	return assets
+}
+
+func getScalingFactor(neededAmtScale int64, currentScale int64) *big.Rat {
+	scaleDiff := neededAmtScale - currentScale
+
+	exp := big.NewInt(scaleDiff)
+	exp.Abs(exp)
+	exp.Exp(big.NewInt(10), exp, nil)
+
+	// scalingFactor := 10 ^ (neededAmtScale - p.scale)
+	// note that 10^0 == 1 and 10^(-n) == 1/(10^n)
+	scalingFactor := new(big.Rat).SetInt(exp)
+	if scaleDiff < 0 {
+		scalingFactor.Inv(scalingFactor)
+	}
+
+	return scalingFactor
+}
+
 // Find a set of conversions from the available "scales", to
 // [ASSET/$neededAmtScale $neededAmt], so that there's no rounding error
 // and no spare amount
@@ -76,53 +110,43 @@ func findScalingSolution(
 	neededAmtScale int64,
 	scales map[int64]*big.Int,
 ) ([]scalePair, *big.Int) {
-	var assets []scalePair
-	for k, v := range scales {
-		assets = append(assets, scalePair{
-			scale:  k,
-			amount: v,
-		})
-	}
-
-	// Sort in ASC order (e.g. EUR, EUR/2, ..)
-	slices.SortFunc(assets, func(p scalePair, other scalePair) int {
-		return int(p.scale - other.scale)
-	})
-
 	var out []scalePair
-
 	totalSent := big.NewInt(0)
 
-	for _, p := range assets {
-		scaleDiff := neededAmtScale - p.scale
-
-		exp := big.NewInt(scaleDiff)
-		exp.Abs(exp)
-		exp.Exp(big.NewInt(10), exp, nil)
-
-		// scalingFactor := 10 ^ (neededAmtScale - p.scale)
-		// note that 10^0 == 1 and 10^(-n) == 1/(10^n)
-		scalingFactor := new(big.Rat).SetInt(exp)
-		if scaleDiff < 0 {
-			scalingFactor.Inv(scalingFactor)
+	for _, p := range getSortedAssets(scales) {
+		if neededAmt != nil && totalSent.Cmp(neededAmt) != -1 {
+			break
 		}
 
-		allowed := new(big.Int).Mul(p.amount, scalingFactor.Num())
-		allowed.Div(allowed, scalingFactor.Denom())
+		scalingFactor := getScalingFactor(neededAmtScale, p.scale)
 
-		var leftAmt *big.Int
-		var taken *big.Int
+		// scale the original amount to the current currency
+		// availableCurrencyScaled := floor(p.amount * scalingFactor)
+		availableCurrencyScaled := new(big.Int)
+		availableCurrencyScaled.Mul(p.amount, scalingFactor.Num())
+		availableCurrencyScaled.Div(availableCurrencyScaled, scalingFactor.Denom())
+
+		var taken *big.Int // := min(availableCurrencyScaled, (neededAmt-totalSent) ?? ∞)
 		if neededAmt == nil {
-			taken = new(big.Int).Set(allowed)
+			taken = new(big.Int).Set(availableCurrencyScaled)
 		} else {
-			leftAmt = new(big.Int).Sub(neededAmt, totalSent)
-			taken = utils.MinBigInt(allowed, leftAmt)
+			leftAmt := new(big.Int).Sub(neededAmt, totalSent)
+			taken = utils.MinBigInt(availableCurrencyScaled, leftAmt)
 		}
 
 		totalSent.Add(totalSent, taken)
 
-		intPart := new(big.Int).Mul(taken, scalingFactor.Denom())
-		intPart.Div(intPart, scalingFactor.Num())
+		// intPart := floor(p.amount * 1/scalingFactor) == (p.amount * scalingFactor.Denom)/scalingFactor.Num)
+
+		rem := new(big.Int)
+
+		intPart := new(big.Int)
+		intPart.Mul(taken, scalingFactor.Denom())
+		intPart.QuoRem(intPart, scalingFactor.Num(), rem)
+
+		if rem.Sign() == 1 {
+			intPart.Add(intPart, big.NewInt(1))
+		}
 
 		if intPart.Cmp(big.NewInt(0)) == 0 {
 			continue
@@ -132,10 +156,6 @@ func findScalingSolution(
 			scale:  p.scale,
 			amount: intPart,
 		})
-
-		if leftAmt != nil && leftAmt.Cmp(big.NewInt(0)) != 1 {
-			break
-		}
 	}
 
 	return out, totalSent

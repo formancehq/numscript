@@ -5,20 +5,70 @@
   ],
   "testCases": [
     {
-      "it": "no solution",
+      "it": "allow solution with spare money",
       "balances": {
         "src": {
           "EUR": 100
         }
       },
-      "expect.error.missingFunds": true
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "amount": 1,
+          "asset": "EUR"
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "amount": 2,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 2,
+          "asset": "EUR/2"
+        }
+      ]
     },
     {
-      "it": "no solution (2)",
+      "it": "allow solution with spare money (2)",
       "balances": {
         "src": {
           "EUR": 100,
           "EUR/1": 100
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "amount": 1,
+          "asset": "EUR/1"
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "amount": 2,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 2,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "no solution",
+      "balances": {
+        "src": {
+          "EUR": 0,
+          "EUR/2": 1,
+          "EUR/3": 1,
+          "EUR/4": 10
         }
       },
       "expect.error.missingFunds": true
