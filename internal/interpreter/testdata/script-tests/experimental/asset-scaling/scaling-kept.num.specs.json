@@ -16,14 +16,14 @@
         {
           "source": "acc",
           "destination": "swap",
-          "amount": 2,
-          "asset": "BTC/2"
+          "amount": 1000000,
+          "asset": "BTC/8"
         },
         {
           "source": "acc",
           "destination": "swap",
-          "amount": 1000000,
-          "asset": "BTC/8"
+          "amount": 2,
+          "asset": "BTC/2"
         },
         {
           "source": "swap",

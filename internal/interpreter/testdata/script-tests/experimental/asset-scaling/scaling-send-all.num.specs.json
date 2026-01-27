@@ -17,8 +17,8 @@
         {
           "source": "src",
           "destination": "swap",
-          "amount": 2,
-          "asset": "EUR"
+          "amount": 30,
+          "asset": "EUR/3"
         },
         {
           "source": "src",
@@ -29,8 +29,8 @@
         {
           "source": "src",
           "destination": "swap",
-          "amount": 30,
-          "asset": "EUR/3"
+          "amount": 2,
+          "asset": "EUR"
         },
         {
           "source": "swap",
