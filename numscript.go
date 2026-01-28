@@ -72,6 +72,7 @@ type (
 	Value = interpreter.Value
 
 	InterpreterError = interpreter.InterpreterError
+	MissingFundsErr  = interpreter.MissingFundsErr
 )
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
