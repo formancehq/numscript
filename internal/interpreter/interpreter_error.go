@@ -27,6 +27,11 @@ func (e MissingFundsErr) Error() string {
 	return fmt.Sprintf("Not enough funds. Needed [%s %s] (only [%s %s] available)", e.Asset, e.Needed.String(), e.Asset, e.Available.String())
 }
 
+func (e MissingFundsErr) Is(target error) bool {
+	_, ok := target.(MissingFundsErr)
+	return ok
+}
+
 type InvalidMonetaryLiteral struct {
 	parser.Range
 	Source string
