@@ -83,7 +83,7 @@ func TestCmpMaps(t *testing.T) {
 func TestCmpMapsIncluding(t *testing.T) {
 
 	t.Run("including (subset)", func(t *testing.T) {
-		b1 := Balances{
+		b2 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(100),
 			},
@@ -92,7 +92,7 @@ func TestCmpMapsIncluding(t *testing.T) {
 			},
 		}
 
-		b2 := Balances{
+		b1 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(100),
 			},
@@ -102,7 +102,7 @@ func TestCmpMapsIncluding(t *testing.T) {
 	})
 
 	t.Run("different value", func(t *testing.T) {
-		b1 := Balances{
+		b2 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(100),
 			},
@@ -111,7 +111,7 @@ func TestCmpMapsIncluding(t *testing.T) {
 			},
 		}
 
-		b2 := Balances{
+		b1 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(0),
 			},
@@ -121,7 +121,7 @@ func TestCmpMapsIncluding(t *testing.T) {
 	})
 
 	t.Run("extra value", func(t *testing.T) {
-		b1 := Balances{
+		b2 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(100),
 			},
@@ -130,7 +130,7 @@ func TestCmpMapsIncluding(t *testing.T) {
 			},
 		}
 
-		b2 := Balances{
+		b1 := Balances{
 			"alice": AccountBalance{
 				"EUR": big.NewInt(100),
 			},
