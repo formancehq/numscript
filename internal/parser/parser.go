@@ -255,23 +255,41 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	}
 }
 
+func countLeadingZeros(str string) uint16 {
+	var count uint16
+
+loop:
+	for _, ch := range str {
+		switch ch {
+		case '0':
+			count++
+		default:
+			break loop
+		}
+	}
+
+	return count
+}
+
 // TODO actually handle big int
 func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
 	str := strings.TrimSuffix(source, "%")
-	num, err := strconv.ParseUint(strings.ReplaceAll(str, ".", ""), 0, 64)
+	num, err := strconv.ParseUint(strings.ReplaceAll(str, ".", ""), 10, 64)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var floatingDigits uint16
 	split := strings.Split(str, ".")
+
 	if len(split) > 1 {
-		floatingDigits = uint16(len(split[1]))
+		floatingPart := split[1]
+		floatingDigits = uint16(len(floatingPart)) + countLeadingZeros(floatingPart)
 	} else {
 		floatingDigits = 0
 	}
 
-	return big.NewInt(int64(num)), floatingDigits, nil
+	return new(big.Int).SetUint64(num), floatingDigits, nil
 }
 
 func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
