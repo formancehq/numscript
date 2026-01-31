@@ -36,6 +36,25 @@ send [C 10] (
 	}, checkSource(input))
 }
 
+func TestBadArity(t *testing.T) {
+	t.Parallel()
+
+	input := `
+	vars {
+  	monetary $x = balance(@acc)
+	}
+	
+	set_tx_meta("x", $x) // <- used to avoid a warning for unused var
+`
+
+	require.Equal(t, []analysis.Diagnostic{
+		{
+			Range: parser.RangeOfIndexed(input, "balance(@acc)", 0),
+			Kind:  analysis.BadArity{Expected: 2, Actual: 1},
+		},
+	}, checkSource(input))
+}
+
 func TestValidType(t *testing.T) {
 	t.Parallel()
 
