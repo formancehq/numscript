@@ -2,6 +2,7 @@ package parser_test
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -303,6 +304,32 @@ func TestSendAll(t *testing.T) {
 `)
 	snaps.MatchSnapshot(t, p.Value)
 	assert.Empty(t, p.Errors)
+}
+
+func TestParseFloatingPerc(t *testing.T) {
+	t.Run("t1", func(t *testing.T) {
+		num, fl, err := parser.ParsePercentageRatio("1.23%")
+		require.NoError(t, err)
+		// (123/100)%
+		require.Equal(t, big.NewInt(123), num)
+		require.Equal(t, uint16(2), fl)
+	})
+	t.Run("t2", func(t *testing.T) {
+		num, fl, err := parser.ParsePercentageRatio("0.23%")
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(23), num)
+		require.Equal(t, uint16(2), fl)
+		// (23/100)%
+	})
+
+	t.Run("t3", func(t *testing.T) {
+		num, fl, err := parser.ParsePercentageRatio("0.01%")
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(1), num)
+		require.Equal(t, uint16(3), fl)
+		// (1/1000)%
+	})
+
 }
 
 func TestWhitespaceInRatio(t *testing.T) {
