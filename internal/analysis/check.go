@@ -411,12 +411,16 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 
 		switch fnCall.Caller.Name {
 		case FnVarOriginBalance, FnVarOriginOverdraft:
-			// we run unify(<expr>, <asset>) in:
-			// <expr> := balance(@acc, <asset>)
-			res.unifyNodeWith(fnCall, res.GetExprType(validArgs[1]))
+			if len(validArgs) > 1 {
+				// we run unify(<expr>, <asset>) in:
+				// <expr> := balance(@acc, <asset>)
+				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[1]))
+			}
 
 		case FnVarOriginGetAsset:
-			res.unifyNodeWith(fnCall, res.GetExprType(validArgs[0]))
+			if len(validArgs) > 0 {
+				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[0]))
+			}
 		}
 	} else {
 		for _, arg := range validArgs {
