@@ -42,9 +42,9 @@ func SeverityToString(s Severity) string {
 		return "Error"
 	case WarningSeverity:
 		return "Warning"
-	case Information:
+	case InformationSeverity:
 		return "Info"
-	case Hint:
+	case HintSeverity:
 		return "Hint"
 	default:
 		return utils.NonExhaustiveMatchPanic[string](s)
