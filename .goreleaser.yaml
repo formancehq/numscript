@@ -50,3 +50,22 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+brews:
+  - name: numscript
+    repository:
+      owner: formancehq
+      name: homebrew-tap
+      pull_request:
+        enabled: true
+        base:
+          owner: formancehq
+          name: homebrew-tap
+          branch: main
+    directory: Formula
+    homepage: https://formance.com
+    skip_upload: 'false'
+    test: |
+      system "#{bin}/numscript version"
+    install: |
+      bin.install "numscript"
