@@ -44,7 +44,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	case *parser.PercentageLiteral:
 		return Portion(*expr.ToRatio()), nil
 	case *parser.NumberLiteral:
-		return MonetaryInt(*big.NewInt(int64(expr.Number))), nil
+		return MonetaryInt(*expr.Number), nil
 	case *parser.MonetaryLiteral:
 		asset, err := evaluateExprAs(st, expr.Asset, expectAsset)
 		if err != nil {

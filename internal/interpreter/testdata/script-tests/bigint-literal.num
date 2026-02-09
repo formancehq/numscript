@@ -1,0 +1,4 @@
+send [USDT/18 9223372036854776000] (
+  source = @world
+  destination = @system:hold
+)

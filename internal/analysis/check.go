@@ -749,7 +749,7 @@ func (res CheckResult) tryEvaluatingNumberExpr(expr parser.ValueExpr) *big.Int {
 	switch expr := expr.(type) {
 
 	case *parser.NumberLiteral:
-		return big.NewInt(int64(expr.Number))
+		return expr.Number
 
 	case *parser.Prefix:
 		switch expr.Operator {

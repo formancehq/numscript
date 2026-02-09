@@ -605,8 +605,8 @@ func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 	amtStr := numNode.GetText()
 	amtStr = strings.ReplaceAll(amtStr, "_", "")
 
-	amt, err := strconv.Atoi(amtStr)
-	if err != nil {
+	amt, ok := new(big.Int).SetString(amtStr, 10)
+	if !ok {
 		panic("Invalid number: " + amtStr)
 	}
 
