@@ -43,7 +43,7 @@ type (
 
 	NumberLiteral struct {
 		Range
-		Number int
+		Number *big.Int
 	}
 
 	StringLiteral struct {

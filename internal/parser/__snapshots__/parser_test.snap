@@ -29,7 +29,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -93,7 +96,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -153,7 +159,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -180,14 +189,20 @@ parser.Program{
                                         Start: parser.Position{Character:13, Line:1},
                                         End:   parser.Position{Character:14, Line:1},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:15, Line:1},
                                         End:   parser.Position{Character:16, Line:1},
                                     },
-                                    Number: 3,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x3},
+                                    },
                                 },
                             },
                         },
@@ -254,7 +269,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -312,14 +330,20 @@ parser.Program{
                                         Start: parser.Position{Character:1, Line:3},
                                         End:   parser.Position{Character:2, Line:3},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:3, Line:3},
                                         End:   parser.Position{Character:4, Line:3},
                                     },
-                                    Number: 2,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x2},
+                                    },
                                 },
                             },
                         },
@@ -410,7 +434,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -501,7 +528,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -540,14 +570,20 @@ parser.Program{
                                         Start: parser.Position{Character:18, Line:2},
                                         End:   parser.Position{Character:19, Line:2},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:20, Line:2},
                                         End:   parser.Position{Character:21, Line:2},
                                     },
-                                    Number: 2,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x2},
+                                    },
                                 },
                             },
                         },
@@ -604,7 +640,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -642,7 +681,10 @@ parser.Program{
                             Start: parser.Position{Character:22, Line:1},
                             End:   parser.Position{Character:24, Line:1},
                         },
-                        Number: 10,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0xa},
+                        },
                     },
                 },
             },
@@ -694,7 +736,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -771,7 +816,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -815,7 +863,10 @@ parser.Program{
                                     Start: parser.Position{Character:14, Line:2},
                                     End:   parser.Position{Character:16, Line:2},
                                 },
-                                Number: 42,
+                                Number: &big.Int{
+                                    neg: false,
+                                    abs: {0x2a},
+                                },
                             },
                         },
                     },
@@ -893,7 +944,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:1},
                             End:   parser.Position{Character:14, Line:1},
                         },
-                        Number: 10,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0xa},
+                        },
                     },
                 },
             },
@@ -948,7 +1002,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:2},
                             End:   parser.Position{Character:14, Line:2},
                         },
-                        Number: 20,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x14},
+                        },
                     },
                 },
             },
@@ -1112,7 +1169,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -1151,14 +1211,20 @@ parser.Program{
                                         Start: parser.Position{Character:3, Line:3},
                                         End:   parser.Position{Character:4, Line:3},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:5, Line:3},
                                         End:   parser.Position{Character:6, Line:3},
                                     },
-                                    Number: 2,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x2},
+                                    },
                                 },
                             },
                         },
@@ -1240,7 +1306,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -1458,7 +1527,10 @@ parser.Program{
                             Start: parser.Position{Character:53, Line:1},
                             End:   parser.Position{Character:56, Line:1},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -1569,7 +1641,10 @@ parser.Program{
                             Start: parser.Position{Character:7, Line:2},
                             End:   parser.Position{Character:9, Line:2},
                         },
-                        Number: 42,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x2a},
+                        },
                     },
                 },
                 &parser.NumberLiteral{
@@ -1577,7 +1652,10 @@ parser.Program{
                         Start: parser.Position{Character:1, Line:3},
                         End:   parser.Position{Character:4, Line:3},
                     },
-                    Number: 100,
+                    Number: &big.Int{
+                        neg: false,
+                        abs: {0x64},
+                    },
                 },
                 &parser.BinaryInfix{
                     Range: parser.Range{
@@ -1590,14 +1668,20 @@ parser.Program{
                             Start: parser.Position{Character:1, Line:4},
                             End:   parser.Position{Character:2, Line:4},
                         },
-                        Number: 1,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x1},
+                        },
                     },
                     Right: &parser.NumberLiteral{
                         Range: parser.Range{
                             Start: parser.Position{Character:3, Line:4},
                             End:   parser.Position{Character:4, Line:4},
                         },
-                        Number: 2,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x2},
+                        },
                     },
                 },
                 &parser.Variable{
@@ -1718,7 +1802,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -1859,7 +1946,10 @@ parser.Program{
                                     Start: parser.Position{Character:8, Line:4},
                                     End:   parser.Position{Character:10, Line:4},
                                 },
-                                Number: 42,
+                                Number: &big.Int{
+                                    neg: false,
+                                    abs: {0x2a},
+                                },
                             },
                         },
                         To: &parser.DestinationKept{
@@ -1972,7 +2062,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:0},
                             End:   parser.Position{Character:15, Line:0},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -2011,14 +2104,20 @@ parser.Program{
                                         Start: parser.Position{Character:18, Line:2},
                                         End:   parser.Position{Character:19, Line:2},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:20, Line:2},
                                         End:   parser.Position{Character:21, Line:2},
                                     },
-                                    Number: 2,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x2},
+                                    },
                                 },
                             },
                         },
@@ -2094,14 +2193,20 @@ parser.Program{
                                         Start: parser.Position{Character:4, Line:4},
                                         End:   parser.Position{Character:5, Line:4},
                                     },
-                                    Number: 1,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x1},
+                                    },
                                 },
                                 Right: &parser.NumberLiteral{
                                     Range: parser.Range{
                                         Start: parser.Position{Character:8, Line:4},
                                         End:   parser.Position{Character:9, Line:4},
                                     },
-                                    Number: 6,
+                                    Number: &big.Int{
+                                        neg: false,
+                                        abs: {0x6},
+                                    },
                                 },
                             },
                         },
@@ -2184,7 +2289,10 @@ parser.Program{
                                 Start: parser.Position{Character:13, Line:0},
                                 End:   parser.Position{Character:16, Line:0},
                             },
-                            Number: 100,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x64},
+                            },
                         },
                     },
                 },
@@ -2249,7 +2357,10 @@ parser.Program{
                             Start: parser.Position{Character:12, Line:1},
                             End:   parser.Position{Character:15, Line:1},
                         },
-                        Number: 100,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x64},
+                        },
                     },
                 },
             },
@@ -2375,7 +2486,10 @@ parser.Program{
                             Start: parser.Position{Character:18, Line:1},
                             End:   parser.Position{Character:19, Line:1},
                         },
-                        Number: 1,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x1},
+                        },
                     },
                     Right: &parser.StringLiteral{
                         Range: parser.Range{
@@ -2424,14 +2538,20 @@ parser.Program{
                                 Start: parser.Position{Character:18, Line:2},
                                 End:   parser.Position{Character:19, Line:2},
                             },
-                            Number: 1,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
                         },
                         Right: &parser.NumberLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:20, Line:2},
                                 End:   parser.Position{Character:21, Line:2},
                             },
-                            Number: 2,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                     },
                     Right: &parser.MonetaryLiteral{
@@ -2451,7 +2571,10 @@ parser.Program{
                                 Start: parser.Position{Character:30, Line:2},
                                 End:   parser.Position{Character:32, Line:2},
                             },
-                            Number: 10,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0xa},
+                            },
                         },
                     },
                 },
@@ -2504,14 +2627,20 @@ parser.Program{
                                 Start: parser.Position{Character:18, Line:1},
                                 End:   parser.Position{Character:19, Line:1},
                             },
-                            Number: 1,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x1},
+                            },
                         },
                         Right: &parser.NumberLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:22, Line:1},
                                 End:   parser.Position{Character:23, Line:1},
                             },
-                            Number: 2,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                     },
                     Right: &parser.NumberLiteral{
@@ -2519,7 +2648,10 @@ parser.Program{
                             Start: parser.Position{Character:26, Line:1},
                             End:   parser.Position{Character:27, Line:1},
                         },
-                        Number: 3,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x3},
+                        },
                     },
                 },
             },
@@ -2558,7 +2690,10 @@ parser.Program{
                         Start: parser.Position{Character:18, Line:1},
                         End:   parser.Position{Character:28, Line:1},
                     },
-                    Number: 1234567,
+                    Number: &big.Int{
+                        neg: false,
+                        abs: {0x12d687},
+                    },
                 },
             },
         },
@@ -2602,7 +2737,10 @@ parser.Program{
                             Start: parser.Position{Character:18, Line:1},
                             End:   parser.Position{Character:19, Line:1},
                         },
-                        Number: 1,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x1},
+                        },
                     },
                     Right: &parser.BinaryInfix{
                         Range: parser.Range{
@@ -2615,14 +2753,20 @@ parser.Program{
                                 Start: parser.Position{Character:23, Line:1},
                                 End:   parser.Position{Character:24, Line:1},
                             },
-                            Number: 2,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         Right: &parser.NumberLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:27, Line:1},
                                 End:   parser.Position{Character:28, Line:1},
                             },
-                            Number: 3,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x3},
+                            },
                         },
                     },
                 },
@@ -2897,7 +3041,10 @@ parser.Program{
                             Start: parser.Position{Character:19, Line:1},
                             End:   parser.Position{Character:21, Line:1},
                         },
-                        Number: 10,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0xa},
+                        },
                     },
                     Right: &parser.Variable{
                         Range: parser.Range{
@@ -2949,7 +3096,10 @@ parser.Program{
                             Start: parser.Position{Character:18, Line:1},
                             End:   parser.Position{Character:19, Line:1},
                         },
-                        Number: 1,
+                        Number: &big.Int{
+                            neg: false,
+                            abs: {0x1},
+                        },
                     },
                     Right: &parser.BinaryInfix{
                         Range: parser.Range{
@@ -2962,14 +3112,20 @@ parser.Program{
                                 Start: parser.Position{Character:22, Line:1},
                                 End:   parser.Position{Character:23, Line:1},
                             },
-                            Number: 2,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x2},
+                            },
                         },
                         Right: &parser.NumberLiteral{
                             Range: parser.Range{
                                 Start: parser.Position{Character:26, Line:1},
                                 End:   parser.Position{Character:27, Line:1},
                             },
-                            Number: 3,
+                            Number: &big.Int{
+                                neg: false,
+                                abs: {0x3},
+                            },
                         },
                     },
                 },
@@ -3002,14 +3158,17 @@ parser.Program{
                         Start: parser.Position{Character:12, Line:0},
                         End:   parser.Position{Character:13, Line:0},
                     },
-                    Number: 0,
+                    Number: &big.Int{},
                 },
                 &parser.NumberLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:15, Line:0},
                         End:   parser.Position{Character:17, Line:0},
                     },
-                    Number: 42,
+                    Number: &big.Int{
+                        neg: false,
+                        abs: {0x2a},
+                    },
                 },
             },
         },
@@ -3057,7 +3216,10 @@ parser.Program{
                         Start: parser.Position{Character:26, Line:0},
                         End:   parser.Position{Character:28, Line:0},
                     },
-                    Number: 42,
+                    Number: &big.Int{
+                        neg: false,
+                        abs: {0x2a},
+                    },
                 },
             },
         },
@@ -3150,7 +3312,10 @@ parser.Program{
                         Start: parser.Position{Character:14, Line:2},
                         End:   parser.Position{Character:16, Line:2},
                     },
-                    Number: 42,
+                    Number: &big.Int{
+                        neg: false,
+                        abs: {0x2a},
+                    },
                 },
             },
         },

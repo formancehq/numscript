@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "testCases": [
+    {
+      "it": "example spec",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "system:hold",
+          "amount": 9223372036854776000,
+          "asset": "USDT/18"
+        }
+      ]
+    }
+  ]
+}
