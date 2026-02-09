@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -271,12 +272,11 @@ loop:
 	return count
 }
 
-// TODO actually handle big int
 func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
 	str := strings.TrimSuffix(source, "%")
-	num, err := strconv.ParseUint(strings.ReplaceAll(str, ".", ""), 10, 64)
-	if err != nil {
-		return nil, 0, err
+	num, ok := new(big.Int).SetString(strings.ReplaceAll(str, ".", ""), 10)
+	if !ok {
+		return nil, 0, fmt.Errorf("unepexcted invalid string literal: %s", source)
 	}
 
 	var floatingDigits uint16
@@ -289,7 +289,7 @@ func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
 		floatingDigits = 0
 	}
 
-	return new(big.Int).SetUint64(num), floatingDigits, nil
+	return num, floatingDigits, nil
 }
 
 func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
