@@ -1,0 +1,7 @@
+send [EUR 100_000] (
+  source = @world
+  destination = {
+    0.019% to @alice
+    remaining kept
+  }
+)

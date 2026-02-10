@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -255,23 +256,22 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	}
 }
 
-// TODO actually handle big int
+// Returns (a, b) representing a/(10^b)
 func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
-	str := strings.TrimSuffix(source, "%")
-	num, err := strconv.ParseUint(strings.ReplaceAll(str, ".", ""), 0, 64)
-	if err != nil {
-		return nil, 0, err
+	source = strings.TrimSuffix(source, "%")
+
+	scale := 0
+	if i := strings.Index(source, "."); i != -1 {
+		scale = len(source) - i - 1
 	}
 
-	var floatingDigits uint16
-	split := strings.Split(str, ".")
-	if len(split) > 1 {
-		floatingDigits = uint16(len(split[1]))
-	} else {
-		floatingDigits = 0
+	intPart := strings.ReplaceAll(source, ".", "")
+	num, ok := new(big.Int).SetString(intPart, 10)
+	if !ok {
+		return nil, 0, fmt.Errorf("unexpected invalid string literal: %s", source)
 	}
 
-	return big.NewInt(int64(num)), floatingDigits, nil
+	return num, uint16(scale), nil
 }
 
 func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
