@@ -258,28 +258,20 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 
 // Returns (a, b) representing a/(10^b)
 func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
-	str := strings.TrimSuffix(source, "%")
+	source = strings.TrimSuffix(source, "%")
 
-	intPart := strings.ReplaceAll(str, ".", "")
-	if intPart != "0" {
-		intPart = strings.TrimPrefix(intPart, "0")
+	scale := 0
+	if i := strings.Index(source, "."); i != -1 {
+		scale = len(source) - i - 1
 	}
 
+	intPart := strings.ReplaceAll(source, ".", "")
 	num, ok := new(big.Int).SetString(intPart, 10)
 	if !ok {
 		return nil, 0, fmt.Errorf("unexpected invalid string literal: %s", source)
 	}
 
-	var floatingDigits uint16
-	split := strings.Split(str, ".")
-
-	if len(split) > 1 {
-		floatingDigits = uint16(len(split[1]))
-	} else {
-		floatingDigits = 0
-	}
-
-	return num, floatingDigits, nil
+	return num, uint16(scale), nil
 }
 
 func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
