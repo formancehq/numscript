@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 
 	antlrParser "github.com/formancehq/numscript/internal/parser/antlrParser"
