@@ -11,7 +11,7 @@
   },
   "testCases": [
     {
-      "it": "example spec",
+      "it": "handles kept",
       "expect.postings": [
         {
           "source": "acc",
@@ -20,15 +20,9 @@
           "asset": "BTC/8"
         },
         {
-          "source": "acc",
-          "destination": "swap",
-          "amount": 2,
-          "asset": "BTC/2"
-        },
-        {
           "source": "swap",
           "destination": "acc",
-          "amount": 3,
+          "amount": 1,
           "asset": "BTC/2"
         }
       ]

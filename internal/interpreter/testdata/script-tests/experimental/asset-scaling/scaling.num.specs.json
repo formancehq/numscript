@@ -16,12 +16,6 @@
         {
           "source": "src",
           "destination": "swap",
-          "asset": "EUR/2",
-          "amount": 1
-        },
-        {
-          "source": "src",
-          "destination": "swap",
           "asset": "EUR",
           "amount": 4
         },
@@ -79,12 +73,6 @@
         {
           "source": "src",
           "destination": "swap",
-          "asset": "EUR/2",
-          "amount": 200
-        },
-        {
-          "source": "src",
-          "destination": "swap",
           "asset": "EUR",
           "amount": 2
         },
@@ -92,7 +80,7 @@
           "source": "swap",
           "destination": "src",
           "asset": "EUR/2",
-          "amount": 400
+          "amount": 200
         },
         {
           "source": "src",

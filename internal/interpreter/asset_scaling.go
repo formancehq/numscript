@@ -88,32 +88,38 @@ func getScalingFactor(neededAmtScale int64, currentScale int64) *big.Rat {
 	return scalingFactor
 }
 
+func applyScaling(amt *big.Int, scalingFactor *big.Rat) (*big.Int, *big.Int) {
+	rem := new(big.Int)
+
+	availableCurrencyScaled := new(big.Int)
+	availableCurrencyScaled.Mul(amt, scalingFactor.Num())
+	availableCurrencyScaled.QuoRem(availableCurrencyScaled, scalingFactor.Denom(), rem)
+
+	return availableCurrencyScaled, rem
+}
+
 // Find a set of conversions from the available "scales", to
 // [ASSET/$neededAmtScale $neededAmt], so that there's no rounding error
 // and no spare amount
-//
-// e.g.
-//
-// need=[EUR/2 100], got={EUR/2: 100, EUR: 1}
-// => {EUR/2: 100, EUR: 1}
-//
-// need=[EUR 1], got={EUR/2: 100, EUR: 0}
-// => {EUR/2: 100, EUR: 0}
-//
-// need=[EUR/2 199], got={EUR/2: 100, EUR: 2}
-// => {EUR/2: 100, EUR: 1}
-//
-// need=[EUR/2 1], got={EUR: 99}
-// => no solution! (if we changed 1 EUR with 100 EUR/2 we'd have 99 spare cents)
 func findScalingSolution(
 	neededAmt *big.Int, // <- can be nil
 	neededAmtScale int64,
 	scales map[int64]*big.Int,
 ) ([]scalePair, *big.Int) {
+	if ownedAmt, ok := scales[neededAmtScale]; ok && neededAmt != nil {
+		// Note we don't mutate the input value
+		neededAmt = new(big.Int).Sub(neededAmt, ownedAmt)
+	}
+
 	var out []scalePair
 	totalSent := big.NewInt(0)
 
 	for _, p := range getSortedAssets(scales) {
+		if neededAmtScale == p.scale {
+			// We don't convert assets we already have
+			continue
+		}
+
 		if neededAmt != nil && totalSent.Cmp(neededAmt) != -1 {
 			break
 		}
@@ -122,9 +128,7 @@ func findScalingSolution(
 
 		// scale the original amount to the current currency
 		// availableCurrencyScaled := floor(p.amount * scalingFactor)
-		availableCurrencyScaled := new(big.Int)
-		availableCurrencyScaled.Mul(p.amount, scalingFactor.Num())
-		availableCurrencyScaled.Div(availableCurrencyScaled, scalingFactor.Denom())
+		availableCurrencyScaled, _ := applyScaling(p.amount, scalingFactor)
 
 		var taken *big.Int // := min(availableCurrencyScaled, (neededAmt-totalSent) ?? ∞)
 		if neededAmt == nil {
@@ -134,23 +138,22 @@ func findScalingSolution(
 			taken = utils.MinBigInt(availableCurrencyScaled, leftAmt)
 		}
 
-		totalSent.Add(totalSent, taken)
-
 		// intPart := floor(p.amount * 1/scalingFactor) == (p.amount * scalingFactor.Denom)/scalingFactor.Num)
-
-		rem := new(big.Int)
-
-		intPart := new(big.Int)
-		intPart.Mul(taken, scalingFactor.Denom())
-		intPart.QuoRem(intPart, scalingFactor.Num(), rem)
-
+		intPart, rem := applyScaling(taken, new(big.Rat).Inv(scalingFactor))
 		if rem.Sign() == 1 {
 			intPart.Add(intPart, big.NewInt(1))
 		}
 
-		if intPart.Cmp(big.NewInt(0)) == 0 {
+		if intPart.Sign() == 0 {
 			continue
 		}
+
+		actuallyTaken, remTaken := applyScaling(intPart, scalingFactor)
+		if remTaken.Sign() != 0 {
+			panic("UNEXPECTED REM")
+			actuallyTaken.Add(actuallyTaken, big.NewInt(1))
+		}
+		totalSent.Add(totalSent, actuallyTaken)
 
 		out = append(out, scalePair{
 			scale:  p.scale,

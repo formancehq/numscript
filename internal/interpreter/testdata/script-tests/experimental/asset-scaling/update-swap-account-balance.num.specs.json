@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "testCases": [
+    {
+      "it": "updates the swap account balances",
+      "balances": {
+        "src": {
+          "EUR": 1
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "swap",
+          "asset": "EUR/2",
+          "amount": 500
+        },
+        {
+          "source": "src",
+          "destination": "swap",
+          "asset": "EUR",
+          "amount": 1
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "asset": "EUR/2",
+          "amount": 100
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 1
+        },
+        {
+          "source": "swap",
+          "destination": "dest:0",
+          "asset": "EUR",
+          "amount": 1
+        },
+        {
+          "source": "swap",
+          "destination": "dest:2",
+          "asset": "EUR/2",
+          "amount": 400
+        }
+      ]
+    }
+  ]
+}

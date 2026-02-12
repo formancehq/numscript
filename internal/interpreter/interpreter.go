@@ -383,6 +383,25 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
 }
 
+// Append a posting without checking if account has enough balance.
+// Updates both source and destination balances.
+// Noop if the amount is zero
+//
+// PRE: posting's asset is uncolored
+func (st *programState) forcePushPostingUncolored(posting Posting) {
+	if posting.Amount.Sign() == 0 {
+		return
+	}
+
+	srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset, "")
+	srcBalance.Sub(srcBalance, posting.Amount)
+
+	destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset, "")
+	destBalance.Add(destBalance, posting.Amount)
+
+	st.Postings = append(st.Postings, posting)
+}
+
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
@@ -599,33 +618,22 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		)
 
 		for _, convAmt := range sol {
-			scale := convAmt.scale
-			convAmt := convAmt.amount
-
-			// here we manually emit postings based on the known solution,
-			// and update balances accordingly
-			asset := buildScaledAsset(baseAsset, scale)
-			s.Postings = append(s.Postings, Posting{
+			s.forcePushPostingUncolored(Posting{
 				Source:      *account,
 				Destination: *scalingAccount,
-				Amount:      new(big.Int).Set(convAmt),
-				Asset:       asset,
+				Amount:      new(big.Int).Set(convAmt.amount),
+				Asset:       buildScaledAsset(baseAsset, convAmt.scale),
 			})
-			acc[asset].Sub(acc[asset], convAmt)
 		}
 
-		s.Postings = append(s.Postings, Posting{
+		s.forcePushPostingUncolored(Posting{
 			Source:      *scalingAccount,
 			Destination: *account,
 			Amount:      new(big.Int).Set(totSent),
 			Asset:       s.CurrentAsset,
 		})
-		accBalance := utils.MapGetOrPutDefault(acc, s.CurrentAsset, func() *big.Int {
-			return big.NewInt(0)
-		})
-		accBalance.Add(accBalance, totSent)
 
-		return s.trySendingToAccount(source.Address, totSent, big.NewInt(0), source.Color)
+		return s.sendAllToAccount(source.Address, big.NewInt(0), source.Color)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
@@ -758,44 +766,27 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, total := findScalingSolution(
+		sol, swappedAmt := findScalingSolution(
 			amount,
 			assetScale,
 			getAssets(acc, baseAsset),
 		)
 
-		if sol == nil || amount.Cmp(total) == 1 {
-			// we already know we are failing, but we're delegating to the "standard" (non-scaled) mode
-			// so that we get a somewhat helpful (although limited) error message
-			return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
-		}
-
 		for _, pair := range sol {
-			scale := pair.scale
-			sending := pair.amount
-			// here we manually emit postings based on the known solution,
-			// and update balances accordingly
-			asset := buildScaledAsset(baseAsset, scale)
-			s.Postings = append(s.Postings, Posting{
+			s.forcePushPostingUncolored(Posting{
 				Source:      *account,
 				Destination: *scalingAccount,
-				Amount:      new(big.Int).Set(sending),
-				Asset:       asset,
+				Amount:      new(big.Int).Set(pair.amount),
+				Asset:       buildScaledAsset(baseAsset, pair.scale),
 			})
-			acc[asset].Sub(acc[asset], sending)
 		}
 
-		s.Postings = append(s.Postings, Posting{
+		s.forcePushPostingUncolored(Posting{
 			Source:      *scalingAccount,
 			Destination: *account,
-			Amount:      new(big.Int).Set(amount),
+			Amount:      new(big.Int).Set(swappedAmt),
 			Asset:       s.CurrentAsset,
 		})
-
-		accBalance := utils.MapGetOrPutDefault(acc, s.CurrentAsset, func() *big.Int {
-			return big.NewInt(0)
-		})
-		accBalance.Add(accBalance, amount)
 
 		return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
 

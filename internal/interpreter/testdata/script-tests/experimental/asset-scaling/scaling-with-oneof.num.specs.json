@@ -43,18 +43,6 @@
       "expect.postings": [
         {
           "source": "acc1",
-          "destination": "swap",
-          "amount": 100,
-          "asset": "EUR/2"
-        },
-        {
-          "source": "swap",
-          "destination": "acc1",
-          "amount": 100,
-          "asset": "EUR/2"
-        },
-        {
-          "source": "acc1",
           "destination": "dest",
           "amount": 100,
           "asset": "EUR/2"

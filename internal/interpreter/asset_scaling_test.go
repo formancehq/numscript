@@ -7,10 +7,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestScalingZeroNeeded(t *testing.T) {
-	t.Skip()
+func TestScalingAvoidSwappingAlreadyHaveAsset(t *testing.T) {
+	// Need [USD/2 200]
+	// Got: {USD/2 100, USD 2}
+	// we only want [USD 1] to be swapped
+	sol, got := findScalingSolution(
+		big.NewInt(200),
+		2,
+		map[int64]*big.Int{
+			2: big.NewInt(100),
+			0: big.NewInt(2),
+		})
 
-	sol, _ := findScalingSolution(
+	require.Equal(t, []scalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100), got)
+}
+
+func TestScalingAvoidSpareAmt(t *testing.T) {
+	// Need [USD/2 1]
+	// Got: {USD 99}
+	sol, got := findScalingSolution(
+		big.NewInt(1),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(99),
+		})
+
+	require.Equal(t, []scalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100), got)
+}
+
+func TestScalingAvoidSpareAmt2(t *testing.T) {
+	// Need [USD/2 1]
+	// Got: {USD 99}
+	sol, got := findScalingSolution(
+		big.NewInt(399),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(9999999),
+		})
+
+	require.Equal(t, []scalePair{
+		{0, big.NewInt(4)},
+	}, sol)
+	require.Equal(t, big.NewInt(400), got)
+}
+
+func TestScalingZeroNeeded(t *testing.T) {
+	sol, tot := findScalingSolution(
 		big.NewInt(0),
 		42,
 		map[int64]*big.Int{
@@ -18,12 +66,11 @@ func TestScalingZeroNeeded(t *testing.T) {
 			1: big.NewInt(1),
 		})
 
-	require.Equal(t, []scalePair{
-		{42, big.NewInt(0)},
-	}, sol)
+	require.Equal(t, []scalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
 }
 
-func TestAllowSpare(t *testing.T) {
+func TestDoNotAllowSpare(t *testing.T) {
 	sol, tot := findScalingSolution(
 		// Need [EUR/2 1]
 		big.NewInt(1),
@@ -37,11 +84,11 @@ func TestAllowSpare(t *testing.T) {
 	require.Equal(t, []scalePair{
 		{0, big.NewInt(1)},
 	}, sol)
-	require.Equal(t, big.NewInt(1), tot)
+	require.Equal(t, big.NewInt(100), tot)
 }
 
 func TestRepro(t *testing.T) {
-	sol, _ := findScalingSolution(
+	sol, tot := findScalingSolution(
 		// Need [EUR/2 400]
 		big.NewInt(400),
 		2,
@@ -53,10 +100,9 @@ func TestRepro(t *testing.T) {
 		})
 
 	require.Equal(t, []scalePair{
-		{2, big.NewInt(1)},
 		{0, big.NewInt(4)},
 	}, sol)
-	// require.Equal(t, big.NewInt(1), tot)
+	require.Equal(t, big.NewInt(400), tot)
 }
 
 func TestScalingSameAsset(t *testing.T) {
@@ -70,10 +116,8 @@ func TestScalingSameAsset(t *testing.T) {
 			2: big.NewInt(201),
 		})
 
-	require.Equal(t, []scalePair{
-		{2, big.NewInt(200)},
-	}, sol)
-	require.Equal(t, big.NewInt(200), tot)
+	require.Equal(t, []scalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
 }
 
 func TestScalingSolutionLowerScale(t *testing.T) {
@@ -127,6 +171,7 @@ func TestScalingSolutionHigherScaleNoSolution(t *testing.T) {
 
 func TestNoSolution(t *testing.T) {
 	sol, got := findScalingSolution(
+		// Need [USD/2 400]
 		big.NewInt(400),
 		2,
 		map[int64]*big.Int{
@@ -135,17 +180,15 @@ func TestNoSolution(t *testing.T) {
 			3: big.NewInt(1),
 		})
 
-	require.Equal(t, big.NewInt(100+1+0), got)
+	require.Equal(t, big.NewInt(100), got)
 	require.Equal(t, []scalePair{
-		{2, big.NewInt(1)},
 		{0, big.NewInt(1)},
 	}, sol)
 }
 
-func TestMixedFail(t *testing.T) {
-	t.Skip()
-
-	sol, _ := findScalingSolution(
+func TestNoSolution2(t *testing.T) {
+	sol, tot := findScalingSolution(
+		// Need [USD/2 400]
 		big.NewInt(400),
 		2,
 		map[int64]*big.Int{
@@ -154,22 +197,25 @@ func TestMixedFail(t *testing.T) {
 			3: big.NewInt(10),
 		})
 
-	require.Nil(t, sol)
+	require.Equal(t, []scalePair{
+		{3, big.NewInt(10)},
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100+1), tot)
 }
 
 func TestUnboundedScalingSameAsset(t *testing.T) {
-	sol, _ := findScalingSolution(
+	sol, tot := findScalingSolution(
+		// Need [USD/2 *]
 		nil,
-		// Need USD/2
 		2,
 		// Have: {EUR/2: 201}
 		map[int64]*big.Int{
 			2: big.NewInt(123),
 		})
 
-	require.Equal(t, []scalePair{
-		{2, big.NewInt(123)},
-	}, sol)
+	require.Equal(t, []scalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
 }
 
 func TestUnboundedScalingLowerAsset(t *testing.T) {

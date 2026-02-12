@@ -47,15 +47,15 @@
       "it": "doesn't send more than needed",
       "balances": {
         "acc2": {
-          "EUR/2": 999999
+          "EUR/3": 999999
         }
       },
       "expect.postings": [
         {
           "source": "acc2",
           "destination": "swap",
-          "amount": 50,
-          "asset": "EUR/2"
+          "amount": 500,
+          "asset": "EUR/3"
         },
         {
           "source": "swap",
@@ -63,6 +63,28 @@
           "amount": 50,
           "asset": "EUR/2"
         },
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "doesn't swap already owned asset",
+      "balances": {
+        "acc2": {
+          "EUR/2": 999999
+        }
+      },
+      "expect.postings": [
         {
           "source": "acc1",
           "destination": "dest",
