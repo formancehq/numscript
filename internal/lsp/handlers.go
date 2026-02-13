@@ -8,6 +8,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/jsonrpc2"
+	"github.com/formancehq/numscript/internal/lsp/lsp_types_extra"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 	"go.lsp.dev/protocol"
@@ -157,6 +158,25 @@ func (state *State) handleGetSymbols(params protocol.DocumentSymbolParams) []pro
 	return lspDocumentSymbols
 }
 
+func (state *State) handleGetInlayHints(params lsp_types_extra.InlayHintParams) []lsp_types_extra.InlayHint {
+	doc, ok := state.documents.Get(params.TextDocument.URI)
+	if !ok {
+		return nil
+	}
+
+	k := lsp_types_extra.InlayHintKindType
+	hints := analysis.GetInlayHints(doc.CheckResult)
+	var res []lsp_types_extra.InlayHint
+	for _, hint := range hints {
+		res = append(res, lsp_types_extra.InlayHint{
+			Position: ParserToLspPosition(hint.Position),
+			Label:    hint.Label,
+			Kind:     &k,
+		})
+	}
+	return res
+}
+
 func (state *State) handleCodeAction(params protocol.CodeActionParams) []protocol.CodeAction {
 	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
@@ -225,16 +245,19 @@ func toLspDiagnostic(d analysis.Diagnostic) protocol.Diagnostic {
 	}
 }
 
-var initializeResult protocol.InitializeResult = protocol.InitializeResult{
-	Capabilities: protocol.ServerCapabilities{
-		TextDocumentSync: protocol.TextDocumentSyncOptions{
-			OpenClose: true,
-			Change:    protocol.TextDocumentSyncKindFull,
+var initializeResult lsp_types_extra.InitializeResult = lsp_types_extra.InitializeResult{
+	Capabilities: lsp_types_extra.ServerCapabilities{
+		ServerCapabilities: protocol.ServerCapabilities{
+			TextDocumentSync: protocol.TextDocumentSyncOptions{
+				OpenClose: true,
+				Change:    protocol.TextDocumentSyncKindFull,
+			},
+			HoverProvider:          true,
+			DefinitionProvider:     true,
+			DocumentSymbolProvider: true,
+			CodeActionProvider:     true,
 		},
-		HoverProvider:          true,
-		DefinitionProvider:     true,
-		DocumentSymbolProvider: true,
-		CodeActionProvider:     true,
+		InlayHintProvider: true,
 	},
 	ServerInfo: &protocol.ServerInfo{
 		Name:    "numscript-ls",
@@ -266,7 +289,9 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 			text := p.ContentChanges[len(p.ContentChanges)-1].Text
 			state.updateDocument(conn, p.TextDocument.URI, text)
 		}),
-
+		jsonrpc2.NewRequestHandler("textDocument/inlayHint", jsonrpc2.AsyncHandling, func(p lsp_types_extra.InlayHintParams, conn *jsonrpc2.Conn) any {
+			return state.handleGetInlayHints(p)
+		}),
 		jsonrpc2.NewRequestHandler("textDocument/hover", jsonrpc2.AsyncHandling, func(p protocol.HoverParams, conn *jsonrpc2.Conn) any {
 			return state.handleHover(p)
 		}),

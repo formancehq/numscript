@@ -17,8 +17,8 @@ const (
 	_ Severity = iota
 	ErrorSeverity
 	WarningSeverity
-	Information
-	Hint
+	InformationSeverity
+	HintSeverity
 )
 
 func SeverityToAnsiString(s Severity) string {
@@ -27,9 +27,9 @@ func SeverityToAnsiString(s Severity) string {
 		return ansi.ColorRed("Error")
 	case WarningSeverity:
 		return ansi.ColorYellow("Warning")
-	case Information:
+	case InformationSeverity:
 		return "Info"
-	case Hint:
+	case HintSeverity:
 		return "Hint"
 	default:
 		return utils.NonExhaustiveMatchPanic[string](s)
@@ -42,9 +42,9 @@ func SeverityToString(s Severity) string {
 		return "Error"
 	case WarningSeverity:
 		return "Warning"
-	case Information:
+	case InformationSeverity:
 		return "Info"
-	case Hint:
+	case HintSeverity:
 		return "Hint"
 	default:
 		return utils.NonExhaustiveMatchPanic[string](s)
