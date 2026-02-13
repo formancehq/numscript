@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "testCases": [
+    {
+      "it": "sends all the available assets that can be cast",
+      "balances": {
+        "src": {
+          "EUR": 2,
+          "EUR/2": 1,
+          "EUR/3": 30
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "amount": 30,
+          "asset": "EUR/3"
+        },
+        {
+          "source": "src",
+          "destination": "swap",
+          "amount": 2,
+          "asset": "EUR"
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "amount": 203,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 204,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "avoids casting the remainder",
+      "balances": {
+        "src": {
+          "EUR/3": 21
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "amount": 20,
+          "asset": "EUR/3"
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "amount": 2,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 2,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}

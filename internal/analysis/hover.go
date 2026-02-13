@@ -237,6 +237,18 @@ func hoverOnSource(source parser.Source, position parser.Position) Hover {
 				return hover
 			}
 		}
+	case *parser.SourceWithScaling:
+		hover := hoverOnExpression(source.Address, position)
+		if hover != nil {
+			return hover
+		}
+
+		hover = hoverOnExpression(source.Through, position)
+		if hover != nil {
+			return hover
+		}
+
+		return nil
 
 	case *parser.SourceAllotment:
 		for _, item := range source.Items {

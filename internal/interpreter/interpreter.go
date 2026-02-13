@@ -51,12 +51,26 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 		})
 
 		for _, curr := range queriedCurrencies {
-			n := new(big.Int)
-			outputAccountBalance[curr] = n
+			baseAsset, isCatchAll := strings.CutSuffix(curr, "/*")
+			if isCatchAll {
 
-			if i, ok := accountBalanceLookup[curr]; ok {
-				n.Set(i)
+				for k, v := range accountBalanceLookup {
+					matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
+					if !matchesAsset {
+						continue
+					}
+					outputAccountBalance[k] = new(big.Int).Set(v)
+				}
+
+			} else {
+				n := new(big.Int)
+				outputAccountBalance[curr] = n
+
+				if i, ok := accountBalanceLookup[curr]; ok {
+					n.Set(i)
+				}
 			}
+
 		}
 	}
 
@@ -369,6 +383,25 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
 }
 
+// Append a posting without checking if account has enough balance.
+// Updates both source and destination balances.
+// Noop if the amount is zero
+//
+// PRE: posting's asset is uncolored
+func (st *programState) forcePushPostingUncolored(posting Posting) {
+	if posting.Amount.Sign() == 0 {
+		return
+	}
+
+	srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset, "")
+	srcBalance.Sub(srcBalance, posting.Amount)
+
+	destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset, "")
+	destBalance.Add(destBalance, posting.Amount)
+
+	st.Postings = append(st.Postings, posting)
+}
+
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
@@ -556,6 +589,52 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 		}
 		return s.sendAllToAccount(source.Address, cap, source.Color)
 
+	case *parser.SourceWithScaling:
+		err := s.checkFeatureFlag(flags.AssetScaling)
+		if err != nil {
+			return nil, err
+		}
+
+		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		acc, ok := s.CachedBalances[*account]
+		if !ok {
+			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
+		}
+
+		sol, totSent := findScalingSolution(
+			nil,
+			assetScale,
+			getAssets(acc, baseAsset),
+		)
+
+		for _, convAmt := range sol {
+			s.forcePushPostingUncolored(Posting{
+				Source:      *account,
+				Destination: *scalingAccount,
+				Amount:      new(big.Int).Set(convAmt.amount),
+				Asset:       buildScaledAsset(baseAsset, convAmt.scale),
+			})
+		}
+
+		s.forcePushPostingUncolored(Posting{
+			Source:      *scalingAccount,
+			Destination: *account,
+			Amount:      new(big.Int).Set(totSent),
+			Asset:       s.CurrentAsset,
+		})
+
+		return s.sendAllToAccount(source.Address, big.NewInt(0), source.Color)
+
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
 		for _, subSource := range source.Sources {
@@ -665,6 +744,51 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
+
+	case *parser.SourceWithScaling:
+		err := s.checkFeatureFlag(flags.AssetScaling)
+		if err != nil {
+			return nil, err
+		}
+
+		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		if err != nil {
+			return nil, err
+		}
+
+		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		acc, ok := s.CachedBalances[*account]
+		if !ok {
+			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
+		}
+
+		sol, swappedAmt := findScalingSolution(
+			amount,
+			assetScale,
+			getAssets(acc, baseAsset),
+		)
+
+		for _, pair := range sol {
+			s.forcePushPostingUncolored(Posting{
+				Source:      *account,
+				Destination: *scalingAccount,
+				Amount:      new(big.Int).Set(pair.amount),
+				Asset:       buildScaledAsset(baseAsset, pair.scale),
+			})
+		}
+
+		s.forcePushPostingUncolored(Posting{
+			Source:      *scalingAccount,
+			Destination: *account,
+			Amount:      new(big.Int).Set(swappedAmt),
+			Asset:       s.CurrentAsset,
+		})
+
+		return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int

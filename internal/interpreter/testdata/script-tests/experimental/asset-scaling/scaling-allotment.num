@@ -1,0 +1,7 @@
+send [EUR/2 100] (
+  source = {
+    @acc1
+    @acc2 with scaling through @swap
+  }
+  destination = @dest
+)

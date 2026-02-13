@@ -523,3 +523,32 @@ send [ASSET *] (
 	resolved := checkResult.ResolveVar(variableHover.Node)
 	require.NotNil(t, resolved)
 }
+
+func TestHover(t *testing.T) {
+
+	input := `vars {
+	account $x
+}
+
+send [EUR/2 *] (
+  source = {
+    @acc1
+    @acc2 with scaling through $x
+  }
+  destination = @dest
+)
+
+`
+
+	rng := parser.RangeOfIndexed(input, "$x", 1)
+	program := parser.Parse(input).Value
+	hover := analysis.HoverOn(program, rng.Start)
+
+	varHover, ok := hover.(*analysis.VariableHover)
+	if !ok {
+		t.Fatalf("Expected a VariableHover")
+	}
+
+	require.Equal(t, varHover.Node.Name, "x")
+
+}
