@@ -57,6 +57,20 @@ func TestScalingAvoidSpareAmt2(t *testing.T) {
 	require.Equal(t, big.NewInt(400), got)
 }
 
+func TestScalingDownAvoidSpareAmt(t *testing.T) {
+	sol, got := findScalingSolution(
+		big.NewInt(1),
+		0,
+		map[int64]*big.Int{
+			2: big.NewInt(123),
+		})
+
+	require.Equal(t, []scalePair{
+		{2, big.NewInt(100)},
+	}, sol)
+	require.Equal(t, big.NewInt(1), got)
+}
+
 func TestScalingZeroNeeded(t *testing.T) {
 	sol, tot := findScalingSolution(
 		big.NewInt(0),

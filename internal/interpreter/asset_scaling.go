@@ -88,14 +88,26 @@ func getScalingFactor(neededAmtScale int64, currentScale int64) *big.Rat {
 	return scalingFactor
 }
 
-func applyScaling(amt *big.Int, scalingFactor *big.Rat) (*big.Int, *big.Int) {
+func applyScaling(amt *big.Int, scalingFactor *big.Rat) *big.Int {
+	availableCurrencyScaled := new(big.Int)
+	availableCurrencyScaled.Mul(amt, scalingFactor.Num())
+	availableCurrencyScaled.Div(availableCurrencyScaled, scalingFactor.Denom())
+
+	return availableCurrencyScaled
+}
+
+func applyScalingInv(amt *big.Int, scalingFactor *big.Rat) *big.Int {
 	rem := new(big.Int)
 
 	availableCurrencyScaled := new(big.Int)
-	availableCurrencyScaled.Mul(amt, scalingFactor.Num())
-	availableCurrencyScaled.QuoRem(availableCurrencyScaled, scalingFactor.Denom(), rem)
+	availableCurrencyScaled.Mul(amt, scalingFactor.Denom())
+	availableCurrencyScaled.QuoRem(availableCurrencyScaled, scalingFactor.Num(), rem)
 
-	return availableCurrencyScaled, rem
+	if rem.Sign() != 0 {
+		availableCurrencyScaled.Add(availableCurrencyScaled, big.NewInt(1))
+	}
+
+	return availableCurrencyScaled
 }
 
 // Find a set of conversions from the available "scales", to
@@ -128,7 +140,7 @@ func findScalingSolution(
 
 		// scale the original amount to the current currency
 		// availableCurrencyScaled := floor(p.amount * scalingFactor)
-		availableCurrencyScaled, _ := applyScaling(p.amount, scalingFactor)
+		availableCurrencyScaled := applyScaling(p.amount, scalingFactor)
 
 		var taken *big.Int // := min(availableCurrencyScaled, (neededAmt-totalSent) ?? ∞)
 		if neededAmt == nil {
@@ -139,20 +151,14 @@ func findScalingSolution(
 		}
 
 		// intPart := floor(p.amount * 1/scalingFactor) == (p.amount * scalingFactor.Denom)/scalingFactor.Num)
-		intPart, rem := applyScaling(taken, new(big.Rat).Inv(scalingFactor))
-		if rem.Sign() == 1 {
-			intPart.Add(intPart, big.NewInt(1))
-		}
+		intPart := applyScalingInv(taken, scalingFactor)
 
 		if intPart.Sign() == 0 {
 			continue
 		}
 
-		actuallyTaken, remTaken := applyScaling(intPart, scalingFactor)
-		if remTaken.Sign() != 0 {
-			panic("UNEXPECTED REM")
-			actuallyTaken.Add(actuallyTaken, big.NewInt(1))
-		}
+		actuallyTaken := applyScaling(intPart, scalingFactor)
+
 		totalSent.Add(totalSent, actuallyTaken)
 
 		out = append(out, scalePair{
