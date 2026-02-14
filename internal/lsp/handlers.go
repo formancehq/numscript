@@ -1,12 +1,15 @@
 package lsp
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/jsonrpc2"
 	"github.com/formancehq/numscript/internal/lsp/lsp_types_extra"
 	"github.com/formancehq/numscript/internal/parser"
@@ -14,9 +17,19 @@ import (
 	"go.lsp.dev/protocol"
 )
 
+// TODO dedup this and run.go's impl
+type InputsFile struct {
+	FeatureFlags []string                     `json:"featureFlags"`
+	Variables    map[string]string            `json:"variables"`
+	Meta         interpreter.AccountsMetadata `json:"metadata"`
+	Balances     interpreter.Balances         `json:"balances"`
+}
+
 type InMemoryDocument struct {
 	Text        string
 	CheckResult analysis.CheckResult
+
+	InputsFile *InputsFile
 }
 
 type State struct {
@@ -29,6 +42,8 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI
 	state.documents.Set(uri, InMemoryDocument{
 		Text:        text,
 		CheckResult: checkResult,
+
+		InputsFile: nil,
 	})
 
 	var diagnostics = make([]protocol.Diagnostic, 0)
@@ -42,6 +57,36 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI
 	}); err != nil {
 		log.Printf("lsp: error publishing diagnostics: %v", err)
 	}
+}
+
+func (state *State) handleInputsWatch(changeType protocol.FileChangeType, uri protocol.DocumentURI) {
+	filename := uri.Filename()
+
+	if !strings.HasSuffix(filename, ".num.inputs.json") {
+		return
+	}
+
+	numscriptUri := protocol.URI(strings.TrimSuffix(filename, ".inputs.json"))
+
+	state.documents.Update(numscriptUri, func(doc *InMemoryDocument) {
+		switch changeType {
+		case protocol.FileChangeTypeDeleted:
+			doc.InputsFile = nil
+
+		case protocol.FileChangeTypeCreated, protocol.FileChangeTypeChanged:
+
+			// TODO fix fragile code!
+			// 1. race conditions
+			// 2. debounce
+
+			content, err := os.ReadFile(filename)
+			if err != nil {
+				return
+			}
+
+			json.Unmarshal(content, &doc.InputsFile)
+		}
+	})
 }
 
 func (state *State) handleHover(params protocol.HoverParams) *protocol.Hover {
@@ -164,6 +209,8 @@ func (state *State) handleGetInlayHints(params lsp_types_extra.InlayHintParams) 
 		return nil
 	}
 
+	log.Printf("INPUTS: %v\n", doc.InputsFile)
+
 	k := lsp_types_extra.InlayHintKindType
 	hints := analysis.GetInlayHints(doc.CheckResult)
 	var res []lsp_types_extra.InlayHint
@@ -278,6 +325,30 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 	return jsonrpc2.NewConn(objStream,
 		jsonrpc2.NewRequestHandler("initialize", jsonrpc2.SyncHandling, func(_ any, conn *jsonrpc2.Conn) any {
 			return initializeResult
+		}),
+		jsonrpc2.NewNotificationHandler("initialized", jsonrpc2.AsyncHandling, func(_ any, conn *jsonrpc2.Conn) {
+			watcherKind := protocol.WatchKindCreate + protocol.WatchKindChange + protocol.WatchKindDelete
+			conn.SendRequest("client/registerCapability", protocol.RegistrationParams{
+				Registrations: []protocol.Registration{
+					{
+						ID:     "watch:inputs",
+						Method: protocol.MethodWorkspaceDidChangeWatchedFiles,
+						RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
+							Watchers: []protocol.FileSystemWatcher{{
+								GlobPattern: "**/*.num.inputs.json",
+								Kind:        watcherKind,
+							}},
+						},
+					},
+				},
+			})
+		}),
+
+		jsonrpc2.NewRequestHandler("workspace/didChangeWatchedFiles", jsonrpc2.AsyncHandling, func(p protocol.DidChangeWatchedFilesParams, conn *jsonrpc2.Conn) any {
+			for _, change := range p.Changes {
+				state.handleInputsWatch(change.Type, change.URI)
+			}
+			return nil
 		}),
 		jsonrpc2.NewNotificationHandler("textDocument/didOpen", jsonrpc2.SyncHandling, func(p protocol.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
 			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)
