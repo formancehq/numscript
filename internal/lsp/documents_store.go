@@ -30,3 +30,18 @@ func (s documentStore[Doc]) Set(uri protocol.DocumentURI, doc Doc) {
 	s.documents[uri] = doc
 	s.mu.Unlock()
 }
+
+// Noop if uri does not exist
+func (s documentStore[Doc]) Update(uri protocol.DocumentURI, update func(doc *Doc)) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	doc, ok := s.documents[uri]
+	if !ok {
+		return false
+	}
+
+	update(&doc)
+	s.documents[uri] = doc
+	return true
+}
