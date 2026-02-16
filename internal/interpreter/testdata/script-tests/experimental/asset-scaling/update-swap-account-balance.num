@@ -1,0 +1,18 @@
+send [EUR/2 500] (
+  source = @world
+  destination = @swap
+)
+
+send [EUR/2 1] (
+  source = @src with scaling through @swap
+  destination = @dest
+)
+
+send [EUR *] (
+  source = @swap
+  destination = @dest:0
+)
+send [EUR/2 *] (
+  source = @swap
+  destination = @dest:2
+)

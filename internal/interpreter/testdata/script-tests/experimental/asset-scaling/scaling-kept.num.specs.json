@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "balances": {
+    "acc": {
+      "BTC/2": 2,
+      "BTC/8": 1000000
+    }
+  },
+  "testCases": [
+    {
+      "it": "handles kept",
+      "expect.postings": [
+        {
+          "source": "acc",
+          "destination": "swap",
+          "amount": 1000000,
+          "asset": "BTC/8"
+        },
+        {
+          "source": "swap",
+          "destination": "acc",
+          "amount": 1,
+          "asset": "BTC/2"
+        }
+      ]
+    }
+  ]
+}

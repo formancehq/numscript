@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "testCases": [
+    {
+      "it": "upscales to an higher currency if possible",
+      "balances": {
+        "src": {
+          "EUR": 99,
+          "EUR/2": 1
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "asset": "EUR",
+          "amount": 4
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "asset": "EUR/2",
+          "amount": 400
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 400
+        }
+      ]
+    },
+    {
+      "it": "downscales to an smaller currency if possible",
+      "balances": {
+        "src": {
+          "EUR/3": 4000
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "asset": "EUR/3",
+          "amount": 4000
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "asset": "EUR/2",
+          "amount": 400
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 400
+        }
+      ]
+    },
+    {
+      "it": "mix",
+      "balances": {
+        "src": {
+          "EUR": 2,
+          "EUR/2": 200
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "asset": "EUR",
+          "amount": 2
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "asset": "EUR/2",
+          "amount": 200
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 400
+        }
+      ]
+    },
+    {
+      "it": "fails when there aren't enough funds",
+      "balances": {
+        "src": {
+          "EUR": 1,
+          "EUR/2": 200,
+          "EUR/3": 10
+        }
+      },
+      "expect.error.missingFunds": true
+    }
+  ]
+}

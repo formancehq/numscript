@@ -137,12 +137,13 @@ type Source interface {
 	GetRange() Range
 }
 
-func (*SourceInorder) source()   {}
-func (*SourceOneof) source()     {}
-func (*SourceAllotment) source() {}
-func (*SourceAccount) source()   {}
-func (*SourceCapped) source()    {}
-func (*SourceOverdraft) source() {}
+func (*SourceInorder) source()     {}
+func (*SourceOneof) source()       {}
+func (*SourceAllotment) source()   {}
+func (*SourceAccount) source()     {}
+func (*SourceCapped) source()      {}
+func (*SourceOverdraft) source()   {}
+func (*SourceWithScaling) source() {}
 
 type (
 	SourceAccount struct {
@@ -182,6 +183,13 @@ type (
 		Color   ValueExpr
 		Address ValueExpr
 		Bounded *ValueExpr
+	}
+
+	SourceWithScaling struct {
+		Range
+		Color   ValueExpr
+		Address ValueExpr
+		Through ValueExpr
 	}
 )
 

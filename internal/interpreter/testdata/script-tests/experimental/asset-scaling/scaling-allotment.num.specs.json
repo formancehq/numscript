@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling"
+  ],
+  "balances": {
+    "acc1": {
+      "EUR/2": 50
+    }
+  },
+  "testCases": [
+    {
+      "it": "casts all the avlb",
+      "balances": {
+        "acc2": {
+          "EUR/3": 500
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "acc2",
+          "destination": "swap",
+          "amount": 500,
+          "asset": "EUR/3"
+        },
+        {
+          "source": "swap",
+          "destination": "acc2",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "doesn't send more than needed",
+      "balances": {
+        "acc2": {
+          "EUR/3": 999999
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "acc2",
+          "destination": "swap",
+          "amount": 500,
+          "asset": "EUR/3"
+        },
+        {
+          "source": "swap",
+          "destination": "acc2",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        }
+      ]
+    },
+    {
+      "it": "doesn't swap already owned asset",
+      "balances": {
+        "acc2": {
+          "EUR/2": 999999
+        }
+      },
+      "expect.postings": [
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "EUR/2"
+        }
+      ]
+    }
+  ]
+}

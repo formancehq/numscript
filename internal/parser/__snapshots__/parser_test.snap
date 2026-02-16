@@ -3578,3 +3578,67 @@ parser.Program{
     Comments: nil,
 }
 ---
+
+[TestScalingSyntax - 1]
+parser.Program{
+    Vars:       (*parser.VarDeclarations)(nil),
+    Statements: {
+        &parser.SendStatement{
+            Range: parser.Range{
+                Start: parser.Position{},
+                End:   parser.Position{Character:1, Line:3},
+            },
+            SentValue: &parser.SentValueLiteral{
+                Range: parser.Range{
+                    Start: parser.Position{Character:5, Line:0},
+                    End:   parser.Position{Character:10, Line:0},
+                },
+                Monetary: &parser.Variable{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:5, Line:0},
+                        End:   parser.Position{Character:10, Line:0},
+                    },
+                    Name: "sent",
+                },
+            },
+            Source: &parser.SourceWithScaling{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:42, Line:1},
+                },
+                Color:   nil,
+                Address: &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:11, Line:1},
+                        End:   parser.Position{Character:15, Line:1},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"src"},
+                    },
+                },
+                Through: &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:37, Line:1},
+                        End:   parser.Position{Character:42, Line:1},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"swap"},
+                    },
+                },
+            },
+            Destination: &parser.DestinationAccount{
+                ValueExpr: &parser.AccountInterpLiteral{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:16, Line:2},
+                        End:   parser.Position{Character:21, Line:2},
+                    },
+                    Parts: {
+                        parser.AccountTextPart{Name:"dest"},
+                    },
+                },
+            },
+        },
+    },
+    Comments: nil,
+}
+---
