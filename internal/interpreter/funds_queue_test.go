@@ -175,13 +175,13 @@ func TestPullColoredComplex(t *testing.T) {
 
 func TestClone(t *testing.T) {
 
-	fs := newFundsQueue([]Sender{
+	fq := newFundsQueue([]Sender{
 		{"s1", big.NewInt(10), ""},
 	})
 
-	cloned := fs.Clone()
+	cloned := fq.Clone()
 
-	fs.PullAll()
+	fq.PullAll()
 
 	require.Equal(t, []Sender{
 		{"s1", big.NewInt(10), ""},

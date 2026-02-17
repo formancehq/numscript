@@ -729,11 +729,11 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 }
 
 func (s *programState) cloneState() func() {
-	fsBackup := s.fundsQueue.Clone()
+	fqBackup := s.fundsQueue.Clone()
 	balancesBackup := s.CachedBalances.DeepClone()
 
 	return func() {
-		s.fundsQueue = fsBackup
+		s.fundsQueue = fqBackup
 		s.CachedBalances = balancesBackup
 	}
 }

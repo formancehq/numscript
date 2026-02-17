@@ -176,13 +176,13 @@ func (s *fundsQueue) Pull(requiredAmount *big.Int, color *string) []Sender {
 
 // Clone the queue so that you can safely mutate one without mutating the other
 func (s fundsQueue) Clone() fundsQueue {
-	fs := newFundsQueue(nil)
+	fq := newFundsQueue(nil)
 
 	senders := s.senders
 	for senders != nil {
-		fs.Push(senders.Head)
+		fq.Push(senders.Head)
 		senders = senders.Tail
 	}
 
-	return fs
+	return fq
 }
