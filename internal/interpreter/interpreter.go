@@ -822,7 +822,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		leadingSources := source.Sources[0 : len(source.Sources)-1]
 
 		for _, source := range leadingSources {
-			// do not move this line below (as .trySendingUpTo() will mutate the fundsQueue)
+			// do not move this line below (as .tryTakingUpTo() will mutate the fundsQueue)
 			undo := s.cloneState()
 
 			sentAmt, err := s.tryTakingUpTo(source, amount)
