@@ -506,11 +506,11 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 			return err
 		}
 		st.CurrentAsset = *asset
-		sentAmt, err := st.sendAll(statement.Source)
+		sentAmt, err := st.takeAll(statement.Source)
 		if err != nil {
 			return err
 		}
-		return st.receiveFrom(statement.Destination, sentAmt)
+		return st.sendTo(statement.Destination, sentAmt)
 
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
@@ -524,13 +524,13 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 			return NegativeAmountErr{Amount: monetary.Amount}
 		}
 
-		err = st.trySendingExact(statement.Source, monetaryAmt)
+		err = st.tryTakingExact(statement.Source, monetaryAmt)
 		if err != nil {
 			return err
 		}
 
 		amt := big.Int(monetary.Amount)
-		return st.receiveFrom(statement.Destination, &amt)
+		return st.sendTo(statement.Destination, &amt)
 	default:
 		utils.NonExhaustiveMatchPanic[any](sentValue)
 		return nil
@@ -539,7 +539,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 }
 
 // PRE: overdraft >= 0
-func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
+func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
 		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
 		if err != nil {
@@ -572,11 +572,11 @@ func (s *programState) sendAllToAccount(accountLiteral parser.ValueExpr, overdra
 	return sentAmt, nil
 }
 
-// Send as much as possible (and return the sent amt)
-func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError) {
+// Pull as much as possible (and return the sent amt)
+func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.sendAllToAccount(source.ValueExpr, big.NewInt(0), source.Color)
+		return s.takeAllFromAccount(source.ValueExpr, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -587,7 +587,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			}
 			cap = utils.NonNeg(bounded)
 		}
-		return s.sendAllToAccount(source.Address, cap, source.Color)
+		return s.takeAllFromAccount(source.Address, cap, source.Color)
 
 	case *parser.SourceWithScaling:
 		err := s.checkFeatureFlag(flags.AssetScaling)
@@ -633,12 +633,12 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			Asset:       s.CurrentAsset,
 		})
 
-		return s.sendAllToAccount(source.Address, big.NewInt(0), source.Color)
+		return s.takeAllFromAccount(source.Address, big.NewInt(0), source.Color)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
 		for _, subSource := range source.Sources {
-			sent, err := s.sendAll(subSource)
+			sent, err := s.takeAll(subSource)
 			if err != nil {
 				return nil, err
 			}
@@ -654,7 +654,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 
 		// we can safely access the first one because empty oneof is parsing err
 		first := source.Sources[0]
-		return s.sendAll(first)
+		return s.takeAll(first)
 
 	case *parser.SourceCapped:
 		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
@@ -662,7 +662,7 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 		// We switch to the default sending evaluation for this subsource
-		return s.trySendingUpTo(source.From, utils.NonNeg(monetary))
+		return s.tryTakingUpTo(source.From, utils.NonNeg(monetary))
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
@@ -674,8 +674,8 @@ func (s *programState) sendAll(source parser.Source) (*big.Int, InterpreterError
 }
 
 // Fails if it doesn't manage to send exactly "amount"
-func (s *programState) trySendingExact(source parser.Source, amount *big.Int) InterpreterError {
-	sentAmt, err := s.trySendingUpTo(source, amount)
+func (s *programState) tryTakingExact(source parser.Source, amount *big.Int) InterpreterError {
+	sentAmt, err := s.tryTakingUpTo(source, amount)
 	if err != nil {
 		return err
 	}
@@ -693,7 +693,7 @@ func (s *programState) trySendingExact(source parser.Source, amount *big.Int) In
 var colorRe = regexp.MustCompile("^[A-Z]*$")
 
 // PRE: overdraft >= 0
-func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
+func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
 		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
 		if err != nil {
@@ -740,10 +740,10 @@ func (s *programState) cloneState() func() {
 
 // Tries sending "amount" and returns the actually sent amt.
 // Doesn't fail (unless nested sources fail)
-func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
+func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		return s.trySendingToAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
+		return s.tryTakingFromAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceWithScaling:
 		err := s.checkFeatureFlag(flags.AssetScaling)
@@ -788,7 +788,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			Asset:       s.CurrentAsset,
 		})
 
-		return s.trySendingToAccount(source.Address, amount, big.NewInt(0), source.Color)
+		return s.tryTakingFromAccount(source.Address, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int
@@ -799,12 +799,12 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			}
 			cap = utils.NonNeg(upTo)
 		}
-		return s.trySendingToAccount(source.Address, amount, cap, source.Color)
+		return s.tryTakingFromAccount(source.Address, amount, cap, source.Color)
 
 	case *parser.SourceInorder:
 		totalLeft := new(big.Int).Set(amount)
 		for _, source := range source.Sources {
-			sentAmt, err := s.trySendingUpTo(source, totalLeft)
+			sentAmt, err := s.tryTakingUpTo(source, totalLeft)
 			if err != nil {
 				return nil, err
 			}
@@ -825,7 +825,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			// do not move this line below (as .trySendingUpTo() will mutate the fundsQueue)
 			undo := s.cloneState()
 
-			sentAmt, err := s.trySendingUpTo(source, amount)
+			sentAmt, err := s.tryTakingUpTo(source, amount)
 			if err != nil {
 				return nil, err
 			}
@@ -839,7 +839,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			undo()
 		}
 
-		return s.trySendingUpTo(source.Sources[len(source.Sources)-1], amount)
+		return s.tryTakingUpTo(source.Sources[len(source.Sources)-1], amount)
 
 	case *parser.SourceAllotment:
 		var items []parser.AllotmentValue
@@ -851,7 +851,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			err := s.trySendingExact(allotmentItem.From, allot[i])
+			err := s.tryTakingExact(allotmentItem.From, allot[i])
 			if err != nil {
 				return nil, err
 			}
@@ -863,7 +863,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		if err != nil {
 			return nil, err
 		}
-		return s.trySendingUpTo(source.From, utils.NonNeg(
+		return s.tryTakingUpTo(source.From, utils.NonNeg(
 			utils.MinBigInt(amount, cap),
 		))
 
@@ -875,7 +875,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 
 }
 
-func (s *programState) receiveFrom(destination parser.Destination, amount *big.Int) InterpreterError {
+func (s *programState) sendTo(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
 		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
@@ -899,7 +899,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
 			amtToReceive := allot[i]
-			err := s.receiveFromKeptOrDest(allotmentItem.To, amtToReceive)
+			err := s.sendToKeptOrDest(allotmentItem.To, amtToReceive)
 			if err != nil {
 				return err
 			}
@@ -916,7 +916,7 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 				return nil
 			}
 
-			err := s.receiveFromKeptOrDest(keptOrDest, amountToReceive)
+			err := s.sendToKeptOrDest(keptOrDest, amountToReceive)
 			if err != nil {
 				return err
 			}
@@ -962,12 +962,12 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 			// if the clause cap is >= the amount we're trying to receive, only go through this branch
 			switch cap.Cmp(amount) {
 			case 0, 1:
-				return s.receiveFromKeptOrDest(destinationClause.To, amount)
+				return s.sendToKeptOrDest(destinationClause.To, amount)
 			}
 
 			// otherwise try next clause (keep looping)
 		}
-		return s.receiveFromKeptOrDest(destination.Remaining, amount)
+		return s.sendToKeptOrDest(destination.Remaining, amount)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destination)
@@ -977,14 +977,14 @@ func (s *programState) receiveFrom(destination parser.Destination, amount *big.I
 
 const KEPT_ADDR = "<kept>"
 
-func (s *programState) receiveFromKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
+func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
 		s.pushReceiver(KEPT_ADDR, amount)
 		return nil
 
 	case *parser.DestinationTo:
-		return s.receiveFrom(destinationTarget.Destination, amount)
+		return s.sendTo(destinationTarget.Destination, amount)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](destinationTarget)
