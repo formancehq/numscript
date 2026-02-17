@@ -10,9 +10,9 @@ type Sender struct {
 	Color  string
 }
 
-type stack[T any] struct {
+type queue[T any] struct {
 	Head T
-	Tail *stack[T]
+	Tail *queue[T]
 
 	// Instead of keeping a single ref of the lastCell and updating the invariant on every push/pop operation,
 	// we keep a cache of the last cell on every cell.
@@ -20,10 +20,10 @@ type stack[T any] struct {
 	//
 	// While, unlike keeping a single reference (like golang's queue `container/list` package does), this is not always O(1),
 	// the amortized time should still be O(1) (the number of steps of traversal while searching the last elem is not higher than the number of .Push() calls)
-	lastCell *stack[T]
+	lastCell *queue[T]
 }
 
-func (s *stack[T]) getLastCell() *stack[T] {
+func (s *queue[T]) getLastCell() *queue[T] {
 	// check if this is the last cell without reading cache first
 	if s.Tail == nil {
 		return s
@@ -43,11 +43,11 @@ func (s *stack[T]) getLastCell() *stack[T] {
 	return s.lastCell
 }
 
-func fromSlice[T any](slice []T) *stack[T] {
-	var ret *stack[T]
+func fromSlice[T any](slice []T) *queue[T] {
+	var ret *queue[T]
 	// TODO use https://pkg.go.dev/slices#Backward in golang 1.23
 	for i := len(slice) - 1; i >= 0; i-- {
-		ret = &stack[T]{
+		ret = &queue[T]{
 			Head: slice[i],
 			Tail: ret,
 		}
@@ -55,24 +55,24 @@ func fromSlice[T any](slice []T) *stack[T] {
 	return ret
 }
 
-type fundsStack struct {
-	senders *stack[Sender]
+type fundsQueue struct {
+	senders *queue[Sender]
 }
 
-func newFundsStack(senders []Sender) fundsStack {
-	return fundsStack{
+func newFundsQueue(senders []Sender) fundsQueue {
+	return fundsQueue{
 		senders: fromSlice(senders),
 	}
 }
 
-func (s *fundsStack) compactTop() {
+func (s *fundsQueue) compactTop() {
 	for s.senders != nil && s.senders.Tail != nil {
 
 		first := s.senders.Head
 		second := s.senders.Tail.Head
 
 		if second.Amount.Cmp(big.NewInt(0)) == 0 {
-			s.senders = &stack[Sender]{Head: first, Tail: s.senders.Tail.Tail}
+			s.senders = &queue[Sender]{Head: first, Tail: s.senders.Tail.Tail}
 			continue
 		}
 
@@ -80,7 +80,7 @@ func (s *fundsStack) compactTop() {
 			return
 		}
 
-		s.senders = &stack[Sender]{
+		s.senders = &queue[Sender]{
 			Head: Sender{
 				Name:   first.Name,
 				Color:  first.Color,
@@ -91,7 +91,7 @@ func (s *fundsStack) compactTop() {
 	}
 }
 
-func (s *fundsStack) PullAll() []Sender {
+func (s *fundsQueue) PullAll() []Sender {
 	var senders []Sender
 	for s.senders != nil {
 		senders = append(senders, s.senders.Head)
@@ -100,7 +100,7 @@ func (s *fundsStack) PullAll() []Sender {
 	return senders
 }
 
-func (s *fundsStack) Push(senders ...Sender) {
+func (s *fundsQueue) Push(senders ...Sender) {
 	newTail := fromSlice(senders)
 	if s.senders == nil {
 		s.senders = newTail
@@ -110,18 +110,18 @@ func (s *fundsStack) Push(senders ...Sender) {
 	}
 }
 
-func (s *fundsStack) PullAnything(requiredAmount *big.Int) []Sender {
+func (s *fundsQueue) PullAnything(requiredAmount *big.Int) []Sender {
 	return s.Pull(requiredAmount, nil)
 }
 
-func (s *fundsStack) PullColored(requiredAmount *big.Int, color string) []Sender {
+func (s *fundsQueue) PullColored(requiredAmount *big.Int, color string) []Sender {
 	return s.Pull(requiredAmount, &color)
 }
-func (s *fundsStack) PullUncolored(requiredAmount *big.Int) []Sender {
+func (s *fundsQueue) PullUncolored(requiredAmount *big.Int) []Sender {
 	return s.PullColored(requiredAmount, "")
 }
 
-func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
+func (s *fundsQueue) Pull(requiredAmount *big.Int, color *string) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
 
@@ -136,7 +136,7 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 
 		if color != nil && available.Color != *color {
 			out1 := s.Pull(requiredAmount, color)
-			s.senders = &stack[Sender]{
+			s.senders = &queue[Sender]{
 				Head: available,
 				Tail: s.senders,
 			}
@@ -150,7 +150,7 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 			requiredAmount.Sub(requiredAmount, available.Amount)
 
 		case 1: // more than enough
-			s.senders = &stack[Sender]{
+			s.senders = &queue[Sender]{
 				Head: Sender{
 					Name:   available.Name,
 					Color:  available.Color,
@@ -174,15 +174,15 @@ func (s *fundsStack) Pull(requiredAmount *big.Int, color *string) []Sender {
 	return out
 }
 
-// Clone the stack so that you can safely mutate one without mutating the other
-func (s fundsStack) Clone() fundsStack {
-	fs := newFundsStack(nil)
+// Clone the queue so that you can safely mutate one without mutating the other
+func (s fundsQueue) Clone() fundsQueue {
+	fq := newFundsQueue(nil)
 
 	senders := s.senders
 	for senders != nil {
-		fs.Push(senders.Head)
+		fq.Push(senders.Head)
 		senders = senders.Tail
 	}
 
-	return fs
+	return fq
 }
