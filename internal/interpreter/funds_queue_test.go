@@ -55,7 +55,7 @@ func TestPullZero(t *testing.T) {
 	})
 
 	out := queue.PullAnything(big.NewInt(0))
-	require.Equal(t, []Sender(nil), out)
+	require.Len(t, out, 0)
 }
 
 func TestCompactFunds(t *testing.T) {
@@ -159,6 +159,29 @@ func TestPullColored(t *testing.T) {
 		{Name: "s4", Amount: big.NewInt(1), Color: "red"},
 		{Name: "s5", Amount: big.NewInt(5)},
 	}, queue.PullAll())
+}
+
+func TestOrdering(t *testing.T) {
+	queue := newFundsQueue(nil)
+	queue.PushOne(Sender{
+		Name:   "users:001",
+		Amount: big.NewInt(15),
+	})
+	queue.PushOne(Sender{
+		Name:   "users:002",
+		Amount: big.NewInt(15),
+	})
+
+	out := queue.PullUncolored(big.NewInt(10))
+	require.Equal(t, []Sender{
+		{Name: "users:001", Amount: big.NewInt(10)},
+	}, out)
+
+	out = queue.PullUncolored(big.NewInt(20))
+	require.Equal(t, []Sender{
+		{Name: "users:001", Amount: big.NewInt(5)},
+		{Name: "users:002", Amount: big.NewInt(15)},
+	}, out)
 }
 
 func TestPullColoredComplex(t *testing.T) {
