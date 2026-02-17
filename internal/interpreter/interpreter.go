@@ -673,7 +673,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 	}
 }
 
-// Fails if it doesn't manage to send exactly "amount"
+// Fails if it doesn't manage to pull exactly "amount"
 func (s *programState) tryTakingExact(source parser.Source, amount *big.Int) InterpreterError {
 	sentAmt, err := s.tryTakingUpTo(source, amount)
 	if err != nil {
@@ -738,7 +738,7 @@ func (s *programState) cloneState() func() {
 	}
 }
 
-// Tries sending "amount" and returns the actually sent amt.
+// Tries pulling up to "amount" and returns the actually pulled amt.
 // Doesn't fail (unless nested sources fail)
 func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
 	switch source := source.(type) {
