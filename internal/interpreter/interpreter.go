@@ -294,7 +294,7 @@ func RunProgram(
 		SetAccountsMeta:    AccountsMetadata{},
 		Store:              store,
 		Postings:           make([]Posting, 0),
-		fundsStack:         newFundsStack(nil),
+		fundsQueue:         newFundsQueue(nil),
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
@@ -358,7 +358,7 @@ type programState struct {
 	ParsedVars map[string]Value
 	TxMeta     map[string]Value
 	Postings   []Posting
-	fundsStack fundsStack
+	fundsQueue fundsQueue
 
 	Store Store
 
@@ -380,7 +380,7 @@ func (st *programState) pushSender(name string, monetary *big.Int, color string)
 	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
 	balance.Sub(balance, monetary)
 
-	st.fundsStack.Push(Sender{Name: name, Amount: monetary, Color: color})
+	st.fundsQueue.Push(Sender{Name: name, Amount: monetary, Color: color})
 }
 
 // Append a posting without checking if account has enough balance.
@@ -407,7 +407,7 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		return
 	}
 
-	senders := st.fundsStack.PullAnything(monetary)
+	senders := st.fundsQueue.PullAnything(monetary)
 
 	for _, sender := range senders {
 		postings := Posting{
@@ -729,11 +729,11 @@ func (s *programState) trySendingToAccount(accountLiteral parser.ValueExpr, amou
 }
 
 func (s *programState) cloneState() func() {
-	fsBackup := s.fundsStack.Clone()
+	fsBackup := s.fundsQueue.Clone()
 	balancesBackup := s.CachedBalances.DeepClone()
 
 	return func() {
-		s.fundsStack = fsBackup
+		s.fundsQueue = fsBackup
 		s.CachedBalances = balancesBackup
 	}
 }
@@ -822,7 +822,7 @@ func (s *programState) trySendingUpTo(source parser.Source, amount *big.Int) (*b
 		leadingSources := source.Sources[0 : len(source.Sources)-1]
 
 		for _, source := range leadingSources {
-			// do not move this line below (as .trySendingUpTo() will mutate the fundsStack)
+			// do not move this line below (as .trySendingUpTo() will mutate the fundsQueue)
 			undo := s.cloneState()
 
 			sentAmt, err := s.trySendingUpTo(source, amount)
