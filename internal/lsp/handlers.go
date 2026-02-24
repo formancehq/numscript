@@ -56,7 +56,6 @@ func (state *State) handleInputsWatch(changeType protocol.FileChangeType, uri pr
 		return
 	}
 
-	// TODO refresh hints
 	switch changeType {
 	case protocol.FileChangeTypeDeleted:
 		state.configs.Set(uri, nil)
@@ -352,6 +351,8 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 			for _, change := range p.Changes {
 				state.handleInputsWatch(change.Type, change.URI)
 			}
+
+			conn.SendRequest("workspace/inlayHint/refresh", struct{}{})
 		}),
 		jsonrpc2.NewNotificationHandler("textDocument/didOpen", jsonrpc2.SyncHandling, func(p protocol.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
 			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)
