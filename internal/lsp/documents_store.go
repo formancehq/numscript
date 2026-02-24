@@ -25,6 +25,21 @@ func (s documentStore[Doc]) Get(uri protocol.DocumentURI) (Doc, bool) {
 	return doc, ok
 }
 
+// Atomically fill the store with the given action when elem is not present
+func (s documentStore[Doc]) GetOrPut(uri protocol.DocumentURI, getDefault func() Doc) Doc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	doc, ok := s.documents[uri]
+	if ok {
+		return doc
+	}
+
+	doc = getDefault()
+	s.documents[uri] = doc
+	return doc
+}
+
 func (s documentStore[Doc]) Set(uri protocol.DocumentURI, doc Doc) {
 	s.mu.Lock()
 	s.documents[uri] = doc
@@ -44,4 +59,10 @@ func (s documentStore[Doc]) Update(uri protocol.DocumentURI, update func(doc *Do
 	update(&doc)
 	s.documents[uri] = doc
 	return true
+}
+
+func (s documentStore[Doc]) Delete(uri protocol.DocumentURI) {
+	s.mu.Lock()
+	delete(s.documents, uri)
+	s.mu.Unlock()
 }

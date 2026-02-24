@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -93,7 +92,7 @@ func expectMonetary(v Value, r parser.Range) (*Monetary, InterpreterError) {
 		return &v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeMonetary, Value: v, Range: r}
+		return nil, TypeError{Expected: TypeMonetary, Value: v, Range: r}
 	}
 }
 
@@ -121,7 +120,7 @@ func expectNumber(v Value, r parser.Range) (*big.Int, InterpreterError) {
 		return (*big.Int)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeNumber, Value: v, Range: r}
+		return nil, TypeError{Expected: TypeNumber, Value: v, Range: r}
 	}
 }
 
@@ -131,7 +130,7 @@ func expectString(v Value, r parser.Range) (*string, InterpreterError) {
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeString, Value: v, Range: r}
+		return nil, TypeError{Expected: TypeString, Value: v, Range: r}
 	}
 }
 
@@ -141,7 +140,7 @@ func expectAsset(v Value, r parser.Range) (*string, InterpreterError) {
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAsset, Value: v, Range: r}
+		return nil, TypeError{Expected: TypeAsset, Value: v, Range: r}
 	}
 }
 
@@ -151,7 +150,7 @@ func expectAccount(v Value, r parser.Range) (*string, InterpreterError) {
 		return (*string)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
+		return nil, TypeError{Expected: TypeAccount, Value: v, Range: r}
 	}
 }
 
@@ -161,7 +160,7 @@ func expectPortion(v Value, r parser.Range) (*big.Rat, InterpreterError) {
 		return (*big.Rat)(&v), nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypePortion, Value: v, Range: r}
+		return nil, TypeError{Expected: TypePortion, Value: v, Range: r}
 	}
 }
 

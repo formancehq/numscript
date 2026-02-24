@@ -17,23 +17,14 @@ import (
 	"go.lsp.dev/protocol"
 )
 
-// TODO dedup this and run.go's impl
-type InputsFile struct {
-	FeatureFlags []string                     `json:"featureFlags"`
-	Variables    map[string]string            `json:"variables"`
-	Meta         interpreter.AccountsMetadata `json:"metadata"`
-	Balances     interpreter.Balances         `json:"balances"`
-}
-
 type InMemoryDocument struct {
 	Text        string
 	CheckResult analysis.CheckResult
-
-	InputsFile *InputsFile
 }
 
 type State struct {
 	documents documentStore[InMemoryDocument]
+	configs   documentStore[*interpreter.InputsFile]
 }
 
 func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI, text string) {
@@ -42,8 +33,6 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI
 	state.documents.Set(uri, InMemoryDocument{
 		Text:        text,
 		CheckResult: checkResult,
-
-		InputsFile: nil,
 	})
 
 	var diagnostics = make([]protocol.Diagnostic, 0)
@@ -51,10 +40,11 @@ func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
 
-	if err := conn.SendNotification("textDocument/publishDiagnostics", protocol.PublishDiagnosticsParams{
+	err := conn.SendNotification("textDocument/publishDiagnostics", protocol.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
-	}); err != nil {
+	})
+	if err != nil {
 		log.Printf("lsp: error publishing diagnostics: %v", err)
 	}
 }
@@ -66,26 +56,34 @@ func (state *State) handleInputsWatch(changeType protocol.FileChangeType, uri pr
 		return
 	}
 
-	numscriptUri := protocol.URI(strings.TrimSuffix(filename, ".inputs.json"))
+	switch changeType {
+	case protocol.FileChangeTypeDeleted:
+		state.configs.Set(uri, nil)
 
-	state.documents.Update(numscriptUri, func(doc *InMemoryDocument) {
-		switch changeType {
-		case protocol.FileChangeTypeDeleted:
-			doc.InputsFile = nil
+	case protocol.FileChangeTypeCreated, protocol.FileChangeTypeChanged:
+		state.configs.Delete(uri)
+	}
+}
 
-		case protocol.FileChangeTypeCreated, protocol.FileChangeTypeChanged:
+func (state *State) getConfig(uri protocol.DocumentURI) *interpreter.InputsFile {
+	return state.configs.GetOrPut(uri, func() *interpreter.InputsFile {
+		// TODO fix fragile code!
+		// 1. race conditions
+		// 2. debounce
+		// 3. dedup
 
-			// TODO fix fragile code!
-			// 1. race conditions
-			// 2. debounce
-
-			content, err := os.ReadFile(filename)
-			if err != nil {
-				return
-			}
-
-			json.Unmarshal(content, &doc.InputsFile)
+		content, err := os.ReadFile(uri.Filename())
+		if err != nil {
+			return nil
 		}
+
+		var inputsFile interpreter.InputsFile
+		err = json.Unmarshal(content, &inputsFile)
+		if err != nil {
+			return nil
+		}
+
+		return &inputsFile
 	})
 }
 
@@ -209,10 +207,12 @@ func (state *State) handleGetInlayHints(params lsp_types_extra.InlayHintParams) 
 		return nil
 	}
 
-	log.Printf("INPUTS: %v\n", doc.InputsFile)
+	configFileUri := protocol.DocumentURI(string(params.TextDocument.URI) + ".inputs.json")
+
+	file := state.getConfig(configFileUri)
 
 	k := lsp_types_extra.InlayHintKindType
-	hints := analysis.GetInlayHints(doc.CheckResult)
+	hints := analysis.GetInlayHints(doc.CheckResult, file)
 	var res []lsp_types_extra.InlayHint
 	for _, hint := range hints {
 		res = append(res, lsp_types_extra.InlayHint{
@@ -320,6 +320,7 @@ func RunServer() error {
 func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 	state := State{
 		documents: NewDocumentsStore[InMemoryDocument](),
+		configs:   NewDocumentsStore[*interpreter.InputsFile](),
 	}
 
 	return jsonrpc2.NewConn(objStream,
@@ -344,11 +345,10 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 			})
 		}),
 
-		jsonrpc2.NewRequestHandler("workspace/didChangeWatchedFiles", jsonrpc2.AsyncHandling, func(p protocol.DidChangeWatchedFilesParams, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewNotificationHandler("workspace/didChangeWatchedFiles", jsonrpc2.SyncHandling, func(p protocol.DidChangeWatchedFilesParams, conn *jsonrpc2.Conn) {
 			for _, change := range p.Changes {
 				state.handleInputsWatch(change.Type, change.URI)
 			}
-			return nil
 		}),
 		jsonrpc2.NewNotificationHandler("textDocument/didOpen", jsonrpc2.SyncHandling, func(p protocol.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
 			state.updateDocument(conn, p.TextDocument.URI, p.TextDocument.Text)

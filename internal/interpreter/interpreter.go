@@ -6,11 +6,36 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
+
+const (
+	TypeMonetary = "monetary"
+	TypeAccount  = "account"
+	TypePortion  = "portion"
+	TypeAsset    = "asset"
+	TypeNumber   = "number"
+	TypeString   = "string"
+)
+
+const (
+	FnSetTxMeta          = "set_tx_meta"
+	FnSetAccountMeta     = "set_account_meta"
+	FnVarOriginMeta      = "meta"
+	FnVarOriginBalance   = "balance"
+	FnVarOriginOverdraft = "overdraft"
+	FnVarOriginGetAsset  = "get_asset"
+	FnVarOriginGetAmount = "get_amount"
+)
+
+type InputsFile struct {
+	FeatureFlags []string          `json:"featureFlags"`
+	Variables    map[string]string `json:"variables"`
+	Meta         AccountsMetadata  `json:"metadata"`
+	Balances     Balances          `json:"balances"`
+}
 
 type VariablesMap map[string]string
 
@@ -133,27 +158,26 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 
 func parseVar(type_ string, rawValue string, r parser.Range) (Value, InterpreterError) {
 	switch type_ {
-	// TODO why should the runtime depend on the static analysis module?
-	case analysis.TypeMonetary:
+	case TypeMonetary:
 		return parseMonetary(rawValue)
-	case analysis.TypeAccount:
+	case TypeAccount:
 		return NewAccountAddress(rawValue)
-	case analysis.TypePortion:
+	case TypePortion:
 		bi, err := ParsePortionSpecific(rawValue)
 		if err != nil {
 			return nil, err
 		}
 
 		return Portion(*bi), nil
-	case analysis.TypeAsset:
+	case TypeAsset:
 		return NewAsset(rawValue)
-	case analysis.TypeNumber:
+	case TypeNumber:
 		n, ok := new(big.Int).SetString(rawValue, 10)
 		if !ok {
 			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
 		return MonetaryInt(*n), nil
-	case analysis.TypeString:
+	case TypeString:
 		return String(rawValue), nil
 	default:
 		return nil, InvalidTypeErr{Name: type_, Range: r}
@@ -163,7 +187,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
 	// Special case for top-level meta() call
-	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == FnVarOriginMeta {
 		return s.handleFnCall(&type_, *fnCall)
 	}
 
@@ -184,7 +208,7 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 	}
 
 	switch fnCall.Caller.Name {
-	case analysis.FnVarOriginMeta:
+	case FnVarOriginMeta:
 		if type_ == nil {
 			return nil, InvalidNestedMeta{}
 		}
@@ -195,23 +219,23 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		}
 		return parseVar(*type_, rawValue, fnCall.Range)
 
-	case analysis.FnVarOriginBalance:
+	case FnVarOriginBalance:
 		monetary, err := balance(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
 		return *monetary, nil
 
-	case analysis.FnVarOriginOverdraft:
+	case FnVarOriginOverdraft:
 		monetary, err := overdraft(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
 		return *monetary, nil
 
-	case analysis.FnVarOriginGetAsset:
+	case FnVarOriginGetAsset:
 		return getAsset(s, fnCall.Range, args)
-	case analysis.FnVarOriginGetAmount:
+	case FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
 
 	default:
@@ -441,9 +465,9 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 		}
 
 		switch statement.Caller.Name {
-		case analysis.FnSetTxMeta:
+		case FnSetTxMeta:
 			return setTxMeta(st, statement.Caller.Range, args)
-		case analysis.FnSetAccountMeta:
+		case FnSetAccountMeta:
 			return setAccountMeta(st, statement.Caller.Range, args)
 		default:
 			return UnboundFunctionErr{Name: statement.Caller.Name}

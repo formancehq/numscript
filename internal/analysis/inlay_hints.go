@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -14,6 +15,7 @@ type InlayHint struct {
 
 func GetInlayHints(
 	checkResult CheckResult,
+	inputs *interpreter.InputsFile,
 ) []InlayHint {
 	if checkResult.Program.Vars == nil {
 		return nil
