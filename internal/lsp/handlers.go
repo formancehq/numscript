@@ -56,6 +56,7 @@ func (state *State) handleInputsWatch(changeType protocol.FileChangeType, uri pr
 		return
 	}
 
+	// TODO refresh hints
 	switch changeType {
 	case protocol.FileChangeTypeDeleted:
 		state.configs.Set(uri, nil)
@@ -213,12 +214,14 @@ func (state *State) handleGetInlayHints(params lsp_types_extra.InlayHintParams) 
 
 	k := lsp_types_extra.InlayHintKindType
 	hints := analysis.GetInlayHints(doc.CheckResult, file)
+
 	var res []lsp_types_extra.InlayHint
 	for _, hint := range hints {
 		res = append(res, lsp_types_extra.InlayHint{
-			Position: ParserToLspPosition(hint.Position),
-			Label:    hint.Label,
-			Kind:     &k,
+			Position:    ParserToLspPosition(hint.Position),
+			Label:       hint.Label,
+			Kind:        &k,
+			PaddingLeft: hint.PaddingLeft,
 		})
 	}
 	return res

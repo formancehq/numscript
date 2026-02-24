@@ -15,11 +15,13 @@ const (
 )
 
 type InlayHint struct {
-	Position  protocol.Position   `json:"position"`
-	Label     string              `json:"label"`
-	Kind      *InlayHintKind      `json:"kind,omitempty"`
-	Tooltip   *string             `json:"tooltip,omitempty"`
-	TextEdits []protocol.TextEdit `json:"textEdits,omitempty"`
+	Position     protocol.Position   `json:"position"`
+	Label        string              `json:"label"`
+	Kind         *InlayHintKind      `json:"kind,omitempty"`
+	Tooltip      *string             `json:"tooltip,omitempty"`
+	TextEdits    []protocol.TextEdit `json:"textEdits,omitempty"`
+	PaddingLeft  bool                `json:"paddingLeft,omitempty"`
+	PaddingRight bool                `json:"paddingRight,omitempty"`
 }
 
 type InlayHintOptions struct {

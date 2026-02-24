@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
@@ -35,6 +36,15 @@ type InputsFile struct {
 	Variables    map[string]string `json:"variables"`
 	Meta         AccountsMetadata  `json:"metadata"`
 	Balances     Balances          `json:"balances"`
+}
+
+func (i InputsFile) GetFeatureFlagsMap() map[string]struct{} {
+	vars := make(map[string]struct{})
+	for _, ff := range i.FeatureFlags {
+		vars[ff] = struct{}{}
+	}
+
+	return vars
 }
 
 type VariablesMap map[string]string
@@ -303,12 +313,26 @@ func checkPostingInvariants(posting Posting) InterpreterError {
 	return nil
 }
 
-func RunProgram(
+type DbgHint struct {
+	Position parser.Position
+	Label    string
+}
+
+type DbgBuffer struct {
+	Hints []DbgHint
+}
+
+func NewDbgBuf() DbgBuffer {
+	return DbgBuffer{}
+}
+
+func RunProgramWithDbg(
 	ctx context.Context,
 	program parser.Program,
 	vars map[string]string,
 	store Store,
 	featureFlags map[string]struct{},
+	dbg *DbgBuffer,
 ) (*ExecutionResult, InterpreterError) {
 	st := programState{
 		ParsedVars:         make(map[string]Value),
@@ -323,6 +347,7 @@ func RunProgram(
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
 		FeatureFlags:        featureFlags,
+		Dbg:                 dbg,
 	}
 
 	st.varOriginPosition = true
@@ -369,6 +394,16 @@ func RunProgram(
 	return res, nil
 }
 
+func RunProgram(
+	ctx context.Context,
+	program parser.Program,
+	vars map[string]string,
+	store Store,
+	featureFlags map[string]struct{},
+) (*ExecutionResult, InterpreterError) {
+	return RunProgramWithDbg(ctx, program, vars, store, featureFlags, nil)
+}
+
 type programState struct {
 	ctx context.Context
 
@@ -394,6 +429,8 @@ type programState struct {
 	CurrentBalanceQuery BalanceQuery
 
 	FeatureFlags map[string]struct{}
+
+	Dbg *DbgBuffer
 }
 
 func (st *programState) pushSender(name string, monetary *big.Int, color string) {
@@ -593,6 +630,12 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
 
 	s.pushSender(*account, sentAmt, *color)
+	if s.Dbg != nil {
+		s.Dbg.Hints = append(s.Dbg.Hints, DbgHint{
+			Label:    fmt.Sprintf("<- [%s %s]", coloredAsset(s.CurrentAsset, color), sentAmt),
+			Position: accountLiteral.GetRange().End,
+		})
+	}
 	return sentAmt, nil
 }
 
@@ -749,6 +792,12 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
 	}
 	s.pushSender(*account, actuallySentAmt, *color)
+	if s.Dbg != nil {
+		s.Dbg.Hints = append(s.Dbg.Hints, DbgHint{
+			Label:    fmt.Sprintf("<- [%s %s]", coloredAsset(s.CurrentAsset, color), actuallySentAmt),
+			Position: accountLiteral.GetRange().End,
+		})
+	}
 	return actuallySentAmt, nil
 }
 
