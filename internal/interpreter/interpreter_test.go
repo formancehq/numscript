@@ -456,7 +456,7 @@ func TestNegativeBalance(t *testing.T) {
 	tc.setBalance("a", "EUR/2", -100)
 	tc.expected = CaseResult{
 		Error: machine.NegativeBalanceError{
-			Account: "a",
+			Account: machine.Account{machine.AccountAddress("a")},
 			Amount:  *big.NewInt(-100),
 		},
 	}
@@ -527,7 +527,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: machine.TypeError{
 				Expected: "monetary",
-				Value:    machine.AccountAddress("bad:type"),
+				Value:    machine.Account{machine.AccountAddress("bad:type")},
 			},
 		}
 		test(t, tc)
@@ -667,7 +667,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: machine.TypeError{
 				Expected: "string",
-				Value:    machine.AccountAddress("key_wrong_type"),
+				Value:    machine.Account{machine.AccountAddress("key_wrong_type")},
 			},
 		}
 		test(t, tc)

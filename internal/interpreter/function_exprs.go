@@ -19,14 +19,14 @@ func overdraft(
 
 	// TODO more precise args range location
 	p := NewArgsParser(args)
-	account := parseArg(p, r, expectAccount)
+	account := parseArg(p, r, expectAccountAddress) // TODO also handle virtual account
 	asset := parseArg(p, r, expectAsset)
 	err = p.parse()
 	if err != nil {
 		return nil, err
 	}
 
-	balance_, err := getBalance(s, *account, *asset)
+	balance_, err := getBalance(s, Account{Repr: AccountAddress(*account)}, *asset)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func meta(
 ) (string, InterpreterError) {
 	// TODO more precise location
 	p := NewArgsParser(args)
-	account := parseArg(p, rng, expectAccount)
+	account := parseArg(p, rng, expectAccountAddress)
 	key := parseArg(p, rng, expectString)
 	err := p.parse()
 	if err != nil {
@@ -154,4 +154,14 @@ func getAmount(
 	}
 
 	return mon.Amount, nil
+}
+
+func virtual(
+	s *programState,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalVirtualAccount)
+	if err != nil {
+		return nil, err
+	}
+	return Account{Repr: NewVirtualAccount()}, nil
 }

@@ -1,0 +1,27 @@
+vars {
+  number $amt
+  account $fees_hold = virtual()
+  account $dest_hold = virtual()
+}
+send [EUR $amt] (
+  source = @world
+  destination = {
+    10% to $fees_hold
+    remaining to $dest_hold
+  }
+)
+send [EUR *] (
+  source = $fees_hold
+  destination = oneof {
+    max [EUR 5] to @dest
+    remaining to @fees
+  }
+)
+send [EUR *] (
+  source = $fees_hold
+  destination = @fees
+)
+send [EUR *] (
+  source = $dest_hold
+  destination = @dest
+)

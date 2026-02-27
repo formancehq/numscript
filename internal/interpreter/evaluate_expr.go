@@ -244,7 +244,7 @@ func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterErr
 
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {
 	switch v := v.(type) {
-	case AccountAddress:
+	case Account:
 		return v.String(), nil
 	case String:
 		return v.String(), nil
