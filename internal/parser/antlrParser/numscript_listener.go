@@ -64,6 +64,9 @@ type NumscriptListener interface {
 	// EnterVarsDeclaration is called when entering the varsDeclaration production.
 	EnterVarsDeclaration(c *VarsDeclarationContext)
 
+	// EnterUsingDecl is called when entering the usingDecl production.
+	EnterUsingDecl(c *UsingDeclContext)
+
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
 
@@ -201,6 +204,9 @@ type NumscriptListener interface {
 
 	// ExitVarsDeclaration is called when exiting the varsDeclaration production.
 	ExitVarsDeclaration(c *VarsDeclarationContext)
+
+	// ExitUsingDecl is called when exiting the usingDecl production.
+	ExitUsingDecl(c *UsingDeclContext)
 
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)

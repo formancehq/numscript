@@ -1,5 +1,6 @@
 [TestPlainAddress - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -67,6 +68,7 @@ parser.Program{
 
 [TestVariable - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -130,6 +132,7 @@ parser.Program{
 
 [TestAllotment - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -240,6 +243,7 @@ parser.Program{
 
 [TestAllotmentPerc - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -405,6 +409,7 @@ parser.Program{
 
 [TestAllotmentPercFloating - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -499,6 +504,7 @@ parser.Program{
 
 [TestAllotmentDest - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -611,6 +617,7 @@ parser.Program{
 
 [TestCapped - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -707,6 +714,7 @@ parser.Program{
 
 [TestCappedVariable - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -787,6 +795,7 @@ parser.Program{
 
 [TestNested - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -915,6 +924,7 @@ parser.Program{
 
 [TestMultipleSends - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1039,7 +1049,8 @@ parser.Program{
 ---
 [TestEmptyVars - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    Flags: nil,
+    Vars:  &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{},
             End:   parser.Position{Character:8, Line:0},
@@ -1053,7 +1064,8 @@ parser.Program{
 
 [TestSingleVar - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    Flags: nil,
+    Vars:  &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{},
             End:   parser.Position{Character:25, Line:0},
@@ -1089,6 +1101,7 @@ parser.Program{
 
 [TestVariableMonetary - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1140,6 +1153,7 @@ parser.Program{
 
 [TestAllotmentDestRemaining - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1277,6 +1291,7 @@ parser.Program{
 
 [TestAllotmentVariableSource - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1367,6 +1382,7 @@ parser.Program{
 
 [TestOverdraftUnbounded - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1423,6 +1439,7 @@ parser.Program{
 
 [TestOverdraftUnboundedVariable - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1477,6 +1494,7 @@ parser.Program{
 
 [TestBoundedOverdraft - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1553,6 +1571,7 @@ parser.Program{
 
 [TestFunctionCallNoArgs - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -1576,6 +1595,7 @@ parser.Program{
 
 [TestFunctionCallOneArg - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -1609,6 +1629,7 @@ parser.Program{
 
 [TestFunctionCallManyArgs - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -1707,7 +1728,8 @@ parser.Program{
 
 [TestVarOrigin - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    Flags: nil,
+    Vars:  &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{Character:0, Line:1},
             End:   parser.Position{Character:1, Line:3},
@@ -1773,6 +1795,7 @@ parser.Program{
 
 [TestInorderSource - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1860,6 +1883,7 @@ parser.Program{
 
 [TestInorderDestination - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -1982,6 +2006,7 @@ parser.Program{
 
 [TestSendAll - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2033,6 +2058,7 @@ parser.Program{
 
 [TestAllotmentDestKept - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2138,6 +2164,7 @@ parser.Program{
 
 [TestWhitespaceInRatio - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2254,6 +2281,7 @@ missing ')' at '<EOF>'
 
 [TestNegativeNumberLit - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2328,6 +2356,7 @@ parser.Program{
 
 [TestSaveStatementSimple - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
@@ -2381,6 +2410,7 @@ parser.Program{
 
 [TestSaveAllStatement - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
@@ -2418,6 +2448,7 @@ parser.Program{
 
 [TestSaveStatementVar - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SaveStatement{
@@ -2453,6 +2484,7 @@ parser.Program{
 
 [TestInfix - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -2588,6 +2620,7 @@ parser.Program{
 
 [TestInfixPrec - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -2663,6 +2696,7 @@ parser.Program{
 
 [TestNumberSyntaxUnderscore - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -2704,6 +2738,7 @@ parser.Program{
 
 [TestParensInfixPrec - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -2779,6 +2814,7 @@ parser.Program{
 
 [TestOneofSource - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2850,6 +2886,7 @@ parser.Program{
 
 [TestOneofDestination - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -2956,6 +2993,7 @@ parser.Program{
 
 [TestDivInfix - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3008,6 +3046,7 @@ parser.Program{
 
 [TestDivVariableDenominator - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3063,6 +3102,7 @@ parser.Program{
 
 [TestInfixSumDiv - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3138,6 +3178,7 @@ parser.Program{
 
 [TestStringTemplate - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3179,6 +3220,7 @@ parser.Program{
 
 [TestInterpAccount - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3230,6 +3272,7 @@ parser.Program{
 
 [TestIncludeComments - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3282,7 +3325,8 @@ parser.Program{
 
 [TestExprInVarOrigin - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    Flags: nil,
+    Vars:  &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{Character:0, Line:1},
             End:   parser.Position{Character:1, Line:3},
@@ -3327,6 +3371,7 @@ parser.Program{
 
 [TestMidScriptFnCall - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.FnCall{
@@ -3396,6 +3441,7 @@ parser.Program{
 
 [TestColorRestriction - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -3453,6 +3499,7 @@ parser.Program{
 
 [TestColorRestrictionBoundedOverdraft - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -3521,6 +3568,7 @@ parser.Program{
 
 [TestColorRestrictionUnboundedOverdraft - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{
@@ -3581,6 +3629,7 @@ parser.Program{
 
 [TestScalingSyntax - 1]
 parser.Program{
+    Flags:      nil,
     Vars:       (*parser.VarDeclarations)(nil),
     Statements: {
         &parser.SendStatement{

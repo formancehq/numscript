@@ -1,0 +1,6 @@
+using("experimental-overdraft-function", "experimental-mid-script-function-call")
+
+send overdraft(@acc, TK) (
+  source = @world
+  destination = @acc
+)

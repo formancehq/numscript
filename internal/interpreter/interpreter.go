@@ -301,6 +301,10 @@ func RunProgram(
 		FeatureFlags:        featureFlags,
 	}
 
+	for _, flag := range program.Flags {
+		st.FeatureFlags[flag.String] = struct{}{}
+	}
+
 	st.varOriginPosition = true
 	if program.Vars != nil {
 		err := st.parseVars(program.Vars.Declarations, vars)

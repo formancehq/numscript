@@ -110,12 +110,22 @@ func parseVarsDeclaration(varsCtx antlrParser.IVarsDeclarationContext) *VarDecla
 func parseProgram(programCtx antlrParser.IProgramContext) Program {
 	vars := parseVarsDeclaration(programCtx.VarsDeclaration())
 
+	usingCtx := programCtx.UsingDecl()
+
+	var flagIdents []StringLiteral
+	if usingCtx != nil {
+		for _, flagTk := range usingCtx.GetFlag() {
+			flagIdents = append(flagIdents, *parseStringTk(flagTk))
+		}
+	}
+
 	var statements []Statement
 	for _, statementCtx := range programCtx.AllStatement() {
 		statements = append(statements, parseStatement(statementCtx))
 	}
 
 	return Program{
+		Flags:      flagIdents,
 		Statements: statements,
 		Vars:       vars,
 	}
@@ -312,12 +322,12 @@ func parseAllotment(allotmentCtx antlrParser.IAllotmentContext) AllotmentValue {
 	}
 }
 
-func parseStringLiteralCtx(stringCtx *antlrParser.StringLiteralContext) *StringLiteral {
+func parseStringTk(stringCtx antlr.Token) *StringLiteral {
 	rawStr := stringCtx.GetText()
 	// Remove leading and trailing '"'
 	innerStr := rawStr[1 : len(rawStr)-1]
 	return &StringLiteral{
-		Range:  ctxToRange(stringCtx),
+		Range:  tokenToRange(stringCtx),
 		String: innerStr,
 	}
 }
@@ -366,7 +376,7 @@ func parseValueExpr(valueExprCtx antlrParser.IValueExprContext) ValueExpr {
 		return variableLiteralFromCtx(valueExprCtx)
 
 	case *antlrParser.StringLiteralContext:
-		return parseStringLiteralCtx(valueExprCtx)
+		return parseStringTk(valueExprCtx.STRING().GetSymbol())
 
 	case *antlrParser.PrefixExprContext:
 		return &Prefix{
