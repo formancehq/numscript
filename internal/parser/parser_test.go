@@ -581,3 +581,122 @@ func TestScalingSyntax(t *testing.T) {
 	snaps.MatchSnapshot(t, p.Value)
 	assert.Empty(t, p.Errors)
 }
+
+func TestUseDeclarationSingle(t *testing.T) {
+	p := parser.Parse(`use experimental.account_interpolation
+
+send [EUR/2 100] (
+  source = @src
+  destination = @dest
+)`)
+	require.Empty(t, p.Errors)
+	require.Len(t, p.Value.UseDeclarations, 1)
+	assert.Equal(t, []string{"experimental", "account_interpolation"}, p.Value.UseDeclarations[0].Parts)
+	snaps.MatchSnapshot(t, p.Value)
+}
+
+func TestUseDeclarationMultiple(t *testing.T) {
+	p := parser.Parse(`use experimental.account_interpolation
+use experimental.asset_colors
+
+send [EUR/2 100] (
+  source = @src
+  destination = @dest
+)`)
+	require.Empty(t, p.Errors)
+	require.Len(t, p.Value.UseDeclarations, 2)
+	assert.Equal(t, []string{"experimental", "account_interpolation"}, p.Value.UseDeclarations[0].Parts)
+	assert.Equal(t, []string{"experimental", "asset_colors"}, p.Value.UseDeclarations[1].Parts)
+}
+
+func TestUseDeclarationWithVars(t *testing.T) {
+	p := parser.Parse(`use experimental.oneof
+
+vars { account $src }
+
+send [EUR/2 100] (
+  source = $src
+  destination = @dest
+)`)
+	require.Empty(t, p.Errors)
+	require.Len(t, p.Value.UseDeclarations, 1)
+	assert.Equal(t, []string{"experimental", "oneof"}, p.Value.UseDeclarations[0].Parts)
+	assert.NotNil(t, p.Value.Vars)
+}
+
+func TestNoUseDeclaration(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = @src
+  destination = @dest
+)`)
+	require.Empty(t, p.Errors)
+	assert.Nil(t, p.Value.UseDeclarations)
+}
+
+func TestUseDeclarationToFlagName(t *testing.T) {
+	tests := []struct {
+		parts    []string
+		expected string
+	}{
+		{[]string{"experimental", "account_interpolation"}, "experimental-account-interpolation"},
+		{[]string{"experimental", "asset_colors"}, "experimental-asset-colors"},
+		{[]string{"experimental", "oneof"}, "experimental-oneof"},
+		{[]string{"experimental", "overdraft_function"}, "experimental-overdraft-function"},
+		{[]string{"experimental", "asset_scaling"}, "experimental-asset-scaling"},
+		{[]string{"experimental", "get_asset_function"}, "experimental-get-asset-function"},
+		{[]string{"experimental", "get_amount_function"}, "experimental-get-amount-function"},
+		{[]string{"experimental", "mid_script_function_call"}, "experimental-mid-script-function-call"},
+	}
+
+	for _, tt := range tests {
+		decl := parser.UseDeclaration{Parts: tt.parts}
+		assert.Equal(t, tt.expected, decl.ToFlagName(), "Parts: %v", tt.parts)
+	}
+}
+
+func TestPercentageWithDotStillWorks(t *testing.T) {
+	p := parser.Parse(`send [EUR/2 100] (
+  source = {
+    50.5% from @a
+    remaining from @b
+  }
+  destination = @dest
+)`)
+	require.Empty(t, p.Errors)
+	require.Len(t, p.Value.Statements, 1)
+}
+
+func TestUseDeclarationInvalidSyntaxMissingParts(t *testing.T) {
+	// 'use' alone without any flag part should produce parsing errors
+	p := parser.Parse(`use
+send [EUR/2 100] (
+  source = @src
+  destination = @dest
+)`)
+	require.NotEmpty(t, p.Errors)
+}
+
+func TestUseDeclarationAfterVarsIsError(t *testing.T) {
+	// 'use' after vars block should produce parsing errors
+	p := parser.Parse(`vars { account $src }
+
+use experimental.oneof
+
+send [EUR/2 100] (
+  source = $src
+  destination = @dest
+)`)
+	require.NotEmpty(t, p.Errors)
+}
+
+func TestUseDeclarationAfterStatementIsError(t *testing.T) {
+	// 'use' after a statement should produce parsing errors
+	p := parser.Parse(`send [EUR/2 100] (
+  source = @src
+  destination = @dest
+)
+
+use experimental.oneof
+`)
+	require.NotEmpty(t, p.Errors)
+}

@@ -286,6 +286,15 @@ func RunProgram(
 	store Store,
 	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
+	// Merge external feature flags with use declarations from the script
+	mergedFlags := make(map[string]struct{})
+	for k, v := range featureFlags {
+		mergedFlags[k] = v
+	}
+	for _, useDecl := range program.UseDeclarations {
+		mergedFlags[useDecl.ToFlagName()] = struct{}{}
+	}
+
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
@@ -298,7 +307,7 @@ func RunProgram(
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
-		FeatureFlags:        featureFlags,
+		FeatureFlags:        mergedFlags,
 	}
 
 	st.varOriginPosition = true

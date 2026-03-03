@@ -107,7 +107,31 @@ func parseVarsDeclaration(varsCtx antlrParser.IVarsDeclarationContext) *VarDecla
 	return &varBlock
 }
 
+func parseUseDeclaration(useCtx antlrParser.IUseDeclarationContext) *UseDeclaration {
+	if useCtx == nil {
+		return nil
+	}
+
+	var parts []string
+	for _, part := range useCtx.AllFeatureFlagPart() {
+		parts = append(parts, part.GetText())
+	}
+
+	return &UseDeclaration{
+		Range: ctxToRange(useCtx),
+		Parts: parts,
+	}
+}
+
 func parseProgram(programCtx antlrParser.IProgramContext) Program {
+	var useDeclarations []UseDeclaration
+	for _, useCtx := range programCtx.AllUseDeclaration() {
+		decl := parseUseDeclaration(useCtx)
+		if decl != nil {
+			useDeclarations = append(useDeclarations, *decl)
+		}
+	}
+
 	vars := parseVarsDeclaration(programCtx.VarsDeclaration())
 
 	var statements []Statement
@@ -116,8 +140,9 @@ func parseProgram(programCtx antlrParser.IProgramContext) Program {
 	}
 
 	return Program{
-		Statements: statements,
-		Vars:       vars,
+		UseDeclarations: useDeclarations,
+		Statements:      statements,
+		Vars:            vars,
 	}
 }
 

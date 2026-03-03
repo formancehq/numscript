@@ -229,7 +229,18 @@ func newCheckResult(program parser.Program) CheckResult {
 	}
 }
 
+func (res *CheckResult) checkUseDeclarations() {
+	for _, useDecl := range res.Program.UseDeclarations {
+		flagName := useDecl.ToFlagName()
+		if !flags.IsValidFlag(flagName) {
+			res.pushDiagnostic(useDecl.Range, UnknownFeatureFlag{Name: flagName})
+		}
+	}
+}
+
 func (res *CheckResult) check() {
+	res.checkUseDeclarations()
+
 	if res.Program.Vars != nil {
 		for _, varDecl := range res.Program.Vars.Declarations {
 			if varDecl.Type != nil {

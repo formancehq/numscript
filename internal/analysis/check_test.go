@@ -1166,3 +1166,74 @@ send $mon (
 	)
 
 }
+
+func TestUnknownFeatureFlag(t *testing.T) {
+	t.Parallel()
+
+	input := `use experimental.nonexistent_flag
+
+send [EUR/2 100] (
+	source = @src
+	destination = @dest
+)`
+
+	diagnostics := checkSource(input)
+	require.Len(t, diagnostics, 1)
+	require.Equal(t, analysis.UnknownFeatureFlag{Name: "experimental-nonexistent-flag"}, diagnostics[0].Kind)
+	require.Equal(t, analysis.WarningSeverity, diagnostics[0].Kind.Severity())
+}
+
+func TestValidFeatureFlagNoDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	input := `use experimental.oneof
+
+send [EUR/2 100] (
+	source = @src
+	destination = @dest
+)`
+
+	diagnostics := checkSource(input)
+	require.Empty(t, diagnostics)
+}
+
+func TestUseDeclarationInAnalysisEnablesFlag(t *testing.T) {
+	t.Parallel()
+
+	// With use declaration, versioned feature should not produce ExperimentalFeature diagnostic
+	input := `// @version interpreter 0.0.15
+use experimental.oneof
+
+send [EUR/2 100] (
+	source = oneof { @a @b }
+	destination = @dest
+)`
+
+	diagnostics := checkSource(input)
+	for _, d := range diagnostics {
+		_, isExperimental := d.Kind.(analysis.ExperimentalFeature)
+		assert.False(t, isExperimental, "should not have ExperimentalFeature diagnostic when use declaration is present")
+	}
+}
+
+func TestWithoutUseDeclarationAnalysisRequiresFlag(t *testing.T) {
+	t.Parallel()
+
+	// Without use declaration, versioned feature should produce ExperimentalFeature diagnostic
+	input := `// @version interpreter 0.0.15
+
+send [EUR/2 100] (
+	source = oneof { @a @b }
+	destination = @dest
+)`
+
+	diagnostics := checkSource(input)
+	hasExperimental := false
+	for _, d := range diagnostics {
+		if _, ok := d.Kind.(analysis.ExperimentalFeature); ok {
+			hasExperimental = true
+			break
+		}
+	}
+	assert.True(t, hasExperimental, "should have ExperimentalFeature diagnostic when use declaration is absent")
+}

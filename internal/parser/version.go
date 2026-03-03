@@ -146,5 +146,10 @@ func (p Program) GetFlags() map[string]struct{} {
 			flags[flag] = struct{}{}
 		}
 	}
+
+	for _, useDecl := range p.UseDeclarations {
+		flags[useDecl.ToFlagName()] = struct{}{}
+	}
+
 	return flags
 }

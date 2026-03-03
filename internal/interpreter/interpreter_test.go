@@ -1160,3 +1160,127 @@ send [EUR/2 *] (
 	}
 	testWithFeatureFlag(t, tc, flags.AssetScaling)
 }
+
+func TestUseDeclarationEnablesFeatureFlag(t *testing.T) {
+	t.Parallel()
+
+	// Script with 'use' should work WITHOUT external feature flags
+	script := `use experimental.oneof
+
+send [GEM 15] (
+	source = oneof { @a @b }
+	destination = @dest
+)
+`
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	_, err := machine.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{},
+		machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{"GEM": big.NewInt(20)},
+			},
+		},
+		nil, // no external feature flags
+	)
+	require.NoError(t, err)
+}
+
+func TestWithoutUseDeclarationNorFlagsYieldsError(t *testing.T) {
+	t.Parallel()
+
+	// Same script WITHOUT 'use' and WITHOUT external flags should error
+	script := `
+send [GEM 15] (
+	source = oneof { @a @b }
+	destination = @dest
+)
+`
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	_, err := machine.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{},
+		machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{"GEM": big.NewInt(20)},
+			},
+		},
+		nil,
+	)
+	require.Error(t, err)
+	require.Equal(t, machine.ExperimentalFeature{
+		FlagName: flags.ExperimentalOneofFeatureFlag,
+	}, removeRange(err))
+}
+
+func TestUseDeclarationMergesWithExternalFlags(t *testing.T) {
+	t.Parallel()
+
+	// 'use' in script + external flags should both be active
+	script := `use experimental.oneof
+
+send [GEM 15] (
+	source = oneof { @a @b }
+	destination = @dest
+)
+`
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	_, err := machine.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{},
+		machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{"GEM": big.NewInt(20)},
+			},
+		},
+		map[string]struct{}{
+			flags.ExperimentalAssetColors: {},
+		},
+	)
+	require.NoError(t, err)
+}
+
+func TestUseDeclarationDoesNotMutateInputFlags(t *testing.T) {
+	t.Parallel()
+
+	script := `use experimental.oneof
+
+send [GEM 15] (
+	source = oneof { @a @b }
+	destination = @dest
+)
+`
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	inputFlags := map[string]struct{}{
+		flags.ExperimentalAssetColors: {},
+	}
+
+	_, err := machine.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{},
+		machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{"GEM": big.NewInt(20)},
+			},
+		},
+		inputFlags,
+	)
+	require.NoError(t, err)
+
+	// The input map must not have been modified
+	require.Equal(t, map[string]struct{}{
+		flags.ExperimentalAssetColors: {},
+	}, inputFlags, "RunProgram must not mutate the input featureFlags map")
+}

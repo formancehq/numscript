@@ -34,7 +34,10 @@ varDeclaration:
 	type_ = IDENTIFIER name = VARIABLE_NAME varOrigin?;
 varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
-program: varsDeclaration? statement* EOF;
+featureFlagPart: IDENTIFIER | VARS | MAX | SOURCE | DESTINATION | SEND | FROM | UP | TO | REMAINING | ALLOWING | UNBOUNDED | OVERDRAFT | ONEOF | KEPT | SAVE | WITH | SCALING | THROUGH | USE;
+useDeclaration: USE featureFlagPart (DOT featureFlagPart)*;
+
+program: useDeclaration* varsDeclaration? statement* EOF;
 
 sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 

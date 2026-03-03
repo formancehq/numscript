@@ -1,7 +1,8 @@
 
 [TestFaultToleranceVarName - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    UseDeclarations: nil,
+    Vars:            &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{},
             End:   parser.Position{Character:21, Line:0},
@@ -31,8 +32,9 @@ parser.Program{
 
 [TestFaultToleranceSend - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -49,8 +51,9 @@ parser.Program{
 
 [TestFaultToleranceMonetary - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -67,8 +70,9 @@ parser.Program{
 
 [TestFaultToleranceNoAddr - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -91,8 +95,9 @@ parser.Program{
 
 [TestFaultToleranceInvalidDest - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -148,8 +153,9 @@ parser.Program{
 
 [TestFaultToleranceInvalidSrcTk - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -211,8 +217,9 @@ parser.Program{
 
 [TestFaultToleranceTrailingComma - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.FnCall{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -246,8 +253,9 @@ parser.Program{
 
 [TestFaultToleranceDestinationNoRemainingMispelledFrom - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SendStatement{
             Range: parser.Range{
                 Start: parser.Position{},
@@ -341,7 +349,8 @@ parser.Program{
 
 [TestFaultToleranceIncompleteOrigin - 1]
 parser.Program{
-    Vars: &parser.VarDeclarations{
+    UseDeclarations: nil,
+    Vars:            &parser.VarDeclarations{
         Range: parser.Range{
             Start: parser.Position{Character:0, Line:1},
             End:   parser.Position{Character:1, Line:3},
@@ -377,8 +386,9 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SaveStatement{
             Range: parser.Range{
                 Start: parser.Position{Character:0, Line:1},
@@ -394,8 +404,9 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave2 - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SaveStatement{
             Range: parser.Range{
                 Start: parser.Position{Character:0, Line:1},
@@ -439,8 +450,9 @@ parser.Program{
 
 [TestFaultToleranceIncompleteSave3 - 1]
 parser.Program{
-    Vars:       (*parser.VarDeclarations)(nil),
-    Statements: {
+    UseDeclarations: nil,
+    Vars:            (*parser.VarDeclarations)(nil),
+    Statements:      {
         &parser.SaveStatement{
             Range: parser.Range{
                 Start: parser.Position{Character:0, Line:1},

@@ -64,6 +64,12 @@ type NumscriptListener interface {
 	// EnterVarsDeclaration is called when entering the varsDeclaration production.
 	EnterVarsDeclaration(c *VarsDeclarationContext)
 
+	// EnterFeatureFlagPart is called when entering the featureFlagPart production.
+	EnterFeatureFlagPart(c *FeatureFlagPartContext)
+
+	// EnterUseDeclaration is called when entering the useDeclaration production.
+	EnterUseDeclaration(c *UseDeclarationContext)
+
 	// EnterProgram is called when entering the program production.
 	EnterProgram(c *ProgramContext)
 
@@ -201,6 +207,12 @@ type NumscriptListener interface {
 
 	// ExitVarsDeclaration is called when exiting the varsDeclaration production.
 	ExitVarsDeclaration(c *VarsDeclarationContext)
+
+	// ExitFeatureFlagPart is called when exiting the featureFlagPart production.
+	ExitFeatureFlagPart(c *FeatureFlagPartContext)
+
+	// ExitUseDeclaration is called when exiting the useDeclaration production.
+	ExitUseDeclaration(c *UseDeclarationContext)
 
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)

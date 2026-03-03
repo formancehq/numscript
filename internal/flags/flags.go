@@ -23,3 +23,12 @@ var AllFlags []string = []string{
 	ExperimentalAssetColors,
 	AssetScaling,
 }
+
+func IsValidFlag(name string) bool {
+	for _, f := range AllFlags {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}

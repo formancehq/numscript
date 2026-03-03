@@ -343,8 +343,19 @@ type Comment struct {
 	Content string
 }
 
+type UseDeclaration struct {
+	Range
+	Parts []string // e.g. ["experimental", "account_interpolation"]
+}
+
+func (u UseDeclaration) ToFlagName() string {
+	joined := strings.Join(u.Parts, "-")
+	return strings.ReplaceAll(joined, "_", "-")
+}
+
 type Program struct {
-	Vars       *VarDeclarations
-	Statements []Statement
-	Comments   []Comment
+	UseDeclarations []UseDeclaration
+	Vars            *VarDeclarations
+	Statements      []Statement
+	Comments        []Comment
 }

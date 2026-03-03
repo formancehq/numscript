@@ -134,6 +134,18 @@ func (s *BaseNumscriptListener) EnterVarsDeclaration(ctx *VarsDeclarationContext
 // ExitVarsDeclaration is called when production varsDeclaration is exited.
 func (s *BaseNumscriptListener) ExitVarsDeclaration(ctx *VarsDeclarationContext) {}
 
+// EnterFeatureFlagPart is called when production featureFlagPart is entered.
+func (s *BaseNumscriptListener) EnterFeatureFlagPart(ctx *FeatureFlagPartContext) {}
+
+// ExitFeatureFlagPart is called when production featureFlagPart is exited.
+func (s *BaseNumscriptListener) ExitFeatureFlagPart(ctx *FeatureFlagPartContext) {}
+
+// EnterUseDeclaration is called when production useDeclaration is entered.
+func (s *BaseNumscriptListener) EnterUseDeclaration(ctx *UseDeclarationContext) {}
+
+// ExitUseDeclaration is called when production useDeclaration is exited.
+func (s *BaseNumscriptListener) ExitUseDeclaration(ctx *UseDeclarationContext) {}
+
 // EnterProgram is called when production program is entered.
 func (s *BaseNumscriptListener) EnterProgram(ctx *ProgramContext) {}
 
