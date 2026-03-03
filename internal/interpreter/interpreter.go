@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -302,6 +303,13 @@ func RunProgram(
 	}
 
 	for _, flag := range program.Flags {
+		index := slices.Index(flags.AllFlags, flag.String)
+		if index == -1 {
+			return nil, InvalidFeature{
+				Feature: flag.String,
+			}
+		}
+
 		st.FeatureFlags[flag.String] = struct{}{}
 	}
 
