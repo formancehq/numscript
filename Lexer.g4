@@ -35,7 +35,8 @@ RESTRICT: '\\';
 WITH: 'with';
 SCALING: 'scaling';
 THROUGH: 'through';
-USING: 'using';
+FEATURE: 'feature';
+HASH_BANG: '#!';
 
 PERCENTAGE_PORTION_LITERAL: [0-9]+ ('.' [0-9]+)? '%';
 

@@ -110,11 +110,11 @@ func parseVarsDeclaration(varsCtx antlrParser.IVarsDeclarationContext) *VarDecla
 func parseProgram(programCtx antlrParser.IProgramContext) Program {
 	vars := parseVarsDeclaration(programCtx.VarsDeclaration())
 
-	usingCtx := programCtx.UsingDecl()
+	featureCtx := programCtx.FeatureDecl()
 
 	var flagIdents []StringLiteral
-	if usingCtx != nil {
-		for _, flagTk := range usingCtx.GetFlag() {
+	if featureCtx != nil {
+		for _, flagTk := range featureCtx.GetFlag() {
 			flagIdents = append(flagIdents, *parseStringTk(flagTk))
 		}
 	}
