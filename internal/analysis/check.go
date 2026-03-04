@@ -230,6 +230,16 @@ func newCheckResult(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) check() {
+	for _, flag := range res.Program.Flags {
+		validFlag := slices.Contains(flags.AllFlags, flag.String)
+		if !validFlag {
+			res.Diagnostics = append(res.Diagnostics, Diagnostic{
+				Range: flag.Range,
+				Kind:  InvalidFeature{Feature: flag.String},
+			})
+		}
+	}
+
 	if res.Program.Vars != nil {
 		for _, varDecl := range res.Program.Vars.Declarations {
 			if varDecl.Type != nil {

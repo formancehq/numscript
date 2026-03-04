@@ -268,3 +268,12 @@ type InvalidUnboundedAddressInScalingAddress struct {
 func (InvalidUnboundedAddressInScalingAddress) Error() string {
 	return "Invalid usage or @world account in scaling context"
 }
+
+type InvalidFeature struct {
+	parser.Range
+	Feature string
+}
+
+func (e InvalidFeature) Error() string {
+	return fmt.Sprintf("Invalid feature: %s", e.Feature)
+}

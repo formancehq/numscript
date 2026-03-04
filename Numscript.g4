@@ -34,7 +34,8 @@ varDeclaration:
 	type_ = IDENTIFIER name = VARIABLE_NAME varOrigin?;
 varsDeclaration: VARS LBRACE varDeclaration* RBRACE;
 
-program: varsDeclaration? statement* EOF;
+featureDecl: HASH_BANG LBRACKET FEATURE LPARENS (flag+=STRING (COMMA flag+=STRING)*)? RPARENS RBRACKET;
+program: featureDecl? varsDeclaration? statement* EOF;
 
 sentAllLit: LBRACKET (asset = valueExpr) STAR RBRACKET;
 

@@ -344,6 +344,7 @@ type Comment struct {
 }
 
 type Program struct {
+	Flags      []StringLiteral
 	Vars       *VarDeclarations
 	Statements []Statement
 	Comments   []Comment

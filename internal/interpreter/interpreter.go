@@ -2,8 +2,10 @@ package interpreter
 
 import (
 	"context"
+	"maps"
 	"math/big"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -286,6 +288,7 @@ func RunProgram(
 	store Store,
 	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
+
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
@@ -298,7 +301,22 @@ func RunProgram(
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
-		FeatureFlags:        featureFlags,
+		FeatureFlags:        maps.Clone(featureFlags),
+	}
+
+	if st.FeatureFlags == nil {
+		st.FeatureFlags = make(map[string]struct{}, len(program.Flags))
+	}
+
+	for _, flag := range program.Flags {
+		index := slices.Index(flags.AllFlags, flag.String)
+		if index == -1 {
+			return nil, InvalidFeature{
+				Feature: flag.String,
+			}
+		}
+
+		st.FeatureFlags[flag.String] = struct{}{}
 	}
 
 	st.varOriginPosition = true
