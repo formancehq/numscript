@@ -1166,3 +1166,30 @@ send $mon (
 	)
 
 }
+
+func TestErrUnknownFeature(t *testing.T) {
+	t.Parallel()
+
+	input := `
+#![feature("dont-know-this-feature")]
+
+send [USD/2 100000] (
+	source = @world
+	destination = @me
+)
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Kind: analysis.InvalidFeature{
+
+					Feature: "dont-know-this-feature",
+				},
+				Range: parser.RangeOfIndexed(input, `"dont-know-this-feature"`, 0),
+			},
+		},
+		checkSource(input),
+	)
+
+}

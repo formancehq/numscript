@@ -356,3 +356,15 @@ You may want to use a variable of type number instead.`, e.InferredAsset)
 func (BoundAsset) Severity() Severity {
 	return WarningSeverity
 }
+
+type InvalidFeature struct {
+	Feature string
+}
+
+func (e InvalidFeature) Message() string {
+	return fmt.Sprintf("Unkown feature: %s", e.Feature)
+}
+
+func (InvalidFeature) Severity() Severity {
+	return ErrorSeverity
+}
