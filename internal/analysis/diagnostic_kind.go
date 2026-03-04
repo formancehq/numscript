@@ -362,7 +362,7 @@ type InvalidFeature struct {
 }
 
 func (e InvalidFeature) Message() string {
-	return fmt.Sprintf("Unkown feature: %s", e.Feature)
+	return fmt.Sprintf("Unknown feature: %s", e.Feature)
 }
 
 func (InvalidFeature) Severity() Severity {
