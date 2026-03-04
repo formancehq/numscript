@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"maps"
 	"math/big"
 	"regexp"
 	"slices"
@@ -287,6 +288,7 @@ func RunProgram(
 	store Store,
 	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
+
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
@@ -299,7 +301,11 @@ func RunProgram(
 
 		CurrentBalanceQuery: BalanceQuery{},
 		ctx:                 ctx,
-		FeatureFlags:        featureFlags,
+		FeatureFlags:        maps.Clone(featureFlags),
+	}
+
+	if st.FeatureFlags == nil {
+		st.FeatureFlags = make(map[string]struct{}, len(program.Flags))
 	}
 
 	for _, flag := range program.Flags {
