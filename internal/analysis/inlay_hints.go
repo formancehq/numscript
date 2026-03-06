@@ -74,7 +74,9 @@ func GetInlayHints(
 	var hints []InlayHint
 
 	loadInferenceHints(&hints, checkResult)
-	loadInputsHints(&hints, checkResult.Program, inputs)
+	if checkResult.GetErrorsCount() == 0 {
+		loadInputsHints(&hints, checkResult.Program, inputs)
+	}
 
 	return hints
 }
