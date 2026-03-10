@@ -1,7 +1,6 @@
 package analysis
 
 import (
-	"context"
 	"fmt"
 	"slices"
 
@@ -41,41 +40,20 @@ func loadInferenceHints(hints *[]InlayHint, checkResult CheckResult) {
 	}
 }
 
-func loadInputsHints(hints *[]InlayHint, program parser.Program, inputs *interpreter.InputsFile) {
-	dbg := interpreter.NewDbgBuf()
+func GetInlayHints(
+	interpreterHints []interpreter.DbgHint,
+	checkResult CheckResult,
+	inputs *interpreter.InputsFile,
+) []InlayHint {
+	var hints []InlayHint
 
-	// TODO use output, err
-	interpreter.RunProgramWithDbg(
-		context.Background(),
-		program,
-		inputs.Variables,
-		interpreter.StaticStore{
-			Balances: inputs.Balances,
-			Meta:     inputs.Meta,
-		},
-		inputs.GetFeatureFlagsMap(),
-		&dbg,
-	)
-
-	for _, hint := range dbg.Hints {
-		*hints = append(*hints, InlayHint{
+	loadInferenceHints(&hints, checkResult)
+	for _, hint := range interpreterHints {
+		hints = append(hints, InlayHint{
 			Position:    hint.Position,
 			Label:       hint.Label,
 			PaddingLeft: true,
 		})
-	}
-}
-
-func GetInlayHints(
-	checkResult CheckResult,
-	inputs *interpreter.InputsFile,
-) []InlayHint {
-
-	var hints []InlayHint
-
-	loadInferenceHints(&hints, checkResult)
-	if checkResult.GetErrorsCount() == 0 {
-		loadInputsHints(&hints, checkResult.Program, inputs)
 	}
 
 	return hints

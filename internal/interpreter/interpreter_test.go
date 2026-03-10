@@ -793,7 +793,7 @@ func TestSaveFromAccount(t *testing.T) {
 
 	t.Run("negative amount", func(t *testing.T) {
 		script := `
-	
+
 			save [USD -100] from @A`
 		tc := NewTestCase()
 		tc.compile(t, script)

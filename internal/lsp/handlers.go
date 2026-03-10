@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,9 +18,15 @@ import (
 	"go.lsp.dev/protocol"
 )
 
+type RunResult struct {
+	Hints []interpreter.DbgHint
+	Error interpreter.InterpreterError
+}
+
 type InMemoryDocument struct {
 	Text        string
 	CheckResult analysis.CheckResult
+	RunResult   *RunResult
 }
 
 type State struct {
@@ -27,15 +34,99 @@ type State struct {
 	configs   documentStore[*interpreter.InputsFile]
 }
 
+// TODO dedup stuff
+func (state *State) updateInput(conn *jsonrpc2.Conn, uri protocol.DocumentURI) {
+	state.documents.Update(uri, func(doc *InMemoryDocument) {
+
+		var diagnostics = make([]protocol.Diagnostic, 0)
+
+		inputs := state.getConfig(uri + ".inputs.json")
+		if inputs != nil && doc.CheckResult.GetErrorsCount() == 0 {
+			dbg := interpreter.NewDbgBuf()
+
+			_, err := interpreter.RunProgramWithDbg(
+				context.Background(),
+				doc.CheckResult.Program,
+				inputs.Variables,
+				interpreter.StaticStore{
+					Balances: inputs.Balances,
+					Meta:     inputs.Meta,
+				},
+				inputs.GetFeatureFlagsMap(),
+				&dbg,
+			)
+
+			doc.RunResult = &RunResult{
+				Hints: dbg.Hints,
+				Error: err,
+			}
+
+			if err != nil {
+				diagnostics = append(diagnostics, protocol.Diagnostic{
+					Message:  err.Error(),
+					Range:    *toLspRange(err.GetRange()),
+					Severity: protocol.DiagnosticSeverityError,
+				})
+			}
+		}
+
+		for _, diagnostic := range doc.CheckResult.Diagnostics {
+			diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
+		}
+
+		err := conn.SendNotification("textDocument/publishDiagnostics", protocol.PublishDiagnosticsParams{
+			URI:         uri,
+			Diagnostics: diagnostics,
+		})
+		if err != nil {
+			log.Printf("lsp: error publishing diagnostics: %v", err)
+		}
+
+	})
+
+}
+
 func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI, text string) {
 	checkResult := analysis.CheckSource(text)
 
-	state.documents.Set(uri, InMemoryDocument{
+	var diagnostics = make([]protocol.Diagnostic, 0)
+	doc := InMemoryDocument{
 		Text:        text,
 		CheckResult: checkResult,
-	})
+	}
 
-	var diagnostics = make([]protocol.Diagnostic, 0)
+	inputs := state.getConfig(uri + ".inputs.json")
+	if inputs != nil && checkResult.GetErrorsCount() == 0 {
+		dbg := interpreter.NewDbgBuf()
+
+		_, err := interpreter.RunProgramWithDbg(
+			context.Background(),
+			checkResult.Program,
+			inputs.Variables,
+			interpreter.StaticStore{
+				Balances: inputs.Balances,
+				Meta:     inputs.Meta,
+			},
+			inputs.GetFeatureFlagsMap(),
+			&dbg,
+		)
+
+		doc.RunResult = &RunResult{
+			Hints: dbg.Hints,
+			Error: err,
+		}
+
+		if err != nil {
+			diagnostics = append(diagnostics, protocol.Diagnostic{
+				Message:  err.Error(),
+				Range:    *toLspRange(err.GetRange()),
+				Severity: protocol.DiagnosticSeverityError,
+			})
+		}
+	}
+
+	state.documents.Set(uri, doc)
+
 	for _, diagnostic := range checkResult.Diagnostics {
 		diagnostics = append(diagnostics, toLspDiagnostic(diagnostic))
 	}
@@ -212,7 +303,7 @@ func (state *State) handleGetInlayHints(params lsp_types_extra.InlayHintParams) 
 	file := state.getConfig(configFileUri)
 
 	k := lsp_types_extra.InlayHintKindType
-	hints := analysis.GetInlayHints(doc.CheckResult, file)
+	hints := analysis.GetInlayHints(doc.RunResult.Hints, doc.CheckResult, file)
 
 	var res []lsp_types_extra.InlayHint
 	for _, hint := range hints {
