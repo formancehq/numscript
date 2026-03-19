@@ -14,7 +14,7 @@ require (
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gkampitakis/ciinfo v0.3.3 // indirect
 	github.com/gkampitakis/go-diff v1.3.2 // indirect
