@@ -10,14 +10,14 @@ runs:
     - name: Install Nix
       uses: cachix/install-nix-action@v31
     - name: Cache dependencies
-      uses: nix-community/cache-nix-action@v6
+      uses: nix-community/cache-nix-action@v7
       with:
         primary-key: nix-${{ runner.os }}-${{ hashFiles('**/flake.nix', '**/flake.lock') }}
         restore-prefixes-first-match: nix-${{ runner.os }}-
     - name: Load dependencies
       shell: bash
       run: nix develop --install
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           ~/.cache/go-build
