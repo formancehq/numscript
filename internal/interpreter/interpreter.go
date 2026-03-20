@@ -215,6 +215,8 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
+	case analysis.FnVarOriginScoped:
+		return scoped(s, fnCall.Range, args)
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
@@ -248,7 +250,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 const accountSegmentRegex = "[a-zA-Z0-9_-]+"
 
-var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
+var accountNameRegex = regexp.MustCompile("^@?" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*(?:/[a-z_]+)?$")
 
 // https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
 func checkAccountName(addr string) bool {

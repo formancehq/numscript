@@ -54,13 +54,19 @@ func (StatementFnCallResolution) fnCallResolution() {}
 func (r VarOriginFnCallResolution) GetParams() []string { return r.Params }
 func (r StatementFnCallResolution) GetParams() []string { return r.Params }
 
-const FnSetTxMeta = "set_tx_meta"
-const FnSetAccountMeta = "set_account_meta"
-const FnVarOriginMeta = "meta"
-const FnVarOriginBalance = "balance"
-const FnVarOriginOverdraft = "overdraft"
-const FnVarOriginGetAsset = "get_asset"
-const FnVarOriginGetAmount = "get_amount"
+const (
+	// Statemetn fns
+	FnSetTxMeta      = "set_tx_meta"
+	FnSetAccountMeta = "set_account_meta"
+
+	// Expr fns
+	FnVarOriginMeta      = "meta"
+	FnVarOriginBalance   = "balance"
+	FnVarOriginOverdraft = "overdraft"
+	FnVarOriginGetAsset  = "get_asset"
+	FnVarOriginGetAmount = "get_amount"
+	FnVarOriginScoped    = "scoped"
+)
 
 var Builtins = map[string]FnCallResolution{
 	FnSetTxMeta: StatementFnCallResolution{
@@ -110,6 +116,17 @@ var Builtins = map[string]FnCallResolution{
 		VersionConstraints: []VersionClause{
 			{
 				Version:     parser.NewVersionInterpreter(0, 0, 16),
+				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginScoped: VarOriginFnCallResolution{
+		Params: []string{TypeAccount, TypeString},
+		Return: TypeAccount,
+		Docs:   "returns the scoped version of that account. Empty string means no scope. Overwrites the previous scope",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 25),
 				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
 			},
 		},

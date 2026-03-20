@@ -155,3 +155,30 @@ func getAmount(
 
 	return mon.Amount, nil
 }
+
+func scoped(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalScopedFunction)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	acc := parseArg(p, r, expectAccount)
+	scope := parseArg(p, r, expectString)
+	err = p.parse()
+
+	// Precondition: scope is valid idenfitier
+	if err != nil {
+		return nil, err
+	}
+
+	if !validateScope(*scope) {
+		return nil, InvalidScope{Scope: *scope}
+	}
+
+	return AccountAddress(appendScope(*acc, *scope)), nil
+}

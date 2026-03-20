@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "balances": {
+    "src/x": { "USD": 999 }
+  },
+  "featureFlags": [
+    "experimental-mid-script-function-call",
+    "experimental-scoped-function"
+  ],
+  "testCases": [
+    {
+      "it": "scopes the accounts",
+      "expect.postings": [
+        {
+          "source": "src/x",
+          "destination": "dest/y",
+          "amount": 10,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

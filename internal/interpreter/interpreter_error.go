@@ -277,3 +277,12 @@ type InvalidFeature struct {
 func (e InvalidFeature) Error() string {
 	return fmt.Sprintf("Invalid feature: %s", e.Feature)
 }
+
+type InvalidScope struct {
+	parser.Range
+	Scope string
+}
+
+func (e InvalidScope) Error() string {
+	return fmt.Sprintf("Invalid scope syntax: %s", e.Scope)
+}
