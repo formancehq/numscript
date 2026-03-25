@@ -147,8 +147,9 @@ func (*SourceWithScaling) source() {}
 
 type (
 	SourceAccount struct {
-		Color ValueExpr
-		ValueExpr
+		Range
+		Color     ValueExpr
+		ValueExpr ValueExpr
 	}
 
 	SourceInorder struct {

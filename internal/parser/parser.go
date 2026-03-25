@@ -194,6 +194,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	switch sourceCtx := sourceCtx.(type) {
 	case *antlrParser.SrcAccountContext:
 		return &SourceAccount{
+			Range:     range_,
 			Color:     parseColorConstraint(sourceCtx.ColorConstraint()),
 			ValueExpr: parseValueExpr(sourceCtx.ValueExpr()),
 		}
