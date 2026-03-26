@@ -8,13 +8,6 @@ import (
 
 type InvolvedAccountExpr interface{ involvedAccountExpr() }
 
-type AccountNamePart interface{ accountNamePart() }
-type AccountTextPart struct{ Name string }
-type AccountVariablePart struct{ Expr InvolvedAccountExpr }
-
-func (AccountTextPart) accountNamePart()     {}
-func (AccountVariablePart) accountNamePart() {}
-
 type (
 	AssetLiteral struct {
 		Asset string
