@@ -281,6 +281,11 @@ func ParsePercentageRatio(source string) (*big.Int, uint16, error) {
 		scale = len(source) - i - 1
 	}
 
+	// Validate scale is reasonable (max 18 decimal places)
+	if scale > 18 {
+		return nil, 0, fmt.Errorf("percentage has too many decimal places (%d), maximum is 18", scale)
+	}
+
 	intPart := strings.ReplaceAll(source, ".", "")
 	num, ok := new(big.Int).SetString(intPart, 10)
 	if !ok {
