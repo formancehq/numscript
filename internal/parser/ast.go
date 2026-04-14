@@ -319,7 +319,7 @@ type SendStatement struct {
 type SaveStatement struct {
 	Range
 	SentValue SentValue
-	Amount    ValueExpr
+	Account   ValueExpr
 }
 
 type TypeDecl struct {
