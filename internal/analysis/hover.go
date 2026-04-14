@@ -110,7 +110,7 @@ func hoverOnSaveStatement(saveStatement parser.SaveStatement, position parser.Po
 		return hover
 	}
 
-	hover = hoverOnExpression(saveStatement.Amount, position)
+	hover = hoverOnExpression(saveStatement.Account, position)
 	if hover != nil {
 		return hover
 	}

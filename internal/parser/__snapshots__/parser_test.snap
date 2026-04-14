@@ -2493,7 +2493,7 @@ parser.Program{
                     },
                 },
             },
-            Amount: &parser.AccountInterpLiteral{
+            Account: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:22, Line:1},
                     End:   parser.Position{Character:28, Line:1},
@@ -2531,7 +2531,7 @@ parser.Program{
                     Asset: "EUR/2",
                 },
             },
-            Amount: &parser.AccountInterpLiteral{
+            Account: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:20, Line:1},
                     End:   parser.Position{Character:26, Line:1},
@@ -2569,7 +2569,7 @@ parser.Program{
                     Name: "amt",
                 },
             },
-            Amount: &parser.Variable{
+            Account: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:15, Line:1},
                     End:   parser.Position{Character:19, Line:1},
