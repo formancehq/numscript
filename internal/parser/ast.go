@@ -147,8 +147,9 @@ func (*SourceWithScaling) source() {}
 
 type (
 	SourceAccount struct {
-		Color ValueExpr
-		ValueExpr
+		Range
+		Color     ValueExpr
+		ValueExpr ValueExpr
 	}
 
 	SourceInorder struct {
@@ -318,7 +319,7 @@ type SendStatement struct {
 type SaveStatement struct {
 	Range
 	SentValue SentValue
-	Amount    ValueExpr
+	Account   ValueExpr
 }
 
 type TypeDecl struct {
