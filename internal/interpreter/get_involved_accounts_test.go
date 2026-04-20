@@ -29,8 +29,11 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.AccountLiteral{Account:"src"},
         AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
-}`),
-		)
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+}`))
 	})
 
 	t.Run("simple (get var)", func(t *testing.T) {
@@ -49,8 +52,11 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.AccountLiteral{Account:"acc_value_after_subst"},
         AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
-}`),
-		)
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+}`))
 	})
 
 	t.Run("simple (account interp var)", func(t *testing.T) {
@@ -79,6 +85,10 @@ func TestGetInvolvedAccount(t *testing.T) {
             Right: interpreter.AccountLiteral{Account:"pending"},
         },
         AssetExpr: interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
 }`))
 	})
@@ -112,6 +122,10 @@ func TestGetInvolvedAccount(t *testing.T) {
             },
         },
         AssetExpr: interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
 }`))
 	})
@@ -153,6 +167,10 @@ func TestGetInvolvedAccount(t *testing.T) {
         },
         AssetExpr: interpreter.AssetLiteral{Asset:"USD/2"},
     },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
 }`))
 	})
 
@@ -179,6 +197,10 @@ func TestGetInvolvedAccount(t *testing.T) {
             Right: interpreter.AccountLiteral{Account:"pending"},
         },
         AssetExpr: interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
 }`))
 	})
@@ -221,6 +243,10 @@ func TestGetInvolvedAccount(t *testing.T) {
             },
         },
         AssetExpr: interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
 }`))
 	})
@@ -294,8 +320,11 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.AccountLiteral{Account:"acc"},
         AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
-}`),
-		)
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+}`))
 	})
 
 	t.Run("eval asset", func(t *testing.T) {
@@ -313,6 +342,14 @@ func TestGetInvolvedAccount(t *testing.T) {
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
     {
         AccountExpr: interpreter.AccountLiteral{Account:"acc"},
+        AssetExpr:   interpreter.FnMeta{
+            ExpectedType: "asset",
+            Account:      interpreter.AccountLiteral{Account:"acc"},
+            Key:          interpreter.StringLiteral{String:"k"},
+        },
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
         AssetExpr:   interpreter.FnMeta{
             ExpectedType: "asset",
             Account:      interpreter.AccountLiteral{Account:"acc"},
@@ -345,6 +382,53 @@ func TestGetInvolvedAccount(t *testing.T) {
                 Key:          interpreter.StringLiteral{String:"k"},
             },
         },
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"dest"},
+        AssetExpr:   interpreter.GetAsset{
+            Monetary: interpreter.FnMeta{
+                ExpectedType: "monetary",
+                Account:      interpreter.AccountLiteral{Account:"acc"},
+                Key:          interpreter.StringLiteral{String:"k"},
+            },
+        },
+    },
+}`))
+
+	})
+
+	t.Run("allotment in src and dest", func(t *testing.T) {
+
+		accs, _ := getInvolvedAccounts(t, interpreter.VariablesMap{}, `
+		send [USD/2 42] (
+			source = {
+				1/2 from @a1
+				remaining from @a2
+			}
+			destination = {
+				1/3 to @d1
+				1/3 kept
+				remaining to @d2
+			}
+		)
+	`)
+
+		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"a1"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"a2"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"d1"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"d2"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
 }`))
 

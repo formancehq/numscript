@@ -220,11 +220,13 @@ func (st *involvedAccountsAnalysisState) evalSendStmt(stmt parser.SendStatement)
 	case *parser.SentValueAll:
 		st.currentAsset = st.evalExpr(sentValue.Asset)
 		st.evalSrc(stmt.Source)
+		st.evalDest(stmt.Destination)
 
 	case *parser.SentValueLiteral:
 		monetary := st.evalExpr(sentValue.Monetary)
 		st.currentAsset = foldedGetAsset(monetary)
 		st.evalSrc(stmt.Source)
+		st.evalDest(stmt.Destination)
 	}
 }
 
@@ -480,6 +482,47 @@ func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) {
 
 	case *parser.SourceCapped:
 		st.evalSrc(source.From)
+
+	case *parser.SourceAllotment:
+		for _, acc := range source.Items {
+			st.evalSrc(acc.From)
+		}
+	}
+}
+
+func (st *involvedAccountsAnalysisState) evalDest(dest parser.Destination) {
+	switch dest := dest.(type) {
+
+	case *parser.DestinationAccount:
+		accountExpr := st.evalExpr(dest.ValueExpr)
+		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
+			AccountExpr: accountExpr,
+			AssetExpr:   st.currentAsset,
+		})
+
+	case *parser.DestinationInorder:
+		for _, clause := range dest.Clauses {
+			st.evalKeptOrDest(clause.To)
+		}
+
+	case *parser.DestinationOneof:
+		for _, acc := range dest.Clauses {
+			st.evalKeptOrDest(acc.To)
+		}
+
+	case *parser.DestinationAllotment:
+		for _, acc := range dest.Items {
+			st.evalKeptOrDest(acc.To)
+		}
+	}
+}
+
+func (st *involvedAccountsAnalysisState) evalKeptOrDest(keptOrDest parser.KeptOrDestination) {
+	switch keptOrDest := keptOrDest.(type) {
+	case *parser.DestinationKept:
+		// nothing to do here
+	case *parser.DestinationTo:
+		st.evalDest(keptOrDest.Destination)
 	}
 }
 
