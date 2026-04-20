@@ -434,4 +434,30 @@ func TestGetInvolvedAccount(t *testing.T) {
 
 	})
 
+	t.Run("many assets", func(t *testing.T) {
+
+		accs, _ := getInvolvedAccounts(t, interpreter.VariablesMap{}, `
+		send [USD/2 42] (
+			source = @a1
+			destination = { remaining kept}
+		)
+		send [EUR/2 42] (
+			source = @a2
+			destination = { remaining kept}
+		)
+	`)
+
+		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"a1"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
+    },
+    {
+        AccountExpr: interpreter.AccountLiteral{Account:"a2"},
+        AssetExpr:   interpreter.AssetLiteral{Asset:"EUR/2"},
+    },
+}`))
+
+	})
+
 }
