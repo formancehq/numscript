@@ -298,7 +298,7 @@ func TestGetInvolvedAccount(t *testing.T) {
 		)
 	})
 
-	t.Run("TODO descr", func(t *testing.T) {
+	t.Run("eval asset", func(t *testing.T) {
 
 		accs, _ := getInvolvedAccounts(t, interpreter.VariablesMap{}, `
 		vars {
@@ -323,7 +323,7 @@ func TestGetInvolvedAccount(t *testing.T) {
 
 	})
 
-	t.Run("TODO descr 2", func(t *testing.T) {
+	t.Run("eval asset as meta", func(t *testing.T) {
 
 		accs, _ := getInvolvedAccounts(t, interpreter.VariablesMap{}, `
 		vars {
