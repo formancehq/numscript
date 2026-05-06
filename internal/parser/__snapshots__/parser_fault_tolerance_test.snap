@@ -133,6 +133,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:13, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -291,6 +295,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -395,7 +403,7 @@ parser.Program{
                 End:   parser.Position{Character:4, Line:1},
             },
             SentValue: nil,
-            Amount:    nil,
+            Account:   nil,
         },
     },
     Comments: nil,
@@ -441,7 +449,7 @@ parser.Program{
                     },
                 },
             },
-            Amount: nil,
+            Account: nil,
         },
     },
     Comments: nil,
@@ -487,7 +495,7 @@ parser.Program{
                     },
                 },
             },
-            Amount: nil,
+            Account: nil,
         },
     },
     Comments: nil,

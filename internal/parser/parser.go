@@ -194,6 +194,7 @@ func parseSource(sourceCtx antlrParser.ISourceContext) Source {
 	switch sourceCtx := sourceCtx.(type) {
 	case *antlrParser.SrcAccountContext:
 		return &SourceAccount{
+			Range:     range_,
 			Color:     parseColorConstraint(sourceCtx.ColorConstraint()),
 			ValueExpr: parseValueExpr(sourceCtx.ValueExpr()),
 		}
@@ -563,7 +564,7 @@ func parseSaveStatement(saveCtx *antlrParser.SaveStatementContext) *SaveStatemen
 	return &SaveStatement{
 		Range:     ctxToRange(saveCtx),
 		SentValue: parseSentValue(saveCtx.SentValue()),
-		Amount:    parseValueExpr(saveCtx.ValueExpr()),
+		Account:    parseValueExpr(saveCtx.ValueExpr()),
 	}
 }
 

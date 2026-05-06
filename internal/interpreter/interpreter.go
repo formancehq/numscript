@@ -485,7 +485,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 		return err
 	}
 
-	account, err := evaluateExprAs(st, saveStatement.Amount, expectAccount)
+	account, err := evaluateExprAs(st, saveStatement.Account, expectAccount)
 	if err != nil {
 		return err
 	}

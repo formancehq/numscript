@@ -38,6 +38,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -106,6 +110,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:27, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.Variable{
                     Range: parser.Range{
@@ -210,6 +218,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:22, Line:1},
+                                End:   parser.Position{Character:25, Line:1},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -305,6 +317,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:13, Line:2},
+                                End:   parser.Position{Character:16, Line:2},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -352,6 +368,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:10, Line:3},
+                                End:   parser.Position{Character:13, Line:3},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -376,6 +396,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:16, Line:4},
+                                End:   parser.Position{Character:19, Line:4},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -471,6 +495,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:24, Line:1},
+                                End:   parser.Position{Character:26, Line:1},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -542,6 +570,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -660,6 +692,10 @@ parser.Program{
                     End:   parser.Position{Character:35, Line:1},
                 },
                 From: &parser.SourceAccount{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:31, Line:1},
+                        End:   parser.Position{Character:35, Line:1},
+                    },
                     Color:     nil,
                     ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
@@ -757,6 +793,10 @@ parser.Program{
                     End:   parser.Position{Character:32, Line:1},
                 },
                 From: &parser.SourceAccount{
+                    Range: parser.Range{
+                        Start: parser.Position{Character:28, Line:1},
+                        End:   parser.Position{Character:32, Line:1},
+                    },
                     Color:     nil,
                     ValueExpr: &parser.AccountInterpLiteral{
                         Range: parser.Range{
@@ -844,6 +884,10 @@ parser.Program{
                             End:   parser.Position{Character:27, Line:2},
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:23, Line:2},
+                                End:   parser.Position{Character:27, Line:2},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -880,6 +924,10 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:3},
+                            End:   parser.Position{Character:3, Line:3},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -892,6 +940,10 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:1, Line:4},
+                            End:   parser.Position{Character:3, Line:4},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -962,6 +1014,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:27, Line:1},
+                    End:   parser.Position{Character:31, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -1020,6 +1076,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:27, Line:2},
+                    End:   parser.Position{Character:31, Line:2},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -1123,6 +1183,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -1191,6 +1255,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -1349,6 +1417,10 @@ parser.Program{
                             },
                         },
                         From: &parser.SourceAccount{
+                            Range: parser.Range{
+                                Start: parser.Position{Character:9, Line:2},
+                                End:   parser.Position{Character:11, Line:2},
+                            },
                             Color:     nil,
                             ValueExpr: &parser.AccountInterpLiteral{
                                 Range: parser.Range{
@@ -1839,6 +1911,10 @@ parser.Program{
                 },
                 Sources: {
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:13, Line:1},
+                            End:   parser.Position{Character:16, Line:1},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -1851,6 +1927,10 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:17, Line:1},
+                            End:   parser.Position{Character:20, Line:1},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -1905,6 +1985,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -2028,6 +2112,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:1},
+                    End:   parser.Position{Character:12, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -2096,6 +2184,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:13, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -2186,6 +2278,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:2},
+                    End:   parser.Position{Character:17, Line:2},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -2326,6 +2422,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:15, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -2393,7 +2493,7 @@ parser.Program{
                     },
                 },
             },
-            Amount: &parser.AccountInterpLiteral{
+            Account: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:22, Line:1},
                     End:   parser.Position{Character:28, Line:1},
@@ -2431,7 +2531,7 @@ parser.Program{
                     Asset: "EUR/2",
                 },
             },
-            Amount: &parser.AccountInterpLiteral{
+            Account: &parser.AccountInterpLiteral{
                 Range: parser.Range{
                     Start: parser.Position{Character:20, Line:1},
                     End:   parser.Position{Character:26, Line:1},
@@ -2469,7 +2569,7 @@ parser.Program{
                     Name: "amt",
                 },
             },
-            Amount: &parser.Variable{
+            Account: &parser.Variable{
                 Range: parser.Range{
                     Start: parser.Position{Character:15, Line:1},
                     End:   parser.Position{Character:19, Line:1},
@@ -2842,6 +2942,10 @@ parser.Program{
                 },
                 Sources: {
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:19, Line:1},
+                            End:   parser.Position{Character:22, Line:1},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -2854,6 +2958,10 @@ parser.Program{
                         },
                     },
                     &parser.SourceAccount{
+                        Range: parser.Range{
+                            Start: parser.Position{Character:23, Line:1},
+                            End:   parser.Position{Character:26, Line:1},
+                        },
                         Color:     nil,
                         ValueExpr: &parser.AccountInterpLiteral{
                             Range: parser.Range{
@@ -2908,6 +3016,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:10, Line:1},
+                    End:   parser.Position{Character:12, Line:1},
+                },
                 Color:     nil,
                 ValueExpr: &parser.AccountInterpLiteral{
                     Range: parser.Range{
@@ -3463,6 +3575,10 @@ parser.Program{
                 },
             },
             Source: &parser.SourceAccount{
+                Range: parser.Range{
+                    Start: parser.Position{Character:11, Line:1},
+                    End:   parser.Position{Character:21, Line:1},
+                },
                 Color: &parser.StringLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:16, Line:1},
