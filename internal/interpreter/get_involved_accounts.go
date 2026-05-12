@@ -90,7 +90,6 @@ type InvolvedMeta struct {
 }
 
 type involvedAccountsAnalysisState struct {
-	vars             VariablesMap
 	evaluatedVars    map[string]InvolvedAccountExpr
 	currentAsset     InvolvedAccountExpr
 	involvedAccounts []InvolvedAccount
