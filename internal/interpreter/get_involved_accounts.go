@@ -130,36 +130,45 @@ func parseVarToInvolvedAccount(type_ string, rawValue string, r parser.Range) (I
 		return Div{Left: left, Right: right}, nil
 	}
 
-	// TODO(bad_path)
-	panic("TODO invalid val")
+	return nil, InvalidTypeErr{Range: r, Name: fmt.Sprintf("%T", val)}
 }
 
-func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedAccount, []InvolvedMeta) {
+func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedAccount, []InvolvedMeta, InterpreterError) {
 	st := involvedAccountsAnalysisState{
 		evaluatedVars: make(map[string]InvolvedAccountExpr),
 	}
 	if program.Vars != nil {
-		st.parseVars(program.Vars.Declarations, vars)
+		if err := st.parseVars(program.Vars.Declarations, vars); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	for _, stmt := range program.Statements {
 		switch stmt := stmt.(type) {
 		case *parser.SendStatement:
-			st.evalSendStmt(*stmt)
+			if err := st.evalSendStmt(*stmt); err != nil {
+				return nil, nil, err
+			}
 
 		case *parser.SaveStatement:
-			st.evalSaveStmt(*stmt)
+			if err := st.evalSaveStmt(*stmt); err != nil {
+				return nil, nil, err
+			}
 
 		case *parser.FnCall:
 			switch stmt.Caller.Name {
 			case analysis.FnSetTxMeta:
-				// TODO(check)
 				// can we ignore this ?
 
 			case analysis.FnSetAccountMeta:
-				acc := st.evalExpr(stmt.Args[0])
-				key := st.evalExpr(stmt.Args[1])
-
+				acc, err := st.evalExpr(stmt.Args[0])
+				if err != nil {
+					return nil, nil, err
+				}
+				key, err := st.evalExpr(stmt.Args[1])
+				if err != nil {
+					return nil, nil, err
+				}
 				st.involvedMeta = append(st.involvedMeta, InvolvedMeta{
 					Account: acc,
 					Key:     key,
@@ -168,7 +177,7 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 		}
 	}
 
-	return st.involvedAccounts, st.involvedMeta
+	return st.involvedAccounts, st.involvedMeta, nil
 }
 
 func (s *involvedAccountsAnalysisState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) InterpreterError {
@@ -185,65 +194,87 @@ func (s *involvedAccountsAnalysisState) parseVars(varDeclrs []parser.VarDeclarat
 			}
 			s.evaluatedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value := s.evalVar(*varsDecl.Origin, varsDecl.Type.Name)
+			value, err := s.evalVar(*varsDecl.Origin, varsDecl.Type.Name)
+			if err != nil {
+				return err
+			}
 			s.evaluatedVars[varsDecl.Name.Name] = value
 		}
 	}
 	return nil
 }
 
-func (st *involvedAccountsAnalysisState) evalSaveStmt(stmt parser.SaveStatement) {
-	account := st.evalExpr(stmt.Account)
+func (st *involvedAccountsAnalysisState) evalSaveStmt(stmt parser.SaveStatement) InterpreterError {
+	account, err := st.evalExpr(stmt.Account)
+	if err != nil {
+		return err
+	}
 
 	switch sentValue := stmt.SentValue.(type) {
 	case *parser.SentValueAll:
-		asset := st.evalExpr(sentValue.Asset)
-
+		asset, err := st.evalExpr(sentValue.Asset)
+		if err != nil {
+			return err
+		}
 		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 			AccountExpr: account,
 			AssetExpr:   asset,
 		})
 
 	case *parser.SentValueLiteral:
-		monetary := st.evalExpr(sentValue.Monetary)
+		monetary, err := st.evalExpr(sentValue.Monetary)
+		if err != nil {
+			return err
+		}
 		asset := foldedGetAsset(monetary)
-
 		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 			AccountExpr: account,
 			AssetExpr:   asset,
 		})
 	}
+	return nil
 }
 
-func (st *involvedAccountsAnalysisState) evalSendStmt(stmt parser.SendStatement) {
+func (st *involvedAccountsAnalysisState) evalSendStmt(stmt parser.SendStatement) InterpreterError {
 	switch sentValue := stmt.SentValue.(type) {
 	case *parser.SentValueAll:
-		st.currentAsset = st.evalExpr(sentValue.Asset)
-		st.evalSrc(stmt.Source)
-		st.evalDest(stmt.Destination)
+		asset, err := st.evalExpr(sentValue.Asset)
+		if err != nil {
+			return err
+		}
+		st.currentAsset = asset
+		if err := st.evalSrc(stmt.Source); err != nil {
+			return err
+		}
+		return st.evalDest(stmt.Destination)
 
 	case *parser.SentValueLiteral:
-		monetary := st.evalExpr(sentValue.Monetary)
+		monetary, err := st.evalExpr(sentValue.Monetary)
+		if err != nil {
+			return err
+		}
 		st.currentAsset = foldedGetAsset(monetary)
-		st.evalSrc(stmt.Source)
-		st.evalDest(stmt.Destination)
+		if err := st.evalSrc(stmt.Source); err != nil {
+			return err
+		}
+		return st.evalDest(stmt.Destination)
 	}
+	return nil
 }
 
-func (st involvedAccountsAnalysisState) evalAccountNamePart(part parser.AccountNamePart) InvolvedAccountExpr {
+func (st involvedAccountsAnalysisState) evalAccountNamePart(part parser.AccountNamePart) (InvolvedAccountExpr, InterpreterError) {
 	switch part := part.(type) {
 	case parser.AccountTextPart:
-		return AccountLiteral{Account: part.Name}
+		return AccountLiteral{Account: part.Name}, nil
 	case *parser.Variable:
 		expr, ok := st.evaluatedVars[part.Name]
 		if !ok {
-			// TODO(bad_path)
-			panic("TODO unbound var")
+			return nil, UnboundVariableErr{Range: part.Range, Name: part.Name}
 		}
-		return expr
+		return expr, nil
 	}
 
-	return nil
+	return nil, InvalidTypeErr{Range: parser.Range{}, Name: fmt.Sprintf("%T", part)}
 }
 
 // Constant folding for the Add{} node.
@@ -277,18 +308,23 @@ func foldedGetAmount(expr InvolvedAccountExpr) InvolvedAccountExpr {
 	}
 }
 
-func (st *involvedAccountsAnalysisState) evalVar(expr parser.ValueExpr, typ string) InvolvedAccountExpr {
+func (st *involvedAccountsAnalysisState) evalVar(expr parser.ValueExpr, typ string) (InvolvedAccountExpr, InterpreterError) {
 	switch expr := expr.(type) {
 	case *parser.FnCall:
 		switch expr.Caller.Name {
 		case analysis.FnVarOriginMeta:
 			if len(expr.Args) != 2 {
-				// TODO(bad_path)
-				panic("TODO invalid args")
+				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
 
-			acc := st.evalExpr(expr.Args[0])
-			key := st.evalExpr(expr.Args[1])
+			acc, err := st.evalExpr(expr.Args[0])
+			if err != nil {
+				return nil, err
+			}
+			key, err := st.evalExpr(expr.Args[1])
+			if err != nil {
+				return nil, err
+			}
 
 			st.involvedMeta = append(st.involvedMeta, InvolvedMeta{
 				Account: acc,
@@ -299,77 +335,87 @@ func (st *involvedAccountsAnalysisState) evalVar(expr parser.ValueExpr, typ stri
 				ExpectedType: typ,
 				Account:      acc,
 				Key:          key,
-			}
+			}, nil
 		}
 	}
 
 	return st.evalExpr(expr)
 }
 
-func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) InvolvedAccountExpr {
+func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (InvolvedAccountExpr, InterpreterError) {
 	switch expr := expr.(type) {
 	case *parser.AccountInterpLiteral:
-
 		var acc InvolvedAccountExpr
 		for _, part := range expr.Parts {
-			partExpr := st.evalAccountNamePart(part)
+			partExpr, err := st.evalAccountNamePart(part)
+			if err != nil {
+				return nil, err
+			}
 			if acc == nil {
 				acc = partExpr
 			} else {
 				acc = foldedAdd(acc, partExpr)
 			}
 		}
-		return acc
+		return acc, nil
 
 	case *parser.AssetLiteral:
-		return AssetLiteral{Asset: expr.Asset}
+		return AssetLiteral{Asset: expr.Asset}, nil
 
 	case *parser.Variable:
 		varLookup, ok := st.evaluatedVars[expr.Name]
 		if !ok {
-			// TODO(bad_path)
-			fmt.Printf("Var: %s, all vars: %#v\n\n\n", expr.Name, st.evaluatedVars)
-			panic("TODO unbound var")
+			return nil, UnboundVariableErr{Range: expr.Range, Name: expr.Name}
 		}
-		return varLookup
+		return varLookup, nil
 
 	case *parser.NumberLiteral:
-		return NumberLiteral{Amount: expr.Number}
+		return NumberLiteral{Amount: expr.Number}, nil
 
 	case *parser.MonetaryLiteral:
-		evalAmt := st.evalExpr(expr.Amount)
-		evalAsset := st.evalExpr(expr.Asset)
-		return MakeMonetary{Amount: evalAmt, Asset: evalAsset}
+		evalAmt, err := st.evalExpr(expr.Amount)
+		if err != nil {
+			return nil, err
+		}
+		evalAsset, err := st.evalExpr(expr.Asset)
+		if err != nil {
+			return nil, err
+		}
+		return MakeMonetary{Amount: evalAmt, Asset: evalAsset}, nil
 
 	case *parser.StringLiteral:
-		return StringLiteral{String: expr.String}
+		return StringLiteral{String: expr.String}, nil
 
 	case *parser.Prefix:
-		evalExpr := st.evalExpr(expr.Expr)
+		inner, err := st.evalExpr(expr.Expr)
+		if err != nil {
+			return nil, err
+		}
 		switch expr.Operator {
 		case parser.PrefixOperatorMinus:
-			return SubPrefix{Expr: evalExpr}
+			return SubPrefix{Expr: inner}, nil
 		default:
-			// TODO(bad_path)
-			panic("TODO invalid op")
+			return nil, InvalidOperatorErr{Range: expr.Range, Operator: string(expr.Operator)}
 		}
 
 	case *parser.BinaryInfix:
-		evalLeft := st.evalExpr(expr.Left)
-		evalRight := st.evalExpr(expr.Right)
+		evalLeft, err := st.evalExpr(expr.Left)
+		if err != nil {
+			return nil, err
+		}
+		evalRight, err := st.evalExpr(expr.Right)
+		if err != nil {
+			return nil, err
+		}
 		switch expr.Operator {
 		case parser.InfixOperatorMinus:
-			return Sub{Left: evalLeft, Right: evalRight}
-
+			return Sub{Left: evalLeft, Right: evalRight}, nil
 		case parser.InfixOperatorDiv:
-			return Div{Left: evalLeft, Right: evalRight}
-
+			return Div{Left: evalLeft, Right: evalRight}, nil
 		case parser.InfixOperatorPlus:
-			return Add{Left: evalLeft, Right: evalRight}
-
+			return Add{Left: evalLeft, Right: evalRight}, nil
 		default:
-			// TODO(bad_path)
-			panic("TODO invalid op")
+			return nil, InvalidOperatorErr{Range: expr.Range, Operator: string(expr.Operator)}
 		}
 
 	case *parser.PercentageLiteral:
@@ -377,94 +423,119 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) Involve
 		return Div{
 			Left:  NumberLiteral{rat.Num()},
 			Right: NumberLiteral{rat.Denom()},
-		}
+		}, nil
 
 	case *parser.FnCall:
 		switch expr.Caller.Name {
 		case analysis.FnVarOriginMeta:
-			// TODO(bad_path)
-			panic("TODO invalid nested fn call")
+			return nil, InvalidNestedMeta{Range: expr.Range}
 
 		case analysis.FnVarOriginOverdraft:
 			if len(expr.Args) != 2 {
-				// TODO(bad_path)
-				panic("TODO invalid args")
+				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
-
-			acc := st.evalExpr(expr.Args[0])
-			expr := st.evalExpr(expr.Args[1])
+			acc, err := st.evalExpr(expr.Args[0])
+			if err != nil {
+				return nil, err
+			}
+			asset, err := st.evalExpr(expr.Args[1])
+			if err != nil {
+				return nil, err
+			}
 			st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 				AccountExpr: acc,
-				AssetExpr:   expr,
+				AssetExpr:   asset,
 			})
 			return GetOverdraft{
 				Account: acc,
-				Asset:   expr,
-			}
+				Asset:   asset,
+			}, nil
 
 		case analysis.FnVarOriginBalance:
 			if len(expr.Args) != 2 {
-				// TODO(bad_path)
-				panic("TODO invalid args")
+				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
-
-			acc := st.evalExpr(expr.Args[0])
-			expr := st.evalExpr(expr.Args[1])
+			acc, err := st.evalExpr(expr.Args[0])
+			if err != nil {
+				return nil, err
+			}
+			asset, err := st.evalExpr(expr.Args[1])
+			if err != nil {
+				return nil, err
+			}
 			st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 				AccountExpr: acc,
-				AssetExpr:   expr,
+				AssetExpr:   asset,
 			})
 			return GetBalance{
 				Account: acc,
-				Asset:   expr,
-			}
+				Asset:   asset,
+			}, nil
 
 		case analysis.FnVarOriginGetAmount:
 			if len(expr.Args) != 1 {
-				// TODO(bad_path)
-				panic("TODO invalid args")
+				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 1, GivenArguments: len(expr.Args)}
 			}
-
-			monetary := st.evalExpr(expr.Args[0])
-			return foldedGetAmount(monetary)
+			monetary, err := st.evalExpr(expr.Args[0])
+			if err != nil {
+				return nil, err
+			}
+			return foldedGetAmount(monetary), nil
 
 		case analysis.FnVarOriginGetAsset:
 			if len(expr.Args) != 1 {
-				// TODO(bad_path)
-				panic("TODO invalid args")
+				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 1, GivenArguments: len(expr.Args)}
 			}
-			monetary := st.evalExpr(expr.Args[0])
-			return foldedGetAsset(monetary)
+			monetary, err := st.evalExpr(expr.Args[0])
+			if err != nil {
+				return nil, err
+			}
+			return foldedGetAsset(monetary), nil
 
 		default:
-			// TODO(bad_path)
-			panic("TODO unimplmeented")
+			return nil, UnboundFunctionErr{Range: expr.Range, Name: expr.Caller.Name}
 		}
 
 	default:
-		// TODO(bad_path)
-		fmt.Printf("TODO: eval %#v\n", expr)
-		panic("TODO impl evalExpr")
+		return nil, InvalidTypeErr{Range: expr.GetRange(), Name: fmt.Sprintf("%T", expr)}
 	}
-
 }
 
-func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) {
+func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceWithScaling:
-		// TODO(impl)
-		panic("TODO unimplemented")
+		addrExpr, err := st.evalExpr(source.Address)
+		if err != nil {
+			return err
+		}
+		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
+			AccountExpr: addrExpr,
+			AssetExpr:   st.currentAsset,
+		})
+		throughExpr, err := st.evalExpr(source.Through)
+		if err != nil {
+			return err
+		}
+		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
+			AccountExpr: throughExpr,
+			AssetExpr:   st.currentAsset,
+		})
 
 	case *parser.SourceOverdraft:
-		// TODO(check) do we skip this?
-		accountExpr := st.evalExpr(source.Address)
+		accountExpr, err := st.evalExpr(source.Address)
+		if err != nil {
+			return err
+		}
 		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 			AccountExpr: accountExpr,
 			AssetExpr:   st.currentAsset,
 		})
 
 	case *parser.SourceAccount:
-		accountExpr := st.evalExpr(source.ValueExpr)
+		accountExpr, err := st.evalExpr(source.ValueExpr)
+		if err != nil {
+			return err
+		}
 		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 			AccountExpr: accountExpr,
 			AssetExpr:   st.currentAsset,
@@ -472,29 +543,38 @@ func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) {
 
 	case *parser.SourceInorder:
 		for _, acc := range source.Sources {
-			st.evalSrc(acc)
+			if err := st.evalSrc(acc); err != nil {
+				return err
+			}
 		}
 
 	case *parser.SourceOneof:
 		for _, acc := range source.Sources {
-			st.evalSrc(acc)
+			if err := st.evalSrc(acc); err != nil {
+				return err
+			}
 		}
 
 	case *parser.SourceCapped:
-		st.evalSrc(source.From)
+		return st.evalSrc(source.From)
 
 	case *parser.SourceAllotment:
 		for _, acc := range source.Items {
-			st.evalSrc(acc.From)
+			if err := st.evalSrc(acc.From); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-func (st *involvedAccountsAnalysisState) evalDest(dest parser.Destination) {
+func (st *involvedAccountsAnalysisState) evalDest(dest parser.Destination) InterpreterError {
 	switch dest := dest.(type) {
-
 	case *parser.DestinationAccount:
-		accountExpr := st.evalExpr(dest.ValueExpr)
+		accountExpr, err := st.evalExpr(dest.ValueExpr)
+		if err != nil {
+			return err
+		}
 		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
 			AccountExpr: accountExpr,
 			AssetExpr:   st.currentAsset,
@@ -502,28 +582,36 @@ func (st *involvedAccountsAnalysisState) evalDest(dest parser.Destination) {
 
 	case *parser.DestinationInorder:
 		for _, clause := range dest.Clauses {
-			st.evalKeptOrDest(clause.To)
+			if err := st.evalKeptOrDest(clause.To); err != nil {
+				return err
+			}
 		}
 
 	case *parser.DestinationOneof:
 		for _, acc := range dest.Clauses {
-			st.evalKeptOrDest(acc.To)
+			if err := st.evalKeptOrDest(acc.To); err != nil {
+				return err
+			}
 		}
 
 	case *parser.DestinationAllotment:
 		for _, acc := range dest.Items {
-			st.evalKeptOrDest(acc.To)
+			if err := st.evalKeptOrDest(acc.To); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-func (st *involvedAccountsAnalysisState) evalKeptOrDest(keptOrDest parser.KeptOrDestination) {
+func (st *involvedAccountsAnalysisState) evalKeptOrDest(keptOrDest parser.KeptOrDestination) InterpreterError {
 	switch keptOrDest := keptOrDest.(type) {
 	case *parser.DestinationKept:
 		// nothing to do here
 	case *parser.DestinationTo:
-		st.evalDest(keptOrDest.Destination)
+		return st.evalDest(keptOrDest.Destination)
 	}
+	return nil
 }
 
 type isValidCallState struct {

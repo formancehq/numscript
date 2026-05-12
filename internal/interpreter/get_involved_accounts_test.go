@@ -10,9 +10,20 @@ import (
 )
 
 func getInvolvedAccounts(t *testing.T, vars interpreter.VariablesMap, src string) ([]interpreter.InvolvedAccount, []interpreter.InvolvedMeta) {
+	t.Helper()
 	out := parser.Parse(src)
 	require.Empty(t, out.Errors)
-	return interpreter.GetInvolvedAccounts(vars, out.Value)
+	accs, meta, err := interpreter.GetInvolvedAccounts(vars, out.Value)
+	require.NoError(t, err)
+	return accs, meta
+}
+
+func getInvolvedAccountsErr(t *testing.T, vars interpreter.VariablesMap, src string) interpreter.InterpreterError {
+	t.Helper()
+	out := parser.Parse(src)
+	_, _, err := interpreter.GetInvolvedAccounts(vars, out.Value)
+	require.Error(t, err)
+	return err
 }
 
 func TestGetInvolvedAccount(t *testing.T) {
@@ -460,4 +471,57 @@ func TestGetInvolvedAccount(t *testing.T) {
 
 	})
 
+}
+
+func TestGetInvolvedAccountsErrors(t *testing.T) {
+	t.Run("missing variable", func(t *testing.T) {
+		err := getInvolvedAccountsErr(t, interpreter.VariablesMap{}, `
+		vars { account $acc }
+		send [USD/2 *] (
+			source = $acc
+			destination = @dest
+		)
+	`)
+		var target interpreter.MissingVariableErr
+		require.ErrorAs(t, err, &target)
+		require.Equal(t, "acc", target.Name)
+	})
+
+	t.Run("invalid variable value", func(t *testing.T) {
+		err := getInvolvedAccountsErr(t, interpreter.VariablesMap{"acc": "not a valid account!!"}, `
+		vars { account $acc }
+		send [USD/2 *] (
+			source = $acc
+			destination = @dest
+		)
+	`)
+		var target interpreter.InvalidAccountName
+		require.ErrorAs(t, err, &target)
+	})
+
+	t.Run("nested meta in var origin args", func(t *testing.T) {
+		// meta() as an argument to another meta() hits InvalidNestedMeta in evalExpr
+		err := getInvolvedAccountsErr(t, interpreter.VariablesMap{}, `
+		vars { string $x = meta(@a, meta(@b, "k")) }
+	`)
+		var target interpreter.InvalidNestedMeta
+		require.ErrorAs(t, err, &target)
+	})
+
+	t.Run("unbound variable in account interpolation", func(t *testing.T) {
+		// $undeclared is used in source but not declared in vars block;
+		// parser reports no error (it's syntactically valid), but
+		// GetInvolvedAccounts returns UnboundVariableErr.
+		out := parser.Parse(`
+		send [USD/2 *] (
+			source = @user:$undeclared:end
+			destination = @dest
+		)
+	`)
+		_, _, err := interpreter.GetInvolvedAccounts(interpreter.VariablesMap{}, out.Value)
+		require.Error(t, err)
+		var target interpreter.UnboundVariableErr
+		require.ErrorAs(t, err, &target)
+		require.Equal(t, "undeclared", target.Name)
+	})
 }
