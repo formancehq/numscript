@@ -85,13 +85,19 @@ func TestGetInvolvedAccount(t *testing.T) {
     {
         AccountExpr: interpreter.Add{
             Left: interpreter.Add{
-                Left:  interpreter.AccountLiteral{Account:"user"},
-                Right: interpreter.NumberLiteral{
-                    Amount: &big.Int{
-                        neg: false,
-                        abs: {0x2a},
+                Left: interpreter.Add{
+                    Left: interpreter.Add{
+                        Left:  interpreter.AccountLiteral{Account:"user"},
+                        Right: interpreter.AccountLiteral{Account:":"},
+                    },
+                    Right: interpreter.NumberLiteral{
+                        Amount: &big.Int{
+                            neg: false,
+                            abs: {0x2a},
+                        },
                     },
                 },
+                Right: interpreter.AccountLiteral{Account:":"},
             },
             Right: interpreter.AccountLiteral{Account:"pending"},
         },
@@ -198,12 +204,18 @@ func TestGetInvolvedAccount(t *testing.T) {
     {
         AccountExpr: interpreter.Add{
             Left: interpreter.Add{
-                Left:  interpreter.AccountLiteral{Account:"user"},
-                Right: interpreter.FnMeta{
-                    ExpectedType: "account",
-                    Account:      interpreter.AccountLiteral{Account:"acc"},
-                    Key:          interpreter.StringLiteral{String:"k"},
+                Left: interpreter.Add{
+                    Left: interpreter.Add{
+                        Left:  interpreter.AccountLiteral{Account:"user"},
+                        Right: interpreter.AccountLiteral{Account:":"},
+                    },
+                    Right: interpreter.FnMeta{
+                        ExpectedType: "account",
+                        Account:      interpreter.AccountLiteral{Account:"acc"},
+                        Key:          interpreter.StringLiteral{String:"k"},
+                    },
                 },
+                Right: interpreter.AccountLiteral{Account:":"},
             },
             Right: interpreter.AccountLiteral{Account:"pending"},
         },
@@ -295,7 +307,10 @@ func TestGetInvolvedAccount(t *testing.T) {
 		snaps.MatchInlineSnapshot(t, meta, snaps.Inline(`[]interpreter.InvolvedMeta{
     {
         Account: interpreter.Add{
-            Left:  interpreter.AccountLiteral{Account:"user"},
+            Left: interpreter.Add{
+                Left:  interpreter.AccountLiteral{Account:"user"},
+                Right: interpreter.AccountLiteral{Account:":"},
+            },
             Right: interpreter.GetAmount{
                 Monetary: interpreter.GetBalance{
                     Account: interpreter.AccountLiteral{Account:"acc"},
