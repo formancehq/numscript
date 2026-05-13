@@ -157,7 +157,7 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 		case *parser.FnCall:
 			switch stmt.Caller.Name {
 			case analysis.FnSetTxMeta:
-				// can we ignore this ?
+				// we can safely ignore this
 
 			case analysis.FnSetAccountMeta:
 				acc, err := st.evalExpr(stmt.Args[0])
