@@ -588,12 +588,18 @@ func (st *involvedAccountsAnalysisState) evalDest(dest parser.Destination) Inter
 				return err
 			}
 		}
+		if err := st.evalKeptOrDest(dest.Remaining); err != nil {
+			return err
+		}
 
 	case *parser.DestinationOneof:
 		for _, acc := range dest.Clauses {
 			if err := st.evalKeptOrDest(acc.To); err != nil {
 				return err
 			}
+		}
+		if err := st.evalKeptOrDest(dest.Remaining); err != nil {
+			return err
 		}
 
 	case *parser.DestinationAllotment:
