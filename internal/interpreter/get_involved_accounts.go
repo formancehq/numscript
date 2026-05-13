@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -506,24 +507,13 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceWithScaling:
-		addrExpr, err := st.evalExpr(source.Address)
-		if err != nil {
-			return err
-		}
-		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
-			AccountExpr: addrExpr,
-			AssetExpr:   st.currentAsset,
-		})
-		throughExpr, err := st.evalExpr(source.Through)
-		if err != nil {
-			return err
-		}
-		st.involvedAccounts = append(st.involvedAccounts, InvolvedAccount{
-			AccountExpr: throughExpr,
-			AssetExpr:   st.currentAsset,
-		})
+		return ExperimentalFeature{FlagName: flags.AssetScaling}
 
 	case *parser.SourceOverdraft:
+		if source.Color != nil {
+			return ExperimentalFeature{FlagName: flags.AssetScaling}
+		}
+
 		accountExpr, err := st.evalExpr(source.Address)
 		if err != nil {
 			return err
@@ -534,6 +524,10 @@ func (st *involvedAccountsAnalysisState) evalSrc(source parser.Source) Interpret
 		})
 
 	case *parser.SourceAccount:
+		if source.Color != nil {
+			return ExperimentalFeature{FlagName: flags.AssetScaling}
+		}
+
 		accountExpr, err := st.evalExpr(source.ValueExpr)
 		if err != nil {
 			return err
