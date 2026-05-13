@@ -341,15 +341,21 @@ func parseValueExpr(valueExprCtx antlrParser.IValueExprContext) ValueExpr {
 		litRng := ctxToRange(valueExprCtx)
 
 		var parts []AccountNamePart
-		for _, accLit := range valueExprCtx.AllAccountLiteralPart() {
-			varPartText := accLit.GetText()
+		for _, accLit := range valueExprCtx.GetChildren() {
 			switch accLit := accLit.(type) {
 			case *antlrParser.AccountTextPartContext:
+				varPartText := accLit.GetText()
 				parts = append(parts, AccountTextPart{Name: varPartText})
 			case *antlrParser.AccountVarPartContext:
 				v := parseVarLiteral(accLit.VARIABLE_NAME_ACC().GetSymbol())
 				parts = append(parts, v)
+
+			case antlr.TerminalNode:
+				if accLit.GetSymbol().GetTokenType() == antlrParser.NumscriptParserCOLON {
+					parts = append(parts, AccountTextPart{Name: ":"})
+				}
 			}
+
 		}
 
 		return &AccountInterpLiteral{
