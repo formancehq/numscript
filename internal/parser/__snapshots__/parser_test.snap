@@ -2246,6 +2246,7 @@ parser.Program{
                                     },
                                     Parts: {
                                         parser.AccountTextPart{Name:"player"},
+                                        parser.AccountTextPart{Name:":"},
                                         parser.AccountTextPart{Name:"1"},
                                     },
                                 },
@@ -3243,7 +3244,9 @@ parser.Program{
                     },
                     Parts: {
                         parser.AccountTextPart{Name:"abc"},
+                        parser.AccountTextPart{Name:":"},
                         parser.AccountTextPart{Name:"cde"},
+                        parser.AccountTextPart{Name:":"},
                         &parser.Variable{
                             Range: parser.Range{
                                 Start: parser.Position{Character:21, Line:0},

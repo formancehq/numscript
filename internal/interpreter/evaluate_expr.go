@@ -36,7 +36,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 				parts = append(parts, strValue)
 			}
 		}
-		name := strings.Join(parts, ":")
+		name := strings.Join(parts, "")
 		return NewAccountAddress(name)
 
 	case *parser.StringLiteral:

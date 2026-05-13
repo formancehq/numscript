@@ -127,7 +127,7 @@ func (expr AccountInterpLiteral) String() string {
 			parts = append(parts, "$"+part.Name)
 		}
 	}
-	return strings.Join(parts, ":")
+	return strings.Join(parts, "")
 }
 
 // Source exprs
