@@ -160,6 +160,9 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 				// we can safely ignore this
 
 			case analysis.FnSetAccountMeta:
+				if len(stmt.Args) != 2 {
+					return nil, nil, BadArityErr{Range: stmt.Range, ExpectedArity: 2, GivenArguments: len(stmt.Args)}
+				}
 				acc, err := st.evalExpr(stmt.Args[0])
 				if err != nil {
 					return nil, nil, err
