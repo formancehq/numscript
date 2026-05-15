@@ -154,6 +154,26 @@ func TestGetInvolvedAccount(t *testing.T) {
     {
         Account: interpreter.AccountLiteral{Account:"acc"},
         Key:     interpreter.StringLiteral{String:"k"},
+        Write:   nil,
+    },
+}`))
+		snaps.MatchInlineSnapshot(t, accs, snaps.Inline("[]interpreter.InvolvedAccount(nil)"))
+	})
+
+	t.Run("required meta (write)", func(t *testing.T) {
+		accs, meta := getInvolvedAccounts(t, interpreter.VariablesMap{}, `
+		set_account_meta(@acc, "k", 42)
+	`)
+		snaps.MatchInlineSnapshot(t, meta, snaps.Inline(`[]interpreter.InvolvedMeta{
+    {
+        Account: interpreter.AccountLiteral{Account:"acc"},
+        Key:     interpreter.StringLiteral{String:"k"},
+        Write:   interpreter.NumberLiteral{
+            Amount: &big.Int{
+                neg: false,
+                abs: {0x2a},
+            },
+        },
     },
 }`))
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline("[]interpreter.InvolvedAccount(nil)"))
@@ -171,6 +191,7 @@ func TestGetInvolvedAccount(t *testing.T) {
     {
         Account: interpreter.AccountLiteral{Account:"acc"},
         Key:     interpreter.StringLiteral{String:"k"},
+        Write:   nil,
     },
 }`))
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
@@ -240,6 +261,7 @@ func TestGetInvolvedAccount(t *testing.T) {
     {
         Account: interpreter.AccountLiteral{Account:"a1"},
         Key:     interpreter.StringLiteral{String:"k"},
+        Write:   nil,
     },
     {
         Account: interpreter.AccountLiteral{Account:"acc"},
@@ -248,6 +270,7 @@ func TestGetInvolvedAccount(t *testing.T) {
             Account:      interpreter.AccountLiteral{Account:"a1"},
             Key:          interpreter.StringLiteral{String:"k"},
         },
+        Write: nil,
     },
 }`))
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
@@ -311,10 +334,10 @@ func TestGetInvolvedAccount(t *testing.T) {
                 },
             },
         },
-        Key: interpreter.StringLiteral{String:"k"},
+        Key:   interpreter.StringLiteral{String:"k"},
+        Write: nil,
     },
-}`),
-		)
+}`))
 
 		require.False(t, interpreter.IsValidCall(meta[0].Account))
 		require.True(t, interpreter.IsValidCall(meta[0].Key))

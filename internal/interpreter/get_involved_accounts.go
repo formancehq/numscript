@@ -90,9 +90,10 @@ type InvolvedAccount struct {
 }
 
 type InvolvedMeta struct {
-	// TODO add type here?
 	Account InvolvedAccountExpr
 	Key     InvolvedAccountExpr
+	// `Write` is nil when we're not writing data
+	Write InvolvedAccountExpr
 }
 
 type involvedAccountsAnalysisState struct {
@@ -162,8 +163,30 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 
 		case *parser.FnCall:
 			switch stmt.Caller.Name {
-			case analysis.FnSetTxMeta, analysis.FnSetAccountMeta:
-				// we can safely ignore this (we don't need to report write access)
+			case analysis.FnSetTxMeta:
+				// we can safely ignore this
+
+			case analysis.FnSetAccountMeta:
+				if len(stmt.Args) != 3 {
+					return nil, nil, BadArityErr{Range: stmt.Range, ExpectedArity: 3, GivenArguments: len(stmt.Args)}
+				}
+				acc, err := st.evalExpr(stmt.Args[0])
+				if err != nil {
+					return nil, nil, err
+				}
+				key, err := st.evalExpr(stmt.Args[1])
+				if err != nil {
+					return nil, nil, err
+				}
+				written, err := st.evalExpr(stmt.Args[2])
+				if err != nil {
+					return nil, nil, err
+				}
+				st.involvedMeta = append(st.involvedMeta, InvolvedMeta{
+					Account: acc,
+					Key:     key,
+					Write:   written,
+				})
 			}
 		}
 	}
@@ -335,6 +358,7 @@ func (st *involvedAccountsAnalysisState) evalVar(expr parser.ValueExpr, typ stri
 			st.involvedMeta = append(st.involvedMeta, InvolvedMeta{
 				Account: acc,
 				Key:     key,
+				Write:   nil,
 			})
 
 			return FnMeta{
