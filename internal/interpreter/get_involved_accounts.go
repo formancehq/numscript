@@ -634,6 +634,8 @@ func (st *isValidCallState) isValidCall(expr InvolvedAccountExpr) bool {
 	case NumberLiteral, StringLiteral, AssetLiteral, AccountLiteral:
 		return true
 
+	case ConcatAccount:
+		return st.isValidCall(expr.Left) && st.isValidCall(expr.Right)
 	case Add:
 		return st.isValidCall(expr.Left) && st.isValidCall(expr.Right)
 	case Sub:
