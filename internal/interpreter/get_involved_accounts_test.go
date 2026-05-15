@@ -86,10 +86,7 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.ConcatAccount{
             Left: interpreter.ConcatAccount{
                 Left: interpreter.ConcatAccount{
-                    Left: interpreter.ConcatAccount{
-                        Left:  interpreter.AccountLiteral{Account:"user"},
-                        Right: interpreter.AccountLiteral{Account:":"},
-                    },
+                    Left:  interpreter.AccountLiteral{Account:"user:"},
                     Right: interpreter.NumberLiteral{
                         Amount: &big.Int{
                             neg: false,
@@ -107,7 +104,8 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.AccountLiteral{Account:"dest"},
         AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
-}`))
+}`),
+		)
 	})
 
 	t.Run("eval var expr", func(t *testing.T) {
@@ -205,10 +203,7 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.ConcatAccount{
             Left: interpreter.ConcatAccount{
                 Left: interpreter.ConcatAccount{
-                    Left: interpreter.ConcatAccount{
-                        Left:  interpreter.AccountLiteral{Account:"user"},
-                        Right: interpreter.AccountLiteral{Account:":"},
-                    },
+                    Left:  interpreter.AccountLiteral{Account:"user:"},
                     Right: interpreter.FnMeta{
                         ExpectedType: "account",
                         Account:      interpreter.AccountLiteral{Account:"acc"},
@@ -225,7 +220,8 @@ func TestGetInvolvedAccount(t *testing.T) {
         AccountExpr: interpreter.AccountLiteral{Account:"dest"},
         AssetExpr:   interpreter.AssetLiteral{Asset:"USD/2"},
     },
-}`))
+}`),
+		)
 	})
 
 	t.Run("nested meta fn check", func(t *testing.T) {
@@ -307,10 +303,7 @@ func TestGetInvolvedAccount(t *testing.T) {
 		snaps.MatchInlineSnapshot(t, meta, snaps.Inline(`[]interpreter.InvolvedMeta{
     {
         Account: interpreter.ConcatAccount{
-            Left: interpreter.ConcatAccount{
-                Left:  interpreter.AccountLiteral{Account:"user"},
-                Right: interpreter.AccountLiteral{Account:":"},
-            },
+            Left:  interpreter.AccountLiteral{Account:"user:"},
             Right: interpreter.GetAmount{
                 Monetary: interpreter.GetBalance{
                     Account: interpreter.AccountLiteral{Account:"acc"},
@@ -320,7 +313,8 @@ func TestGetInvolvedAccount(t *testing.T) {
         },
         Key: interpreter.StringLiteral{String:"k"},
     },
-}`))
+}`),
+		)
 
 		require.False(t, interpreter.IsValidCall(meta[0].Account))
 		require.True(t, interpreter.IsValidCall(meta[0].Key))

@@ -279,14 +279,18 @@ func foldedAdd(left InvolvedAccountExpr, right InvolvedAccountExpr) InvolvedAcco
 	}
 }
 
-// Constant folding for the Add{} node.
+// Constant folding for the Concat{} node.
 func foldedConcatAccount(left InvolvedAccountExpr, right InvolvedAccountExpr) InvolvedAccountExpr {
-	switch left.(type) {
-	// TODO(impl) bonus: implement folds
-	// note that it's correct even without constant folding
+	// For the sake of simplicity, this still doesn't stringify number literal
 
-	default:
+	leftLit, okLeft := left.(AccountLiteral)
+	rightLit, okRight := right.(AccountLiteral)
+	if !okLeft || !okRight {
 		return ConcatAccount{Left: left, Right: right}
+	}
+
+	return AccountLiteral{
+		Account: leftLit.Account + rightLit.Account,
 	}
 }
 
