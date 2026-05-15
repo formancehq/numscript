@@ -162,25 +162,8 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 
 		case *parser.FnCall:
 			switch stmt.Caller.Name {
-			case analysis.FnSetTxMeta:
-				// we can safely ignore this
-
-			case analysis.FnSetAccountMeta:
-				if len(stmt.Args) != 2 {
-					return nil, nil, BadArityErr{Range: stmt.Range, ExpectedArity: 2, GivenArguments: len(stmt.Args)}
-				}
-				acc, err := st.evalExpr(stmt.Args[0])
-				if err != nil {
-					return nil, nil, err
-				}
-				key, err := st.evalExpr(stmt.Args[1])
-				if err != nil {
-					return nil, nil, err
-				}
-				st.involvedMeta = append(st.involvedMeta, InvolvedMeta{
-					Account: acc,
-					Key:     key,
-				})
+			case analysis.FnSetTxMeta, analysis.FnSetAccountMeta:
+				// we can safely ignore this (we don't need to report write access)
 			}
 		}
 	}
