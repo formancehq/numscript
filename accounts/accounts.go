@@ -13,6 +13,7 @@ type (
 	NumberLiteral  = interpreter.NumberLiteral
 	StringLiteral  = interpreter.StringLiteral
 	Add            = interpreter.Add
+	ConcatAccount  = interpreter.ConcatAccount
 	Sub            = interpreter.Sub
 	Div            = interpreter.Div
 	SubPrefix      = interpreter.SubPrefix

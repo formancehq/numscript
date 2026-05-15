@@ -83,10 +83,10 @@ func TestGetInvolvedAccount(t *testing.T) {
 		require.Nil(t, meta)
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
     {
-        AccountExpr: interpreter.Add{
-            Left: interpreter.Add{
-                Left: interpreter.Add{
-                    Left: interpreter.Add{
+        AccountExpr: interpreter.ConcatAccount{
+            Left: interpreter.ConcatAccount{
+                Left: interpreter.ConcatAccount{
+                    Left: interpreter.ConcatAccount{
                         Left:  interpreter.AccountLiteral{Account:"user"},
                         Right: interpreter.AccountLiteral{Account:":"},
                     },
@@ -202,10 +202,10 @@ func TestGetInvolvedAccount(t *testing.T) {
 
 		snaps.MatchInlineSnapshot(t, accs, snaps.Inline(`[]interpreter.InvolvedAccount{
     {
-        AccountExpr: interpreter.Add{
-            Left: interpreter.Add{
-                Left: interpreter.Add{
-                    Left: interpreter.Add{
+        AccountExpr: interpreter.ConcatAccount{
+            Left: interpreter.ConcatAccount{
+                Left: interpreter.ConcatAccount{
+                    Left: interpreter.ConcatAccount{
                         Left:  interpreter.AccountLiteral{Account:"user"},
                         Right: interpreter.AccountLiteral{Account:":"},
                     },
@@ -306,8 +306,8 @@ func TestGetInvolvedAccount(t *testing.T) {
 	`)
 		snaps.MatchInlineSnapshot(t, meta, snaps.Inline(`[]interpreter.InvolvedMeta{
     {
-        Account: interpreter.Add{
-            Left: interpreter.Add{
+        Account: interpreter.ConcatAccount{
+            Left: interpreter.ConcatAccount{
                 Left:  interpreter.AccountLiteral{Account:"user"},
                 Right: interpreter.AccountLiteral{Account:":"},
             },

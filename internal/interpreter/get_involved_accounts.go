@@ -28,6 +28,10 @@ type (
 	StringLiteral struct {
 		String string
 	}
+	ConcatAccount struct {
+		Left  InvolvedAccountExpr
+		Right InvolvedAccountExpr
+	}
 	Add struct {
 		Left  InvolvedAccountExpr
 		Right InvolvedAccountExpr
@@ -70,6 +74,7 @@ func (AccountLiteral) involvedAccountExpr() {}
 func (NumberLiteral) involvedAccountExpr()  {}
 func (StringLiteral) involvedAccountExpr()  {}
 func (Add) involvedAccountExpr()            {}
+func (ConcatAccount) involvedAccountExpr()  {}
 func (Sub) involvedAccountExpr()            {}
 func (Div) involvedAccountExpr()            {}
 func (SubPrefix) involvedAccountExpr()      {}
@@ -291,6 +296,17 @@ func foldedAdd(left InvolvedAccountExpr, right InvolvedAccountExpr) InvolvedAcco
 	}
 }
 
+// Constant folding for the Add{} node.
+func foldedConcatAccount(left InvolvedAccountExpr, right InvolvedAccountExpr) InvolvedAccountExpr {
+	switch left.(type) {
+	// TODO(impl) bonus: implement folds
+	// note that it's correct even without constant folding
+
+	default:
+		return ConcatAccount{Left: left, Right: right}
+	}
+}
+
 func foldedGetAsset(expr InvolvedAccountExpr) InvolvedAccountExpr {
 	switch expr := expr.(type) {
 	case MakeMonetary:
@@ -357,7 +373,7 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 			if acc == nil {
 				acc = partExpr
 			} else {
-				acc = foldedAdd(acc, partExpr)
+				acc = foldedConcatAccount(acc, partExpr)
 			}
 		}
 		return acc, nil
@@ -416,7 +432,7 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 		case parser.InfixOperatorDiv:
 			return Div{Left: evalLeft, Right: evalRight}, nil
 		case parser.InfixOperatorPlus:
-			return Add{Left: evalLeft, Right: evalRight}, nil
+			return foldedAdd(evalLeft, evalRight), nil
 		default:
 			return nil, InvalidOperatorErr{Range: expr.Range, Operator: string(expr.Operator)}
 		}
