@@ -312,13 +312,13 @@ func TestParseFloatingPerc(t *testing.T) {
 		require.NoError(t, err)
 		// (123/100)%
 		require.Equal(t, big.NewInt(123), num)
-		require.Equal(t, uint16(2), fl)
+		require.Equal(t, 2, fl)
 	})
 	t.Run("leading zero", func(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0.23%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(23), num)
-		require.Equal(t, uint16(2), fl)
+		require.Equal(t, 2, fl)
 		// (23/100)%
 	})
 
@@ -326,7 +326,7 @@ func TestParseFloatingPerc(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0.01%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1), num)
-		require.Equal(t, uint16(2), fl)
+		require.Equal(t, 2, fl)
 		// (1/100)%
 	})
 
@@ -334,7 +334,7 @@ func TestParseFloatingPerc(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0.019%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(19), num)
-		require.Equal(t, uint16(3), fl)
+		require.Equal(t, 3, fl)
 		// (19/1000)%
 	})
 
@@ -342,7 +342,7 @@ func TestParseFloatingPerc(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("1.20%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(120), num)
-		require.Equal(t, uint16(2), fl)
+		require.Equal(t, 2, fl)
 		// (120/100)%
 	})
 
@@ -350,28 +350,28 @@ func TestParseFloatingPerc(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(0), num)
-		require.Equal(t, uint16(0), fl)
+		require.Equal(t, 0, fl)
 	})
 
 	t.Run("zero point zero", func(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0.0%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(0), num)
-		require.Equal(t, uint16(1), fl) // 0 / 10^1 is still 0
+		require.Equal(t, 1, fl) // 0 / 10^1 is still 0
 	})
 
 	t.Run("leading zeros in integer part", func(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("007.5%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(75), num)
-		require.Equal(t, uint16(1), fl)
+		require.Equal(t, 1, fl)
 	})
 
 	t.Run("purely fractional small number", func(t *testing.T) {
 		num, fl, err := parser.ParsePercentageRatio("0.00009%")
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(9), num)
-		require.Equal(t, uint16(5), fl)
+		require.Equal(t, 5, fl)
 	})
 
 }

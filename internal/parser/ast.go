@@ -65,7 +65,7 @@ type (
 	PercentageLiteral struct {
 		Range
 		Amount         *big.Int
-		FloatingDigits uint16
+		FloatingDigits int
 	}
 
 	Variable struct {

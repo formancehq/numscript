@@ -301,7 +301,7 @@ parser.Program{
                                     neg: false,
                                     abs: {0x2a},
                                 },
-                                FloatingDigits: 0x0,
+                                FloatingDigits: 0,
                             },
                         },
                         From: &parser.SourceAccount{
@@ -467,7 +467,7 @@ parser.Program{
                                     neg: false,
                                     abs: {0xf2},
                                 },
-                                FloatingDigits: 0x2,
+                                FloatingDigits: 2,
                             },
                         },
                         From: &parser.SourceAccount{
