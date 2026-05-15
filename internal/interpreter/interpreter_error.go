@@ -277,3 +277,12 @@ type InvalidFeature struct {
 func (e InvalidFeature) Error() string {
 	return fmt.Sprintf("Invalid feature: %s", e.Feature)
 }
+
+type InvalidOperatorErr struct {
+	parser.Range
+	Operator string
+}
+
+func (e InvalidOperatorErr) Error() string {
+	return fmt.Sprintf("Invalid operator: %s", e.Operator)
+}
