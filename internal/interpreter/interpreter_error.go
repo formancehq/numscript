@@ -217,6 +217,15 @@ func (e ExperimentalFeature) Error() string {
 	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
 }
 
+type ForbiddenFeature struct {
+	parser.Range
+	FlagName string
+}
+
+func (e ForbiddenFeature) Error() string {
+	return fmt.Sprintf("feature '%s' is forbidden by the caller", e.FlagName)
+}
+
 type CannotCastToString struct {
 	parser.Range
 	Value Value
