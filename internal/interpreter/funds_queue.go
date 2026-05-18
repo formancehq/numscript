@@ -1,7 +1,9 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
+	"slices"
 )
 
 type Sender struct {
@@ -10,103 +12,44 @@ type Sender struct {
 	Color  string
 }
 
-type queue[T any] struct {
-	Head T
-	Tail *queue[T]
-
-	// Instead of keeping a single ref of the lastCell and updating the invariant on every push/pop operation,
-	// we keep a cache of the last cell on every cell.
-	// This makes code much easier and we don't risk breaking the invariant and producing wrong results and other subtle issues
-	//
-	// While, unlike keeping a single reference (like golang's queue `container/list` package does), this is not always O(1),
-	// the amortized time should still be O(1) (the number of steps of traversal while searching the last elem is not higher than the number of .Push() calls)
-	lastCell *queue[T]
-}
-
-func (s *queue[T]) getLastCell() *queue[T] {
-	// check if this is the last cell without reading cache first
-	if s.Tail == nil {
-		return s
-	}
-
-	// if not, check if cache is present
-	if s.lastCell != nil {
-		// even if it is, it may be a stale value (as more values could have been pushed), so we check the value recursively
-		lastCell := s.lastCell.getLastCell()
-		// we do path compression so that next time we get the path immediately
-		s.lastCell = lastCell
-		return lastCell
-	}
-
-	// if no last value is cached, we traverse recursively to find it
-	s.lastCell = s.Tail.getLastCell()
-	return s.lastCell
-}
-
-func fromSlice[T any](slice []T) *queue[T] {
-	var ret *queue[T]
-	// TODO use https://pkg.go.dev/slices#Backward in golang 1.23
-	for i := len(slice) - 1; i >= 0; i-- {
-		ret = &queue[T]{
-			Head: slice[i],
-			Tail: ret,
-		}
-	}
-	return ret
-}
-
 type fundsQueue struct {
-	senders *queue[Sender]
+	senders []Sender
 }
 
 func newFundsQueue(senders []Sender) fundsQueue {
-	return fundsQueue{
-		senders: fromSlice(senders),
+	queue := fundsQueue{
+		senders: []Sender{},
 	}
+	queue.Push(senders...)
+	return queue
 }
 
-func (s *fundsQueue) compactTop() {
-	for s.senders != nil && s.senders.Tail != nil {
-
-		first := s.senders.Head
-		second := s.senders.Tail.Head
-
-		if second.Amount.Cmp(big.NewInt(0)) == 0 {
-			s.senders = &queue[Sender]{Head: first, Tail: s.senders.Tail.Tail}
-			continue
-		}
-
-		if first.Name != second.Name || first.Color != second.Color {
-			return
-		}
-
-		s.senders = &queue[Sender]{
-			Head: Sender{
-				Name:   first.Name,
-				Color:  first.Color,
-				Amount: new(big.Int).Add(first.Amount, second.Amount),
-			},
-			Tail: s.senders.Tail.Tail,
-		}
-	}
-}
-
+// Pull everything from this queue
 func (s *fundsQueue) PullAll() []Sender {
-	var senders []Sender
-	for s.senders != nil {
-		senders = append(senders, s.senders.Head)
-		s.senders = s.senders.Tail
-	}
+	senders := s.senders
+	s.senders = []Sender{} // TODO better heuristics for initial alloc
 	return senders
 }
 
 func (s *fundsQueue) Push(senders ...Sender) {
-	newTail := fromSlice(senders)
-	if s.senders == nil {
-		s.senders = newTail
+	for _, sender := range senders {
+		s.PushOne(sender)
+	}
+}
+
+func (s *fundsQueue) PushOne(sender Sender) {
+	if sender.Amount.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+	if len(s.senders) == 0 {
+		s.senders = []Sender{sender}
+		return
+	}
+	last := s.senders[len(s.senders)-1]
+	if last.Name == sender.Name && last.Color == sender.Color {
+		last.Amount.Add(last.Amount, sender.Amount)
 	} else {
-		cell := s.senders.getLastCell()
-		cell.Tail = newTail
+		s.senders = append(s.senders, sender)
 	}
 }
 
@@ -121,68 +64,71 @@ func (s *fundsQueue) PullUncolored(requiredAmount *big.Int) []Sender {
 	return s.PullColored(requiredAmount, "")
 }
 
-func (s *fundsQueue) Pull(requiredAmount *big.Int, color *string) []Sender {
+// Pull at most maxAmount from this queue, with the given color
+func (s *fundsQueue) Pull(maxAmount *big.Int, color *string) []Sender {
 	// clone so that we can manipulate this arg
-	requiredAmount = new(big.Int).Set(requiredAmount)
+	maxAmount = new(big.Int).Set(maxAmount)
 
 	// TODO preallocate for perfs
-	var out []Sender
+	out := newFundsQueue([]Sender{})
+	offset := 0
 
-	for requiredAmount.Cmp(big.NewInt(0)) != 0 && s.senders != nil {
-		s.compactTop()
+	for maxAmount.Sign() > 0 && len(s.senders) > offset {
+		frontSender := s.senders[offset]
 
-		available := s.senders.Head
-		s.senders = s.senders.Tail
-
-		if color != nil && available.Color != *color {
-			out1 := s.Pull(requiredAmount, color)
-			s.senders = &queue[Sender]{
-				Head: available,
-				Tail: s.senders,
-			}
-			out = append(out, out1...)
-			break
+		if color != nil && frontSender.Color != *color {
+			offset += 1
+			continue
 		}
 
-		switch available.Amount.Cmp(requiredAmount) {
-		case -1: // not enough:
-			out = append(out, available)
-			requiredAmount.Sub(requiredAmount, available.Amount)
-
+		switch frontSender.Amount.Cmp(maxAmount) {
+		case -1: // not enough
+			maxAmount.Sub(maxAmount, frontSender.Amount)
+			out.Push(frontSender)
+			if offset == 0 {
+				s.senders = s.senders[1:]
+			} else {
+				s.senders = slices.Delete(s.senders, offset, offset+1)
+			}
 		case 1: // more than enough
-			s.senders = &queue[Sender]{
-				Head: Sender{
-					Name:   available.Name,
-					Color:  available.Color,
-					Amount: new(big.Int).Sub(available.Amount, requiredAmount),
-				},
-				Tail: s.senders,
-			}
-			fallthrough
-
-		case 0: // exactly the same
-			out = append(out, Sender{
-				Name:   available.Name,
-				Color:  available.Color,
-				Amount: new(big.Int).Set(requiredAmount),
+			out.Push(Sender{
+				Name:   frontSender.Name,
+				Amount: maxAmount,
+				Color:  frontSender.Color,
 			})
-			return out
+			s.senders[offset].Amount.Sub(s.senders[offset].Amount, maxAmount)
+			return out.senders
+		case 0: // exactly enough
+			out.Push(s.senders[offset])
+			if offset == 0 {
+				s.senders = s.senders[1:]
+			} else {
+				s.senders = slices.Delete(s.senders, offset, offset+1)
+			}
+			return out.senders
 		}
-
 	}
 
-	return out
+	return out.senders
 }
 
 // Clone the queue so that you can safely mutate one without mutating the other
 func (s fundsQueue) Clone() fundsQueue {
-	fq := newFundsQueue(nil)
+	return newFundsQueue(s.senders)
+}
 
-	senders := s.senders
-	for senders != nil {
-		fq.Push(senders.Head)
-		senders = senders.Tail
+func (s fundsQueue) String() string {
+	out := "<"
+	for i, sender := range s.senders {
+		if sender.Color == "" {
+			out += fmt.Sprintf("%v from %v", sender.Amount, sender.Name)
+		} else {
+			out += fmt.Sprintf("%v from %v\\%v", sender.Amount, sender.Name, sender.Color)
+		}
+		if i != len(s.senders)-1 {
+			out += ", "
+		}
 	}
-
-	return fq
+	out += ">"
+	return out
 }
