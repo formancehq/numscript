@@ -104,3 +104,24 @@ func (p ParseResult) GetSource() string {
 func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.InvolvedAccount, []accounts.InvolvedMeta, InterpreterError) {
 	return interpreter.GetInvolvedAccounts(vars, p.parseResult.Value)
 }
+
+type (
+	ResolvedDependencies        = interpreter.ResolvedDependencies
+	ResolveDependenciesOptions  = interpreter.ResolveDependenciesOptions
+	ForbiddenFeatureErr         = interpreter.ForbiddenFeature
+)
+
+// ResolveDependencies discovers which balances and metadata a script reads
+// by resolving all dependencies against the provided store. Returns the
+// concrete (account, asset) → balance and (account, key) → value pairs.
+//
+// The caller can use this to preload volumes and compute an input hash
+// for optimistic concurrency control.
+func (p ParseResult) ResolveDependencies(
+	ctx context.Context,
+	vars VariablesMap,
+	store Store,
+	opts ResolveDependenciesOptions,
+) (*ResolvedDependencies, InterpreterError) {
+	return interpreter.ResolveDependencies(ctx, p.parseResult.Value, vars, store, opts)
+}
