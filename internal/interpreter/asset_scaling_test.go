@@ -272,3 +272,49 @@ func TestUnboundedScalinHigherAssetTrimRemainder(t *testing.T) {
 		{3, big.NewInt(10)},
 	}, sol)
 }
+
+// getAssets must match a base asset exactly: assets that merely share the
+// base name as a string prefix (e.g. "USDT" or "USD_RED") are NOT scaled
+// forms of "USD" and must be ignored. Only the bare base and its
+// "base/N" precision variants belong in the scaling pool.
+//
+// Sub-tests are deliberately split so each is deterministic regardless of
+// Go's randomized map iteration order. A combined fixture is flaky:
+// `getAssets` keys its result map by precision alone, so when both
+// `USD/2 = 2` and `USD_RED/2 = 500` are present the buggy implementation
+// writes both to `result[2]`, and the final value depends on iteration
+// order — sometimes the correct one wins, sometimes the spurious one.
+func TestGetAssetsRejectsSpuriousPrefixMatches(t *testing.T) {
+	t.Run("USDT does not pollute USD pool", func(t *testing.T) {
+		balance := AccountBalance{
+			"USDT":   big.NewInt(100),
+			"USDT/2": big.NewInt(200),
+		}
+		got := getAssets(balance, "USD")
+		require.Empty(t, got, "USDT-prefixed entries must not be folded into USD")
+	})
+
+	t.Run("color-suffixed variants do not pollute USD pool", func(t *testing.T) {
+		balance := AccountBalance{
+			"USD_RED":   big.NewInt(50),
+			"USD_RED/2": big.NewInt(500),
+		}
+		got := getAssets(balance, "USD")
+		require.Empty(t, got, "USD_RED-prefixed entries must not be folded into USD")
+	})
+
+	t.Run("USD precision variants are picked up", func(t *testing.T) {
+		balance := AccountBalance{
+			"USD":   big.NewInt(1),
+			"USD/2": big.NewInt(2),
+			"USD/3": big.NewInt(3),
+		}
+		got := getAssets(balance, "USD")
+		require.Equal(t, map[int64]*big.Int{
+			0: big.NewInt(1),
+			2: big.NewInt(2),
+			3: big.NewInt(3),
+		}, got)
+	})
+
+}
