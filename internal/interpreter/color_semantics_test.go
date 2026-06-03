@@ -208,17 +208,13 @@ func TestColoredPostingsCompactByColor(t *testing.T) {
 func TestBalanceQueryIncludesColor(t *testing.T) {
 	t.Parallel()
 
-	type observed struct {
-		machine.StaticStore
-		got []machine.BalanceQuery
-	}
-	store := &observed{StaticStore: machine.StaticStore{
+	store := machine.StaticStore{
 		Balances: machine.Balances{
 			"acc": machine.AccountBalance{
 				"COIN": machine.ColorBalance{"RED": big.NewInt(1000)},
 			},
 		},
-	}}
+	}
 
 	src := `
 		send [COIN 100] (
@@ -228,9 +224,6 @@ func TestBalanceQueryIncludesColor(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-
-	type spyStore struct{ inner machine.Store }
-	_ = spyStore{}
 
 	// Wrap the store with an inline implementation that records GetBalances
 	// calls so we can assert what crosses the boundary.
@@ -242,9 +235,9 @@ func TestBalanceQueryIncludesColor(t *testing.T) {
 				cloned[acc] = append([]machine.AssetColor(nil), items...)
 			}
 			got = append(got, cloned)
-			return store.StaticStore.GetBalances(ctx, q)
+			return store.GetBalances(ctx, q)
 		},
-		getMetadata: store.StaticStore.GetAccountsMetadata,
+		getMetadata: store.GetAccountsMetadata,
 	}
 
 	_, err := machine.RunProgram(
