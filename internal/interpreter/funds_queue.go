@@ -110,18 +110,25 @@ func (s *fundsQueue) Push(senders ...Sender) {
 	}
 }
 
+// PullAnything is the entry point used by pushReceiver to drain senders
+// for a given amount, regardless of color. Each pulled Sender keeps its own
+// Color so the receiver-side posting can carry it untouched.
 func (s *fundsQueue) PullAnything(requiredAmount *big.Int) []Sender {
-	return s.Pull(requiredAmount, nil)
+	return s.Pull(requiredAmount)
 }
 
-func (s *fundsQueue) PullColored(requiredAmount *big.Int, color string) []Sender {
-	return s.Pull(requiredAmount, &color)
-}
-func (s *fundsQueue) PullUncolored(requiredAmount *big.Int) []Sender {
-	return s.PullColored(requiredAmount, "")
-}
-
-func (s *fundsQueue) Pull(requiredAmount *big.Int, color *string) []Sender {
+// Pull drains up to requiredAmount from the head of the queue. It does NOT
+// verify that the queue holds at least requiredAmount — it simply returns
+// whatever is there. The caller is responsible for checking completeness:
+// tryTakingExact raises MissingFundsErr when the total sent is below the
+// requested amount.
+//
+// The queue itself is bounded upstream: every pushSender call has already
+// been capped by CalculateSafeWithdraw against the source's (asset, color)
+// balance, so the queue never holds more than the source can legitimately
+// commit. Color is carried by each Sender — Pull preserves it on the way out
+// without ever inspecting it.
+func (s *fundsQueue) Pull(requiredAmount *big.Int) []Sender {
 	// clone so that we can manipulate this arg
 	requiredAmount = new(big.Int).Set(requiredAmount)
 
@@ -133,16 +140,6 @@ func (s *fundsQueue) Pull(requiredAmount *big.Int, color *string) []Sender {
 
 		available := s.senders.Head
 		s.senders = s.senders.Tail
-
-		if color != nil && available.Color != *color {
-			out1 := s.Pull(requiredAmount, color)
-			s.senders = &queue[Sender]{
-				Head: available,
-				Tail: s.senders,
-			}
-			out = append(out, out1...)
-			break
-		}
 
 		switch available.Amount.Cmp(requiredAmount) {
 		case -1: // not enough:

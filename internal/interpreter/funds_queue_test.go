@@ -23,7 +23,7 @@ func TestPush(t *testing.T) {
 	queue := newFundsQueue(nil)
 	queue.Push(Sender{Name: "acc", Amount: big.NewInt(100)})
 
-	out := queue.PullUncolored(big.NewInt(20))
+	out := queue.PullAnything(big.NewInt(20))
 	require.Equal(t, []Sender{
 		{Name: "acc", Amount: big.NewInt(20)},
 	}, out)
@@ -121,58 +121,6 @@ func TestNoZeroLeftovers(t *testing.T) {
 	}, out)
 }
 
-func TestReconcileColoredManyDestPerSender(t *testing.T) {
-	queue := newFundsQueue([]Sender{
-		{"src", big.NewInt(10), "X"},
-	})
-
-	out := queue.PullColored(big.NewInt(5), "X")
-	require.Equal(t, []Sender{
-		{Name: "src", Amount: big.NewInt(5), Color: "X"},
-	}, out)
-
-	out = queue.PullColored(big.NewInt(5), "X")
-	require.Equal(t, []Sender{
-		{Name: "src", Amount: big.NewInt(5), Color: "X"},
-	}, out)
-
-}
-
-func TestPullColored(t *testing.T) {
-	queue := newFundsQueue([]Sender{
-		{Name: "s1", Amount: big.NewInt(5)},
-		{Name: "s2", Amount: big.NewInt(1), Color: "red"},
-		{Name: "s3", Amount: big.NewInt(10)},
-		{Name: "s4", Amount: big.NewInt(2), Color: "red"},
-		{Name: "s5", Amount: big.NewInt(5)},
-	})
-
-	out := queue.PullColored(big.NewInt(2), "red")
-	require.Equal(t, []Sender{
-		{Name: "s2", Amount: big.NewInt(1), Color: "red"},
-		{Name: "s4", Amount: big.NewInt(1), Color: "red"},
-	}, out)
-
-	require.Equal(t, []Sender{
-		{Name: "s1", Amount: big.NewInt(5)},
-		{Name: "s3", Amount: big.NewInt(10)},
-		{Name: "s4", Amount: big.NewInt(1), Color: "red"},
-		{Name: "s5", Amount: big.NewInt(5)},
-	}, queue.PullAll())
-}
-
-func TestPullColoredComplex(t *testing.T) {
-	queue := newFundsQueue([]Sender{
-		{"s1", big.NewInt(1), "c1"},
-		{"s2", big.NewInt(1), "c2"},
-	})
-
-	out := queue.PullColored(big.NewInt(1), "c2")
-	require.Equal(t, []Sender{
-		{Name: "s2", Amount: big.NewInt(1), Color: "c2"},
-	}, out)
-}
-
 func TestClone(t *testing.T) {
 
 	fq := newFundsQueue([]Sender{
@@ -190,14 +138,12 @@ func TestClone(t *testing.T) {
 }
 
 func TestCompactFundsAndPush(t *testing.T) {
-	noCol := ""
-
 	queue := newFundsQueue([]Sender{
 		{Name: "s1", Amount: big.NewInt(2)},
 		{Name: "s1", Amount: big.NewInt(10)},
 	})
 
-	queue.Pull(big.NewInt(1), &noCol)
+	queue.Pull(big.NewInt(1))
 
 	queue.Push(Sender{
 		Name:   "pushed",
