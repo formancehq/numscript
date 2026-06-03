@@ -29,7 +29,7 @@ func TestRunSpecsSimple(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": { "src": { "USD": { "": 9999 } } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -81,13 +81,13 @@ func TestRunSpecsSimple(t *testing.T) {
 func TestRunSpecsMergeOuter(t *testing.T) {
 	j := `{
 		"variables": { "source": "src", "amount": "42" },
-		"balances": { "src": { "USD": 10 } },
+		"balances": { "src": { "USD": { "": 10 } } },
 		"testCases": [
 			{
 				"variables": { "amount": "1" },
 				"balances": {
-					"src": { "EUR": 2 },
-					"dest": { "USD": 1 }
+					"src": { "EUR": { "": 2 } },
+					"dest": { "USD": { "": 1 } }
 				},
 				"it": "t1",
 				"expect.postings": [
@@ -147,7 +147,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": { "src": { "USD": { "": 1 } } },
 				"expect.error.missingFunds": false,
 				"expect.postings": null
 			}
@@ -200,7 +200,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": { "src": { "USD": { "": 1 } } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 1 }
 				]
@@ -254,7 +254,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": { "src": { "USD": { "": 1 } } },
 				"expect.postings": null
 			}
 		]
@@ -378,7 +378,7 @@ func TestFocus(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "10" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": { "src": { "USD": { "": 9999 } } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -387,7 +387,7 @@ func TestFocus(t *testing.T) {
 				"it": "t2",
 				"focus": true,
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": { "src": { "USD": { "": 9999 } } },
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]

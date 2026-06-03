@@ -487,55 +487,38 @@ func TestColorComposesWithAssetPrecision(t *testing.T) {
 }
 
 // JSON unmarshal accepts both shapes (flat + colored), as documented in
-// Balances.UnmarshalJSON.
-func TestBalancesUnmarshalAcceptsBothShapes(t *testing.T) {
+// Balances JSON shape: a {color: amount} object under each (account, asset).
+// Color "" is the uncolored bucket. No shorthand is accepted — uncolored
+// balances must be explicit.
+func TestBalancesJSONShape(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name string
-		src  string
-		want machine.Balances
-	}{
-		{
-			name: "flat shorthand",
-			src:  `{"alice": {"USD/2": 100, "EUR/2": -42}}`,
-			want: machine.Balances{
-				"alice": machine.AccountBalance{
-					"USD/2": machine.Uncolored(big.NewInt(100)),
-					"EUR/2": machine.Uncolored(big.NewInt(-42)),
-				},
-			},
-		},
-		{
-			name: "colored",
-			src:  `{"alice": {"USD/2": {"": 100, "RED": 50}}}`,
-			want: machine.Balances{
-				"alice": machine.AccountBalance{
-					"USD/2": machine.ColorBalance{"": big.NewInt(100), "RED": big.NewInt(50)},
-				},
-			},
-		},
-		{
-			name: "mixed across assets",
-			src:  `{"alice": {"USD/2": 100, "EUR/2": {"RED": 5}}}`,
-			want: machine.Balances{
-				"alice": machine.AccountBalance{
-					"USD/2": machine.Uncolored(big.NewInt(100)),
-					"EUR/2": machine.ColorBalance{"RED": big.NewInt(5)},
-				},
-			},
+	src := `{
+		"alice": {
+			"USD/2": {"": 100, "RED": 50},
+			"EUR/2": {"": -42}
+		}
+	}`
+	want := machine.Balances{
+		"alice": machine.AccountBalance{
+			"USD/2": machine.ColorBalance{"": big.NewInt(100), "RED": big.NewInt(50)},
+			"EUR/2": machine.Uncolored(big.NewInt(-42)),
 		},
 	}
 
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	var got machine.Balances
+	require.NoError(t, json.Unmarshal([]byte(src), &got))
+	require.True(t, machine.CompareBalances(want, got),
+		"unexpected balances: want %v, got %v", want, got)
+}
 
-			var got machine.Balances
-			require.NoError(t, got.UnmarshalJSON([]byte(tc.src)))
-			require.True(t, machine.CompareBalances(tc.want, got),
-				"unexpected balances: want %v, got %v", tc.want, got)
-		})
-	}
+// The flat shorthand `{"USD/2": 100}` is no longer supported — uncolored
+// balances must spell out the empty-color key explicitly. We assert the
+// rejection here so callers never accidentally drop into a permissive parse.
+func TestBalancesJSONRejectsFlatShorthand(t *testing.T) {
+	t.Parallel()
+
+	var got machine.Balances
+	err := json.Unmarshal([]byte(`{"alice": {"USD/2": 100}}`), &got)
+	require.Error(t, err, "flat shorthand must be rejected")
 }

@@ -7,7 +7,9 @@
       "it": "-",
       "balances": {
         "acc": {
-          "USD/2": 10
+          "USD/2": {
+            "": 10
+          }
         }
       },
       "expect.postings": [

@@ -4,10 +4,14 @@
       "it": "-",
       "balances": {
         "payments:001": {
-          "GEM": 12
+          "GEM": {
+            "": 12
+          }
         },
         "users:001": {
-          "GEM": 3
+          "GEM": {
+            "": 3
+          }
         }
       },
       "variables": {

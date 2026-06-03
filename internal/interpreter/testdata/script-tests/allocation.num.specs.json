@@ -4,7 +4,9 @@
       "it": "-",
       "balances": {
         "users:001": {
-          "GEM": 15
+          "GEM": {
+            "": 15
+          }
         }
       },
       "variables": {

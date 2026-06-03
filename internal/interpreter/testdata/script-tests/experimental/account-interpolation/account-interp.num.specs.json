@@ -1,5 +1,7 @@
 {
-  "featureFlags": ["experimental-account-interpolation"],
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
   "testCases": [
     {
       "it": "-",

@@ -1,8 +1,6 @@
 package interpreter
 
 import (
-	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/utils"
@@ -12,65 +10,6 @@ import (
 // color key (the "no color" bucket). It is meant to keep test setup terse.
 func Uncolored(amount *big.Int) ColorBalance {
 	return ColorBalance{"": amount}
-}
-
-// UnmarshalJSON accepts two JSON shapes for a Balances value:
-//
-//  1. Flat (uncolored shorthand):
-//     {"alice": {"USD/2": 100, "EUR/2": -42}}
-//     Every asset gets a single entry under the "" (no color) bucket.
-//
-//  2. Colored (full form):
-//     {"alice": {"USD/2": {"": 100, "GRANTS": 50}}}
-//
-// Shapes can be mixed across assets within the same document.
-func (b *Balances) UnmarshalJSON(data []byte) error {
-	raw := map[string]map[string]json.RawMessage{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	out := Balances{}
-	for account, assets := range raw {
-		accB := AccountBalance{}
-		out[account] = accB
-		for asset, rawVal := range assets {
-			colorMap, err := decodeColorBalance(rawVal)
-			if err != nil {
-				return fmt.Errorf("balances[%s][%s]: %w", account, asset, err)
-			}
-			accB[asset] = colorMap
-		}
-	}
-	*b = out
-	return nil
-}
-
-func decodeColorBalance(data json.RawMessage) (ColorBalance, error) {
-	// Try the shorthand: a single number meaning the uncolored bucket.
-	var amount json.Number
-	if err := json.Unmarshal(data, &amount); err == nil {
-		n, ok := new(big.Int).SetString(amount.String(), 10)
-		if !ok {
-			return nil, fmt.Errorf("invalid integer amount %q", amount.String())
-		}
-		return ColorBalance{"": n}, nil
-	}
-
-	// Otherwise expect a {color: amount} object.
-	raw := map[string]json.Number{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("expected integer or {color: amount} object, got %s", string(data))
-	}
-	out := ColorBalance{}
-	for color, amt := range raw {
-		n, ok := new(big.Int).SetString(amt.String(), 10)
-		if !ok {
-			return nil, fmt.Errorf("color %q: invalid integer amount %q", color, amt.String())
-		}
-		out[color] = n
-	}
-	return out, nil
 }
 
 func (b Balances) DeepClone() Balances {

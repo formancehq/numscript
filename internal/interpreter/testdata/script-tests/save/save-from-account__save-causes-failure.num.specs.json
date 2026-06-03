@@ -4,7 +4,9 @@
       "it": "-",
       "balances": {
         "alice": {
-          "USD/2": 30
+          "USD/2": {
+            "": 30
+          }
         }
       },
       "expect.error.missingFunds": true

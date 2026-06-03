@@ -4,10 +4,14 @@
       "it": "-",
       "balances": {
         "users:001": {
-          "USD/2": 15
+          "USD/2": {
+            "": 15
+          }
         },
         "users:002": {
-          "USD/2": 15
+          "USD/2": {
+            "": 15
+          }
         }
       },
       "expect.postings": [

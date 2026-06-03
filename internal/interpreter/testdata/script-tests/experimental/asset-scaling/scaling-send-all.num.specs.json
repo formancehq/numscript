@@ -8,9 +8,15 @@
       "it": "sends all the available assets that can be cast",
       "balances": {
         "src": {
-          "EUR": 2,
-          "EUR/2": 1,
-          "EUR/3": 30
+          "EUR": {
+            "": 2
+          },
+          "EUR/2": {
+            "": 1
+          },
+          "EUR/3": {
+            "": 30
+          }
         }
       },
       "expect.postings": [
@@ -44,7 +50,9 @@
       "it": "avoids casting the remainder",
       "balances": {
         "src": {
-          "EUR/3": 21
+          "EUR/3": {
+            "": 21
+          }
         }
       },
       "expect.postings": [

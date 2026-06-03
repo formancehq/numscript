@@ -3,7 +3,11 @@
     {
       "it": "-",
       "balances": {
-        "memo:main": { "EUR/2": 99999999 }
+        "memo:main": {
+          "EUR/2": {
+            "": 99999999
+          }
+        }
       },
       "variables": {},
       "metadata": {},

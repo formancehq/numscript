@@ -8,7 +8,9 @@
       "it": "allow solution with spare money",
       "balances": {
         "src": {
-          "EUR": 100
+          "EUR": {
+            "": 100
+          }
         }
       },
       "expect.postings": [
@@ -36,8 +38,12 @@
       "it": "allow solution with spare money (2)",
       "balances": {
         "src": {
-          "EUR": 100,
-          "EUR/1": 100
+          "EUR": {
+            "": 100
+          },
+          "EUR/1": {
+            "": 100
+          }
         }
       },
       "expect.postings": [
@@ -65,10 +71,18 @@
       "it": "no solution",
       "balances": {
         "src": {
-          "EUR": 0,
-          "EUR/2": 1,
-          "EUR/3": 1,
-          "EUR/4": 10
+          "EUR": {
+            "": 0
+          },
+          "EUR/2": {
+            "": 1
+          },
+          "EUR/3": {
+            "": 1
+          },
+          "EUR/4": {
+            "": 10
+          }
         }
       },
       "expect.error.missingFunds": true

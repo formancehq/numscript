@@ -35,17 +35,11 @@ func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResu
 				iBalances[account][asset] = interpreter.ColorBalance{}
 			}
 
-			// Accept either { "USD/2": 100 } (uncolored shorthand) or
-			// { "USD/2": { "": 100, "RED": 50 } } (full color form).
-			if amount, ok := perAssetRaw.(float64); ok {
-				n, _ := big.NewFloat(amount).Int(new(big.Int))
-				iBalances[account][asset][""] = n
-				continue
-			}
-
+			// Expected shape: { "USD/2": { "": 100, "RED": 50 } }.
+			// Color "" is the uncolored bucket.
 			colorMap, ok := perAssetRaw.(map[string]any)
 			if !ok {
-				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected number or color map for %s/%s, got: <%#v>", account, asset, perAssetRaw))
+				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected {color: amount} object for %s/%s, got: <%#v>", account, asset, perAssetRaw))
 			}
 			for color, amountRaw := range colorMap {
 				amount, ok := amountRaw.(float64)

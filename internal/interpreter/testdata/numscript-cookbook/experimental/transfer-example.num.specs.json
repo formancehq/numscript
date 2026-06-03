@@ -13,8 +13,16 @@
     {
       "it": "should authorize transfer if both wallet and bank accounts display enough balance",
       "balances": {
-        "wallet": { "EUR": 100 },
-        "bank_account": { "EUR": -100 }
+        "wallet": {
+          "EUR": {
+            "": 100
+          }
+        },
+        "bank_account": {
+          "EUR": {
+            "": -100
+          }
+        }
       },
       "expect.postings": [
         {
@@ -28,16 +36,32 @@
     {
       "it": "should not authorize transfer if wallet does not display enough balance and bank account does",
       "balances": {
-        "wallet": { "EUR": 50 },
-        "bank_account": { "EUR": -100 }
+        "wallet": {
+          "EUR": {
+            "": 50
+          }
+        },
+        "bank_account": {
+          "EUR": {
+            "": -100
+          }
+        }
       },
       "expect.error.missingFunds": true
     },
     {
       "it": "should not authorize transfer if bank account does not display enough balance and wallet does",
       "balances": {
-        "wallet": { "EUR": 100 },
-        "bank_account": { "EUR": -50 }
+        "wallet": {
+          "EUR": {
+            "": 100
+          }
+        },
+        "bank_account": {
+          "EUR": {
+            "": -50
+          }
+        }
       },
       "expect.error.missingFunds": true
     }

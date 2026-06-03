@@ -4,10 +4,14 @@
       "it": "-",
       "balances": {
         "src1": {
-          "USD/2": 100
+          "USD/2": {
+            "": 100
+          }
         },
         "src2": {
-          "USD/2": 200
+          "USD/2": {
+            "": 200
+          }
         }
       },
       "expect.postings": [

@@ -4,10 +4,14 @@
       "it": "-",
       "balances": {
         "account1": {
-          "COIN": 10000
+          "COIN": {
+            "": 10000
+          }
         },
         "account2": {
-          "COIN": 10000
+          "COIN": {
+            "": 10000
+          }
         }
       },
       "expect.postings": [

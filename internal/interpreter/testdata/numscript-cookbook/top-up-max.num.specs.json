@@ -6,7 +6,9 @@
   },
   "balances": {
     "alice": {
-      "EUR/2": 9999
+      "EUR/2": {
+        "": 9999
+      }
     }
   },
   "testCases": [
@@ -14,7 +16,9 @@
       "it": "should send the amount when destination doesn't reach 150",
       "balances": {
         "jon": {
-          "EUR/2": 0
+          "EUR/2": {
+            "": 0
+          }
         }
       },
       "expect.postings": [
@@ -30,7 +34,9 @@
       "it": "should send the amount when destination doesn't reach 150 (2)",
       "balances": {
         "jon": {
-          "EUR/2": 50
+          "EUR/2": {
+            "": 50
+          }
         }
       },
       "expect.postings": [
@@ -46,7 +52,9 @@
       "it": "should fail if the end balance would exceed 150",
       "balances": {
         "jon": {
-          "EUR/2": 51
+          "EUR/2": {
+            "": 51
+          }
         }
       },
       "expect.error.missingFunds": true

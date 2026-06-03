@@ -1,5 +1,7 @@
 {
-  "featureFlags": ["experimental-get-amount-function"],
+  "featureFlags": [
+    "experimental-get-amount-function"
+  ],
   "testCases": [
     {
       "it": "-",

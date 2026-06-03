@@ -2,7 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
   "balances": {
     "acc": {
-      "TK": -100
+      "TK": {
+        "": -100
+      }
     }
   },
   "testCases": [

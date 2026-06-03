@@ -4,7 +4,9 @@
       "it": "-",
       "balances": {
         "users:1234": {
-          "COIN": 1
+          "COIN": {
+            "": 1
+          }
         }
       },
       "expect.error.missingFunds": true

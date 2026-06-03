@@ -4,7 +4,9 @@
       "it": "-",
       "balances": {
         "orders:1234": {
-          "EUR/2": 10000
+          "EUR/2": {
+            "": 10000
+          }
         }
       },
       "expect.postings": [

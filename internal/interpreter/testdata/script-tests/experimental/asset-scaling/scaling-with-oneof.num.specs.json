@@ -7,7 +7,9 @@
   "balances": {
     "acc1": {},
     "acc2": {
-      "EUR/2": 100
+      "EUR/2": {
+        "": 100
+      }
     }
   },
   "testCases": [
@@ -15,7 +17,9 @@
       "it": "fallbacks to the second branch when there's not enough",
       "balances": {
         "acc1": {
-          "EUR/2": 1
+          "EUR/2": {
+            "": 1
+          }
         }
       },
       "expect.postings": [
@@ -37,7 +41,9 @@
       "it": "succeeds in the first branch",
       "balances": {
         "acc1": {
-          "EUR/2": 100
+          "EUR/2": {
+            "": 100
+          }
         }
       },
       "expect.postings": [

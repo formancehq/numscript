@@ -123,7 +123,7 @@ Error: example.num.specs.json
 [31m
 Error: example.num.specs.json
 
-[0mjson: cannot unmarshal number into Go struct field Specs.balances of type map[string]map[string]json.RawMessage
+[0mjson: cannot unmarshal number into Go struct field Specs.balances of type map[string]map[string]*big.Int
 
 ---
 

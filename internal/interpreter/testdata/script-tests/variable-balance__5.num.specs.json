@@ -4,19 +4,29 @@
       "it": "-",
       "balances": {
         "a": {
-          "COIN": 1000
+          "COIN": {
+            "": 1000
+          }
         },
         "b": {
-          "COIN": 40
+          "COIN": {
+            "": 40
+          }
         },
         "c": {
-          "COIN": 1000
+          "COIN": {
+            "": 1000
+          }
         },
         "d": {
-          "COIN": 1000
+          "COIN": {
+            "": 1000
+          }
         },
         "maxAcc": {
-          "COIN": 120
+          "COIN": {
+            "": 120
+          }
         }
       },
       "expect.postings": [

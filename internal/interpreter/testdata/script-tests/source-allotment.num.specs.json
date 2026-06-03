@@ -4,13 +4,19 @@
       "it": "-",
       "balances": {
         "a": {
-          "COIN": 100
+          "COIN": {
+            "": 100
+          }
         },
         "b": {
-          "COIN": 100
+          "COIN": {
+            "": 100
+          }
         },
         "c": {
-          "COIN": 100
+          "COIN": {
+            "": 100
+          }
         }
       },
       "expect.postings": [
