@@ -38,13 +38,18 @@ func getAssetScale(asset string) (string, int64) {
 	return asset, 0
 }
 
+// getAssets returns, for every precision scale found in `balance`, the amount
+// available for `baseAsset`. Match is exact on the base name: `USDT` and
+// `USD_RED` are NOT considered scaled forms of `USD`. Only the bare base name
+// and its `baseAsset/N` precision variants qualify.
 func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for asset, amount := range balance {
-		if strings.HasPrefix(asset, baseAsset) {
-			_, scale := getAssetScale(asset)
-			result[scale] = amount
+		if asset != baseAsset && !strings.HasPrefix(asset, baseAsset+"/") {
+			continue
 		}
+		_, scale := getAssetScale(asset)
+		result[scale] = amount
 	}
 	return result
 }
