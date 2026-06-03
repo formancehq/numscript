@@ -38,13 +38,21 @@ func getAssetScale(asset string) (string, int64) {
 	return asset, 0
 }
 
+// getAssets returns, for a given baseAsset, the per-scale uncolored balance.
+// Asset scaling operates on the uncolored bucket only — colored funds are not
+// implicitly converted across scales.
 func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
-	for asset, amount := range balance {
-		if strings.HasPrefix(asset, baseAsset) {
-			_, scale := getAssetScale(asset)
-			result[scale] = amount
+	for asset, colorMap := range balance {
+		if !strings.HasPrefix(asset, baseAsset) {
+			continue
 		}
+		amount, ok := colorMap[""]
+		if !ok {
+			continue
+		}
+		_, scale := getAssetScale(asset)
+		result[scale] = amount
 	}
 	return result
 }

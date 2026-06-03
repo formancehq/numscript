@@ -7,8 +7,10 @@
       "it": "-",
       "balances": {
         "acc": {
-          "COIN": 1,
-          "COIN_RED": 100
+          "COIN": {
+            "": 1,
+            "RED": 100
+          }
         }
       },
       "expect.postings": [
@@ -16,7 +18,8 @@
           "source": "acc",
           "destination": "dest",
           "amount": 20,
-          "asset": "COIN_RED"
+          "asset": "COIN",
+          "color": "RED"
         }
       ]
     }

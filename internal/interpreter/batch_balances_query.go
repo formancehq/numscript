@@ -54,11 +54,15 @@ func (st *programState) batchQuery(account string, asset string, color *string) 
 	if account == "world" {
 		return
 	}
-	asset = coloredAsset(asset, color)
+	colorStr := ""
+	if color != nil {
+		colorStr = *color
+	}
+	item := AssetColor{Asset: asset, Color: colorStr}
 
 	previousValues := st.CurrentBalanceQuery[account]
-	if !slices.Contains(previousValues, asset) {
-		st.CurrentBalanceQuery[account] = append(previousValues, asset)
+	if !slices.Contains(previousValues, item) {
+		st.CurrentBalanceQuery[account] = append(previousValues, item)
 	}
 }
 

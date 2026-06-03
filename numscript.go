@@ -52,10 +52,13 @@ type (
 	VariablesMap    = interpreter.VariablesMap
 	Posting         = interpreter.Posting
 	ExecutionResult = interpreter.ExecutionResult
-	// For each account, list of the needed assets
-	BalanceQuery   = interpreter.BalanceQuery
+	// For each account, list of the needed (asset, color) pairs
+	BalanceQuery = interpreter.BalanceQuery
+	// AssetColor identifies a (asset, color) pair to query.
+	AssetColor     = interpreter.AssetColor
 	MetadataQuery  = interpreter.MetadataQuery
 	AccountBalance = interpreter.AccountBalance
+	ColorBalance   = interpreter.ColorBalance
 	Balances       = interpreter.Balances
 
 	AccountMetadata = interpreter.AccountMetadata
@@ -75,6 +78,10 @@ type (
 	InterpreterError = interpreter.InterpreterError
 	MissingFundsErr  = interpreter.MissingFundsErr
 )
+
+// Uncolored wraps an amount as a ColorBalance under the empty color key
+// (the "no color" bucket). Useful when building a Balances literal in tests.
+var Uncolored = interpreter.Uncolored
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
 	return p.RunWithFeatureFlags(ctx, vars, store, nil)

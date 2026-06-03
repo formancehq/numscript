@@ -47,7 +47,7 @@ func TestParseSpecs(t *testing.T) {
 	require.Equal(t, specs_format.Specs{
 		Balances: interpreter.Balances{
 			"alice": {
-				"EUR": big.NewInt(200),
+				"EUR": interpreter.Uncolored(big.NewInt(200)),
 			},
 		},
 		Vars: interpreter.VariablesMap{
@@ -58,7 +58,7 @@ func TestParseSpecs(t *testing.T) {
 				It: "d1",
 				Balances: interpreter.Balances{
 					"bob": {
-						"EUR": big.NewInt(42),
+						"EUR": interpreter.Uncolored(big.NewInt(42)),
 					},
 				},
 				ExpectPostings: []interpreter.Posting{

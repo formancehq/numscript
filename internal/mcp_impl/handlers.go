@@ -30,14 +30,31 @@ func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResu
 			return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected nested object for account %v", account))
 		}
 
-		for asset, amountRaw := range assets {
-			amount, ok := amountRaw.(float64)
-			if !ok {
-				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
+		for asset, perAssetRaw := range assets {
+			if iBalances[account][asset] == nil {
+				iBalances[account][asset] = interpreter.ColorBalance{}
 			}
 
-			n, _ := big.NewFloat(amount).Int(new(big.Int))
-			iBalances[account][asset] = n
+			// Accept either { "USD/2": 100 } (uncolored shorthand) or
+			// { "USD/2": { "": 100, "RED": 50 } } (full color form).
+			if amount, ok := perAssetRaw.(float64); ok {
+				n, _ := big.NewFloat(amount).Int(new(big.Int))
+				iBalances[account][asset][""] = n
+				continue
+			}
+
+			colorMap, ok := perAssetRaw.(map[string]any)
+			if !ok {
+				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected number or color map for %s/%s, got: <%#v>", account, asset, perAssetRaw))
+			}
+			for color, amountRaw := range colorMap {
+				amount, ok := amountRaw.(float64)
+				if !ok {
+					return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
+				}
+				n, _ := big.NewFloat(amount).Int(new(big.Int))
+				iBalances[account][asset][color] = n
+			}
 		}
 	}
 	return iBalances, nil

@@ -20,7 +20,7 @@ func TestMakeSpecsFileRetryForMissingFunds(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, interpreter.Balances{
 		"alice": interpreter.AccountBalance{
-			"USD/2": big.NewInt(10000),
+			"USD/2": interpreter.Uncolored(big.NewInt(10000)),
 		},
 	}, out.Balances)
 }

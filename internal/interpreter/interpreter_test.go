@@ -35,23 +35,67 @@ func TestScripts(t *testing.T) {
 }
 
 type TestCase struct {
-	source   string
-	program  *parser.Program
-	vars     map[string]string
-	meta     machine.AccountsMetadata
-	balances map[string]map[string]*big.Int
-	expected CaseResult
+	source string
+	// program is set by compile()
+	program *parser.Program
+	vars    map[string]string
+	meta    machine.AccountsMetadata
+	// balances holds uncolored balances for tests that don't care about color.
+	// A non-empty color is conveyed via coloredBalances.
+	balances        map[string]map[string]*big.Int
+	coloredBalances machine.Balances
+	expected        CaseResult
 }
 
 func NewTestCase() TestCase {
 	return TestCase{
-		vars:     make(map[string]string),
-		meta:     machine.AccountsMetadata{},
-		balances: make(map[string]map[string]*big.Int),
+		vars:            make(map[string]string),
+		meta:            machine.AccountsMetadata{},
+		balances:        make(map[string]map[string]*big.Int),
+		coloredBalances: machine.Balances{},
 		expected: CaseResult{
 			Error: nil,
 		},
 	}
+}
+
+// builtBalances merges the uncolored shorthand with any colored balances
+// configured on the test case into a single machine.Balances value.
+func (c *TestCase) builtBalances() machine.Balances {
+	out := machine.Balances{}
+	for acc, assets := range c.balances {
+		accB, ok := out[acc]
+		if !ok {
+			accB = machine.AccountBalance{}
+			out[acc] = accB
+		}
+		for asset, amt := range assets {
+			colorMap, ok := accB[asset]
+			if !ok {
+				colorMap = machine.ColorBalance{}
+				accB[asset] = colorMap
+			}
+			colorMap[""] = amt
+		}
+	}
+	for acc, assets := range c.coloredBalances {
+		accB, ok := out[acc]
+		if !ok {
+			accB = machine.AccountBalance{}
+			out[acc] = accB
+		}
+		for asset, colorMap := range assets {
+			merged, ok := accB[asset]
+			if !ok {
+				merged = machine.ColorBalance{}
+				accB[asset] = merged
+			}
+			for color, amt := range colorMap {
+				merged[color] = amt
+			}
+		}
+	}
+	return out
 }
 
 // returns a version of the error in which the range is normalized
@@ -104,6 +148,20 @@ func (c *TestCase) setBalance(account string, asset string, amount int64) {
 	c.balances[account][asset] = big.NewInt(amount)
 }
 
+func (c *TestCase) setColoredBalance(account string, asset string, color string, amount int64) {
+	accB, ok := c.coloredBalances[account]
+	if !ok {
+		accB = machine.AccountBalance{}
+		c.coloredBalances[account] = accB
+	}
+	colorMap, ok := accB[asset]
+	if !ok {
+		colorMap = machine.ColorBalance{}
+		accB[asset] = colorMap
+	}
+	colorMap[color] = big.NewInt(amount)
+}
+
 func test(t *testing.T, testCase TestCase) {
 	testWithFeatureFlag(t, testCase, "")
 }
@@ -126,8 +184,8 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 			*prog,
 			testCase.vars,
 			machine.StaticStore{
-				testCase.balances,
-				testCase.meta,
+				Balances: testCase.builtBalances(),
+				Meta:     testCase.meta,
 			},
 			nil,
 		)
@@ -142,8 +200,8 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 		*prog,
 		testCase.vars,
 		machine.StaticStore{
-			testCase.balances,
-			testCase.meta,
+			Balances: testCase.builtBalances(),
+			Meta:     testCase.meta,
 		},
 		featureFlags,
 	)
@@ -161,32 +219,32 @@ func TestStaticStore(t *testing.T) {
 		store := machine.StaticStore{
 			Balances: machine.Balances{
 				"a": machine.AccountBalance{
-					"USD/2": big.NewInt(10),
-					"EUR/2": big.NewInt(1),
+					"USD/2": machine.Uncolored(big.NewInt(10)),
+					"EUR/2": machine.Uncolored(big.NewInt(1)),
 				},
 				"b": machine.AccountBalance{
-					"USD/2": big.NewInt(10),
-					"COIN":  big.NewInt(11),
+					"USD/2": machine.Uncolored(big.NewInt(10)),
+					"COIN":  machine.Uncolored(big.NewInt(11)),
 				},
 			},
 		}
 
 		q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-			"a": []string{"USD/2"},
+			"a": []machine.AssetColor{{Asset: "USD/2"}},
 		})
 		require.Equal(t, machine.Balances{
 			"a": machine.AccountBalance{
-				"USD/2": big.NewInt(10),
+				"USD/2": machine.Uncolored(big.NewInt(10)),
 			},
 		}, q1)
 
 		q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-			"b": []string{"USD/2", "COIN"},
+			"b": []machine.AssetColor{{Asset: "USD/2"}, {Asset: "COIN"}},
 		})
 		require.Equal(t, machine.Balances{
 			"b": machine.AccountBalance{
-				"USD/2": big.NewInt(10),
-				"COIN":  big.NewInt(11),
+				"USD/2": machine.Uncolored(big.NewInt(10)),
+				"COIN":  machine.Uncolored(big.NewInt(11)),
 			},
 		}, q2)
 	})
@@ -195,25 +253,78 @@ func TestStaticStore(t *testing.T) {
 		store := machine.StaticStore{
 			Balances: machine.Balances{
 				"a": machine.AccountBalance{
-					"USD":   big.NewInt(1),
-					"USD/2": big.NewInt(2),
-					"USD/3": big.NewInt(3),
+					"USD":   machine.Uncolored(big.NewInt(1)),
+					"USD/2": machine.Uncolored(big.NewInt(2)),
+					"USD/3": machine.Uncolored(big.NewInt(3)),
 				},
 			},
 		}
 
 		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
-			"a": []string{"USD/*"},
+			"a": []machine.AssetColor{{Asset: "USD/*"}},
 		})
 		require.Nil(t, err)
 		require.Equal(t, machine.Balances{
 			"a": machine.AccountBalance{
-				"USD":   big.NewInt(1),
-				"USD/2": big.NewInt(2),
-				"USD/3": big.NewInt(3),
+				"USD":   machine.Uncolored(big.NewInt(1)),
+				"USD/2": machine.Uncolored(big.NewInt(2)),
+				"USD/3": machine.Uncolored(big.NewInt(3)),
 			},
 		}, balances)
 
+	})
+
+	t.Run("color dimension is honored", func(t *testing.T) {
+		store := machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{
+					"USD/2": machine.ColorBalance{
+						"":       big.NewInt(100),
+						"GRANTS": big.NewInt(50),
+						"OPS":    big.NewInt(25),
+					},
+				},
+			},
+		}
+
+		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
+			"a": []machine.AssetColor{
+				{Asset: "USD/2"},
+				{Asset: "USD/2", Color: "GRANTS"},
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, machine.Balances{
+			"a": machine.AccountBalance{
+				"USD/2": machine.ColorBalance{
+					"":       big.NewInt(100),
+					"GRANTS": big.NewInt(50),
+				},
+			},
+		}, balances)
+	})
+
+	t.Run("color filter is independent across assets in catchall", func(t *testing.T) {
+		store := machine.StaticStore{
+			Balances: machine.Balances{
+				"a": machine.AccountBalance{
+					"USD":   machine.ColorBalance{"": big.NewInt(1), "RED": big.NewInt(10)},
+					"USD/2": machine.ColorBalance{"": big.NewInt(2), "RED": big.NewInt(20)},
+					"USD/3": machine.ColorBalance{"": big.NewInt(3)},
+				},
+			},
+		}
+
+		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
+			"a": []machine.AssetColor{{Asset: "USD/*", Color: "RED"}},
+		})
+		require.NoError(t, err)
+		require.Equal(t, machine.Balances{
+			"a": machine.AccountBalance{
+				"USD":   machine.ColorBalance{"RED": big.NewInt(10)},
+				"USD/2": machine.ColorBalance{"RED": big.NewInt(20)},
+			},
+		}, balances)
 	})
 
 }
@@ -727,16 +838,16 @@ func TestTrackBalancesTricky(t *testing.T) {
 	tc.expected = CaseResult{
 		Postings: []machine.Posting{
 			{
-				"world",
-				"src",
-				big.NewInt(10),
-				"GEM",
+				Source:      "world",
+				Destination: "src",
+				Amount:      big.NewInt(10),
+				Asset:       "GEM",
 			},
 			{
-				"src",
-				"dest",
-				big.NewInt(15),
-				"GEM",
+				Source:      "src",
+				Destination: "dest",
+				Amount:      big.NewInt(15),
+				Asset:       "GEM",
 			},
 		},
 	}
@@ -1001,7 +1112,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 100)
-	tc.setBalance("acc", "COIN_RED", 1)
+	tc.setColoredBalance("acc", "COIN", "RED", 1)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{

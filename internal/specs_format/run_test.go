@@ -58,7 +58,7 @@ func TestRunSpecsSimple(t *testing.T) {
 				},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(9999),
+						"USD": interpreter.Uncolored(big.NewInt(9999)),
 					},
 				},
 				Meta:             interpreter.AccountsMetadata{},
@@ -119,11 +119,11 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 				Meta: interpreter.AccountsMetadata{},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(10),
-						"EUR": big.NewInt(2),
+						"USD": interpreter.Uncolored(big.NewInt(10)),
+						"EUR": interpreter.Uncolored(big.NewInt(2)),
 					},
 					"dest": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
+						"USD": interpreter.Uncolored(big.NewInt(1)),
 					},
 				},
 				FailedAssertions: nil,
@@ -175,7 +175,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 				},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
+						"USD": interpreter.Uncolored(big.NewInt(1)),
 					},
 				},
 				Meta: interpreter.AccountsMetadata{},
@@ -229,7 +229,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 				},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
+						"USD": interpreter.Uncolored(big.NewInt(1)),
 					},
 				},
 				Meta: interpreter.AccountsMetadata{},
@@ -281,7 +281,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 				},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
+						"USD": interpreter.Uncolored(big.NewInt(1)),
 					},
 				},
 				Meta:             interpreter.AccountsMetadata{},
@@ -422,7 +422,7 @@ func TestFocus(t *testing.T) {
 				},
 				Balances: interpreter.Balances{
 					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(9999),
+						"USD": interpreter.Uncolored(big.NewInt(9999)),
 					},
 				},
 				Meta:             interpreter.AccountsMetadata{},

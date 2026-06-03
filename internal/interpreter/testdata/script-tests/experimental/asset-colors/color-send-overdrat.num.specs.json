@@ -10,7 +10,8 @@
           "source": "acc",
           "destination": "dest",
           "amount": 100,
-          "asset": "COIN_RED"
+          "asset": "COIN",
+          "color": "RED"
         }
       ]
     }

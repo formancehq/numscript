@@ -16,13 +16,26 @@ import (
 
 type VariablesMap map[string]string
 
-// For each account, list of the needed assets
-type BalanceQuery map[string][]string
+// AssetColor identifies a (asset, color) pair to query.
+// Color is "" when no color is involved.
+type AssetColor struct {
+	Asset string
+	Color string
+}
+
+// For each account, list of the needed (asset, color) pairs
+type BalanceQuery map[string][]AssetColor
 
 // For each account, list of the needed keys
 type MetadataQuery map[string][]string
 
-type AccountBalance = map[string]*big.Int
+// ColorBalance maps a color (or "" for the uncolored bucket) to an amount.
+type ColorBalance = map[string]*big.Int
+
+// AccountBalance maps an asset to its per-color balances.
+type AccountBalance = map[string]ColorBalance
+
+// Balances maps an account to its (asset, color) → amount table.
 type Balances map[string]AccountBalance
 
 type AccountMetadata = map[string]string
@@ -44,7 +57,7 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 	}
 
 	outputBalance := Balances{}
-	for queriedAccount, queriedCurrencies := range q {
+	for queriedAccount, queriedItems := range q {
 		outputAccountBalance := AccountBalance{}
 		outputBalance[queriedAccount] = outputAccountBalance
 
@@ -52,27 +65,35 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 			return AccountBalance{}
 		})
 
-		for _, curr := range queriedCurrencies {
-			baseAsset, isCatchAll := strings.CutSuffix(curr, "/*")
+		for _, item := range queriedItems {
+			baseAsset, isCatchAll := strings.CutSuffix(item.Asset, "/*")
 			if isCatchAll {
-
-				for k, v := range accountBalanceLookup {
-					matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
+				for asset, colorMap := range accountBalanceLookup {
+					matchesAsset := asset == baseAsset || strings.HasPrefix(asset, baseAsset+"/")
 					if !matchesAsset {
 						continue
 					}
-					outputAccountBalance[k] = new(big.Int).Set(v)
+					amt, ok := colorMap[item.Color]
+					if !ok {
+						continue
+					}
+					out := utils.MapGetOrPutDefault(outputAccountBalance, asset, func() ColorBalance {
+						return ColorBalance{}
+					})
+					out[item.Color] = new(big.Int).Set(amt)
 				}
-
 			} else {
+				out := utils.MapGetOrPutDefault(outputAccountBalance, item.Asset, func() ColorBalance {
+					return ColorBalance{}
+				})
 				n := new(big.Int)
-				outputAccountBalance[curr] = n
-
-				if i, ok := accountBalanceLookup[curr]; ok {
-					n.Set(i)
+				out[item.Color] = n
+				if colorMap, ok := accountBalanceLookup[item.Asset]; ok {
+					if i, ok := colorMap[item.Color]; ok {
+						n.Set(i)
+					}
 				}
 			}
-
 		}
 	}
 
@@ -98,6 +119,7 @@ type Posting struct {
 	Destination string   `json:"destination"`
 	Amount      *big.Int `json:"amount"`
 	Asset       string   `json:"asset"`
+	Color       string   `json:"color"`
 }
 
 type ExecutionResult struct {
@@ -431,7 +453,8 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		postings := Posting{
 			Source:      sender.Name,
 			Destination: name,
-			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
+			Asset:       st.CurrentAsset,
+			Color:       sender.Color,
 			Amount:      sender.Amount,
 		}
 

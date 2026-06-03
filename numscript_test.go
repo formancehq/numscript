@@ -128,17 +128,17 @@ send [COIN 100] (
 			// TODO maybe those calls can be batched together
 			{
 				// this is required by the balance() call
-				"account_that_needs_balance": {"USD/2"},
+				"account_that_needs_balance": {{Asset: "USD/2"}},
 			},
 			{
 				// this is defined in the variables
-				"source1": {"COIN"},
+				"source1": {{Asset: "COIN"}},
 
 				// this is defined in account metadata
-				"source2": {"COIN"},
+				"source2": {{Asset: "COIN"}},
 
 				// this appears as literal
-				"source3": {"COIN"},
+				"source3": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls)
@@ -174,8 +174,8 @@ send [COIN 100] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
-				"b": {"COIN"},
+				"a": {{Asset: "COIN"}},
+				"b": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls)
@@ -205,7 +205,7 @@ func TestDoNotGetBalancesTwice(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"alice": {"COIN"},
+				"alice": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls)
@@ -226,8 +226,8 @@ func TestGetBalancesAllotment(t *testing.T) {
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{
-				"a": {"COIN": big.NewInt(10000)},
-				"b": {"COIN": big.NewInt(10000)},
+				"a": {"COIN": numscript.Uncolored(big.NewInt(10000))},
+				"b": {"COIN": numscript.Uncolored(big.NewInt(10000))},
 			},
 		},
 	}
@@ -241,8 +241,8 @@ func TestGetBalancesAllotment(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
-				"b": {"COIN"},
+				"a": {{Asset: "COIN"}},
+				"b": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls)
@@ -268,7 +268,7 @@ func TestGetBalancesOverdraft(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
+				"a": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls)
@@ -288,7 +288,7 @@ func TestDoNotFetchBalanceTwice(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src": {"COIN"},
+				"src": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls,
@@ -314,10 +314,10 @@ func TestDoNotFetchBalanceTwice2(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src1": {"COIN"},
+				"src1": {{Asset: "COIN"}},
 			},
 			{
-				"src2": {"COIN"},
+				"src2": {{Asset: "COIN"}},
 			},
 		},
 		store.GetBalancesCalls,
@@ -343,10 +343,10 @@ func TestDoNotFetchBalanceTwice3(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src": {"EUR/2"},
+				"src": {{Asset: "EUR/2"}},
 			},
 			{
-				"src": {"USD/2"},
+				"src": {{Asset: "USD/2"}},
 			},
 		},
 		store.GetBalancesCalls,
@@ -410,7 +410,7 @@ send [USD/2 30] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"alice": {"USD/2"},
+				"alice": {{Asset: "USD/2"}},
 			},
 		},
 		store.GetBalancesCalls,
@@ -437,7 +437,7 @@ set_tx_meta(
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{
 				"alice": interpreter.AccountBalance{
-					"USD/2": big.NewInt(20),
+					"USD/2": numscript.Uncolored(big.NewInt(20)),
 				},
 			},
 		},
@@ -485,10 +485,10 @@ send [USD/2 10] (
 			},
 			Balances: interpreter.Balances{
 				"a": interpreter.AccountBalance{
-					"USD/2": big.NewInt(100),
+					"USD/2": numscript.Uncolored(big.NewInt(100)),
 				},
 				"a2": interpreter.AccountBalance{
-					"USD/2": big.NewInt(1),
+					"USD/2": numscript.Uncolored(big.NewInt(1)),
 				},
 			},
 		},
@@ -519,10 +519,10 @@ send [USD/2 10] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"USD/2"},
+				"a": {{Asset: "USD/2"}},
 			},
 			{
-				"a2": {"USD/2"},
+				"a2": {{Asset: "USD/2"}},
 			},
 		},
 		store.GetBalancesCalls,

@@ -299,17 +299,25 @@ func getMovements(postings []interpreter.Posting) Movements {
 	return m
 }
 
+func fetchOrInsertBalance(b interpreter.Balances, account, asset, color string) *big.Int {
+	accBalance := utils.MapGetOrPutDefault(b, account, func() interpreter.AccountBalance {
+		return interpreter.AccountBalance{}
+	})
+	colorMap := utils.MapGetOrPutDefault(accBalance, asset, func() interpreter.ColorBalance {
+		return interpreter.ColorBalance{}
+	})
+	return utils.MapGetOrPutDefault(colorMap, color, func() *big.Int {
+		return new(big.Int)
+	})
+}
+
 func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
 	balances := initialBalances.DeepClone()
 	for _, posting := range postings {
-		sourceBalance := utils.NestedMapGetOrPutDefault(balances, posting.Source, posting.Asset, func() *big.Int {
-			return new(big.Int)
-		})
+		sourceBalance := fetchOrInsertBalance(balances, posting.Source, posting.Asset, posting.Color)
 		sourceBalance.Sub(sourceBalance, posting.Amount)
 
-		destinationBalance := utils.NestedMapGetOrPutDefault(balances, posting.Destination, posting.Asset, func() *big.Int {
-			return new(big.Int)
-		})
+		destinationBalance := fetchOrInsertBalance(balances, posting.Destination, posting.Asset, posting.Color)
 		destinationBalance.Add(destinationBalance, posting.Amount)
 	}
 
