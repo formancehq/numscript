@@ -13,6 +13,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// maxExactJSONInt is the largest integer that float64 can represent
+// without loss (2^53 - 1). JSON-decoded amounts past this magnitude have
+// already lost precision before reaching the handler, so we reject them.
+const maxExactJSONInt = float64(9_007_199_254_740_991)
+
 func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResult) {
 	balances, ok := balancesRaw.(map[string]any)
 	if !ok {
@@ -33,11 +38,20 @@ func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResu
 		for asset, amountRaw := range assets {
 			amount, ok := amountRaw.(float64)
 			if !ok {
-				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
+				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected number for amount on %s/%s, got: <%#v>", account, asset, amountRaw))
 			}
 
-			n, _ := big.NewFloat(amount).Int(new(big.Int))
-			iBalances[account][asset] = n
+			// JSON numbers arrive here as float64. Reject anything that
+			// cannot be losslessly represented as an integer in float64
+			// precision: fractional values and magnitudes past 2^53 - 1.
+			// Silent truncation / rounding on a balance is not acceptable
+			// for a financial DSL — the caller should switch to a safer
+			// encoding when they need values outside the safe range.
+			if amount < -maxExactJSONInt || amount > maxExactJSONInt || amount != float64(int64(amount)) {
+				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("amount for %s/%s must be an exact integer in [-(2^53-1), 2^53-1], got: %v", account, asset, amount))
+			}
+
+			iBalances[account][asset] = big.NewInt(int64(amount))
 		}
 	}
 	return iBalances, nil
