@@ -95,45 +95,47 @@ func addEvalTool(s *server.MCPServer) {
 			`),
 		),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		script, err := request.RequireString("script")
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+	s.AddTool(tool, handleEvalTool)
+}
 
-		parsed := parser.Parse(script)
-		if len(parsed.Errors) != 0 {
-			out := make([]string, len(parsed.Errors))
-			for index, err := range parsed.Errors {
-				out[index] = err.Msg
-			}
-			mcp.NewToolResultError(strings.Join(out, ", "))
-		}
+func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	script, err := request.RequireString("script")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
 
-		balances, mcpErr := parseBalancesJson(request.GetArguments()["balances"])
-		if mcpErr != nil {
-			return mcpErr, nil
+	parsed := parser.Parse(script)
+	if len(parsed.Errors) != 0 {
+		out := make([]string, len(parsed.Errors))
+		for index, err := range parsed.Errors {
+			out[index] = err.Msg
 		}
+		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
+	}
 
-		vars, mcpErr := parseVarsJson(request.GetArguments()["vars"])
-		if mcpErr != nil {
-			return mcpErr, nil
-		}
+	balances, mcpErr := parseBalancesJson(request.GetArguments()["balances"])
+	if mcpErr != nil {
+		return mcpErr, nil
+	}
 
-		out, iErr := interpreter.RunProgram(
-			ctx,
-			parsed.Value,
-			vars,
-			interpreter.StaticStore{
-				Balances: balances,
-			},
-			map[string]struct{}{},
-		)
-		if iErr != nil {
-			return mcp.NewToolResultError(iErr.Error()), nil
-		}
-		return mcp.NewToolResultJSON(*out)
-	})
+	vars, mcpErr := parseVarsJson(request.GetArguments()["vars"])
+	if mcpErr != nil {
+		return mcpErr, nil
+	}
+
+	out, iErr := interpreter.RunProgram(
+		ctx,
+		parsed.Value,
+		vars,
+		interpreter.StaticStore{
+			Balances: balances,
+		},
+		map[string]struct{}{},
+	)
+	if iErr != nil {
+		return mcp.NewToolResultError(iErr.Error()), nil
+	}
+	return mcp.NewToolResultJSON(*out)
 }
 
 func addCheckTool(s *server.MCPServer) {
