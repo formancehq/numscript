@@ -1029,9 +1029,13 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			allotments = append(allotments, rat)
 
 		case *parser.RemainingAllotment:
+			if remainingAllotmentIndex != -1 {
+				return nil, InvalidRemainingAllotment{
+					Range: allotment.Range,
+				}
+			}
 			remainingAllotmentIndex = i
 			allotments = append(allotments, new(big.Rat))
-			// TODO check there are not duplicate remaining clause
 		}
 	}
 
