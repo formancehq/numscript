@@ -58,6 +58,15 @@ func TestGetVarsNovars(t *testing.T) {
 	)
 }
 
+func TestRunRejectsParseErrors(t *testing.T) {
+	parseResult := numscript.Parse(`send [COIN 100] (`)
+	require.NotEmpty(t, parseResult.GetParsingErrors())
+
+	_, err := parseResult.Run(context.Background(), nil, interpreter.StaticStore{})
+	require.Error(t, err)
+	require.Equal(t, parseResult.GetParsingErrors()[0].Error(), err.Error())
+}
+
 func TestDoNotGetWorldBalance(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = @world

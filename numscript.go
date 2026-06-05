@@ -86,6 +86,10 @@ func (p ParseResult) RunWithFeatureFlags(
 	store Store,
 	featureFlags map[string]struct{},
 ) (ExecutionResult, InterpreterError) {
+	if len(p.parseResult.Errors) != 0 {
+		return ExecutionResult{}, p.parseResult.Errors[0]
+	}
+
 	if featureFlags == nil {
 		featureFlags = make(map[string]struct{})
 	}
