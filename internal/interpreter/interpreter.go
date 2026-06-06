@@ -1209,12 +1209,33 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
+	hasColor := false
+	for _, posting := range postings {
+		if posting.Color != "" {
+			hasColor = true
+			break
+		}
+	}
+
+	if !hasColor {
+		var rows [][]string
+		for _, posting := range postings {
+			row := []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+			rows = append(rows, row)
+		}
+		return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
+	}
+
 	var rows [][]string
 	for _, posting := range postings {
-		row := []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+		color := posting.Color
+		if color == "" {
+			color = "-"
+		}
+		row := []string{posting.Source, posting.Destination, posting.Asset, color, posting.Amount.String()}
 		rows = append(rows, row)
 	}
-	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
+	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Color", "Amount"}, rows, false)
 }
 
 func PrettyPrintMeta(meta Metadata) string {
