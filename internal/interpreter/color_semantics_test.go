@@ -337,10 +337,10 @@ func TestPostingJSONRoundtripPreservesColor(t *testing.T) {
 	require.Equal(t, postings[0].Color, decoded.Color)
 }
 
-// Color is always present in JSON output, even when empty, so downstream
-// consumers can rely on its presence to distinguish "uncolored" from
-// "missing field".
-func TestPostingJSONAlwaysIncludesColor(t *testing.T) {
+// Uncolored postings omit the color field — an absent color is the
+// uncolored bucket, identical in meaning to color == "". Keeping the JSON
+// noise-free for the dominant non-color case.
+func TestPostingJSONOmitsEmptyColor(t *testing.T) {
 	t.Parallel()
 
 	p := machine.Posting{
@@ -351,8 +351,13 @@ func TestPostingJSONAlwaysIncludesColor(t *testing.T) {
 	}
 	encoded, err := json.Marshal(p)
 	require.NoError(t, err)
-	require.Contains(t, string(encoded), `"color":""`,
-		"uncolored postings must still expose the color field, got: %s", string(encoded))
+	require.NotContains(t, string(encoded), `"color"`,
+		"uncolored postings must not emit a color field, got: %s", string(encoded))
+
+	// Round-trip: an absent color field decodes back to the uncolored bucket.
+	var decoded machine.Posting
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	require.Equal(t, "", decoded.Color)
 }
 
 // Allocation-style send: one source feeding multiple destinations under a

@@ -119,7 +119,7 @@ type Posting struct {
 	Destination string   `json:"destination"`
 	Amount      *big.Int `json:"amount"`
 	Asset       string   `json:"asset"`
-	Color       string   `json:"color"`
+	Color       string   `json:"color,omitempty"`
 }
 
 type ExecutionResult struct {

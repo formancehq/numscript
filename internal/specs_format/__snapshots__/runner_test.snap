@@ -33,8 +33,7 @@ GOT:[0m
 [31m+     "source": "world",[0m
 [90m      "destination": "dest",[0m
 [90m      "amount": 100,[0m
-[90m      "asset": "USD/2",[0m
-[90m      "color": ""[0m
+[90m      "asset": "USD/2"[0m
 [90m    }[0m
 [90m  ][0m
 
