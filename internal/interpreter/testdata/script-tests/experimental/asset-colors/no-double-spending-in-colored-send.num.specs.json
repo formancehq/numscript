@@ -30,8 +30,7 @@
           "source": "src",
           "destination": "dest",
           "amount": 80,
-          "asset": "COIN",
-          "color": ""
+          "asset": "COIN"
         }
       ]
     }
