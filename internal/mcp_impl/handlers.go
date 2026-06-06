@@ -2,8 +2,8 @@ package mcp_impl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -13,45 +13,28 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// parseBalancesJson routes the caller-supplied balances payload through the
+// canonical interpreter.Balances unmarshaller, so the MCP `evaluate` tool
+// accepts exactly the same shapes documented elsewhere — bare number for the
+// uncolored shorthand, single value-object, or array of value-objects.
+//
+// The MCP framework hands us an already-decoded `any`; re-marshalling round
+// trips through JSON, but big-integer amounts stay safe because the
+// re-encoded payload feeds into Balances.UnmarshalJSON which decodes each
+// amount directly into a *big.Int.
 func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResult) {
-	balances, ok := balancesRaw.(map[string]any)
-	if !ok {
-		return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected an object as balances, got: <%#v>", balancesRaw))
+	if balancesRaw == nil {
+		return interpreter.Balances{}, nil
 	}
-
-	iBalances := interpreter.Balances{}
-	for account, assetsRaw := range balances {
-		if iBalances[account] == nil {
-			iBalances[account] = interpreter.AccountBalance{}
-		}
-
-		assets, ok := assetsRaw.(map[string]any)
-		if !ok {
-			return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected nested object for account %v", account))
-		}
-
-		for asset, perAssetRaw := range assets {
-			if iBalances[account][asset] == nil {
-				iBalances[account][asset] = interpreter.ColorBalance{}
-			}
-
-			// Expected shape: { "USD/2": { "": 100, "RED": 50 } }.
-			// Color "" is the uncolored bucket.
-			colorMap, ok := perAssetRaw.(map[string]any)
-			if !ok {
-				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected {color: amount} object for %s/%s, got: <%#v>", account, asset, perAssetRaw))
-			}
-			for color, amountRaw := range colorMap {
-				amount, ok := amountRaw.(float64)
-				if !ok {
-					return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
-				}
-				n, _ := big.NewFloat(amount).Int(new(big.Int))
-				iBalances[account][asset][color] = n
-			}
-		}
+	encoded, err := json.Marshal(balancesRaw)
+	if err != nil {
+		return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Could not re-encode balances: %v", err))
 	}
-	return iBalances, nil
+	var balances interpreter.Balances
+	if err := json.Unmarshal(encoded, &balances); err != nil {
+		return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Invalid balances payload: %v", err))
+	}
+	return balances, nil
 }
 
 func parseVarsJson(varsRaw any) (map[string]string, *mcp.CallToolResult) {
@@ -86,8 +69,19 @@ func addEvalTool(s *server.MCPServer) {
 		),
 		mcp.WithObject("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A nested map from the account name, to the asset, to its integer amount.
-			For example: { "alice": { "USD/2": 100, "EUR/2": -42 }, "bob": { "BTC": 1 } }
+			mcp.Description(`The accounts' balances. A nested map from the account name, to the asset, to the held amount.
+
+			Each per-asset entry accepts three forms:
+			  - a bare integer for the uncolored bucket (shorthand)
+			  - a single value-object: { "amount": N } or { "color": "RED", "amount": N }
+			  - an array of value-objects when several colors coexist on the same asset
+
+			Examples:
+			  { "alice": { "USD/2": 100, "EUR/2": -42 }, "bob": { "BTC": 1 } }
+			  { "alice": { "USD/2": [{ "amount": 100 }, { "color": "RED", "amount": 50 }] } }
+
+			Color is a first-class dimension on the emitted postings (see Posting.color);
+			the empty/missing color is its own bucket, distinct from any non-empty one.
 			`),
 		),
 		mcp.WithObject("vars",
