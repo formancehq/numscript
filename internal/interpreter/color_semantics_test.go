@@ -486,23 +486,29 @@ func TestColorComposesWithAssetPrecision(t *testing.T) {
 	require.Equal(t, "COL", postings[0].Color)
 }
 
-// JSON unmarshal accepts both shapes (flat + colored), as documented in
-// Balances JSON shape: a {color: amount} object under each (account, asset).
-// Color "" is the uncolored bucket. No shorthand is accepted — uncolored
-// balances must be explicit.
+// Balances JSON shape — see balances_json.go.
+// Three forms are accepted under each (account, asset) entry:
+//  1. bare number (uncolored shorthand)
+//  2. single value-object {amount, color?}
+//  3. array of value-objects (canonical multi-color form)
 func TestBalancesJSONShape(t *testing.T) {
 	t.Parallel()
 
 	src := `{
 		"alice": {
-			"USD/2": {"": 100, "RED": 50},
-			"EUR/2": {"": -42}
+			"USD/2": [
+				{ "amount": 100 },
+				{ "color": "RED", "amount": 50 }
+			],
+			"EUR/2": -42,
+			"GBP": { "color": "BLUE", "amount": 7 }
 		}
 	}`
 	want := machine.Balances{
 		"alice": machine.AccountBalance{
 			"USD/2": machine.ColorBalance{"": big.NewInt(100), "RED": big.NewInt(50)},
 			"EUR/2": machine.Uncolored(big.NewInt(-42)),
+			"GBP":   machine.ColorBalance{"BLUE": big.NewInt(7)},
 		},
 	}
 
@@ -512,13 +518,60 @@ func TestBalancesJSONShape(t *testing.T) {
 		"unexpected balances: want %v, got %v", want, got)
 }
 
-// The flat shorthand `{"USD/2": 100}` is no longer supported — uncolored
-// balances must spell out the empty-color key explicitly. We assert the
-// rejection here so callers never accidentally drop into a permissive parse.
-func TestBalancesJSONRejectsFlatShorthand(t *testing.T) {
+// Canonical write: uncolored-only collapses to a bare number; multi-color
+// emits a deterministic array sorted by color.
+func TestBalancesJSONCanonicalWrite(t *testing.T) {
+	t.Parallel()
+
+	b := machine.Balances{
+		"alice": machine.AccountBalance{
+			"USD/2": machine.ColorBalance{"": big.NewInt(100), "RED": big.NewInt(50)},
+			"EUR/2": machine.Uncolored(big.NewInt(-42)),
+		},
+	}
+
+	encoded, err := json.Marshal(b)
+	require.NoError(t, err)
+
+	const want = `{"alice":{"EUR/2":-42,"USD/2":[{"amount":100},{"color":"RED","amount":50}]}}`
+	require.JSONEq(t, want, string(encoded))
+}
+
+// The old strict-nested shape `{"USD/2": {"": 100}}` is no longer valid:
+// the value-object must have an "amount" field. This guards against silent
+// acceptance of pre-migration fixtures.
+func TestBalancesJSONRejectsLegacyNestedShape(t *testing.T) {
 	t.Parallel()
 
 	var got machine.Balances
-	err := json.Unmarshal([]byte(`{"alice": {"USD/2": 100}}`), &got)
-	require.Error(t, err, "flat shorthand must be rejected")
+	err := json.Unmarshal([]byte(`{"alice": {"USD/2": {"": 100}}}`), &got)
+	require.Error(t, err, "legacy nested shape must be rejected")
+}
+
+// PrettyPrintPostings must surface Color when any posting carries one — without
+// it, two otherwise-identical colored postings would render identically.
+func TestPrettyPrintPostingsExposesColor(t *testing.T) {
+	t.Parallel()
+
+	postings := []machine.Posting{
+		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
+		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(50), Color: "RED"},
+	}
+
+	out := machine.PrettyPrintPostings(postings)
+	require.Contains(t, out, "Color")
+	require.Contains(t, out, "RED")
+}
+
+// When no posting is colored, the Color column stays hidden to keep the
+// uncolored output unchanged.
+func TestPrettyPrintPostingsHidesColorWhenAbsent(t *testing.T) {
+	t.Parallel()
+
+	postings := []machine.Posting{
+		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
+	}
+
+	out := machine.PrettyPrintPostings(postings)
+	require.NotContains(t, out, "Color")
 }

@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "foo": {
-          "GEM": {
-            "": 0
-          }
+          "GEM": 0
         }
       },
       "expect.postings": []

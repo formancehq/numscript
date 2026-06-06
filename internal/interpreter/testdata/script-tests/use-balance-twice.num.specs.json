@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "src": {
-          "COIN": {
-            "": 50
-          }
+          "COIN": 50
         }
       },
       "expect.postings": [

@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "users:001": {
-          "USD/2": {
-            "": 17
-          }
+          "USD/2": 17
         }
       },
       "variables": {

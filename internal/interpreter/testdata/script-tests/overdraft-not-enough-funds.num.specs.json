@@ -5,9 +5,7 @@
       "balances": {
         "users:2345:credit": {},
         "users:2345:main": {
-          "USD/2": {
-            "": 8000
-          }
+          "USD/2": 8000
         }
       },
       "expect.postings": [

@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "a": {
-          "COIN": {
-            "": 60
-          }
+          "COIN": 60
         }
       },
       "expect.error.missingFunds": true

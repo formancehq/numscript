@@ -15,7 +15,7 @@ func TestParseSpecs(t *testing.T) {
 	raw := `
 {
   "balances": {
-    "alice": { "EUR": { "": 200 } }
+    "alice": { "EUR": 200 }
   },
   "variables": {
     "amt": "200"
@@ -24,7 +24,7 @@ func TestParseSpecs(t *testing.T) {
     {
       "it": "d1",
       "balances": {
-        "bob": { "EUR": { "": 42 } }
+        "bob": { "EUR": 42 }
       },
       "expect.postings": [
         {

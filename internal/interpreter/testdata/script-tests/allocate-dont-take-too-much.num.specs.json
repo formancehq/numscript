@@ -4,14 +4,10 @@
       "it": "-",
       "balances": {
         "users:001": {
-          "CREDIT": {
-            "": 100
-          }
+          "CREDIT": 100
         },
         "users:002": {
-          "CREDIT": {
-            "": 110
-          }
+          "CREDIT": 110
         }
       },
       "expect.postings": [

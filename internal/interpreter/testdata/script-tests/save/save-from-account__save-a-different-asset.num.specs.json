@@ -4,12 +4,8 @@
       "it": "-",
       "balances": {
         "alice": {
-          "COIN": {
-            "": 100
-          },
-          "USD": {
-            "": 20
-          }
+          "COIN": 100,
+          "USD": 20
         }
       },
       "expect.postings": [

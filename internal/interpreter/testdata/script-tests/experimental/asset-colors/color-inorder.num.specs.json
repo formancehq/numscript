@@ -7,11 +7,19 @@
       "it": "-",
       "balances": {
         "src": {
-          "COIN": {
-            "": 100,
-            "BLUE": 30,
-            "RED": 20
-          }
+          "COIN": [
+            {
+              "amount": 100
+            },
+            {
+              "color": "BLUE",
+              "amount": 30
+            },
+            {
+              "color": "RED",
+              "amount": 20
+            }
+          ]
         }
       },
       "expect.postings": [

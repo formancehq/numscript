@@ -5,14 +5,10 @@
       "it": "matches sources and destinations allotments",
       "balances": {
         "src1": {
-          "USD": {
-            "": 999
-          }
+          "USD": 999
         },
         "src2": {
-          "USD": {
-            "": 999
-          }
+          "USD": 999
         }
       },
       "expect.postings": [

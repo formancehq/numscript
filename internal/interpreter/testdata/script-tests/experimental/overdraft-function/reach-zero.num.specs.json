@@ -10,9 +10,7 @@
     {
       "balances": {
         "invoice:001": {
-          "USD/2": {
-            "": -999
-          }
+          "USD/2": -999
         }
       },
       "it": "only sends to the first one if there's not enough funds to top-up its balance",
@@ -28,14 +26,10 @@
     {
       "balances": {
         "invoice:001": {
-          "USD/2": {
-            "": -99
-          }
+          "USD/2": -99
         },
         "invoice:002": {
-          "USD/2": {
-            "": -999
-          }
+          "USD/2": -999
         }
       },
       "it": "it sends to the second source after topping-up the first one",
@@ -57,14 +51,10 @@
     {
       "balances": {
         "invoice:001": {
-          "USD/2": {
-            "": -2
-          }
+          "USD/2": -2
         },
         "invoice:002": {
-          "USD/2": {
-            "": -3
-          }
+          "USD/2": -3
         }
       },
       "it": "it keeps the spare amount",

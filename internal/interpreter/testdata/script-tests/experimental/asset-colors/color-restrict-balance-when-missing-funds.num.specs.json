@@ -7,10 +7,15 @@
       "it": "-",
       "balances": {
         "acc": {
-          "COIN": {
-            "": 100,
-            "RED": 1
-          }
+          "COIN": [
+            {
+              "amount": 100
+            },
+            {
+              "color": "RED",
+              "amount": 1
+            }
+          ]
         }
       },
       "expect.error.missingFunds": true

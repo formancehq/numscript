@@ -4,14 +4,10 @@
       "it": "-",
       "balances": {
         "src1": {
-          "COIN": {
-            "": 1000
-          }
+          "COIN": 1000
         },
         "src2": {
-          "COIN": {
-            "": 1000
-          }
+          "COIN": 1000
         }
       },
       "expect.postings": [

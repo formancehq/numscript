@@ -5,9 +5,7 @@
       "it": "is capped to USD100 when balance is higher",
       "balances": {
         "src": {
-          "USD": {
-            "": 999
-          }
+          "USD": 999
         }
       },
       "expect.postings": [
@@ -23,9 +21,7 @@
       "it": "allows sending less than the cap when balance is not enough",
       "balances": {
         "src": {
-          "USD": {
-            "": 42
-          }
+          "USD": 42
         }
       },
       "expect.postings": [

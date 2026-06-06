@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "foo": {
-          "COIN": {
-            "": 2000
-          }
+          "COIN": 2000
         }
       },
       "expect.postings": [

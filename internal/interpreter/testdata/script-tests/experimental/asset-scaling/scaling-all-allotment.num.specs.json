@@ -5,9 +5,7 @@
   ],
   "balances": {
     "acc1": {
-      "EUR/2": {
-        "": 50
-      }
+      "EUR/2": 50
     }
   },
   "testCases": [
@@ -15,9 +13,7 @@
       "it": "casts all the avlb",
       "balances": {
         "acc2": {
-          "EUR/3": {
-            "": 500
-          }
+          "EUR/3": 500
         }
       },
       "expect.postings": [

@@ -11,9 +11,7 @@
       "it": "sends from the first source when there is enough balance",
       "balances": {
         "s1": {
-          "USD": {
-            "": 999
-          }
+          "USD": 999
         }
       },
       "expect.postings": [
@@ -29,14 +27,10 @@
       "it": "sends from the second one when it has enough balance but the first one doesn't",
       "balances": {
         "s1": {
-          "USD": {
-            "": 9
-          }
+          "USD": 9
         },
         "s2": {
-          "USD": {
-            "": 999
-          }
+          "USD": 999
         }
       },
       "expect.postings": [
@@ -52,14 +46,10 @@
       "it": "sends partially from both when none of them has enough balance on its own",
       "balances": {
         "s1": {
-          "USD": {
-            "": 6
-          }
+          "USD": 6
         },
         "s2": {
-          "USD": {
-            "": 9
-          }
+          "USD": 9
         }
       },
       "expect.postings": [
@@ -81,14 +71,10 @@
       "it": "fails if there aren't enough funds between all sources",
       "balances": {
         "s1": {
-          "USD": {
-            "": 5
-          }
+          "USD": 5
         },
         "s2": {
-          "USD": {
-            "": 4
-          }
+          "USD": 4
         }
       },
       "expect.error.missingFunds": true

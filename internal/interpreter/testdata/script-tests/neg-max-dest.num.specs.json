@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "memo:main": {
-          "EUR/2": {
-            "": 99999999
-          }
+          "EUR/2": 99999999
         }
       },
       "variables": {},

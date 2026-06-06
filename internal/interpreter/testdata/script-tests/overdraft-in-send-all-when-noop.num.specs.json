@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "src": {
-          "USD/2": {
-            "": 1
-          }
+          "USD/2": 1
         }
       },
       "expect.postings": [

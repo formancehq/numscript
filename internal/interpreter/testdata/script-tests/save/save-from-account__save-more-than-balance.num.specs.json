@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "alice": {
-          "USD": {
-            "": 20
-          }
+          "USD": 20
         }
       },
       "expect.postings": [

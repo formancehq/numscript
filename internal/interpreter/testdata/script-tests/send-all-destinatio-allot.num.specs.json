@@ -4,9 +4,7 @@
       "it": "-",
       "balances": {
         "users:001": {
-          "USD/2": {
-            "": 30
-          }
+          "USD/2": 30
         }
       },
       "expect.postings": [

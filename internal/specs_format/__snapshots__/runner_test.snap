@@ -76,16 +76,12 @@ GOT:[0m
 
 [90m  {[0m
 [90m    "alice": {[0m
-[90m      "USD/2": {[0m
-[32m-       "": -100[0m
-[31m+       "": 9899[0m
-[90m      }[0m
+[32m-     "USD/2": -100[0m
+[31m+     "USD/2": 9899[0m
 [90m    },[0m
 [90m    "dest": {[0m
-[90m      "USD/2": {[0m
-[32m-       "": 1[0m
-[31m+       "": 100[0m
-[90m      }[0m
+[32m-     "USD/2": 1[0m
+[31m+     "USD/2": 100[0m
 [90m    }[0m
 [90m  }[0m
 
@@ -123,7 +119,7 @@ Error: example.num.specs.json
 [31m
 Error: example.num.specs.json
 
-[0mjson: cannot unmarshal number into Go struct field Specs.balances of type map[string]map[string]*big.Int
+[0mjson: cannot unmarshal number into Go struct field Specs.balances of type map[string]map[string]json.RawMessage
 
 ---
 

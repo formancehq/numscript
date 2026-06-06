@@ -8,9 +8,7 @@
       "it": "updates the swap account balances",
       "balances": {
         "src": {
-          "EUR": {
-            "": 1
-          }
+          "EUR": 1
         }
       },
       "expect.postings": [

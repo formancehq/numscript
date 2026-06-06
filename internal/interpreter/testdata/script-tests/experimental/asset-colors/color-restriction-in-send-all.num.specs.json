@@ -8,7 +8,8 @@
       "balances": {
         "src": {
           "COIN": {
-            "RED": 42
+            "color": "RED",
+            "amount": 42
           }
         }
       },
