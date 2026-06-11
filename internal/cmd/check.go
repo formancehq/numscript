@@ -10,6 +10,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// sortDiagnostics sorts diagnostics in source order (by start position,
+// line first and then character), using a strict less function as required
+// by the sort.Slice contract.
+func sortDiagnostics(diagnostics []analysis.Diagnostic) {
+	sort.Slice(diagnostics, func(i, j int) bool {
+		return diagnostics[i].Range.Start.Lt(diagnostics[j].Range.Start)
+	})
+}
+
 func check(path string) {
 	dat, err := os.ReadFile(path)
 	if err != nil {
@@ -18,12 +27,7 @@ func check(path string) {
 	}
 
 	res := analysis.CheckSource(string(dat))
-	sort.Slice(res.Diagnostics, func(i, j int) bool {
-		p1 := res.Diagnostics[i].Range.Start
-		p2 := res.Diagnostics[j].Range.Start
-
-		return p2.GtEq(p1)
-	})
+	sortDiagnostics(res.Diagnostics)
 
 	for i, d := range res.Diagnostics {
 		if i != 0 {
