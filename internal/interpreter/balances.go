@@ -69,6 +69,10 @@ func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
 }
 
 // Merge balances by adding balances in the "update" arg
+//
+// Values are deep-copied, so that the merged Balances never aliases the
+// *big.Int values owned by the "update" arg (which may belong to a
+// third-party Store implementation and must not be mutated in place)
 func (b Balances) Merge(update Balances) {
 	// merge queried balance
 	for acc, accBalances := range update {
@@ -77,7 +81,7 @@ func (b Balances) Merge(update Balances) {
 		})
 
 		for curr, amt := range accBalances {
-			cachedAcc[curr] = amt
+			cachedAcc[curr] = new(big.Int).Set(amt)
 		}
 	}
 }
