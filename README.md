@@ -32,3 +32,13 @@ curl -sSf https://raw.githubusercontent.com/formancehq/numscript/main/install.sh
 ```sh
 go install github.com/formancehq/numscript/cmd/numscript@latest
 ```
+
+### Telemetry
+
+Release builds of the `numscript` CLI send anonymous crash reports to [Sentry](https://sentry.io) when the program panics. A crash report contains the panic message, a stack trace, and the CLI version — nothing else. No reports are sent during normal operation, and development builds (built from source with `go install` or `go build`, where the version is `develop`) never send anything.
+
+To disable crash reporting entirely, set the `NUMSCRIPT_NO_TELEMETRY` environment variable to any non-empty value:
+
+```sh
+export NUMSCRIPT_NO_TELEMETRY=1
+```

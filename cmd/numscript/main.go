@@ -15,8 +15,16 @@ import (
 // -ldflags "-X main.Version=0.0.1"
 var Version string = "develop"
 
+// telemetryEnabled reports whether crash reporting should be active.
+// Telemetry is disabled in development builds (Version == "develop")
+// and when the NUMSCRIPT_NO_TELEMETRY environment variable is set to
+// any non-empty value.
+func telemetryEnabled() bool {
+	return Version != "develop" && os.Getenv("NUMSCRIPT_NO_TELEMETRY") == ""
+}
+
 func recoverPanic() {
-	if Version == "develop" {
+	if !telemetryEnabled() {
 		return
 	}
 
@@ -32,15 +40,18 @@ func recoverPanic() {
 }
 
 func main() {
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              "https://b8b6cfd5dab95e1258d80963c3db73bf@o4504394442539008.ingest.us.sentry.io/4507623538884608",
-		AttachStacktrace: true,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize Sentry: %v\n", err)
+	if telemetryEnabled() {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              "https://b8b6cfd5dab95e1258d80963c3db73bf@o4504394442539008.ingest.us.sentry.io/4507623538884608",
+			AttachStacktrace: true,
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize Sentry: %v\n", err)
+		}
+
+		defer sentry.Flush(2 * time.Second)
 	}
 
 	defer recoverPanic()
-	defer sentry.Flush(2 * time.Second)
 
 	cmd.Execute(cmd.CliOptions{
 		Version: Version,
