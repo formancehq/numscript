@@ -11,10 +11,10 @@ func overdraft(
 	s *programState,
 	r parser.Range,
 	args []Value,
-) (*Monetary, InterpreterError) {
+) (Monetary, InterpreterError) {
 	err := s.checkFeatureFlag(flags.ExperimentalOverdraftFunctionFeatureFlag)
 	if err != nil {
-		return nil, err
+		return Monetary{}, err
 	}
 
 	// TODO more precise args range location
@@ -23,26 +23,27 @@ func overdraft(
 	asset := parseArg(p, r, expectAsset)
 	err = p.parse()
 	if err != nil {
-		return nil, err
+		return Monetary{}, err
 	}
 
-	balance_, err := getBalance(s, *account, *asset)
+	// overdrat call doesn't handle colors
+	balance_, err := getBalance(s, account, asset, "")
 	if err != nil {
-		return nil, err
+		return Monetary{}, err
 	}
 
 	balanceIsPositive := balance_.Cmp(big.NewInt(0)) == 1
 	if balanceIsPositive {
-		return &Monetary{
+		return Monetary{
 			Amount: NewMonetaryInt(0),
-			Asset:  Asset(*asset),
+			Asset:  asset,
 		}, nil
 	}
 
 	overdraft := new(big.Int).Neg(balance_)
-	return &Monetary{
+	return Monetary{
 		Amount: MonetaryInt(*overdraft),
-		Asset:  Asset(*asset),
+		Asset:  asset,
 	}, nil
 }
 
@@ -61,7 +62,7 @@ func meta(
 	}
 
 	meta, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
-		*account: []string{*key},
+		string(account): []string{string(key)},
 	})
 	if fetchMetaErr != nil {
 		return "", QueryMetadataError{WrappedError: fetchMetaErr}
@@ -69,11 +70,11 @@ func meta(
 	s.CachedAccountsMeta = meta
 
 	// body
-	accountMeta := s.CachedAccountsMeta[*account]
-	value, ok := accountMeta[*key]
+	accountMeta := s.CachedAccountsMeta[string(account)]
+	value, ok := accountMeta[string(key)]
 
 	if !ok {
-		return "", MetadataNotFound{Account: *account, Key: *key, Range: rng}
+		return "", MetadataNotFound{Account: string(account), Key: string(key), Range: rng}
 	}
 
 	return value, nil
@@ -83,26 +84,27 @@ func balance(
 	s *programState,
 	r parser.Range,
 	args []Value,
-) (*Monetary, InterpreterError) {
+) (Monetary, InterpreterError) {
 	// TODO more precise args range location
 	p := NewArgsParser(args)
 	account := parseArg(p, r, expectAccount)
 	asset := parseArg(p, r, expectAsset)
 	err := p.parse()
 	if err != nil {
-		return nil, err
+		return Monetary{}, err
 	}
 
 	// body
 
-	balance, err := getBalance(s, *account, *asset)
+	// overdrat call doesn't handle colors
+	balance, err := getBalance(s, account, asset, "")
 	if err != nil {
-		return nil, err
+		return Monetary{}, err
 	}
 
 	if balance.Cmp(big.NewInt(0)) == -1 {
-		return nil, NegativeBalanceError{
-			Account: *account,
+		return Monetary{}, NegativeBalanceError{
+			Account: string(account),
 			Amount:  *balance,
 		}
 	}
@@ -110,10 +112,10 @@ func balance(
 	balanceCopy := new(big.Int).Set(balance)
 
 	m := Monetary{
-		Asset:  Asset(*asset),
+		Asset:  Asset(asset),
 		Amount: MonetaryInt(*balanceCopy),
 	}
-	return &m, nil
+	return m, nil
 }
 
 func getAsset(

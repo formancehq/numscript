@@ -206,19 +206,16 @@ type TestInitStore struct {
 
 func (s TestInitStore) GetBalances(_ context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
 	outputBalance := interpreter.Balances{}
-	for queriedAccount, queriedCurrencies := range q {
+	for _, item := range q {
+		amt := utils.NestedMapGetOrPutDefault(s.Balances, item.Account, item.Asset, func() *big.Int {
+			return new(big.Int).Set(s.DefaultBalance)
+		})
 
-		for _, curr := range queriedCurrencies {
-			amt := utils.NestedMapGetOrPutDefault(s.Balances, queriedAccount, curr, func() *big.Int {
-				return new(big.Int).Set(s.DefaultBalance)
-			})
+		outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, item.Account, func() interpreter.AccountBalance {
+			return interpreter.AccountBalance{}
+		})
 
-			outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, queriedAccount, func() interpreter.AccountBalance {
-				return interpreter.AccountBalance{}
-			})
-
-			outputAccountBalance[curr] = new(big.Int).Set(amt)
-		}
+		outputAccountBalance[item.Asset] = new(big.Int).Set(amt)
 	}
 
 	return outputBalance, nil

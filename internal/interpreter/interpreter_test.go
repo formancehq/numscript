@@ -172,7 +172,7 @@ func TestStaticStore(t *testing.T) {
 		}
 
 		q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-			"a": []string{"USD/2"},
+			{Account: "a", Asset: "USD/2"},
 		})
 		require.Equal(t, machine.Balances{
 			"a": machine.AccountBalance{
@@ -181,7 +181,8 @@ func TestStaticStore(t *testing.T) {
 		}, q1)
 
 		q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
-			"b": []string{"USD/2", "COIN"},
+			{Account: "b", Asset: "USD/2"},
+			{Account: "b", Asset: "COIN"},
 		})
 		require.Equal(t, machine.Balances{
 			"b": machine.AccountBalance{
@@ -203,7 +204,7 @@ func TestStaticStore(t *testing.T) {
 		}
 
 		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
-			"a": []string{"USD/*"},
+			{Account: "a", Asset: "USD/*"},
 		})
 		require.Nil(t, err)
 		require.Equal(t, machine.Balances{
@@ -726,17 +727,17 @@ func TestTrackBalancesTricky(t *testing.T) {
 	`)
 	tc.expected = CaseResult{
 		Postings: []machine.Posting{
-			{
-				"world",
-				"src",
-				big.NewInt(10),
-				"GEM",
+			machine.Posting{
+				Source:      "world",
+				Destination: "src",
+				Amount:      big.NewInt(10),
+				Asset:       "GEM",
 			},
-			{
-				"src",
-				"dest",
-				big.NewInt(15),
-				"GEM",
+			machine.Posting{
+				Source:      "src",
+				Destination: "dest",
+				Amount:      big.NewInt(15),
+				Asset:       "GEM",
 			},
 		},
 	}

@@ -19,15 +19,17 @@ func (b Balances) DeepClone() Balances {
 	return cloned
 }
 
-func coloredAsset(asset string, color *string) string {
-	if color == nil || *color == "" {
-		return asset
+func coloredAsset(asset Asset, color String) string {
+	strAsset := string(asset)
+
+	if color == "" {
+		return strAsset
 	}
 
 	// note: 1 <= len(parts) <= 2
-	parts := strings.Split(asset, "/")
+	parts := strings.Split(strAsset, "/")
 
-	coloredAsset := parts[0] + "_" + *color
+	coloredAsset := parts[0] + "_" + string(color)
 	if len(parts) > 1 {
 		coloredAsset += "/" + parts[1]
 	}
@@ -36,10 +38,13 @@ func coloredAsset(asset string, color *string) string {
 
 // Get the (account, asset) tuple from the Balances
 // if the tuple is not present, it will write a big.NewInt(0) in it and return it
-func (b Balances) fetchBalance(account string, uncoloredAsset string, color string) *big.Int {
-	return utils.NestedMapGetOrPutDefault(b, account, coloredAsset(uncoloredAsset, &color), func() *big.Int {
-		return new(big.Int)
-	})
+func (b Balances) fetchBalance(account AccountAddress, asset Asset, color String) *big.Int {
+	return utils.NestedMapGetOrPutDefault(b,
+		string(account),
+		coloredAsset(asset, color),
+		func() *big.Int {
+			return new(big.Int)
+		})
 }
 
 func (b Balances) has(account string, asset string) bool {
@@ -55,15 +60,10 @@ func (b Balances) has(account string, asset string) bool {
 // (that is, the ones that aren't already cached)
 func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
 	filteredQuery := BalanceQuery{}
-	for accountName, queriedCurrencies := range q {
-		filteredCurrencies := utils.Filter(queriedCurrencies, func(currency string) bool {
-			return !b.has(accountName, currency)
-		})
-
-		if len(filteredCurrencies) > 0 {
-			filteredQuery[accountName] = filteredCurrencies
+	for _, item := range q {
+		if !b.has(item.Account, item.Asset) {
+			filteredQuery = append(filteredQuery, item)
 		}
-
 	}
 	return filteredQuery
 }

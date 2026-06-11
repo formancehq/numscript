@@ -137,17 +137,17 @@ send [COIN 100] (
 			// TODO maybe those calls can be batched together
 			{
 				// this is required by the balance() call
-				"account_that_needs_balance": {"USD/2"},
+				{Account: "account_that_needs_balance", Asset: "USD/2"},
 			},
 			{
 				// this is defined in the variables
-				"source1": {"COIN"},
+				{Account: "source1", Asset: "COIN"},
 
 				// this is defined in account metadata
-				"source2": {"COIN"},
+				{Account: "source2", Asset: "COIN"},
 
 				// this appears as literal
-				"source3": {"COIN"},
+				{Account: "source3", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls)
@@ -183,8 +183,8 @@ send [COIN 100] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
-				"b": {"COIN"},
+				{Account: "a", Asset: "COIN"},
+				{Account: "b", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls)
@@ -214,7 +214,7 @@ func TestDoNotGetBalancesTwice(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"alice": {"COIN"},
+				{Account: "alice", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls)
@@ -250,8 +250,8 @@ func TestGetBalancesAllotment(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
-				"b": {"COIN"},
+				{Account: "a", Asset: "COIN"},
+				{Account: "b", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls)
@@ -277,7 +277,7 @@ func TestGetBalancesOverdraft(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"COIN"},
+				{Account: "a", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls)
@@ -297,7 +297,7 @@ func TestDoNotFetchBalanceTwice(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src": {"COIN"},
+				{Account: "src", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls,
@@ -323,10 +323,10 @@ func TestDoNotFetchBalanceTwice2(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src1": {"COIN"},
+				{Account: "src1", Asset: "COIN"},
 			},
 			{
-				"src2": {"COIN"},
+				{Account: "src2", Asset: "COIN"},
 			},
 		},
 		store.GetBalancesCalls,
@@ -352,10 +352,10 @@ func TestDoNotFetchBalanceTwice3(t *testing.T) {
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"src": {"EUR/2"},
+				{Account: "src", Asset: "EUR/2"},
 			},
 			{
-				"src": {"USD/2"},
+				{Account: "src", Asset: "USD/2"},
 			},
 		},
 		store.GetBalancesCalls,
@@ -419,7 +419,7 @@ send [USD/2 30] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"alice": {"USD/2"},
+				{Account: "alice", Asset: "USD/2"},
 			},
 		},
 		store.GetBalancesCalls,
@@ -528,10 +528,10 @@ send [USD/2 10] (
 	require.Equal(t,
 		[]numscript.BalanceQuery{
 			{
-				"a": {"USD/2"},
+				{Account: "a", Asset: "USD/2"},
 			},
 			{
-				"a2": {"USD/2"},
+				{Account: "a2", Asset: "USD/2"},
 			},
 		},
 		store.GetBalancesCalls,

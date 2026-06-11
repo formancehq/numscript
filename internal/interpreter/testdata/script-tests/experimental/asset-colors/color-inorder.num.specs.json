@@ -17,13 +17,15 @@
           "source": "src",
           "destination": "dest",
           "amount": 20,
-          "asset": "COIN_RED"
+          "asset": "COIN",
+          "color": "RED"
         },
         {
           "source": "src",
           "destination": "dest",
           "amount": 30,
-          "asset": "COIN_BLUE"
+          "asset": "COIN",
+          "color": "BLUE"
         },
         {
           "source": "src",

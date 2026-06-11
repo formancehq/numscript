@@ -14,7 +14,7 @@ func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError 
 		return err
 	}
 
-	st.TxMeta[*key] = *meta
+	st.TxMeta[string(key)] = meta
 	return nil
 }
 
@@ -28,11 +28,11 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 		return err
 	}
 
-	accountMeta := utils.MapGetOrPutDefault(st.SetAccountsMeta, *account, func() AccountMetadata {
+	accountMeta := utils.MapGetOrPutDefault(st.SetAccountsMeta, string(account), func() AccountMetadata {
 		return AccountMetadata{}
 	})
 
-	accountMeta[*key] = (*meta).String()
+	accountMeta[string(key)] = meta.String()
 
 	return nil
 }

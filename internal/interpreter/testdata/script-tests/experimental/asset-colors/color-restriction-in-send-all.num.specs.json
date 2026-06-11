@@ -15,7 +15,8 @@
           "source": "src",
           "destination": "dest",
           "amount": 42,
-          "asset": "COIN_RED"
+          "asset": "COIN",
+          "color": "RED"
         }
       ]
     }

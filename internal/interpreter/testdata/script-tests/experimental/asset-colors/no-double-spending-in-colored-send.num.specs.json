@@ -16,7 +16,8 @@
           "source": "src",
           "destination": "dest",
           "amount": 20,
-          "asset": "COIN_X"
+          "asset": "COIN",
+          "color": "X"
         },
         {
           "source": "src",

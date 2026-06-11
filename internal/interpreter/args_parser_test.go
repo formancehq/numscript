@@ -47,8 +47,8 @@ func TestParseValid(t *testing.T) {
 	require.NotNil(t, a1, "a1 should not be nil")
 	require.NotNil(t, a2, "a2 should not be nil")
 
-	require.Equal(t, *a1, *big.NewInt(42))
-	require.Equal(t, *a2, "user:001")
+	require.Equal(t, a1, *big.NewInt(42))
+	require.Equal(t, a2, "user:001")
 }
 
 func TestParseBadType(t *testing.T) {

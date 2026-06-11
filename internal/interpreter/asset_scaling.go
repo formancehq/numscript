@@ -10,12 +10,13 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func assetToScaledAsset(asset string) string {
-	parts := strings.Split(asset, "/")
+func assetToScaledAsset(asset Asset) Asset {
+	strAsset := string(asset)
+	parts := strings.Split(strAsset, "/")
 	if len(parts) == 1 {
-		return asset + "/*"
+		return Asset(strAsset + "/*")
 	}
-	return parts[0] + "/*"
+	return Asset(parts[0] + "/*")
 }
 
 func buildScaledAsset(baseAsset string, scale int64) string {
@@ -25,8 +26,8 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 	return fmt.Sprintf("%s/%d", baseAsset, scale)
 }
 
-func getAssetScale(asset string) (string, int64) {
-	parts := strings.Split(asset, "/")
+func getAssetScale(asset Asset) (string, int64) {
+	parts := strings.Split(string(asset), "/")
 	if len(parts) == 2 {
 		scale, err := strconv.ParseInt(parts[1], 10, 64)
 		if err == nil {
@@ -35,14 +36,14 @@ func getAssetScale(asset string) (string, int64) {
 		// fallback if parsing fails
 		return parts[0], 0
 	}
-	return asset, 0
+	return string(asset), 0
 }
 
 func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for asset, amount := range balance {
 		if strings.HasPrefix(asset, baseAsset) {
-			_, scale := getAssetScale(asset)
+			_, scale := getAssetScale(Asset(asset))
 			result[scale] = amount
 		}
 	}

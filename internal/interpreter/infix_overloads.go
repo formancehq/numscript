@@ -14,13 +14,14 @@ var _ opAdd = (*MonetaryInt)(nil)
 var _ opAdd = (*Monetary)(nil)
 
 func (m MonetaryInt) evalAdd(st *programState, other parser.ValueExpr) (Value, InterpreterError) {
-	m1 := big.Int(m)
+	leftBi := big.Int(m)
 	m2, err := evaluateExprAs(st, other, expectNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	sum := new(big.Int).Add(&m1, m2)
+	rightBi := big.Int(m2)
+	sum := new(big.Int).Add(&leftBi, &rightBi)
 	return MonetaryInt(*sum), nil
 }
 
@@ -52,12 +53,13 @@ var _ opSub = (*MonetaryInt)(nil)
 var _ opSub = (*Monetary)(nil)
 
 func (m MonetaryInt) evalSub(st *programState, other parser.ValueExpr) (Value, InterpreterError) {
-	m1 := big.Int(m)
+	leftBi := big.Int(m)
 	m2, err := evaluateExprAs(st, other, expectNumber)
 	if err != nil {
 		return nil, err
 	}
-	sum := new(big.Int).Sub(&m1, m2)
+	rightBi := big.Int(m2)
+	sum := new(big.Int).Sub(&leftBi, &rightBi)
 	return MonetaryInt(*sum), nil
 }
 

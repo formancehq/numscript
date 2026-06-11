@@ -20,14 +20,17 @@ func TestFilterQuery(t *testing.T) {
 	}
 
 	filteredQuery := fullBalance.filterQuery(BalanceQuery{
-		"alice":   []string{"GBP/2", "YEN", "EUR/2"},
-		"bob":     []string{"BTC"},
-		"charlie": []string{"ETH"},
+		{Account: "alice", Asset: "GBP/2"},
+		{Account: "alice", Asset: "YEN"},
+		{Account: "alice", Asset: "EUR/2"},
+		{Account: "bob", Asset: "BTC"},
+		{Account: "charlie", Asset: "ETH"},
 	})
 
 	require.Equal(t, BalanceQuery{
-		"alice":   []string{"GBP/2", "YEN"},
-		"charlie": []string{"ETH"},
+		{Account: "alice", Asset: "GBP/2"},
+		{Account: "alice", Asset: "YEN"},
+		{Account: "charlie", Asset: "ETH"},
 	}, filteredQuery)
 }
 

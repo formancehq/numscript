@@ -31,7 +31,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		if err != nil {
 			return err
 		}
-		st.batchQuery(*account, *asset, nil)
+		st.batchQuery(account, asset, "")
 		return nil
 
 	case *parser.SendStatement:
@@ -39,7 +39,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		if err != nil {
 			return err
 		}
-		st.CurrentAsset = *asset
+		st.CurrentAsset = asset
 
 		// traverse source
 		return st.findBalancesQueries(statement.Source)
@@ -50,15 +50,19 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 	}
 }
 
-func (st *programState) batchQuery(account string, asset string, color *string) {
+func (st *programState) batchQuery(account AccountAddress, asset Asset, color String) {
 	if account == "world" {
 		return
 	}
-	asset = coloredAsset(asset, color)
 
-	previousValues := st.CurrentBalanceQuery[account]
-	if !slices.Contains(previousValues, asset) {
-		st.CurrentBalanceQuery[account] = append(previousValues, asset)
+	item := BalanceQueryItem{
+		Account: string(account),
+		Asset:   string(asset),
+		Color:   string(color),
+	}
+
+	if !slices.Contains(st.CurrentBalanceQuery, item) {
+		st.CurrentBalanceQuery = append(st.CurrentBalanceQuery, item)
 	}
 }
 
@@ -95,7 +99,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		st.batchQuery(account, st.CurrentAsset, color)
 		return nil
 
 	case *parser.SourceWithScaling:
@@ -110,7 +114,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, assetToScaledAsset(st.CurrentAsset), color)
+		st.batchQuery(account, assetToScaledAsset(st.CurrentAsset), color)
 		return nil
 
 	case *parser.SourceOverdraft:
@@ -128,7 +132,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return err
 		}
 
-		st.batchQuery(*account, st.CurrentAsset, color)
+		st.batchQuery(account, st.CurrentAsset, color)
 		return nil
 
 	case *parser.SourceInorder:

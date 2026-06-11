@@ -14,19 +14,21 @@ func NewArgsParser(args []Value) *argsParser {
 	}
 }
 
-func parseArg[T any](p *argsParser, r parser.Range, expect func(Value, parser.Range) (*T, InterpreterError)) *T {
+func parseArg[T any](p *argsParser, r parser.Range, expect func(Value, parser.Range) (T, InterpreterError)) T {
 	index := p.parsedArgsCount
 	p.parsedArgsCount++
 
 	if p.err != nil || index >= len(p.args) {
-		return nil
+		var default_ T
+		return default_
 	}
 
 	arg := p.args[index]
 	parsed, err := expect(arg, r)
 	if err != nil {
 		p.err = err
-		return nil
+		var default_ T
+		return default_
 	}
 	return parsed
 }

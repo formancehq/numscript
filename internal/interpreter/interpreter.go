@@ -17,7 +17,13 @@ import (
 type VariablesMap map[string]string
 
 // For each account, list of the needed assets
-type BalanceQuery map[string][]string
+type BalanceQueryItem struct {
+	Account string
+	Asset   string
+	Color   string
+}
+
+type BalanceQuery = []BalanceQueryItem
 
 // For each account, list of the needed keys
 type MetadataQuery map[string][]string
@@ -44,35 +50,33 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 	}
 
 	outputBalance := Balances{}
-	for queriedAccount, queriedCurrencies := range q {
-		outputAccountBalance := AccountBalance{}
-		outputBalance[queriedAccount] = outputAccountBalance
-
-		accountBalanceLookup := utils.MapGetOrPutDefault(s.Balances, queriedAccount, func() AccountBalance {
+	for _, item := range q {
+		outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, item.Account, func() AccountBalance {
 			return AccountBalance{}
 		})
 
-		for _, curr := range queriedCurrencies {
-			baseAsset, isCatchAll := strings.CutSuffix(curr, "/*")
-			if isCatchAll {
+		accountBalanceLookup := utils.MapGetOrPutDefault(s.Balances, item.Account, func() AccountBalance {
+			return AccountBalance{}
+		})
 
-				for k, v := range accountBalanceLookup {
-					matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
-					if !matchesAsset {
-						continue
-					}
-					outputAccountBalance[k] = new(big.Int).Set(v)
+		baseAsset, isCatchAll := strings.CutSuffix(item.Asset, "/*")
+		if isCatchAll {
+
+			for k, v := range accountBalanceLookup {
+				matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
+				if !matchesAsset {
+					continue
 				}
-
-			} else {
-				n := new(big.Int)
-				outputAccountBalance[curr] = n
-
-				if i, ok := accountBalanceLookup[curr]; ok {
-					n.Set(i)
-				}
+				outputAccountBalance[k] = new(big.Int).Set(v)
 			}
 
+		} else {
+			n := new(big.Int)
+			outputAccountBalance[item.Asset] = n
+
+			if i, ok := accountBalanceLookup[item.Asset]; ok {
+				n.Set(i)
+			}
 		}
 	}
 
@@ -98,6 +102,7 @@ type Posting struct {
 	Destination string   `json:"destination"`
 	Amount      *big.Int `json:"amount"`
 	Asset       string   `json:"asset"`
+	Color       string   `json:"color,omitempty"`
 }
 
 type ExecutionResult struct {
@@ -202,14 +207,14 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		if err != nil {
 			return nil, err
 		}
-		return *monetary, nil
+		return monetary, nil
 
 	case analysis.FnVarOriginOverdraft:
 		monetary, err := overdraft(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
-		return *monetary, nil
+		return monetary, nil
 
 	case analysis.FnVarOriginGetAsset:
 		return getAsset(s, fnCall.Range, args)
@@ -371,7 +376,7 @@ type programState struct {
 	// Asset of the send statement currently being executed.
 	//
 	// its value is undefined outside of send statements execution
-	CurrentAsset string
+	CurrentAsset Asset
 
 	ParsedVars map[string]Value
 	TxMeta     map[string]Value
@@ -390,34 +395,51 @@ type programState struct {
 	FeatureFlags map[string]struct{}
 }
 
-func (st *programState) pushSender(name string, monetary *big.Int, color string) {
-	if monetary.Cmp(big.NewInt(0)) == 0 {
+func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, color String) {
+	monetaryBi := big.Int(monetary)
+
+	if monetaryBi.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
 
 	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
-	balance.Sub(balance, monetary)
+	balance.Sub(balance, &monetaryBi)
 
-	st.fundsQueue.Push(Sender{Name: name, Amount: monetary, Color: color})
+	st.fundsQueue.Push(Sender{
+		Name:   string(name),
+		Amount: &monetaryBi,
+		Color:  string(color),
+	})
 }
 
 // Append a posting without checking if account has enough balance.
 // Updates both source and destination balances.
 // Noop if the amount is zero
-//
-// PRE: posting's asset is uncolored
-func (st *programState) forcePushPostingUncolored(posting Posting) {
-	if posting.Amount.Sign() == 0 {
+func (st *programState) forcePushPostingUncolored(
+	source AccountAddress,
+	destination AccountAddress,
+	amount MonetaryInt,
+	asset Asset,
+) {
+	amtBi := big.Int(amount)
+
+	if amtBi.Sign() == 0 {
 		return
 	}
 
-	srcBalance := st.CachedBalances.fetchBalance(posting.Source, posting.Asset, "")
-	srcBalance.Sub(srcBalance, posting.Amount)
+	srcBalance := st.CachedBalances.fetchBalance(source, asset, "")
+	srcBalance.Sub(srcBalance, &amtBi)
 
-	destBalance := st.CachedBalances.fetchBalance(posting.Destination, posting.Asset, "")
-	destBalance.Add(destBalance, posting.Amount)
+	destBalance := st.CachedBalances.fetchBalance(destination, asset, "")
+	destBalance.Add(destBalance, &amtBi)
 
-	st.Postings = append(st.Postings, posting)
+	st.Postings = append(st.Postings, Posting{
+		Source:      string(source),
+		Destination: string(destination),
+		Amount:      &amtBi,
+		Color:       "",
+		Asset:       string(asset),
+	})
 }
 
 func (st *programState) pushReceiver(name string, monetary *big.Int) {
@@ -431,19 +453,20 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 		postings := Posting{
 			Source:      sender.Name,
 			Destination: name,
-			Asset:       coloredAsset(st.CurrentAsset, &sender.Color),
+			Asset:       string(st.CurrentAsset),
 			Amount:      sender.Amount,
+			Color:       sender.Color,
 		}
 
 		if name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(postings.Source, st.CurrentAsset, sender.Color)
+			srcBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Source), st.CurrentAsset, String(sender.Color))
 			srcBalance.Add(srcBalance, postings.Amount)
 
 			continue
 		}
 
-		destBalance := st.CachedBalances.fetchBalance(postings.Destination, st.CurrentAsset, sender.Color)
+		destBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Destination), st.CurrentAsset, String(sender.Color))
 		destBalance.Add(destBalance, postings.Amount)
 
 		st.Postings = append(st.Postings, postings)
@@ -490,7 +513,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 		return err
 	}
 
-	balance := st.CachedBalances.fetchBalance(*account, *asset, "")
+	balance := st.CachedBalances.fetchBalance(account, asset, "")
 
 	if amt == nil {
 		if balance.Sign() > 0 {
@@ -523,7 +546,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 		if err != nil {
 			return err
 		}
-		st.CurrentAsset = *asset
+		st.CurrentAsset = asset
 		sentAmt, err := st.takeAll(statement.Source)
 		if err != nil {
 			return err
@@ -535,14 +558,9 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 		if err != nil {
 			return err
 		}
-		st.CurrentAsset = string(monetary.Asset)
+		st.CurrentAsset = monetary.Asset
 
-		monetaryAmt := (*big.Int)(&monetary.Amount)
-		if monetaryAmt.Cmp(big.NewInt(0)) == -1 {
-			return NegativeAmountErr{Amount: monetary.Amount}
-		}
-
-		err = st.tryTakingExact(statement.Source, monetaryAmt)
+		err = st.tryTakingExact(statement.Source, monetary.Amount)
 		if err != nil {
 			return err
 		}
@@ -570,9 +588,9 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	if *account == "world" || overdraft == nil {
+	if account == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: *account,
+			Name: string(account),
 		}
 	}
 
@@ -581,12 +599,12 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
+	balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
 
 	// we sent balance+overdraft
 	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
 
-	s.pushSender(*account, sentAmt, *color)
+	s.pushSender(account, MonetaryInt(*sentAmt), color)
 	return sentAmt, nil
 }
 
@@ -603,7 +621,8 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			if err != nil {
 				return nil, err
 			}
-			cap = utils.NonNeg(bounded)
+			boundedBi := big.Int(bounded)
+			cap = utils.NonNeg(&boundedBi)
 		}
 		return s.takeAllFromAccount(source.Address, cap, source.Color)
 
@@ -624,7 +643,8 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
-		acc, ok := s.CachedBalances[*account]
+		// TODO this may be a bug. Probably can't access cached balances directly this way. Double check
+		acc, ok := s.CachedBalances[string(account)]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -636,20 +656,20 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		)
 
 		for _, convAmt := range sol {
-			s.forcePushPostingUncolored(Posting{
-				Source:      *account,
-				Destination: *scalingAccount,
-				Amount:      new(big.Int).Set(convAmt.amount),
-				Asset:       buildScaledAsset(baseAsset, convAmt.scale),
-			})
+			s.forcePushPostingUncolored(
+				account,
+				scalingAccount,
+				MonetaryInt(*new(big.Int).Set(convAmt.amount)),
+				Asset(buildScaledAsset(baseAsset, convAmt.scale)),
+			)
 		}
 
-		s.forcePushPostingUncolored(Posting{
-			Source:      *scalingAccount,
-			Destination: *account,
-			Amount:      new(big.Int).Set(totSent),
-			Asset:       s.CurrentAsset,
-		})
+		s.forcePushPostingUncolored(
+			scalingAccount,
+			account,
+			MonetaryInt(*new(big.Int).Set(totSent)),
+			s.CurrentAsset,
+		)
 
 		return s.takeAllFromAccount(source.Address, big.NewInt(0), source.Color)
 
@@ -679,8 +699,9 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		if err != nil {
 			return nil, err
 		}
+		monetaryBi := big.Int(monetary)
 		// We switch to the default sending evaluation for this subsource
-		return s.tryTakingUpTo(source.From, utils.NonNeg(monetary))
+		return s.tryTakingUpTo(source.From, utils.NonNeg(&monetaryBi))
 
 	case *parser.SourceAllotment:
 		return nil, InvalidAllotmentInSendAll{}
@@ -692,15 +713,20 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 }
 
 // Fails if it doesn't manage to pull exactly "amount"
-func (s *programState) tryTakingExact(source parser.Source, amount *big.Int) InterpreterError {
-	sentAmt, err := s.tryTakingUpTo(source, amount)
+func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) InterpreterError {
+	amtBi := (*big.Int)(&amount)
+	if amtBi.Sign() == -1 {
+		return NegativeAmountErr{Amount: amount}
+	}
+
+	sentAmt, err := s.tryTakingUpTo(source, amtBi)
 	if err != nil {
 		return err
 	}
-	if sentAmt.Cmp(amount) != 0 {
+	if sentAmt.Cmp(amtBi) != 0 {
 		return MissingFundsErr{
-			Asset:     s.CurrentAsset,
-			Needed:    *amount,
+			Asset:     string(s.CurrentAsset),
+			Needed:    *amtBi,
 			Available: *sentAmt,
 			Range:     source.GetRange(),
 		}
@@ -723,7 +749,7 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	if err != nil {
 		return nil, err
 	}
-	if *account == "world" {
+	if account == "world" {
 		overdraft = nil
 	}
 
@@ -737,12 +763,12 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		// unbounded overdraft: we send the required amount
 		actuallySentAmt = new(big.Int).Set(amount)
 	} else {
-		balance := s.CachedBalances.fetchBalance(*account, s.CurrentAsset, *color)
+		balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
 
 		// that's the amount we are allowed to send (balance + overdraft)
 		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
 	}
-	s.pushSender(*account, actuallySentAmt, *color)
+	s.pushSender(account, MonetaryInt(*actuallySentAmt), color)
 	return actuallySentAmt, nil
 }
 
@@ -759,6 +785,8 @@ func (s *programState) cloneState() func() {
 // Tries pulling up to "amount" and returns the actually pulled amt.
 // Doesn't fail (unless nested sources fail)
 func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
+	amount = utils.NonNeg(amount)
+
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		return s.tryTakingFromAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
@@ -779,7 +807,9 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		}
 
 		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
-		acc, ok := s.CachedBalances[*account]
+
+		// TODO double check access here. May be a bug. DOuble check
+		acc, ok := s.CachedBalances[string(account)]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -791,20 +821,20 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		)
 
 		for _, pair := range sol {
-			s.forcePushPostingUncolored(Posting{
-				Source:      *account,
-				Destination: *scalingAccount,
-				Amount:      new(big.Int).Set(pair.amount),
-				Asset:       buildScaledAsset(baseAsset, pair.scale),
-			})
+			s.forcePushPostingUncolored(
+				account,
+				scalingAccount,
+				NewMonetaryIntBig(pair.amount),
+				Asset(buildScaledAsset(baseAsset, pair.scale)),
+			)
 		}
 
-		s.forcePushPostingUncolored(Posting{
-			Source:      *scalingAccount,
-			Destination: *account,
-			Amount:      new(big.Int).Set(swappedAmt),
-			Asset:       s.CurrentAsset,
-		})
+		s.forcePushPostingUncolored(
+			scalingAccount,
+			account,
+			NewMonetaryIntBig(swappedAmt),
+			s.CurrentAsset,
+		)
 
 		return s.tryTakingFromAccount(source.Address, amount, big.NewInt(0), source.Color)
 
@@ -815,7 +845,8 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			if err != nil {
 				return nil, err
 			}
-			cap = utils.NonNeg(upTo)
+			bi := big.Int(upTo)
+			cap = utils.NonNeg(&bi)
 		}
 		return s.tryTakingFromAccount(source.Address, amount, cap, source.Color)
 
@@ -869,7 +900,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			err := s.tryTakingExact(allotmentItem.From, allot[i])
+			err := s.tryTakingExact(allotmentItem.From, MonetaryInt(*allot[i]))
 			if err != nil {
 				return nil, err
 			}
@@ -881,8 +912,9 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		if err != nil {
 			return nil, err
 		}
+		capBi := big.Int(cap)
 		return s.tryTakingUpTo(source.From, utils.NonNeg(
-			utils.MinBigInt(amount, cap),
+			utils.MinBigInt(amount, &capBi),
 		))
 
 	default:
@@ -900,7 +932,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 		if err != nil {
 			return err
 		}
-		s.pushReceiver(*account, amount)
+		s.pushReceiver(string(account), amount)
 		return nil
 
 	case *parser.DestinationAllotment:
@@ -943,18 +975,19 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 		}
 
 		for _, destinationClause := range destination.Clauses {
+			// If the remaining amt is zero, let's ignore the posting
+			if remainingAmount.Cmp(big.NewInt(0)) == 0 {
+				break
+			}
 
 			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
 
-			// If the remaining amt is zero, let's ignore the posting
-			if remainingAmount.Cmp(big.NewInt(0)) == 0 {
-				break
-			}
+			capBi := big.Int(cap)
 
-			amountToReceive := utils.MaxBigInt(utils.MinBigInt(cap, remainingAmount), big.NewInt(0))
+			amountToReceive := utils.MaxBigInt(utils.MinBigInt(&capBi, remainingAmount), big.NewInt(0))
 			err = handler(destinationClause.To, amountToReceive)
 			if err != nil {
 				return err
@@ -977,8 +1010,10 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 				return err
 			}
 
+			capBi := big.Int(cap)
+
 			// if the clause cap is >= the amount we're trying to receive, only go through this branch
-			switch cap.Cmp(amount) {
+			switch capBi.Cmp(amount) {
 			case 0, 1:
 				return s.sendToKeptOrDest(destinationClause.To, amount)
 			}
@@ -1072,10 +1107,11 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 // Utility function to get the balance
 func getBalance(
 	s *programState,
-	account string,
-	asset string,
+	account AccountAddress,
+	asset Asset,
+	color String,
 ) (*big.Int, InterpreterError) {
-	s.batchQuery(account, asset, nil)
+	s.batchQuery(account, asset, color)
 	fetchBalanceErr := s.runBalancesQuery()
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
@@ -1085,27 +1121,27 @@ func getBalance(
 
 }
 
-func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (*string, *big.Int, InterpreterError) {
+func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
 		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, err
 		}
 		return asset, nil, nil
 
 	case *parser.SentValueLiteral:
 		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, err
 		}
-		s := string(monetary.Asset)
+
 		bi := big.Int(monetary.Amount)
-		return &s, &bi, nil
+		return monetary.Asset, &bi, nil
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](sentValue)
-		return nil, nil, nil
+		return "", nil, nil
 	}
 }
 
