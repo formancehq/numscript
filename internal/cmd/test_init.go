@@ -189,9 +189,14 @@ func runTestInitCmd(opts testInitArgs) error {
 		return err
 	}
 
-	marshaled, _ := json.MarshalIndent(specs, "", "  ")
+	marshaled, err := json.MarshalIndent(specs, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal specs file: %w", err)
+	}
 
-	_ = os.WriteFile(opts.path+".specs.json", marshaled, 0644)
+	if err := os.WriteFile(opts.path+".specs.json", marshaled, 0644); err != nil {
+		return fmt.Errorf("failed to write specs file: %w", err)
+	}
 
 	fmt.Printf("✅ Created specs file: %s.specs.json\n", opts.path)
 
