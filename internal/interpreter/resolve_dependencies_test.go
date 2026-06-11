@@ -264,3 +264,64 @@ send balance(@acc, USD/2) (
 	require.ErrorAs(t, err, &forbiddenErr)
 	require.Equal(t, flags.ExperimentalMidScriptFunctionCall, forbiddenErr.FlagName)
 }
+
+func TestResolveDependencies_Nested(t *testing.T) {
+	t.Parallel()
+
+	script := `vars {
+	account $s1
+	account $s2 = meta(@account_that_needs_meta, "k")
+	number $b = balance(@account_that_needs_balance, USD/2)
+}
+
+send [COIN 100] (
+	source = {
+		$s1
+		$s2
+		@source3
+		@world
+	}
+  	destination = @dest
+)
+`
+
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	deps := resolveTest(t,
+		script,
+		map[string]string{"s1": "source1"},
+		StaticStore{
+			Balances: Balances{
+				"source1": {
+					"COIN": big.NewInt(123),
+				},
+				"source2": {
+					"COIN": big.NewInt(456),
+				},
+				"source3": {
+					"COIN": big.NewInt(55),
+				},
+				"account_that_needs_balance": {
+					"USD/2": big.NewInt(42),
+				},
+			},
+			Meta: AccountsMetadata{"account_that_needs_meta": {"k": "source2"}},
+		})
+
+	require.Equal(t, deps.Volumes, map[string]map[string]*big.Int{
+		"source1": {
+			"COIN": big.NewInt(123),
+		},
+		"source2": {
+			"COIN": big.NewInt(456),
+		},
+		"source3": {
+			"COIN": big.NewInt(55),
+		},
+		"account_that_needs_balance": {
+			"USD/2": big.NewInt(42),
+		},
+	})
+
+}
