@@ -19,6 +19,21 @@ func TestPrettyCsv(t *testing.T) {
 	snaps.MatchSnapshot(t, out)
 }
 
+func TestPrettyCsvRaggedRows(t *testing.T) {
+	// rows shorter (or longer) than the header must not panic;
+	// missing cells are rendered as empty strings
+	out := utils.CsvPretty([]string{
+		"Account", "Asset", "Balance",
+	}, [][]string{
+		{"alice", "EUR/2", "1"},
+		{"bob"},
+		{"charlie", "USD/1234"},
+		{"dave", "BTC", "3", "extra-cell"},
+	}, true)
+
+	snaps.MatchSnapshot(t, out)
+}
+
 func TestPrettyCsvMap(t *testing.T) {
 	out := utils.CsvPrettyMap("Name", "Value", map[string]string{
 		"a":                       "0",

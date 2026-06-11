@@ -8,7 +8,8 @@ import (
 	"github.com/formancehq/numscript/internal/ansi"
 )
 
-// Fails if the header is shorter than any of the rows
+// Rows shorter than the header are padded with empty cells;
+// cells beyond the header length are ignored for padding purposes
 func CsvPretty(
 	header []string,
 	rows [][]string,
@@ -34,9 +35,10 @@ func CsvPretty(
 		maxLen := len(fieldName)
 
 		for _, row := range rows {
-			// panics if row[fieldIndex] is out of bounds
-			// thus we must never have unlabeled cols
-			maxLen = max(maxLen, len(row[fieldIndex]))
+			// rows shorter than the header are treated as having empty cells
+			if fieldIndex < len(row) {
+				maxLen = max(maxLen, len(row[fieldIndex]))
+			}
 		}
 
 		maxLengths[fieldIndex] = maxLen
@@ -61,10 +63,15 @@ func CsvPretty(
 	// -- Print rows
 	for _, row := range rows {
 		var partialRow []string
-		for index, fieldName := range row {
+		for index := range header {
+			// missing cells in ragged rows are rendered as empty strings
+			var fieldValue string
+			if index < len(row) {
+				fieldValue = row[index]
+			}
 			partialRow = append(partialRow, fmt.Sprintf("| %-*s ",
 				maxLengths[index],
-				fieldName,
+				fieldValue,
 			))
 		}
 		partialRow = append(partialRow, "|")

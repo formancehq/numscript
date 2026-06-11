@@ -539,6 +539,110 @@ send [USD/2 10] (
 
 }
 
+func TestMetaFunctionCachesQueries(t *testing.T) {
+	parseResult := numscript.Parse(`vars {
+	string $a = meta(@acc1, "key1")
+	string $b = meta(@acc2, "key2")
+	string $a_again = meta(@acc1, "key1")
+}
+set_tx_meta("a", $a)
+set_tx_meta("b", $b)
+set_tx_meta("a_again", $a_again)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := scopedMetaStore{
+		meta: interpreter.AccountsMetadata{
+			"acc1": {"key1": "value1"},
+			"acc2": {"key2": "value2"},
+		},
+	}
+
+	res, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.Nil(t, err)
+
+	// merging the second query into the cache must not clobber
+	// the previously cached acc1 metadata
+	require.Equal(t,
+		numscript.Metadata{
+			"a":       interpreter.String("value1"),
+			"b":       interpreter.String("value2"),
+			"a_again": interpreter.String("value1"),
+		},
+		res.Metadata)
+
+	// acc1's "key1" is cached after the first meta() call,
+	// so the third meta() call must not query the store again
+	require.Equal(t,
+		[]numscript.MetadataQuery{
+			{"acc1": {"key1"}},
+			{"acc2": {"key2"}},
+		},
+		store.GetMetadataCalls)
+}
+
+func TestMetaFunctionMissingKeyStillErrors(t *testing.T) {
+	parseResult := numscript.Parse(`vars {
+	string $a = meta(@acc1, "key1")
+	string $b = meta(@acc1, "missing_key")
+}
+set_tx_meta("a", $a)
+set_tx_meta("b", $b)
+`)
+
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := scopedMetaStore{
+		meta: interpreter.AccountsMetadata{
+			"acc1": {"key1": "value1"},
+		},
+	}
+
+	// even though acc1's metadata is (partially) cached,
+	// a key that is absent from the store must still error
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, &store)
+	require.NotNil(t, err)
+
+	notFoundErr, ok := err.(interpreter.MetadataNotFound)
+	require.True(t, ok, "expected a MetadataNotFound error, got: %v", err)
+	require.Equal(t, "acc1", notFoundErr.Account)
+	require.Equal(t, "missing_key", notFoundErr.Key)
+}
+
+// A store that, unlike StaticStore, only returns the queried
+// (account, key) pairs, and records the metadata queries it receives
+type scopedMetaStore struct {
+	meta             interpreter.AccountsMetadata
+	GetMetadataCalls []numscript.MetadataQuery
+}
+
+func (s *scopedMetaStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
+	return interpreter.StaticStore{}.GetBalances(ctx, q)
+}
+
+func (s *scopedMetaStore) GetAccountsMetadata(_ context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	s.GetMetadataCalls = append(s.GetMetadataCalls, q)
+
+	out := interpreter.AccountsMetadata{}
+	for account, keys := range q {
+		for _, key := range keys {
+			value, ok := s.meta[account][key]
+			if !ok {
+				continue
+			}
+
+			accountMeta, ok := out[account]
+			if !ok {
+				accountMeta = interpreter.AccountMetadata{}
+				out[account] = accountMeta
+			}
+			accountMeta[key] = value
+		}
+	}
+	return out, nil
+}
+
 type ObservableStore struct {
 	StaticStore      interpreter.StaticStore
 	GetBalancesCalls []numscript.BalanceQuery
