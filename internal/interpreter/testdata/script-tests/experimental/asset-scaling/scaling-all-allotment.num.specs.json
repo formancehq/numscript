@@ -3,19 +3,23 @@
   "featureFlags": [
     "experimental-asset-scaling"
   ],
-  "balances": {
-    "acc1": {
-      "EUR/2": 50
+  "balances": [
+    {
+      "account": "acc1",
+      "asset": "EUR/2",
+      "amount": 50
     }
-  },
+  ],
   "testCases": [
     {
       "it": "casts all the avlb",
-      "balances": {
-        "acc2": {
-          "EUR/3": 500
+      "balances": [
+        {
+          "account": "acc2",
+          "asset": "EUR/3",
+          "amount": 500
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "acc2",

@@ -5,9 +5,7 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "empty": {}
-      },
+      "balances": [],
       "expect.postings": [
         {
           "source": "a",

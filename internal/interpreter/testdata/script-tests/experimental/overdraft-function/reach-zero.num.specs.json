@@ -3,12 +3,18 @@
   "variables": {
     "amt": "100"
   },
-  "featureFlags": ["experimental-overdraft-function"],
+  "featureFlags": [
+    "experimental-overdraft-function"
+  ],
   "testCases": [
     {
-      "balances": {
-        "invoice:001": { "USD/2": -999 }
-      },
+      "balances": [
+        {
+          "account": "invoice:001",
+          "asset": "USD/2",
+          "amount": -999
+        }
+      ],
       "it": "only sends to the first one if there's not enough funds to top-up its balance",
       "expect.postings": [
         {
@@ -20,10 +26,18 @@
       ]
     },
     {
-      "balances": {
-        "invoice:001": { "USD/2": -99 },
-        "invoice:002": { "USD/2": -999 }
-      },
+      "balances": [
+        {
+          "account": "invoice:001",
+          "asset": "USD/2",
+          "amount": -99
+        },
+        {
+          "account": "invoice:002",
+          "asset": "USD/2",
+          "amount": -999
+        }
+      ],
       "it": "it sends to the second source after topping-up the first one",
       "expect.postings": [
         {
@@ -41,10 +55,18 @@
       ]
     },
     {
-      "balances": {
-        "invoice:001": { "USD/2": -2 },
-        "invoice:002": { "USD/2": -3 }
-      },
+      "balances": [
+        {
+          "account": "invoice:001",
+          "asset": "USD/2",
+          "amount": -2
+        },
+        {
+          "account": "invoice:002",
+          "asset": "USD/2",
+          "amount": -3
+        }
+      ],
       "it": "it keeps the spare amount",
       "expect.postings": [
         {

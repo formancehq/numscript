@@ -5,11 +5,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "acc": {
-          "EUR/2": -100
+      "balances": [
+        {
+          "account": "acc",
+          "asset": "EUR/2",
+          "amount": -100
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "world",

@@ -3,9 +3,13 @@
   "testCases": [
     {
       "it": "is capped to USD100 when balance is higher",
-      "balances": {
-        "src": { "USD": 999 }
-      },
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD",
+          "amount": 999
+        }
+      ],
       "expect.postings": [
         {
           "source": "src",
@@ -17,9 +21,13 @@
     },
     {
       "it": "allows sending less than the cap when balance is not enough",
-      "balances": {
-        "src": { "USD": 42 }
-      },
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD",
+          "amount": 42
+        }
+      ],
       "expect.postings": [
         {
           "source": "src",

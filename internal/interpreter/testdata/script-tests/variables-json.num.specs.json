@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:001": {
-          "EUR/2": 1000
+      "balances": [
+        {
+          "account": "users:001",
+          "asset": "EUR/2",
+          "amount": 1000
         }
-      },
+      ],
       "variables": {
         "ass": "EUR/2",
         "description": "midnight ride",

@@ -6,13 +6,23 @@
   "testCases": [
     {
       "it": "sends all the available assets that can be cast",
-      "balances": {
-        "src": {
-          "EUR": 2,
-          "EUR/2": 1,
-          "EUR/3": 30
+      "balances": [
+        {
+          "account": "src",
+          "asset": "EUR",
+          "amount": 2
+        },
+        {
+          "account": "src",
+          "asset": "EUR/2",
+          "amount": 1
+        },
+        {
+          "account": "src",
+          "asset": "EUR/3",
+          "amount": 30
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "src",
@@ -42,11 +52,13 @@
     },
     {
       "it": "avoids casting the remainder",
-      "balances": {
-        "src": {
-          "EUR/3": 21
+      "balances": [
+        {
+          "account": "src",
+          "asset": "EUR/3",
+          "amount": 21
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "src",

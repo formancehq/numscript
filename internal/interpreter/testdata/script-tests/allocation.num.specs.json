@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:001": {
-          "GEM": 15
+      "balances": [
+        {
+          "account": "users:001",
+          "asset": "GEM",
+          "amount": 15
         }
-      },
+      ],
       "variables": {
         "driver": "users:002",
         "rider": "users:001"

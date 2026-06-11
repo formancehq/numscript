@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:1234": {
-          "COIN": 1
+      "balances": [
+        {
+          "account": "users:1234",
+          "asset": "COIN",
+          "amount": 1
         }
-      },
+      ],
       "expect.error.missingFunds": true
     }
   ]

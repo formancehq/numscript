@@ -2,14 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "payments:001": {
-          "GEM": 12
+      "balances": [
+        {
+          "account": "payments:001",
+          "asset": "GEM",
+          "amount": 12
         },
-        "users:001": {
-          "GEM": 3
+        {
+          "account": "users:001",
+          "asset": "GEM",
+          "amount": 3
         }
-      },
+      ],
       "variables": {
         "balance": "users:001",
         "payment": "payments:001",

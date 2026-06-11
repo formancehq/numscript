@@ -2,14 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "sales:042": {
-          "EUR/2": 2500
+      "balances": [
+        {
+          "account": "sales:042",
+          "asset": "EUR/2",
+          "amount": 2500
         },
-        "users:053": {
-          "EUR/2": 500
+        {
+          "account": "users:053",
+          "asset": "EUR/2",
+          "amount": 500
         }
-      },
+      ],
       "variables": {
         "sale": "sales:042"
       },

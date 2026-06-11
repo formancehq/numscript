@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:001": {
-          "USD/2": 17
+      "balances": [
+        {
+          "account": "users:001",
+          "asset": "USD/2",
+          "amount": 17
         }
-      },
+      ],
       "variables": {
         "dest": "platform",
         "src": "users:001"

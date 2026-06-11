@@ -3,12 +3,18 @@
   "featureFlags": [
     "experimental-asset-scaling"
   ],
-  "balances": {
-    "acc": {
-      "BTC/2": 2,
-      "BTC/8": 1000000
+  "balances": [
+    {
+      "account": "acc",
+      "asset": "BTC/2",
+      "amount": 2
+    },
+    {
+      "account": "acc",
+      "asset": "BTC/8",
+      "amount": 1000000
     }
-  },
+  ],
   "testCases": [
     {
       "it": "handles kept",

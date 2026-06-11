@@ -2,14 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "A": {
-          "USD/2": 40
+      "balances": [
+        {
+          "account": "A",
+          "asset": "USD/2",
+          "amount": 40
         },
-        "C": {
-          "USD/2": 90
+        {
+          "account": "C",
+          "asset": "USD/2",
+          "amount": 90
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "A",

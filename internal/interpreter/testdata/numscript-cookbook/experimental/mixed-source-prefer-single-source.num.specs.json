@@ -3,15 +3,19 @@
   "variables": {
     "amt": "10"
   },
-  "featureFlags": ["experimental-oneof"],
+  "featureFlags": [
+    "experimental-oneof"
+  ],
   "testCases": [
     {
       "it": "sends from the first source when there is enough balance",
-      "balances": {
-        "s1": {
-          "USD": 999
+      "balances": [
+        {
+          "account": "s1",
+          "asset": "USD",
+          "amount": 999
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "s1",
@@ -23,14 +27,18 @@
     },
     {
       "it": "sends from the second one when it has enough balance but the first one doesn't",
-      "balances": {
-        "s1": {
-          "USD": 9
+      "balances": [
+        {
+          "account": "s1",
+          "asset": "USD",
+          "amount": 9
         },
-        "s2": {
-          "USD": 999
+        {
+          "account": "s2",
+          "asset": "USD",
+          "amount": 999
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "s2",
@@ -42,14 +50,18 @@
     },
     {
       "it": "sends partially from both when none of them has enough balance on its own",
-      "balances": {
-        "s1": {
-          "USD": 6
+      "balances": [
+        {
+          "account": "s1",
+          "asset": "USD",
+          "amount": 6
         },
-        "s2": {
-          "USD": 9
+        {
+          "account": "s2",
+          "asset": "USD",
+          "amount": 9
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "s1",
@@ -67,14 +79,18 @@
     },
     {
       "it": "fails if there aren't enough funds between all sources",
-      "balances": {
-        "s1": {
-          "USD": 5
+      "balances": [
+        {
+          "account": "s1",
+          "asset": "USD",
+          "amount": 5
         },
-        "s2": {
-          "USD": 4
+        {
+          "account": "s2",
+          "asset": "USD",
+          "amount": 4
         }
-      },
+      ],
       "expect.error.missingFunds": true
     }
   ]

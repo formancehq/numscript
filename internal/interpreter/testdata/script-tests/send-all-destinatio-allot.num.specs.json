@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:001": {
-          "USD/2": 30
+      "balances": [
+        {
+          "account": "users:001",
+          "asset": "USD/2",
+          "amount": 30
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "users:001",

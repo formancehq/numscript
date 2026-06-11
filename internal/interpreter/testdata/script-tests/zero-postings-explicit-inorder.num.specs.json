@@ -2,11 +2,7 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "a": {},
-        "b": {},
-        "c": {}
-      },
+      "balances": [],
       "expect.postings": []
     }
   ]
