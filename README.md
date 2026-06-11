@@ -2,7 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/formancehq/numscript)](https://github.com/formancehq/numscript/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/formancehq/numscript.svg)](https://pkg.go.dev/github.com/formancehq/numscript)
-[![Go](https://github.com/formancehq/numscript/actions/workflows/checks.yml/badge.svg)](https://github.com/formancehq/numscript/actions/workflows/checks.yml)
+[![Go](https://github.com/formancehq/numscript/actions/workflows/main.yml/badge.svg)](https://github.com/formancehq/numscript/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/formancehq/numscript/graph/badge.svg?token=njjqGhFQ2p)](https://codecov.io/gh/formancehq/numscript)
 
 Numscript is the DSL used to express financial transaction within the [Formance](https://www.formance.com/) ledger.
