@@ -39,12 +39,12 @@ func getAssetScale(asset Asset) (string, int64) {
 	return string(asset), 0
 }
 
-func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
+func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
-	for asset, amount := range balance {
-		if strings.HasPrefix(asset, baseAsset) {
-			_, scale := getAssetScale(Asset(asset))
-			result[scale] = amount
+	for _, accBalance := range accountBalances {
+		if strings.HasPrefix(accBalance.Asset, baseAsset) {
+			_, scale := getAssetScale(Asset(accBalance.Asset))
+			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
 	}
 	return result

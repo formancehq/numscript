@@ -89,9 +89,9 @@ func TestComplexAssertions(t *testing.T) {
 			"testCases": [
 				{
 					"it": "send when there are enough funds",
-					"balances": {
-						"alice": { "USD/2": 9999 }
-					},
+					"balances": [
+						{ "account": "alice", "asset": "USD/2", "amount": 9999 }
+					],
 					"expect.endBalances": {
 							"alice": { "USD/2": -100 },
 							"dest": { "USD/2": 1 }
@@ -105,9 +105,9 @@ func TestComplexAssertions(t *testing.T) {
 				},
 				{
 					"it": "tpassing",
-					"balances": {
-						"alice": { "USD/2": 0 }
-					},
+					"balances": [
+						{ "account": "alice", "asset": "USD/2", "amount": 0 }
+					],
 					"expect.error.missingFunds": true
 				}
 			] 
@@ -219,7 +219,7 @@ func TestFocusUi(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "10" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -228,7 +228,7 @@ func TestFocusUi(t *testing.T) {
 				"it": "t2",
 				"focus": true,
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]

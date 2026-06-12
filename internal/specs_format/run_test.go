@@ -29,7 +29,7 @@ func TestRunSpecsSimple(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -57,9 +57,7 @@ func TestRunSpecsSimple(t *testing.T) {
 					"amount": "42",
 				},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(9999),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(9999)},
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
@@ -81,14 +79,14 @@ func TestRunSpecsSimple(t *testing.T) {
 func TestRunSpecsMergeOuter(t *testing.T) {
 	j := `{
 		"variables": { "source": "src", "amount": "42" },
-		"balances": { "src": { "USD": 10 } },
+		"balances": [ { "account": "src", "asset": "USD", "amount": 10 } ],
 		"testCases": [
 			{
 				"variables": { "amount": "1" },
-				"balances": {
-					"src": { "EUR": 2 },
-					"dest": { "USD": 1 }
-				},
+				"balances": [
+					{ "account": "src", "asset": "EUR", "amount": 2 },
+					{ "account": "dest", "asset": "USD", "amount": 1 }
+				],
 				"it": "t1",
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 1 }
@@ -118,13 +116,9 @@ func TestRunSpecsMergeOuter(t *testing.T) {
 				},
 				Meta: interpreter.AccountsMetadata{},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(10),
-						"EUR": big.NewInt(2),
-					},
-					"dest": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(10)},
+					{Account: "src", Asset: "EUR", Amount: big.NewInt(2)},
+					{Account: "dest", Asset: "USD", Amount: big.NewInt(1)},
 				},
 				FailedAssertions: nil,
 				Postings: []interpreter.Posting{
@@ -147,7 +141,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 1 } ],
 				"expect.error.missingFunds": false,
 				"expect.postings": null
 			}
@@ -174,9 +168,7 @@ func TestRunWithMissingBalance(t *testing.T) {
 					"amount": "42",
 				},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(1)},
 				},
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
@@ -200,7 +192,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 1 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 1 }
 				]
@@ -228,9 +220,7 @@ func TestRunWithMissingBalanceWhenExpectedPostings(t *testing.T) {
 					"amount": "42",
 				},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(1)},
 				},
 				Meta: interpreter.AccountsMetadata{},
 				FailedAssertions: []specs_format.AssertionMismatch[any]{
@@ -254,7 +244,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 1 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 1 } ],
 				"expect.postings": null
 			}
 		]
@@ -280,9 +270,7 @@ func TestNullPostingsIsNoop(t *testing.T) {
 					"amount": "42",
 				},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(1),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(1)},
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,
@@ -378,7 +366,7 @@ func TestFocus(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "10" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -387,7 +375,7 @@ func TestFocus(t *testing.T) {
 				"it": "t2",
 				"focus": true,
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -421,9 +409,7 @@ func TestFocus(t *testing.T) {
 					"amount": "42",
 				},
 				Balances: interpreter.Balances{
-					"src": interpreter.AccountBalance{
-						"USD": big.NewInt(9999),
-					},
+					{Account: "src", Asset: "USD", Amount: big.NewInt(9999)},
 				},
 				Meta:             interpreter.AccountsMetadata{},
 				FailedAssertions: nil,

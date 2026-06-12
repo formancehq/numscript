@@ -44,60 +44,10 @@ GOT:[0m
 ---
 
 [TestComplexAssertions - 1]
-[31m❯[0m example.num [90m([0m[90m2 tests[0m[90m | [0m[31m1 failed[0m[90m)[0m
-  [31m×[0m send when there are enough funds
-  [32m✓[0m tpassing
+[31m
+Error: example.num.specs.json
 
-
-[1m[97m[41m FAIL [0m[97m[0m[1m[0m[31m example.num.specs.json > send when there are enough funds[0m
-[4m
-GIVEN:[0m
-
-| [36mAccount[0m | [36mAsset[0m | [36mBalance[0m |
-| alice   | USD/2 | 9999    |
-
-[4m
-GOT:[0m
-
-| [36mSource[0m | [36mDestination[0m | [36mAsset[0m | [36mAmount[0m |
-| alice  | dest        | USD/2 | 100    |
-
-
-[32m- Expected[0m
-[31m+ Received
-[0m
-[4mexpect.error.missingFunds[0m
-
-[32m- true[0m
-[31m+ false[0m
-
-[4mexpect.endBalances[0m
-
-[90m  {[0m
-[90m    "alice": {[0m
-[32m-     "USD/2": -100[0m
-[31m+     "USD/2": 9899[0m
-[90m    },[0m
-[90m    "dest": {[0m
-[32m-     "USD/2": 1[0m
-[31m+     "USD/2": 100[0m
-[90m    }[0m
-[90m  }[0m
-
-[4mexpect.movements[0m
-
-[90m  {[0m
-[90m    "alice": {[0m
-[90m      "dest": {[0m
-[32m-       "EUR": 100[0m
-[31m+       "USD/2": 100[0m
-[90m      }[0m
-[90m    }[0m
-[90m  }[0m
-
-
-[90m Test files [0m [1m[91m1 failed[0m[1m[0m [90m(1)[0m
-[90m      Tests [0m [1m[91m1 failed[0m[1m[0m[90m | [0m[1m[92m1 passed[0m[1m[0m [90m(2)[0m
+[0mjson: cannot unmarshal object into Go struct field TestCase.testCases.expect.endBalances of type interpreter.Balances
 
 ---
 

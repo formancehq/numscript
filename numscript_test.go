@@ -77,7 +77,7 @@ func TestDoNotGetWorldBalance(t *testing.T) {
 	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
-			Balances: interpreter.Balances{},
+			Balances: nil,
 			Meta:     interpreter.AccountsMetadata{},
 		},
 	}
@@ -235,8 +235,8 @@ func TestGetBalancesAllotment(t *testing.T) {
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{
-				"a": {"COIN": big.NewInt(10000)},
-				"b": {"COIN": big.NewInt(10000)},
+				{Account: "a", Asset: "COIN", Amount: big.NewInt(10000)},
+				{Account: "b", Asset: "COIN", Amount: big.NewInt(10000)},
 			},
 		},
 	}
@@ -445,9 +445,7 @@ set_tx_meta(
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{
-				"alice": interpreter.AccountBalance{
-					"USD/2": big.NewInt(20),
-				},
+				{Account: "alice", Asset: "USD/2", Amount: big.NewInt(20)},
 			},
 		},
 	}
@@ -493,12 +491,8 @@ send [USD/2 10] (
 				},
 			},
 			Balances: interpreter.Balances{
-				"a": interpreter.AccountBalance{
-					"USD/2": big.NewInt(100),
-				},
-				"a2": interpreter.AccountBalance{
-					"USD/2": big.NewInt(1),
-				},
+				{Account: "a", Asset: "USD/2", Amount: big.NewInt(100)},
+				{Account: "a2", Asset: "USD/2", Amount: big.NewInt(1)},
 			},
 		},
 	}

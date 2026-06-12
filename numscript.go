@@ -56,8 +56,8 @@ type (
 	BalanceQuery     = interpreter.BalanceQuery
 	BalanceQueryItem = interpreter.BalanceQueryItem
 	MetadataQuery    = interpreter.MetadataQuery
-	AccountBalance = interpreter.AccountBalance
-	Balances       = interpreter.Balances
+	AccountBalance   = interpreter.AccountBalance
+	Balances         = interpreter.Balances
 
 	AccountMetadata = interpreter.AccountMetadata
 

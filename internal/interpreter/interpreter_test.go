@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/flags"
+	"github.com/formancehq/numscript/internal/interpreter"
 	machine "github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/specs_format"
 
@@ -39,7 +40,7 @@ type TestCase struct {
 	program  *parser.Program
 	vars     map[string]string
 	meta     machine.AccountsMetadata
-	balances map[string]map[string]*big.Int
+	balances interpreter.Balances
 	expected CaseResult
 }
 
@@ -47,7 +48,7 @@ func NewTestCase() TestCase {
 	return TestCase{
 		vars:     make(map[string]string),
 		meta:     machine.AccountsMetadata{},
-		balances: make(map[string]map[string]*big.Int),
+		balances: nil,
 		expected: CaseResult{
 			Error: nil,
 		},
@@ -98,10 +99,20 @@ func (tc *TestCase) compile(t *testing.T, src string) string {
 }
 
 func (c *TestCase) setBalance(account string, asset string, amount int64) {
-	if _, ok := c.balances[account]; !ok {
-		c.balances[account] = make(map[string]*big.Int)
-	}
-	c.balances[account][asset] = big.NewInt(amount)
+	c.balances = append(c.balances, machine.BalanceRow{
+		Account: account,
+		Asset:   asset,
+		Amount:  big.NewInt(amount),
+	})
+}
+
+func (c *TestCase) setColoredBalance(account string, asset string, color string, amount int64) {
+	c.balances = append(c.balances, machine.BalanceRow{
+		Account: account,
+		Asset:   asset,
+		Color:   color,
+		Amount:  big.NewInt(amount),
+	})
 }
 
 func test(t *testing.T, testCase TestCase) {
@@ -160,14 +171,10 @@ func TestStaticStore(t *testing.T) {
 	t.Run("request currencies", func(t *testing.T) {
 		store := machine.StaticStore{
 			Balances: machine.Balances{
-				"a": machine.AccountBalance{
-					"USD/2": big.NewInt(10),
-					"EUR/2": big.NewInt(1),
-				},
-				"b": machine.AccountBalance{
-					"USD/2": big.NewInt(10),
-					"COIN":  big.NewInt(11),
-				},
+				{Account: "a", Asset: "USD/2", Amount: big.NewInt(10)},
+				{Account: "a", Asset: "EUR/2", Amount: big.NewInt(1)},
+				{Account: "b", Asset: "USD/2", Amount: big.NewInt(10)},
+				{Account: "b", Asset: "COIN", Amount: big.NewInt(11)},
 			},
 		}
 
@@ -175,9 +182,7 @@ func TestStaticStore(t *testing.T) {
 			{Account: "a", Asset: "USD/2"},
 		})
 		require.Equal(t, machine.Balances{
-			"a": machine.AccountBalance{
-				"USD/2": big.NewInt(10),
-			},
+			{Account: "a", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, q1)
 
 		q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
@@ -185,21 +190,17 @@ func TestStaticStore(t *testing.T) {
 			{Account: "b", Asset: "COIN"},
 		})
 		require.Equal(t, machine.Balances{
-			"b": machine.AccountBalance{
-				"USD/2": big.NewInt(10),
-				"COIN":  big.NewInt(11),
-			},
+			{Account: "b", Asset: "USD/2", Amount: big.NewInt(10)},
+			{Account: "b", Asset: "COIN", Amount: big.NewInt(11)},
 		}, q2)
 	})
 
 	t.Run("assets catchall", func(t *testing.T) {
 		store := machine.StaticStore{
 			Balances: machine.Balances{
-				"a": machine.AccountBalance{
-					"USD":   big.NewInt(1),
-					"USD/2": big.NewInt(2),
-					"USD/3": big.NewInt(3),
-				},
+				{Account: "a", Asset: "USD", Amount: big.NewInt(1)},
+				{Account: "a", Asset: "USD/2", Amount: big.NewInt(2)},
+				{Account: "a", Asset: "USD/3", Amount: big.NewInt(3)},
 			},
 		}
 
@@ -208,11 +209,9 @@ func TestStaticStore(t *testing.T) {
 		})
 		require.Nil(t, err)
 		require.Equal(t, machine.Balances{
-			"a": machine.AccountBalance{
-				"USD":   big.NewInt(1),
-				"USD/2": big.NewInt(2),
-				"USD/3": big.NewInt(3),
-			},
+			{Account: "a", Asset: "USD", Amount: big.NewInt(1)},
+			{Account: "a", Asset: "USD/2", Amount: big.NewInt(2)},
+			{Account: "a", Asset: "USD/3", Amount: big.NewInt(3)},
 		}, balances)
 
 	})
@@ -1002,7 +1001,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.setBalance("acc", "COIN", 100)
-	tc.setBalance("acc", "COIN_RED", 1)
+	tc.setColoredBalance("acc", "COIN", "RED", 1)
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{

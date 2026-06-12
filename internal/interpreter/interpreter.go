@@ -28,9 +28,6 @@ type BalanceQuery = []BalanceQueryItem
 // For each account, list of the needed keys
 type MetadataQuery map[string][]string
 
-type AccountBalance = map[string]*big.Int
-type Balances map[string]AccountBalance
-
 type AccountMetadata = map[string]string
 type AccountsMetadata map[string]AccountMetadata
 
@@ -45,42 +42,45 @@ type StaticStore struct {
 }
 
 func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, error) {
-	if s.Balances == nil {
-		s.Balances = Balances{}
-	}
-
-	outputBalance := Balances{}
+	var output Balances
 	for _, item := range q {
-		outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, item.Account, func() AccountBalance {
-			return AccountBalance{}
-		})
-
-		accountBalanceLookup := utils.MapGetOrPutDefault(s.Balances, item.Account, func() AccountBalance {
-			return AccountBalance{}
-		})
-
 		baseAsset, isCatchAll := strings.CutSuffix(item.Asset, "/*")
-		if isCatchAll {
 
-			for k, v := range accountBalanceLookup {
-				matchesAsset := k == baseAsset || strings.HasPrefix(k, baseAsset+"/")
-				if !matchesAsset {
+		if isCatchAll {
+			// return every stored asset (of the queried color) under the base asset
+			for _, row := range s.Balances {
+				if row.Account != item.Account || row.Color != item.Color {
 					continue
 				}
-				outputAccountBalance[k] = new(big.Int).Set(v)
+				if row.Asset == baseAsset || strings.HasPrefix(row.Asset, baseAsset+"/") {
+					output = append(output, BalanceRow{
+						Account: row.Account,
+						Asset:   row.Asset,
+						Color:   row.Color,
+						Amount:  new(big.Int).Set(row.Amount),
+					})
+				}
 			}
+			continue
+		}
 
-		} else {
-			n := new(big.Int)
-			outputAccountBalance[item.Asset] = n
-
-			if i, ok := accountBalanceLookup[item.Asset]; ok {
-				n.Set(i)
+		// materialize the queried (account, asset, color), defaulting to a zero balance
+		amount := new(big.Int)
+		for _, row := range s.Balances {
+			if row.Account == item.Account && row.Asset == item.Asset && row.Color == item.Color {
+				amount.Set(row.Amount)
+				break
 			}
 		}
+		output = append(output, BalanceRow{
+			Account: item.Account,
+			Asset:   item.Asset,
+			Color:   item.Color,
+			Amount:  amount,
+		})
 	}
 
-	return outputBalance, nil
+	return output, nil
 }
 
 func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error) {
@@ -298,7 +298,7 @@ func RunProgram(
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
 		CachedAccountsMeta: AccountsMetadata{},
-		CachedBalances:     Balances{},
+		CachedBalances:     InternalBalances{},
 		SetAccountsMeta:    AccountsMetadata{},
 		Store:              store,
 		Postings:           make([]Posting, 0),
@@ -388,7 +388,7 @@ type programState struct {
 	SetAccountsMeta AccountsMetadata
 
 	CachedAccountsMeta AccountsMetadata
-	CachedBalances     Balances
+	CachedBalances     InternalBalances
 
 	CurrentBalanceQuery BalanceQuery
 

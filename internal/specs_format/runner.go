@@ -254,7 +254,7 @@ func showFailingTestCase(w io.Writer, testResult TestResult) {
 
 	if len(result.Balances) != 0 {
 		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, result.Balances.PrettyPrint())
+		_, _ = fmt.Fprintln(w, prettyPrintBalances(result.Balances))
 		_, _ = fmt.Fprintln(w)
 	}
 

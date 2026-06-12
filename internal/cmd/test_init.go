@@ -11,7 +11,6 @@ import (
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
-	"github.com/formancehq/numscript/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -114,10 +113,12 @@ func makeSpecsFile(
 	defaultBalance *big.Int,
 ) (specs_format.Specs, error) {
 
-	store := TestInitStore{
+	store := &TestInitStore{
 		DefaultBalance: defaultBalance,
-		Balances:       make(interpreter.Balances),
-		Meta:           make(interpreter.AccountsMetadata),
+		StaticStore: interpreter.StaticStore{
+			Balances: interpreter.Balances{},
+			Meta:     make(interpreter.AccountsMetadata),
+		},
 	}
 
 	res, iErr := interpreter.RunProgram(
@@ -147,7 +148,7 @@ func makeSpecsFile(
 				program,
 				vars,
 				featureFlags,
-				&missingFundsErr.Needed,
+				defaultBalance,
 			)
 		}
 
@@ -161,7 +162,7 @@ func makeSpecsFile(
 
 	specs := specs_format.Specs{
 		Schema:       "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
-		Balances:     store.Balances,
+		Balances:     store.StaticStore.Balances,
 		Vars:         vars,
 		FeatureFlags: featureFlags_,
 		TestCases: []specs_format.TestCase{
@@ -200,37 +201,52 @@ func runTestInitCmd(opts testInitArgs) error {
 
 type TestInitStore struct {
 	DefaultBalance *big.Int
-	Balances       interpreter.Balances
-	Meta           interpreter.AccountsMetadata
+	StaticStore    interpreter.StaticStore
 }
 
-func (s TestInitStore) GetBalances(_ context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
-	outputBalance := interpreter.Balances{}
-	for _, item := range q {
-		amt := utils.NestedMapGetOrPutDefault(s.Balances, item.Account, item.Asset, func() *big.Int {
-			return new(big.Int).Set(s.DefaultBalance)
-		})
-
-		outputAccountBalance := utils.MapGetOrPutDefault(outputBalance, item.Account, func() interpreter.AccountBalance {
-			return interpreter.AccountBalance{}
-		})
-
-		outputAccountBalance[item.Asset] = new(big.Int).Set(amt)
+func (s *TestInitStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
+	balances, err := s.StaticStore.GetBalances(ctx, q)
+	if err != nil {
+		return nil, err
 	}
 
-	return outputBalance, nil
-}
+	type key struct{ account, asset, color string }
 
-func (s TestInitStore) GetAccountsMetadata(c context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
-	outputMeta := interpreter.AccountsMetadata{}
-	for queriedAccount, queriedCurrencies := range q {
-		for _, curr := range queriedCurrencies {
-			outputAccountMeta := utils.MapGetOrPutDefault(outputMeta, queriedAccount, func() interpreter.AccountMetadata {
-				return interpreter.AccountMetadata{}
-			})
-			outputAccountMeta[curr] = ""
+	// StaticStore.GetBalances materializes a zero-amount row for every queried
+	// (account, asset, color), so its output can't tell a known account from an
+	// unknown one. Track what we've actually funded ourselves instead.
+	stored := make(map[key]struct{}, len(s.StaticStore.Balances))
+	for _, b := range s.StaticStore.Balances {
+		stored[key{b.Account, b.Asset, b.Color}] = struct{}{}
+	}
+
+	for i := range balances {
+		b := &balances[i]
+		k := key{b.Account, b.Asset, b.Color}
+		if _, ok := stored[k]; ok {
+			continue
 		}
+
+		// Unknown (account, asset, color): fund it with the default balance, and
+		// remember it so later queries (and the generated specs file) see it.
+		amount := new(big.Int)
+		if s.DefaultBalance != nil {
+			amount.Set(s.DefaultBalance)
+		}
+		b.Amount = amount
+
+		s.StaticStore.Balances = append(s.StaticStore.Balances, interpreter.BalanceRow{
+			Account: b.Account,
+			Asset:   b.Asset,
+			Color:   b.Color,
+			Amount:  new(big.Int).Set(amount),
+		})
+		stored[k] = struct{}{}
 	}
 
-	return outputMeta, nil
+	return balances, nil
+}
+
+func (s *TestInitStore) GetAccountsMetadata(c context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	return s.StaticStore.GetAccountsMetadata(c, q)
 }
