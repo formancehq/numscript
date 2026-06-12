@@ -19,6 +19,10 @@ type BalanceQuery []BalanceQueryItem
 type MetadataQuery map[string][]string
 
 type Store interface {
+	// Returns the batched balances for a given batched query.
+	//
+	// Note: the "Balances" result is expected not to have duplicate entries.
+	// Malformed Balances will result it undefined behaviour, and the implementation doesn't guarantee keys are deduped.
 	GetBalances(context.Context, BalanceQuery) (Balances, error)
 	GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error)
 }
