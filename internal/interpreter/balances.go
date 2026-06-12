@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"math/big"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -14,19 +15,32 @@ type BalanceRow struct {
 }
 type Balances []BalanceRow
 
-func (b Balances) PrettyPrint() string {
-	// TODO show colors
-	header := []string{"Account", "Asset", "Balance"}
+func (rows Balances) PrettyPrint() string {
+	// the Color column is shown only when at least one entry has a color
+	hasColor := slices.ContainsFunc(rows, func(row BalanceRow) bool {
+		return row.Color != ""
+	})
 
-	rows := make([][]string, 0, len(b))
-	for _, entry := range b {
-		amount := "0"
-		if entry.Amount != nil {
-			amount = entry.Amount.String()
-		}
-		rows = append(rows, []string{entry.Account, entry.Asset, amount})
+	var header []string
+	if hasColor {
+		header = []string{"Account", "Asset", "Color", "Balance"}
+	} else {
+		header = []string{"Account", "Asset", "Balance"}
 	}
-	return utils.CsvPretty(header, rows, true)
+
+	var tableRows [][]string
+	for _, row := range rows {
+		var amount string
+		if row.Amount != nil {
+			amount = row.Amount.String()
+		}
+		if hasColor {
+			tableRows = append(tableRows, []string{row.Account, row.Asset, row.Color, amount})
+		} else {
+			tableRows = append(tableRows, []string{row.Account, row.Asset, amount})
+		}
+	}
+	return utils.CsvPretty(header, tableRows, true)
 }
 
 // findRow returns the amount for a given (account, asset, color), if present.

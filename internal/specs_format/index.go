@@ -12,34 +12,6 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func prettyPrintBalances(rows interpreter.Balances) string {
-	// the Color column is shown only when at least one entry has a color
-	hasColor := slices.ContainsFunc(rows, func(row interpreter.BalanceRow) bool {
-		return row.Color != ""
-	})
-
-	var header []string
-	if hasColor {
-		header = []string{"Account", "Asset", "Color", "Balance"}
-	} else {
-		header = []string{"Account", "Asset", "Balance"}
-	}
-
-	var tableRows [][]string
-	for _, row := range rows {
-		var amount string
-		if row.Amount != nil {
-			amount = row.Amount.String()
-		}
-		if hasColor {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, row.Color, amount})
-		} else {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, amount})
-		}
-	}
-	return utils.CsvPretty(header, tableRows, true)
-}
-
 // --- Specs:
 type Specs struct {
 	Schema       string                       `json:"$schema,omitempty"`
