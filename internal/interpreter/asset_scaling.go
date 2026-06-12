@@ -28,8 +28,8 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for _, accBalance := range accountBalances {
-		if strings.HasPrefix(accBalance.Asset, baseAsset) {
-			_, scale := Asset(accBalance.Asset).GetBaseAndScale()
+		accBalanceAsset, scale := Asset(accBalance.Asset).GetBaseAndScale()
+		if accBalanceAsset == baseAsset {
 			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
 	}
