@@ -57,6 +57,16 @@ func run(scriptPath string, opts RunArgs) error {
 		return fmt.Errorf("failed to parse inputs file '%s' as JSON: %w", inputsPath, err)
 	}
 
+	// Reject a malformed inputs file before running anything: a balance list is a
+	// map keyed by (account, asset, color), so a repeated key is ambiguous.
+	if dup, ok := inputs.Balances.FirstDuplicate(); ok {
+		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
+		if dup.Color != "" {
+			key += fmt.Sprintf(" color=%q", dup.Color)
+		}
+		return fmt.Errorf("invalid inputs file '%s': balances must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
+	}
+
 	featureFlags := map[string]struct{}{}
 	for _, flag := range inputs.FeatureFlags {
 		featureFlags[flag] = struct{}{}
