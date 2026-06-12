@@ -327,6 +327,60 @@ func TestNegativeAmt(t *testing.T) {
 
 }
 
+// A key shared across the outer and inner lists is not a duplicate: the inner
+// entry overrides the outer one (see mergeBalances).
+func TestRunOuterInnerSameKeyIsNotDuplicate(t *testing.T) {
+	j := `{
+		"balances": [ { "account": "src", "asset": "USD", "amount": 1 } ],
+		"testCases": [
+			{
+				"it": "t1",
+				"variables": { "source": "src", "amount": "42" },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
+				"expect.postings": [
+					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
+				]
+			}
+		]
+	}`
+
+	var specs specs_format.Specs
+	err := json.Unmarshal([]byte(j), &specs)
+	require.Nil(t, err)
+
+	out, err := specs_format.Check(exampleProgram.Value, specs)
+	require.Nil(t, err)
+
+	require.Equal(t, specs_format.SpecsResult{
+		Total:   1,
+		Failing: 0,
+		Passing: 1,
+		Cases: []specs_format.TestCaseResult{
+			{
+				It:   "t1",
+				Pass: true,
+				Vars: interpreter.VariablesMap{
+					"source": "src",
+					"amount": "42",
+				},
+				Meta: interpreter.AccountsMetadata{},
+				Balances: interpreter.Balances{
+					{Account: "src", Asset: "USD", Amount: big.NewInt(9999)},
+				},
+				FailedAssertions: nil,
+				Postings: []interpreter.Posting{
+					{
+						Source:      "src",
+						Destination: "dest",
+						Asset:       "USD",
+						Amount:      big.NewInt(42),
+					},
+				},
+			},
+		},
+	}, out)
+}
+
 func TestSkip(t *testing.T) {
 	j := `{
 		"testCases": [

@@ -169,6 +169,59 @@ func TestSchemaErrSpecs(t *testing.T) {
 	snaps.MatchSnapshot(t, out.String())
 }
 
+func TestDuplicateBalanceInTestCaseErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"balances": [
+					{ "account": "src", "asset": "USD", "amount": 9999 },
+					{ "account": "src", "asset": "USD", "amount": 1 }
+				],
+				"expect.postings": null
+			}
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestDuplicateBalanceInOuterErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"balances": [
+			{ "account": "src", "asset": "USD", "amount": 9999 },
+			{ "account": "src", "asset": "USD", "amount": 1 }
+		],
+		"testCases": [
+			{ "it": "t1", "expect.postings": null }
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
 func TestNumscriptParseErr(t *testing.T) {
 	var out bytes.Buffer
 

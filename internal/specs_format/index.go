@@ -2,6 +2,7 @@ package specs_format
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"reflect"
 	"slices"
@@ -268,6 +269,45 @@ func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsM
 	out := m1.DeepClone()
 	out.Merge(m2)
 	return out
+}
+
+// firstDuplicateBalance returns the first row whose (account, asset, color) key
+// already appeared earlier in the same list, if any.
+func firstDuplicateBalance(balances interpreter.Balances) (interpreter.BalanceRow, bool) {
+	seen := make(map[string]struct{}, len(balances))
+	for _, row := range balances {
+		key := fmt.Sprintf("%s,%s,%s", row.Account, row.Asset, row.Color)
+		if _, ok := seen[key]; ok {
+			return row, true
+		}
+		seen[key] = struct{}{}
+	}
+	return interpreter.BalanceRow{}, false
+}
+
+// validateSpecs rejects a malformed specs file before any test case is run. A
+// balance list must not contain the same (account, asset, color) key twice: it's
+// the map key and the amount is its value, so duplicates are ambiguous. A key
+// shared across the outer and a test case's inner list is fine, since
+// mergeBalances lets the inner entry override the outer one.
+func validateSpecs(specs Specs) error {
+	if dup, ok := firstDuplicateBalance(specs.Balances); ok {
+		return duplicateBalanceErr(dup)
+	}
+	for _, testCase := range specs.TestCases {
+		if dup, ok := firstDuplicateBalance(testCase.Balances); ok {
+			return duplicateBalanceErr(dup)
+		}
+	}
+	return nil
+}
+
+func duplicateBalanceErr(dup interpreter.BalanceRow) error {
+	key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
+	if dup.Color != "" {
+		key += fmt.Sprintf(" color=%q", dup.Color)
+	}
+	return fmt.Errorf("balances must not contain duplicate entries: duplicate entry for %s", key)
 }
 
 // Merge two balance inputs, deduping by (account, asset, color).

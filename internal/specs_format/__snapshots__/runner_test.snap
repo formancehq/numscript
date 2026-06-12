@@ -108,3 +108,19 @@ Error: example.num:1:29
 [90m      Tests [0m [1m[92m1 passed[0m[1m[0m[90m | [0m[1m[93m1 skipped[0m[1m[0m [90m(2)[0m
 
 ---
+
+[TestDuplicateBalanceInTestCaseErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
+
+---
+
+[TestDuplicateBalanceInOuterErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
+
+---
