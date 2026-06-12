@@ -1035,14 +1035,15 @@ func getBalance(
 	s *programState,
 	account AccountAddress,
 	asset Asset,
-	color String,
 ) (*big.Int, InterpreterError) {
+	color := String("")
+
 	s.batchQuery(account, asset, color)
 	fetchBalanceErr := s.runBalancesQuery()
 	if fetchBalanceErr != nil {
 		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
 	}
-	balance := s.CachedBalances.fetchBalance(account, asset, "")
+	balance := s.CachedBalances.fetchBalance(account, asset, color)
 	return balance, nil
 
 }

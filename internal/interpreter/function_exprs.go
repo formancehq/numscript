@@ -27,7 +27,7 @@ func overdraft(
 	}
 
 	// overdraft call doesn't handle colors
-	balance_, err := getBalance(s, account, asset, "")
+	balance_, err := getBalance(s, account, asset)
 	if err != nil {
 		return Monetary{}, err
 	}
@@ -97,7 +97,7 @@ func balance(
 	// body
 
 	// balance call doesn't handle colors
-	balance, err := getBalance(s, account, asset, "")
+	balance, err := getBalance(s, account, asset)
 	if err != nil {
 		return Monetary{}, err
 	}
