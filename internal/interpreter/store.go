@@ -13,8 +13,7 @@ type BalanceQueryItem struct {
 	Color   string
 }
 
-// TODO(refactor) make this an embedded type
-type BalanceQuery = []BalanceQueryItem
+type BalanceQuery []BalanceQueryItem
 
 // For each account, list of the needed keys
 type MetadataQuery map[string][]string
