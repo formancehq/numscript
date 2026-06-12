@@ -24,14 +24,18 @@
           "amount": -100
         }
       ],
-      "expect.endBalances": {
-        "alice": {
-          "EUR": 0
+      "expect.endBalances": [
+        {
+          "account": "alice",
+          "asset": "EUR",
+          "amount": 0
         },
-        "world": {
-          "EUR": -100
+        {
+          "account": "world",
+          "asset": "EUR",
+          "amount": -100
         }
-      },
+      ],
       "expect.movements": {
         "world": {
           "alice": {
