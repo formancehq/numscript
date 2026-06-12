@@ -28,6 +28,11 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for _, accBalance := range accountBalances {
+		if accBalance.Color != "" {
+			// scaling converts only uncolored balances, and emits uncolored
+			// postings, so a colored balance must not be treated as available
+			continue
+		}
 		accBalanceAsset, scale := Asset(accBalance.Asset).GetBaseAndScale()
 		if accBalanceAsset == baseAsset {
 			result[scale] = new(big.Int).Set(accBalance.Amount)
