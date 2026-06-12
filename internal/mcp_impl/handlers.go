@@ -2,6 +2,7 @@ package mcp_impl
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -69,6 +70,10 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	err = request.BindArguments(&args)
 	if err != nil {
 		return nil, err
+	}
+
+	if dup, ok := args.Balances.FirstDuplicate(); ok {
+		return mcp.NewToolResultError(fmt.Sprintf("balances must not contain duplicate entries: duplicate entry for account=%q asset=%q color=%q", dup.Account, dup.Asset, dup.Color)), nil
 	}
 
 	out, iErr := interpreter.RunProgram(
