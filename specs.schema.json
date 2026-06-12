@@ -83,18 +83,31 @@
     },
 
     "Balances": {
+      "type": "array",
+      "description": "List of account balances. The (account, asset, color) triple of each entry must be unique within the list.",
+      "items": { "$ref": "#/definitions/BalanceRow" }
+    },
+
+    "BalanceRow": {
       "type": "object",
-      "description": "Map of account names to asset balances",
+      "description": "The balance of a given (account, asset, color)",
       "additionalProperties": false,
-      "patternProperties": {
-        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
-          "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^([A-Z]+(/[0-9]+)?)$": {
-              "type": "number"
-            }
-          }
+      "required": ["account", "asset", "amount"],
+      "properties": {
+        "account": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^([A-Z]+(/[0-9]+)?)$"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^[A-Z]*$"
         }
       }
     },
@@ -159,6 +172,10 @@
         },
         "amount": {
           "type": "number"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^[A-Z]*$"
         }
       },
       "required": ["source", "destination", "asset", "amount"]
