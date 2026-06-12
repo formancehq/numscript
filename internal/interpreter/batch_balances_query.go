@@ -109,12 +109,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		// NOTE we don't query the swap account's balance
 
-		color, err := evaluateOptExprAs(st, source.Color, expectString)
-		if err != nil {
-			return err
-		}
-
-		st.batchQuery(account, assetToScaledAsset(st.CurrentAsset), color)
+		st.batchQuery(account, assetToScaledAsset(st.CurrentAsset), "")
 		return nil
 
 	case *parser.SourceOverdraft:

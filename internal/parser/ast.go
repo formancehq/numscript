@@ -188,7 +188,6 @@ type (
 
 	SourceWithScaling struct {
 		Range
-		Color   ValueExpr
 		Address ValueExpr
 		Through ValueExpr
 	}

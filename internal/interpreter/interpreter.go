@@ -599,7 +599,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			s.CurrentAsset,
 		)
 
-		return s.takeAllFromAccount(source.Address, big.NewInt(0), source.Color)
+		return s.takeAllFromAccount(source.Address, big.NewInt(0), nil)
 
 	case *parser.SourceInorder:
 		totalSent := big.NewInt(0)
@@ -762,7 +762,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			s.CurrentAsset,
 		)
 
-		return s.tryTakingFromAccount(source.Address, amount, big.NewInt(0), source.Color)
+		return s.tryTakingFromAccount(source.Address, amount, big.NewInt(0), nil)
 
 	case *parser.SourceOverdraft:
 		var cap *big.Int

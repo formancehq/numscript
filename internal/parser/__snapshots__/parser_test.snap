@@ -3774,7 +3774,6 @@ parser.Program{
                     Start: parser.Position{Character:11, Line:1},
                     End:   parser.Position{Character:42, Line:1},
                 },
-                Color:   nil,
                 Address: &parser.AccountInterpLiteral{
                     Range: parser.Range{
                         Start: parser.Position{Character:11, Line:1},
