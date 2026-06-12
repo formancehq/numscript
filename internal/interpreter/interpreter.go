@@ -362,7 +362,7 @@ func (st *programState) forcePushPostingUncolored(
 	st.Postings = append(st.Postings, Posting{
 		Source:      string(source),
 		Destination: string(destination),
-		Amount:      &amtBi,
+		Amount:      new(big.Int).Set(&amtBi),
 		Color:       "",
 		Asset:       string(asset),
 	})
@@ -486,13 +486,16 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 		}
 		st.CurrentAsset = monetary.Asset
 
+		amtBi := big.Int(monetary.Amount)
+		if amtBi.Sign() == -1 {
+			return NegativeAmountErr{Amount: monetary.Amount, Range: sentValue.Monetary.GetRange()}
+		}
 		err = st.tryTakingExact(statement.Source, monetary.Amount)
 		if err != nil {
 			return err
 		}
 
-		amt := big.Int(monetary.Amount)
-		return st.sendTo(statement.Destination, &amt)
+		return st.sendTo(statement.Destination, &amtBi)
 	default:
 		utils.NonExhaustiveMatchPanic[any](sentValue)
 		return nil
@@ -640,10 +643,6 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 // Fails if it doesn't manage to pull exactly "amount"
 func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) InterpreterError {
 	amtBi := (*big.Int)(&amount)
-	if amtBi.Sign() == -1 {
-		return NegativeAmountErr{Amount: amount}
-	}
-
 	sentAmt, err := s.tryTakingUpTo(source, amtBi)
 	if err != nil {
 		return err
