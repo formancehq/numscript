@@ -271,31 +271,17 @@ func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsM
 	return out
 }
 
-// firstDuplicateBalance returns the first row whose (account, asset, color) key
-// already appeared earlier in the same list, if any.
-func firstDuplicateBalance(balances interpreter.Balances) (interpreter.BalanceRow, bool) {
-	seen := make(map[string]struct{}, len(balances))
-	for _, row := range balances {
-		key := fmt.Sprintf("%s,%s,%s", row.Account, row.Asset, row.Color)
-		if _, ok := seen[key]; ok {
-			return row, true
-		}
-		seen[key] = struct{}{}
-	}
-	return interpreter.BalanceRow{}, false
-}
-
 // validateSpecs rejects a malformed specs file before any test case is run. A
 // balance list must not contain the same (account, asset, color) key twice: it's
 // the map key and the amount is its value, so duplicates are ambiguous. A key
 // shared across the outer and a test case's inner list is fine, since
 // mergeBalances lets the inner entry override the outer one.
 func validateSpecs(specs Specs) error {
-	if dup, ok := firstDuplicateBalance(specs.Balances); ok {
+	if dup, ok := specs.Balances.FirstDuplicate(); ok {
 		return duplicateBalanceErr(dup)
 	}
 	for _, testCase := range specs.TestCases {
-		if dup, ok := firstDuplicateBalance(testCase.Balances); ok {
+		if dup, ok := testCase.Balances.FirstDuplicate(); ok {
 			return duplicateBalanceErr(dup)
 		}
 	}

@@ -33,6 +33,25 @@ func TestFilterQuery(t *testing.T) {
 	}, filteredQuery)
 }
 
+func TestBalancesFirstDuplicate(t *testing.T) {
+	// no duplicate: same account/asset but different color are distinct keys
+	_, ok := Balances{
+		{Account: "alice", Asset: "USD/2", Amount: big.NewInt(1)},
+		{Account: "alice", Asset: "EUR/2", Amount: big.NewInt(2)},
+		{Account: "alice", Asset: "USD/2", Color: "X", Amount: big.NewInt(3)},
+		{Account: "bob", Asset: "USD/2", Amount: big.NewInt(4)},
+	}.FirstDuplicate()
+	require.False(t, ok)
+
+	// duplicate (account, asset, color), even with a different amount
+	dup, ok := Balances{
+		{Account: "alice", Asset: "USD/2", Amount: big.NewInt(1)},
+		{Account: "alice", Asset: "USD/2", Amount: big.NewInt(99)},
+	}.FirstDuplicate()
+	require.True(t, ok)
+	require.Equal(t, BalanceRow{Account: "alice", Asset: "USD/2", Amount: big.NewInt(99)}, dup)
+}
+
 func TestCloneBalances(t *testing.T) {
 	fullBalance := InternalBalances{
 		"alice": {

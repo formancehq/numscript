@@ -15,6 +15,22 @@ type BalanceRow struct {
 }
 type Balances []BalanceRow
 
+// FirstDuplicate returns the first row whose (account, asset, color) key already
+// appeared earlier in the list, if any. That triple is the identity of a balance
+// entry and the amount is its value, so a repeated key is an ambiguous,
+// malformed input.
+func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
+	seen := make(map[[3]string]struct{}, len(rows))
+	for _, row := range rows {
+		key := [3]string{row.Account, row.Asset, row.Color}
+		if _, ok := seen[key]; ok {
+			return row, true
+		}
+		seen[key] = struct{}{}
+	}
+	return BalanceRow{}, false
+}
+
 func (rows Balances) PrettyPrint() string {
 	// the Color column is shown only when at least one entry has a color
 	hasColor := slices.ContainsFunc(rows, func(row BalanceRow) bool {
