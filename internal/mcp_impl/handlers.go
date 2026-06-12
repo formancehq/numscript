@@ -21,10 +21,11 @@ func addEvalTool(s *server.MCPServer) {
 			mcp.Required(),
 			mcp.Description("The numscript source"),
 		),
-		mcp.WithObject("balances",
+		mcp.WithArray("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A nested map from the account name, to the asset, to its integer amount.
-			For example: { "alice": { "USD/2": 100, "EUR/2": -42 }, "bob": { "BTC": 1 } }
+			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", and an optional "color".
+			The (account, asset, color) triple of each entry must be unique within the list.
+			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
 			`),
 		),
 		mcp.WithObject("vars",
