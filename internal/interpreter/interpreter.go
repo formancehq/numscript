@@ -1149,12 +1149,29 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
+	// the Color column is shown only when at least one posting has a color
+	hasColor := slices.ContainsFunc(postings, func(posting Posting) bool {
+		return posting.Color != ""
+	})
+
+	var header []string
+	if hasColor {
+		header = []string{"Source", "Destination", "Asset", "Color", "Amount"}
+	} else {
+		header = []string{"Source", "Destination", "Asset", "Amount"}
+	}
+
 	var rows [][]string
 	for _, posting := range postings {
-		row := []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+		var row []string
+		if hasColor {
+			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Color, posting.Amount.String()}
+		} else {
+			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+		}
 		rows = append(rows, row)
 	}
-	return utils.CsvPretty([]string{"Source", "Destination", "Asset", "Amount"}, rows, false)
+	return utils.CsvPretty(header, rows, false)
 }
 
 func PrettyPrintMeta(meta Metadata) string {
