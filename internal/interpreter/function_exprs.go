@@ -26,7 +26,7 @@ func overdraft(
 		return Monetary{}, err
 	}
 
-	// overdrat call doesn't handle colors
+	// overdraft call doesn't handle colors
 	balance_, err := getBalance(s, account, asset, "")
 	if err != nil {
 		return Monetary{}, err
@@ -96,7 +96,7 @@ func balance(
 
 	// body
 
-	// overdrat call doesn't handle colors
+	// balance call doesn't handle colors
 	balance, err := getBalance(s, account, asset, "")
 	if err != nil {
 		return Monetary{}, err
