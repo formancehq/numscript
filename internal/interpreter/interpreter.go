@@ -717,6 +717,9 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		return s.tryTakingFromAccount(source.ValueExpr, amount, big.NewInt(0), source.Color)
 
 	case *parser.SourceWithScaling:
+		// Note that scaled sources are colorless (for now). That's we we don't bother including
+		// colors in the logic about scaling
+
 		err := s.checkFeatureFlag(flags.AssetScaling)
 		if err != nil {
 			return nil, err
