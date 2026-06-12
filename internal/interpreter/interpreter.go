@@ -568,8 +568,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
-		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
-		// TODO this may be a bug. Probably can't access cached balances directly this way. Double check
+		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
 		acc, ok := s.CachedBalances[string(account)]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
@@ -732,9 +731,8 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 
-		baseAsset, assetScale := getAssetScale(s.CurrentAsset)
+		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
 
-		// TODO double check access here. May be a bug. DOuble check
 		acc, ok := s.CachedBalances[string(account)]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}

@@ -3,6 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -252,4 +254,18 @@ func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 
 	sum := new(big.Int).Sub(&bi, &otherBi)
 	return MonetaryInt(*sum)
+}
+
+func (asset Asset) GetBaseAndScale() (string, int64) {
+	parts := strings.Split(string(asset), "/")
+	if len(parts) == 2 {
+		scale, err := strconv.ParseInt(parts[1], 10, 64)
+		if err == nil {
+			return parts[0], scale
+		}
+		// fallback if parsing fails
+		return parts[0], 0
+	}
+	return string(asset), 0
+
 }

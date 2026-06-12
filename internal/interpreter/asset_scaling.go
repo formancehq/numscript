@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/utils"
@@ -26,24 +25,11 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 	return fmt.Sprintf("%s/%d", baseAsset, scale)
 }
 
-func getAssetScale(asset Asset) (string, int64) {
-	parts := strings.Split(string(asset), "/")
-	if len(parts) == 2 {
-		scale, err := strconv.ParseInt(parts[1], 10, 64)
-		if err == nil {
-			return parts[0], scale
-		}
-		// fallback if parsing fails
-		return parts[0], 0
-	}
-	return string(asset), 0
-}
-
 func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for _, accBalance := range accountBalances {
 		if strings.HasPrefix(accBalance.Asset, baseAsset) {
-			_, scale := getAssetScale(Asset(accBalance.Asset))
+			_, scale := Asset(accBalance.Asset).GetBaseAndScale()
 			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
 	}
