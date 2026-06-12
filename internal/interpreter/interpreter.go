@@ -28,6 +28,13 @@ type Balances map[string]AccountBalance
 type AccountMetadata = map[string]string
 type AccountsMetadata map[string]AccountMetadata
 
+// Store is the interface implemented by clients to provide the data
+// (balances, accounts metadata) needed to run a program.
+//
+// Ownership of the returned values is transferred to the caller once the
+// methods return: the interpreter deep-copies the returned balances before
+// using them, so implementations are free to return pointers to their
+// internal state without risking it being mutated during the run.
 type Store interface {
 	GetBalances(context.Context, BalanceQuery) (Balances, error)
 	GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error)

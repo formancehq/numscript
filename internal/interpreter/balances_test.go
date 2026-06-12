@@ -1,9 +1,11 @@
 package interpreter
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
@@ -47,6 +49,62 @@ func TestCloneBalances(t *testing.T) {
 	fullBalance["alice"]["USD/2"].Set(big.NewInt(42))
 
 	require.Equal(t, big.NewInt(2), cloned["alice"]["USD/2"])
+}
+
+// a Store implementation which returns pointers to its internal state,
+// so that we can detect whether the interpreter mutates them
+type aliasingStore struct {
+	balances Balances
+}
+
+func (s *aliasingStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, error) {
+	out := Balances{}
+	for account, currencies := range q {
+		accountBalance := AccountBalance{}
+		out[account] = accountBalance
+		for _, curr := range currencies {
+			// note: this aliases the store's internal *big.Int
+			accountBalance[curr] = s.balances[account][curr]
+		}
+	}
+	return out, nil
+}
+
+func (s *aliasingStore) GetAccountsMetadata(_ context.Context, _ MetadataQuery) (AccountsMetadata, error) {
+	return AccountsMetadata{}, nil
+}
+
+func TestRunProgramDoesNotMutateStoreBalances(t *testing.T) {
+	t.Parallel()
+
+	aliceBalance := big.NewInt(100)
+	store := &aliasingStore{
+		balances: Balances{
+			"alice": AccountBalance{
+				"USD/2": aliceBalance,
+			},
+		},
+	}
+
+	parseResult := parser.Parse(`send [USD/2 100] (
+	source = @alice
+	destination = @bob
+)`)
+	require.Empty(t, parseResult.Errors)
+
+	result, err := RunProgram(context.Background(), parseResult.Value, nil, store, nil)
+	require.Nil(t, err)
+	require.Equal(t, []Posting{
+		{
+			Source:      "alice",
+			Destination: "bob",
+			Amount:      big.NewInt(100),
+			Asset:       "USD/2",
+		},
+	}, result.Postings)
+
+	// the store's internal state must not have been mutated by the run
+	require.Equal(t, big.NewInt(100), aliceBalance)
 }
 
 func TestPrettyPrintBalance(t *testing.T) {
