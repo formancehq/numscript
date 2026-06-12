@@ -8,7 +8,6 @@ import (
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
-	machine "github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/specs_format"
 
 	"testing"
@@ -39,7 +38,7 @@ type TestCase struct {
 	source   string
 	program  *parser.Program
 	vars     map[string]string
-	meta     machine.AccountsMetadata
+	meta     interpreter.AccountsMetadata
 	balances interpreter.Balances
 	expected CaseResult
 }
@@ -47,7 +46,7 @@ type TestCase struct {
 func NewTestCase() TestCase {
 	return TestCase{
 		vars:     make(map[string]string),
-		meta:     machine.AccountsMetadata{},
+		meta:     interpreter.AccountsMetadata{},
 		balances: nil,
 		expected: CaseResult{
 			Error: nil,
@@ -57,21 +56,21 @@ func NewTestCase() TestCase {
 
 // returns a version of the error in which the range is normalized
 // to golang's default value
-func removeRange(e machine.InterpreterError) machine.InterpreterError {
+func removeRange(e interpreter.InterpreterError) interpreter.InterpreterError {
 	switch e := e.(type) {
-	case machine.MissingFundsErr:
+	case interpreter.MissingFundsErr:
 		e.Range = parser.Range{}
 		return e
-	case machine.InvalidUnboundedAddressInScalingAddress:
+	case interpreter.InvalidUnboundedAddressInScalingAddress:
 		e.Range = parser.Range{}
 		return e
-	case machine.TypeError:
+	case interpreter.TypeError:
 		e.Range = parser.Range{}
 		return e
-	case machine.InvalidTypeErr:
+	case interpreter.InvalidTypeErr:
 		e.Range = parser.Range{}
 		return e
-	case machine.NegativeAmountErr:
+	case interpreter.NegativeAmountErr:
 		e.Range = parser.Range{}
 		return e
 	default:
@@ -99,7 +98,7 @@ func (tc *TestCase) compile(t *testing.T, src string) string {
 }
 
 func (c *TestCase) setBalance(account string, asset string, amount int64) {
-	c.balances = append(c.balances, machine.BalanceRow{
+	c.balances = append(c.balances, interpreter.BalanceRow{
 		Account: account,
 		Asset:   asset,
 		Amount:  big.NewInt(amount),
@@ -107,7 +106,7 @@ func (c *TestCase) setBalance(account string, asset string, amount int64) {
 }
 
 func (c *TestCase) setColoredBalance(account string, asset string, color string, amount int64) {
-	c.balances = append(c.balances, machine.BalanceRow{
+	c.balances = append(c.balances, interpreter.BalanceRow{
 		Account: account,
 		Asset:   asset,
 		Color:   color,
@@ -132,27 +131,27 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 	if flagName != "" {
 		featureFlags[flagName] = struct{}{}
 
-		_, err := machine.RunProgram(
+		_, err := interpreter.RunProgram(
 			context.Background(),
 			*prog,
 			testCase.vars,
-			machine.StaticStore{
+			interpreter.StaticStore{
 				testCase.balances,
 				testCase.meta,
 			},
 			nil,
 		)
 
-		require.Equal(t, machine.ExperimentalFeature{
+		require.Equal(t, interpreter.ExperimentalFeature{
 			FlagName: flagName,
 		}, removeRange(err))
 	}
 
-	_, err := machine.RunProgram(
+	_, err := interpreter.RunProgram(
 		context.Background(),
 		*prog,
 		testCase.vars,
-		machine.StaticStore{
+		interpreter.StaticStore{
 			testCase.balances,
 			testCase.meta,
 		},
@@ -169,8 +168,8 @@ func testWithFeatureFlag(t *testing.T, testCase TestCase, flagName string) {
 
 func TestStaticStore(t *testing.T) {
 	t.Run("request currencies", func(t *testing.T) {
-		store := machine.StaticStore{
-			Balances: machine.Balances{
+		store := interpreter.StaticStore{
+			Balances: interpreter.Balances{
 				{Account: "a", Asset: "USD/2", Amount: big.NewInt(10)},
 				{Account: "a", Asset: "EUR/2", Amount: big.NewInt(1)},
 				{Account: "b", Asset: "USD/2", Amount: big.NewInt(10)},
@@ -178,37 +177,37 @@ func TestStaticStore(t *testing.T) {
 			},
 		}
 
-		q1, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		q1, _ := store.GetBalances(context.TODO(), interpreter.BalanceQuery{
 			{Account: "a", Asset: "USD/2"},
 		})
-		require.Equal(t, machine.Balances{
+		require.Equal(t, interpreter.Balances{
 			{Account: "a", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, q1)
 
-		q2, _ := store.GetBalances(context.TODO(), machine.BalanceQuery{
+		q2, _ := store.GetBalances(context.TODO(), interpreter.BalanceQuery{
 			{Account: "b", Asset: "USD/2"},
 			{Account: "b", Asset: "COIN"},
 		})
-		require.Equal(t, machine.Balances{
+		require.Equal(t, interpreter.Balances{
 			{Account: "b", Asset: "USD/2", Amount: big.NewInt(10)},
 			{Account: "b", Asset: "COIN", Amount: big.NewInt(11)},
 		}, q2)
 	})
 
 	t.Run("assets catchall", func(t *testing.T) {
-		store := machine.StaticStore{
-			Balances: machine.Balances{
+		store := interpreter.StaticStore{
+			Balances: interpreter.Balances{
 				{Account: "a", Asset: "USD", Amount: big.NewInt(1)},
 				{Account: "a", Asset: "USD/2", Amount: big.NewInt(2)},
 				{Account: "a", Asset: "USD/3", Amount: big.NewInt(3)},
 			},
 		}
 
-		balances, err := store.GetBalances(context.Background(), machine.BalanceQuery{
+		balances, err := store.GetBalances(context.Background(), interpreter.BalanceQuery{
 			{Account: "a", Asset: "USD/*"},
 		})
 		require.Nil(t, err)
-		require.Equal(t, machine.Balances{
+		require.Equal(t, interpreter.Balances{
 			{Account: "a", Asset: "USD", Amount: big.NewInt(1)},
 			{Account: "a", Asset: "USD/2", Amount: big.NewInt(2)},
 			{Account: "a", Asset: "USD/3", Amount: big.NewInt(3)},
@@ -219,13 +218,13 @@ func TestStaticStore(t *testing.T) {
 }
 
 type CaseResult struct {
-	Postings        []machine.Posting
-	TxMetadata      map[string]machine.Value
-	AccountMetadata machine.AccountsMetadata
-	Error           machine.InterpreterError
+	Postings        []interpreter.Posting
+	TxMetadata      map[string]interpreter.Value
+	AccountMetadata interpreter.AccountsMetadata
+	Error           interpreter.InterpreterError
 }
 
-type Posting = machine.Posting
+type Posting = interpreter.Posting
 
 func TestBadPortionSyntax(t *testing.T) {
 	tc := NewTestCase()
@@ -245,7 +244,7 @@ func TestBadPortionSyntax(t *testing.T) {
 	}`)
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.BadPortionParsingErr{
+		Error: interpreter.BadPortionParsingErr{
 			Source: "not a portion",
 			Reason: "invalid format",
 		},
@@ -264,15 +263,15 @@ func TestBadAssetInMeta(t *testing.T) {
 		destination = @dest
 	)
 	`)
-	tc.meta = machine.AccountsMetadata{
-		"acc": machine.AccountMetadata{
+	tc.meta = interpreter.AccountsMetadata{
+		"acc": interpreter.AccountMetadata{
 			"my-asset": "Aa",
 		},
 	}
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.InvalidAsset{
+		Error: interpreter.InvalidAsset{
 			Name: "Aa",
 		},
 	}
@@ -289,7 +288,7 @@ func TestInvalidAllotInSendAll(t *testing.T) {
 		destination = @dest
 	)`)
 	tc.expected = CaseResult{
-		Error: machine.InvalidAllotmentInSendAll{},
+		Error: interpreter.InvalidAllotmentInSendAll{},
 	}
 	test(t, tc)
 }
@@ -298,7 +297,7 @@ func TestDivByZero(t *testing.T) {
 	tc := NewTestCase()
 	src := tc.compile(t, `set_tx_meta("k", 3/0)`)
 	tc.expected = CaseResult{
-		Error: machine.DivideByZero{
+		Error: interpreter.DivideByZero{
 			Numerator: big.NewInt(3),
 			Range:     parser.RangeOfIndexed(src, "3/0", 0),
 		},
@@ -313,7 +312,7 @@ func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
 		destination = @dest
 	)`)
 	tc.expected = CaseResult{
-		Error: machine.InvalidUnboundedInSendAll{Name: "world"},
+		Error: interpreter.InvalidUnboundedInSendAll{Name: "world"},
 	}
 	test(t, tc)
 }
@@ -325,7 +324,7 @@ func TestInvalidUnboundedInSendAll(t *testing.T) {
 		destination = @dest
 	)`)
 	tc.expected = CaseResult{
-		Error: machine.InvalidUnboundedInSendAll{Name: "a"},
+		Error: interpreter.InvalidUnboundedInSendAll{Name: "a"},
 	}
 	test(t, tc)
 }
@@ -353,7 +352,7 @@ func TestInsufficientFunds(t *testing.T) {
 	tc.setBalance("payments:001", "GEM", 12)
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Asset:     "GEM",
 			Needed:    *big.NewInt(16),
 			Available: *big.NewInt(15),
@@ -376,7 +375,7 @@ func TestTrackBalances2(t *testing.T) {
 	tc.setBalance("a", "COIN", 60)
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Asset:     "COIN",
 			Needed:    *big.NewInt(50),
 			Available: *big.NewInt(10),
@@ -395,7 +394,7 @@ func TestInvalidSourceAllotmentSum(t *testing.T) {
 	)`)
 
 	tc.expected = CaseResult{
-		Error: machine.InvalidAllotmentSum{
+		Error: interpreter.InvalidAllotmentSum{
 			ActualSum: *big.NewRat(42, 100),
 		},
 	}
@@ -412,7 +411,7 @@ func TestInvalidDestinationAllotmentSum(t *testing.T) {
 	)`)
 
 	tc.expected = CaseResult{
-		Error: machine.InvalidAllotmentSum{
+		Error: interpreter.InvalidAllotmentSum{
 			ActualSum: *big.NewRat(1, 4),
 		},
 	}
@@ -433,7 +432,7 @@ func TestSourceAllotmentInvalidAmt(t *testing.T) {
 	)`)
 	tc.setBalance("a", "COIN", 1)
 	tc.expected = CaseResult{
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Asset:     "COIN",
 			Needed:    *big.NewInt(10),
 			Available: *big.NewInt(1),
@@ -455,7 +454,7 @@ func TestNegativeBalance(t *testing.T) {
 	)`)
 	tc.setBalance("a", "EUR/2", -100)
 	tc.expected = CaseResult{
-		Error: machine.NegativeBalanceError{
+		Error: interpreter.NegativeBalanceError{
 			Account: "a",
 			Amount:  *big.NewInt(-100),
 		},
@@ -471,8 +470,8 @@ func TestNegativeBalanceLiteral(t *testing.T) {
 		destination = @dest
 	)`)
 	tc.expected = CaseResult{
-		Error: machine.NegativeAmountErr{
-			Amount: machine.MonetaryInt(*big.NewInt(-100)),
+		Error: interpreter.NegativeAmountErr{
+			Amount: interpreter.MonetaryInt(*big.NewInt(-100)),
 		},
 	}
 	test(t, tc)
@@ -487,7 +486,7 @@ send [COIN 100] (
 )
 `)
 	tc.expected = CaseResult{
-		Error: machine.MismatchedCurrencyError{
+		Error: interpreter.MismatchedCurrencyError{
 			Expected: "COIN",
 			Got:      "WRONGCURR",
 		},
@@ -507,7 +506,7 @@ send [COIN 100] (
 	tc.setBalance("users:1234", "COIN", 1)
 
 	tc.expected = CaseResult{
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Asset:     "COIN",
 			Needed:    *big.NewInt(100),
 			Available: *big.NewInt(11),
@@ -525,9 +524,9 @@ func TestErrors(t *testing.T) {
 		destination = @b
 	)`)
 		tc.expected = CaseResult{
-			Error: machine.TypeError{
+			Error: interpreter.TypeError{
 				Expected: "monetary",
-				Value:    machine.AccountAddress("bad:type"),
+				Value:    interpreter.AccountAddress("bad:type"),
 			},
 		}
 		test(t, tc)
@@ -553,9 +552,9 @@ func TestErrors(t *testing.T) {
 		tc.setVarsFromJSON(t, `{"var_src": "42"}`)
 
 		tc.expected = CaseResult{
-			Error: machine.TypeError{
+			Error: interpreter.TypeError{
 				Expected: "account",
-				Value:    machine.NewMonetaryInt(42),
+				Value:    interpreter.NewMonetaryInt(42),
 			},
 		}
 		test(t, tc)
@@ -575,9 +574,9 @@ func TestErrors(t *testing.T) {
 		tc.setVarsFromJSON(t, `{"v": "abc"}`)
 
 		tc.expected = CaseResult{
-			Error: machine.TypeError{
+			Error: interpreter.TypeError{
 				Expected: "monetary",
-				Value:    machine.String("abc"),
+				Value:    interpreter.String("abc"),
 			},
 		}
 		test(t, tc)
@@ -592,7 +591,7 @@ func TestErrors(t *testing.T) {
 	)`)
 
 		tc.expected = CaseResult{
-			Error: machine.UnboundVariableErr{
+			Error: interpreter.UnboundVariableErr{
 				Name:  "unbound_var",
 				Range: parser.RangeOfIndexed(tc.source, "$unbound_var", 0),
 			},
@@ -613,7 +612,7 @@ func TestErrors(t *testing.T) {
 	)`)
 
 		tc.expected = CaseResult{
-			Error: machine.MissingVariableErr{
+			Error: interpreter.MissingVariableErr{
 				Name: "x",
 			},
 		}
@@ -625,7 +624,7 @@ func TestErrors(t *testing.T) {
 		tc.compile(t, `unbound_fn(1, 2)`)
 
 		tc.expected = CaseResult{
-			Error: machine.UnboundFunctionErr{
+			Error: interpreter.UnboundFunctionErr{
 				Name: "unbound_fn",
 			},
 		}
@@ -641,7 +640,7 @@ func TestErrors(t *testing.T) {
 		`)
 
 		tc.expected = CaseResult{
-			Error: machine.UnboundFunctionErr{
+			Error: interpreter.UnboundFunctionErr{
 				Name: "unbound_fn",
 			},
 		}
@@ -653,7 +652,7 @@ func TestErrors(t *testing.T) {
 		tc.compile(t, `set_tx_meta()`)
 
 		tc.expected = CaseResult{
-			Error: machine.BadArityErr{
+			Error: interpreter.BadArityErr{
 				ExpectedArity:  2,
 				GivenArguments: 0,
 			},
@@ -665,9 +664,9 @@ func TestErrors(t *testing.T) {
 		tc := NewTestCase()
 		tc.compile(t, `set_tx_meta(@key_wrong_type, "value")`)
 		tc.expected = CaseResult{
-			Error: machine.TypeError{
+			Error: interpreter.TypeError{
 				Expected: "string",
-				Value:    machine.AccountAddress("key_wrong_type"),
+				Value:    interpreter.AccountAddress("key_wrong_type"),
 			},
 		}
 		test(t, tc)
@@ -682,7 +681,7 @@ func TestErrors(t *testing.T) {
 		`)
 		tc.setVarsFromJSON(t, `{"x": "42"}`)
 		tc.expected = CaseResult{
-			Error: machine.InvalidTypeErr{
+			Error: interpreter.InvalidTypeErr{
 				Name: "invalidt",
 			},
 		}
@@ -698,7 +697,7 @@ func TestErrors(t *testing.T) {
 			)
 		`)
 		tc.expected = CaseResult{
-			Error: machine.MismatchedCurrencyError{
+			Error: interpreter.MismatchedCurrencyError{
 				Expected: "EUR/2",
 				Got:      "USD/2",
 			},
@@ -725,14 +724,14 @@ func TestTrackBalancesTricky(t *testing.T) {
 	)
 	`)
 	tc.expected = CaseResult{
-		Postings: []machine.Posting{
-			machine.Posting{
+		Postings: []interpreter.Posting{
+			interpreter.Posting{
 				Source:      "world",
 				Destination: "src",
 				Amount:      big.NewInt(10),
 				Asset:       "GEM",
 			},
-			machine.Posting{
+			interpreter.Posting{
 				Source:      "src",
 				Destination: "dest",
 				Amount:      big.NewInt(15),
@@ -762,7 +761,7 @@ func TestInvalidNumberLiteral(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error:    machine.InvalidNumberLiteral{Range: parser.Range{}, Source: "not a number"},
+		Error:    interpreter.InvalidNumberLiteral{Range: parser.Range{}, Source: "not a number"},
 	}
 	test(t, tc)
 }
@@ -782,7 +781,7 @@ func TestSaveFromAccount(t *testing.T) {
 		tc.setBalance("alice", "USD/2", 30)
 		tc.expected = CaseResult{
 			Postings: []Posting{},
-			Error: machine.MissingFundsErr{
+			Error: interpreter.MissingFundsErr{
 				Asset:     "USD/2",
 				Needed:    *big.NewInt(30),
 				Available: *big.NewInt(29),
@@ -800,8 +799,8 @@ func TestSaveFromAccount(t *testing.T) {
 		tc.setBalance("A", "USD", -100)
 		tc.expected = CaseResult{
 			Postings: []Posting{},
-			Error: machine.NegativeAmountErr{
-				Amount: machine.NewMonetaryInt(-100),
+			Error: interpreter.NegativeAmountErr{
+				Amount: interpreter.NewMonetaryInt(-100),
 			},
 		}
 		test(t, tc)
@@ -817,9 +816,9 @@ func TestAddNumbersInvalidRightType(t *testing.T) {
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
-		Error: machine.TypeError{
+		Error: interpreter.TypeError{
 			Expected: "number",
-			Value:    machine.String("not a number"),
+			Value:    interpreter.String("not a number"),
 		},
 	}
 	test(t, tc)
@@ -838,7 +837,7 @@ func TestAddMonetariesDifferentCurrencies(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.MismatchedCurrencyError{
+		Error: interpreter.MismatchedCurrencyError{
 			Expected: "USD/2",
 			Got:      "EUR/2",
 		},
@@ -856,9 +855,9 @@ func TestAddInvalidLeftType(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.TypeError{
+		Error: interpreter.TypeError{
 			Expected: "monetary|number",
-			Value:    machine.Asset("EUR/2"),
+			Value:    interpreter.Asset("EUR/2"),
 		},
 	}
 	test(t, tc)
@@ -878,7 +877,7 @@ func TestOneofAllFailing(t *testing.T) {
 	`)
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Asset:     "GEM",
 			Needed:    *big.NewInt(1),
 			Available: *big.NewInt(0),
@@ -906,7 +905,7 @@ func TestInvalidAccount(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.InvalidAccountName{
+		Error: interpreter.InvalidAccountName{
 			Name: "!invalid acc..",
 		},
 	}
@@ -932,7 +931,7 @@ func TestInvalidInterpAccount(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.InvalidAccountName{
+		Error: interpreter.InvalidAccountName{
 			Name: "user:!invalid acc..",
 		},
 	}
@@ -958,11 +957,11 @@ func TestAccountInvalidString(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.CannotCastToString{
+		Error: interpreter.CannotCastToString{
 			Range: parser.RangeOfIndexed(script, "@acc:$m", 0),
-			Value: machine.Monetary{
-				Amount: machine.NewMonetaryInt(10),
-				Asset:  machine.Asset("USD/2"),
+			Value: interpreter.Monetary{
+				Amount: interpreter.NewMonetaryInt(10),
+				Asset:  interpreter.Asset("USD/2"),
 			},
 		},
 	}
@@ -977,7 +976,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 	`
 
 	tc := NewTestCase()
-	tc.meta = machine.AccountsMetadata{
+	tc.meta = interpreter.AccountsMetadata{
 		"acc": {
 			"k": "42",
 		},
@@ -985,7 +984,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
-		Error: machine.InvalidNestedMeta{},
+		Error: interpreter.InvalidNestedMeta{},
 	}
 
 	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
@@ -1006,7 +1005,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 
 	tc.expected = CaseResult{
 		Postings: []Posting{},
-		Error: machine.MissingFundsErr{
+		Error: interpreter.MissingFundsErr{
 			Needed:    *big.NewInt(20),
 			Available: *big.NewInt(1),
 			Asset:     "COIN",
@@ -1016,37 +1015,37 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 }
 
 func TestSafeMaxWithdraft(t *testing.T) {
-	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(0),
 		big.NewInt(0),
 	))
 
-	require.Equal(t, big.NewInt(200), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(200), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(100),
 		big.NewInt(100),
 	))
 
-	require.Equal(t, big.NewInt(105), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(105), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(100),
 		big.NewInt(5),
 	))
 
-	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(-10),
 		big.NewInt(0),
 	))
 
-	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(-10),
 		big.NewInt(5),
 	))
 
-	require.Equal(t, big.NewInt(0), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(-10),
 		big.NewInt(10),
 	))
 
-	require.Equal(t, big.NewInt(1), machine.CalculateMaxSafeWithdraw(
+	require.Equal(t, big.NewInt(1), interpreter.CalculateMaxSafeWithdraw(
 		big.NewInt(-10),
 		big.NewInt(11),
 	))
@@ -1056,29 +1055,29 @@ func TestSafeMaxWithdraft(t *testing.T) {
 func TestSafeWithdraft(t *testing.T) {
 	t.Run("with zero overdraft, only take what's available", func(t *testing.T) {
 		t.Run("balance > 0 allows you to take what's available", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
 				big.NewInt(100),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
 				big.NewInt(10),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(1), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(1), interpreter.CalculateSafeWithdraw(
 				big.NewInt(1),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(10),
 				big.NewInt(0),
 				big.NewInt(0),
 			))
 
 			// not enough balance:
-			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
 				big.NewInt(10),
 				big.NewInt(0),
 				big.NewInt(100),
@@ -1087,7 +1086,7 @@ func TestSafeWithdraft(t *testing.T) {
 		})
 
 		t.Run("balance == 0 doesn't let you take anything", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(0),
 				big.NewInt(0),
 				big.NewInt(0),
@@ -1095,22 +1094,22 @@ func TestSafeWithdraft(t *testing.T) {
 		})
 
 		t.Run("balance < 0 doesn't let you take anything if there's no overdraft", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(-100),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(0),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(-1),
 				big.NewInt(0),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(0), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
 				big.NewInt(-10),
 				big.NewInt(0),
 				big.NewInt(0),
@@ -1120,12 +1119,12 @@ func TestSafeWithdraft(t *testing.T) {
 
 	t.Run("when overdraft is not zero, you can go over your balance", func(t *testing.T) {
 		t.Run("if we have enough balance>=requestedAmount, overdraft is ignored matter", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
 				big.NewInt(100),
 				big.NewInt(100),
 				big.NewInt(10),
 			))
-			require.Equal(t, big.NewInt(100), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(100), interpreter.CalculateSafeWithdraw(
 				big.NewInt(100),
 				big.NewInt(42),
 				big.NewInt(100),
@@ -1133,7 +1132,7 @@ func TestSafeWithdraft(t *testing.T) {
 		})
 
 		t.Run("if we have zero balance, overdraft allows us to withdraw", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), machine.CalculateSafeWithdraw(
+			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
 				big.NewInt(0),
 				big.NewInt(100),
 				big.NewInt(10),
@@ -1156,7 +1155,7 @@ send [EUR/2 *] (
 	tc.compile(t, script)
 
 	tc.expected = CaseResult{
-		Error: machine.InvalidUnboundedAddressInScalingAddress{},
+		Error: interpreter.InvalidUnboundedAddressInScalingAddress{},
 	}
 	testWithFeatureFlag(t, tc, flags.AssetScaling)
 }
