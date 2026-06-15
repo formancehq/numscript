@@ -96,11 +96,9 @@ func TestComplexAssertions(t *testing.T) {
 							{ "account": "alice", "asset": "USD/2", "amount": -100 },
 							{ "account": "dest", "asset": "USD/2", "amount": 1 }
 					],
-					"expect.movements": {
-						"alice": {
-							"dest": { "EUR": 100 }
-						}
-					},
+					"expect.movements": [
+						{ "source": "alice", "destination": "dest", "asset": "EUR", "amount": 100 }
+					],
 					"expect.error.missingFunds": true
 				},
 				{

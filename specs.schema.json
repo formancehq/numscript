@@ -140,23 +140,35 @@
     },
 
     "Movements": {
+      "type": "array",
+      "description": "List of funds sent from an account to another. The (source, destination, asset, color) tuple of each entry must be unique within the list.",
+      "items": { "$ref": "#/definitions/Movement" }
+    },
+
+    "Movement": {
       "type": "object",
-      "description": "The funds sent from an account to another",
+      "description": "The funds sent from an account to another for a given (asset, color)",
       "additionalProperties": false,
-      "patternProperties": {
-        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
-          "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
-              "type": "object",
-              "patternProperties": {
-                "^([A-Z]+(/[0-9]+)?)$": {
-                  "type": "number"
-                }
-              }
-            }
-          }
+      "required": ["source", "destination", "asset", "amount"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "destination": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^([A-Z]+(/[0-9]+)?)$"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^[A-Z]*$"
         }
       }
     },

@@ -10,7 +10,6 @@ import (
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 // --- Specs:
@@ -216,11 +215,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectMovements != nil {
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.movements",
 					testCase.ExpectMovements,
 					getMovements(result.Postings),
-					reflect.DeepEqual,
+					compareMovements,
 				)
 			}
 
@@ -325,25 +324,71 @@ type AssertionMismatch[T any] struct {
 	Got       T      `json:"got,omitempty"`
 }
 
-// TODO test
-type Movements = map[string]map[string]map[string]*big.Int
+type Movement struct {
+	Source      string   `json:"source"`
+	Destination string   `json:"destination"`
+	Asset       string   `json:"asset"`
+	Amount      *big.Int `json:"amount"`
+	Color       string   `json:"color,omitempty"`
+}
 
-func getMovements(postings []interpreter.Posting) Movements {
-	m := Movements{}
+type Movements = []Movement
 
-	for _, posting := range postings {
-		assetsMap := utils.NestedMapGetOrPutDefault(m, posting.Source, posting.Destination, func() map[string]*big.Int {
-			return map[string]*big.Int{}
-		})
-
-		amt := utils.MapGetOrPutDefault(assetsMap, posting.Asset, func() *big.Int {
-			return new(big.Int)
-		})
-
-		amt.Add(amt, posting.Amount)
+// Compare movements as a set: order does not matter.
+// Each (source, destination, asset, color) tuple is unique within a Movements
+// list, so we match on that tuple and compare amounts.
+func compareMovements(expected Movements, got Movements) bool {
+	if len(expected) != len(got) {
+		return false
 	}
 
-	return m
+	key := func(m Movement) string {
+		return m.Source + "\x00" + m.Destination + "\x00" + m.Asset + "\x00" + m.Color
+	}
+
+	byKey := make(map[string]*big.Int, len(got))
+	for _, m := range got {
+		byKey[key(m)] = m.Amount
+	}
+
+	for _, m := range expected {
+		amount, ok := byKey[key(m)]
+		if !ok || m.Amount.Cmp(amount) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func getMovements(postings []interpreter.Posting) Movements {
+	movements := Movements{}
+
+	for _, posting := range postings {
+		found := false
+		for i := range movements {
+			m := &movements[i]
+			if m.Source == posting.Source &&
+				m.Destination == posting.Destination &&
+				m.Asset == posting.Asset &&
+				m.Color == posting.Color {
+				m.Amount = new(big.Int).Add(m.Amount, posting.Amount)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			movements = append(movements, Movement{
+				Source:      posting.Source,
+				Destination: posting.Destination,
+				Asset:       posting.Asset,
+				Color:       posting.Color,
+				Amount:      new(big.Int).Set(posting.Amount),
+			})
+		}
+	}
+
+	return movements
 }
 
 func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {

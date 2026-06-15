@@ -36,13 +36,14 @@
           "amount": -100
         }
       ],
-      "expect.movements": {
-        "world": {
-          "alice": {
-            "EUR": 100
-          }
+      "expect.movements": [
+        {
+          "source": "world",
+          "destination": "alice",
+          "asset": "EUR",
+          "amount": 100
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "world",
