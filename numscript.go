@@ -58,6 +58,7 @@ type (
 	MetadataQuery    = interpreter.MetadataQuery
 	AccountBalance   = interpreter.AccountBalance
 	Balances         = interpreter.Balances
+	BalanceRow       = interpreter.BalanceRow
 
 	AccountMetadata = interpreter.AccountMetadata
 
