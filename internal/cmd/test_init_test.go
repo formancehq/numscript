@@ -45,3 +45,23 @@ func TestMakeSpecsFileRetryForMissingFeatureFlags(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []string{"experimental-oneof"}, out.FeatureFlags)
 }
+
+func TestMakeSpecsFileFeatureFlagRetryKeepsDefaultBalance(t *testing.T) {
+	// The amount is lower than the default balance (100), so the
+	// feature-flag retry must keep using the default balance instead
+	// of falling back to a zero balance.
+	out, err := cmd.MakeSpecsFile(`
+		send [USD/2 42] (
+			 source = oneof { @alice }
+			 destination = @bob
+		)
+ `)
+
+	require.Nil(t, err)
+	require.Equal(t, []string{"experimental-oneof"}, out.FeatureFlags)
+	require.Equal(t, interpreter.Balances{
+		"alice": interpreter.AccountBalance{
+			"USD/2": big.NewInt(100),
+		},
+	}, out.Balances)
+}

@@ -104,15 +104,24 @@ func MakeSpecsFile(source string) (specs_format.Specs, error) {
 		vars,
 		map[string]struct{}{},
 		big.NewInt(100),
+		maxSpecsRetries,
 	)
 }
+
+// maxSpecsRetries bounds the number of times makeSpecsFile may retry
+// after recoverable interpreter errors (missing funds, missing feature flags).
+const maxSpecsRetries = 16
 
 func makeSpecsFile(
 	program parser.Program,
 	vars map[string]string,
 	featureFlags map[string]struct{},
 	defaultBalance *big.Int,
+	retriesLeft int,
 ) (specs_format.Specs, error) {
+	if retriesLeft < 0 {
+		return specs_format.Specs{}, fmt.Errorf("could not generate the specs file: exceeded the maximum number of retries (%d)", maxSpecsRetries)
+	}
 
 	store := TestInitStore{
 		DefaultBalance: defaultBalance,
@@ -137,6 +146,7 @@ func makeSpecsFile(
 				vars,
 				featureFlags,
 				&missingFundsErr.Needed,
+				retriesLeft-1,
 			)
 		}
 
@@ -147,7 +157,8 @@ func makeSpecsFile(
 				program,
 				vars,
 				featureFlags,
-				&missingFundsErr.Needed,
+				defaultBalance,
+				retriesLeft-1,
 			)
 		}
 
