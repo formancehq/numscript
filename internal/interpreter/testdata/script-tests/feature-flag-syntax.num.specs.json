@@ -1,10 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
-  "balances": {
-    "acc": {
-      "TK": -100
+  "balances": [
+    {
+      "account": "acc",
+      "asset": "TK",
+      "amount": -100
     }
-  },
+  ],
   "testCases": [
     {
       "it": "example spec",

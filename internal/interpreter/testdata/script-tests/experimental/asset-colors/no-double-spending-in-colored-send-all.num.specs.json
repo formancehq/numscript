@@ -5,18 +5,26 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "src": {
-          "COIN": 100,
-          "COIN_X": 20
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 100
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 20,
+          "color": "X"
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "src",
           "destination": "dest",
           "amount": 20,
-          "asset": "COIN_X"
+          "asset": "COIN",
+          "color": "X"
         },
         {
           "source": "src",

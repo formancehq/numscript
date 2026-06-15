@@ -2,23 +2,33 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "a": {
-          "COIN": 1000
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 1000
         },
-        "b": {
-          "COIN": 40
+        {
+          "account": "b",
+          "asset": "COIN",
+          "amount": 40
         },
-        "c": {
-          "COIN": 1000
+        {
+          "account": "c",
+          "asset": "COIN",
+          "amount": 1000
         },
-        "d": {
-          "COIN": 1000
+        {
+          "account": "d",
+          "asset": "COIN",
+          "amount": 1000
         },
-        "maxAcc": {
-          "COIN": 120
+        {
+          "account": "maxAcc",
+          "asset": "COIN",
+          "amount": 120
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "a",

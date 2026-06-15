@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "s": {
-          "COIN": -5
+      "balances": [
+        {
+          "account": "s",
+          "asset": "COIN",
+          "amount": -5
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "world",

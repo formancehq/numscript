@@ -2,9 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "memo:main": { "EUR/2": 99999999 }
-      },
+      "balances": [
+        {
+          "account": "memo:main",
+          "asset": "EUR/2",
+          "amount": 99999999
+        }
+      ],
       "variables": {},
       "metadata": {},
       "expect.postings": [

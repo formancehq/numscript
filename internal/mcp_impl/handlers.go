@@ -3,7 +3,6 @@ package mcp_impl
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -12,56 +11,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
-
-func parseBalancesJson(balancesRaw any) (interpreter.Balances, *mcp.CallToolResult) {
-	balances, ok := balancesRaw.(map[string]any)
-	if !ok {
-		return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected an object as balances, got: <%#v>", balancesRaw))
-	}
-
-	iBalances := interpreter.Balances{}
-	for account, assetsRaw := range balances {
-		if iBalances[account] == nil {
-			iBalances[account] = interpreter.AccountBalance{}
-		}
-
-		assets, ok := assetsRaw.(map[string]any)
-		if !ok {
-			return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected nested object for account %v", account))
-		}
-
-		for asset, amountRaw := range assets {
-			amount, ok := amountRaw.(float64)
-			if !ok {
-				return interpreter.Balances{}, mcp.NewToolResultError(fmt.Sprintf("Expected float for amount: %v", amountRaw))
-			}
-
-			n, _ := big.NewFloat(amount).Int(new(big.Int))
-			iBalances[account][asset] = n
-		}
-	}
-	return iBalances, nil
-}
-
-func parseVarsJson(varsRaw any) (map[string]string, *mcp.CallToolResult) {
-	vars, ok := varsRaw.(map[string]any)
-	if !ok {
-		return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected an object as vars, got: <%#v>", varsRaw))
-	}
-
-	iVars := map[string]string{}
-	for key, rawValue := range vars {
-
-		value, ok := rawValue.(string)
-		if !ok {
-			return map[string]string{}, mcp.NewToolResultError(fmt.Sprintf("Expected %s var to be a string, got: %T instead", key, rawValue))
-		}
-
-		iVars[key] = value
-	}
-
-	return iVars, nil
-}
 
 func addEvalTool(s *server.MCPServer) {
 	tool := mcp.NewTool("evaluate",
@@ -73,10 +22,11 @@ func addEvalTool(s *server.MCPServer) {
 			mcp.Required(),
 			mcp.Description("The numscript source"),
 		),
-		mcp.WithObject("balances",
+		mcp.WithArray("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A nested map from the account name, to the asset, to its integer amount.
-			For example: { "alice": { "USD/2": 100, "EUR/2": -42 }, "bob": { "BTC": 1 } }
+			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", and an optional "color".
+			The (account, asset, color) triple of each entry must be unique within the list.
+			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
 			`),
 		),
 		mcp.WithObject("vars",
@@ -113,22 +63,25 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
 	}
 
-	balances, mcpErr := parseBalancesJson(request.GetArguments()["balances"])
-	if mcpErr != nil {
-		return mcpErr, nil
+	var args struct {
+		Vars     map[string]string    `json:"vars"`
+		Balances interpreter.Balances `json:"balances"`
+	}
+	err = request.BindArguments(&args)
+	if err != nil {
+		return nil, err
 	}
 
-	vars, mcpErr := parseVarsJson(request.GetArguments()["vars"])
-	if mcpErr != nil {
-		return mcpErr, nil
+	if dup, ok := args.Balances.FirstDuplicate(); ok {
+		return mcp.NewToolResultError(fmt.Sprintf("balances must not contain duplicate entries: duplicate entry for account=%q asset=%q color=%q", dup.Account, dup.Asset, dup.Color)), nil
 	}
 
 	out, iErr := interpreter.RunProgram(
 		ctx,
 		parsed.Value,
-		vars,
+		args.Vars,
 		interpreter.StaticStore{
-			Balances: balances,
+			Balances: args.Balances,
 		},
 		map[string]struct{}{},
 	)

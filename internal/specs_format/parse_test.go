@@ -14,18 +14,18 @@ func TestParseSpecs(t *testing.T) {
 
 	raw := `
 {
-  "balances": {
-    "alice": { "EUR": 200 }
-  },
+  "balances": [
+    { "account": "alice", "asset": "EUR", "amount": 200 }
+  ],
   "variables": {
     "amt": "200"
   },
   "testCases": [
     {
       "it": "d1",
-      "balances": {
-        "bob": { "EUR": 42 }
-      },
+      "balances": [
+        { "account": "bob", "asset": "EUR", "amount": 42 }
+      ],
       "expect.postings": [
         {
           "source": "src",
@@ -46,9 +46,7 @@ func TestParseSpecs(t *testing.T) {
 
 	require.Equal(t, specs_format.Specs{
 		Balances: interpreter.Balances{
-			"alice": {
-				"EUR": big.NewInt(200),
-			},
+			{Account: "alice", Asset: "EUR", Amount: big.NewInt(200)},
 		},
 		Vars: interpreter.VariablesMap{
 			"amt": "200",
@@ -57,9 +55,7 @@ func TestParseSpecs(t *testing.T) {
 			{
 				It: "d1",
 				Balances: interpreter.Balances{
-					"bob": {
-						"EUR": big.NewInt(42),
-					},
+					{Account: "bob", Asset: "EUR", Amount: big.NewInt(42)},
 				},
 				ExpectPostings: []interpreter.Posting{
 					{

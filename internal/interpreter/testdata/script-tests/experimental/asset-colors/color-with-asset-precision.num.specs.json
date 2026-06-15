@@ -10,7 +10,8 @@
           "source": "src",
           "destination": "dest",
           "amount": 10,
-          "asset": "USD_COL/4"
+          "asset": "USD/4",
+          "color": "COL"
         }
       ]
     }

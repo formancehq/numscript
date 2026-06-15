@@ -7,6 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetAssetsExcludesColoredBalances(t *testing.T) {
+	// Scaling converts only uncolored balances and emits uncolored postings, so a
+	// colored balance for the same base asset must not be offered as a candidate.
+	assets := getAssets([]AccountBalance{
+		{Asset: "USD", Color: "", Amount: big.NewInt(2)},
+		{Asset: "USD/4", Color: "RED", Amount: big.NewInt(999)}, // colored: excluded
+		{Asset: "USD/2", Color: "", Amount: big.NewInt(50)},
+		{Asset: "EUR", Color: "", Amount: big.NewInt(7)}, // different base: excluded
+	}, "USD")
+
+	require.Equal(t, map[int64]*big.Int{
+		0: big.NewInt(2),
+		2: big.NewInt(50),
+	}, assets)
+}
+
 func TestScalingAvoidSwappingAlreadyHaveAsset(t *testing.T) {
 	// Need [USD/2 200]
 	// Got: {USD/2 100, USD 2}

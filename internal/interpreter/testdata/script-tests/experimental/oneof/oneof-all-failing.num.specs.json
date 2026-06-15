@@ -1,13 +1,11 @@
 {
-  "featureFlags": ["experimental-oneof"],
+  "featureFlags": [
+    "experimental-oneof"
+  ],
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "empty1": {},
-        "empty2": {},
-        "empty3": {}
-      },
+      "balances": [],
       "expect.error.missingFunds": true
     }
   ]

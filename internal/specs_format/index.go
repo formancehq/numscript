@@ -2,13 +2,14 @@ package specs_format
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"reflect"
 	"slices"
+	"sort"
 
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 // --- Specs:
@@ -101,7 +102,8 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		}
 
 		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
-		balances := mergeBalances(specs.Balances, testCase.Balances)
+		mergedBalances := mergeBalances(specs.Balances, testCase.Balances)
+
 		vars := mergeVars(specs.Vars, testCase.Vars)
 
 		featureFlags := make(map[string]struct{})
@@ -115,10 +117,12 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			vars,
 			interpreter.StaticStore{
 				Meta:     meta,
-				Balances: balances,
+				Balances: mergedBalances,
 			},
 			featureFlags,
 		)
+
+		balances := mergedBalances
 
 		var failedAssertions []AssertionMismatch[any]
 
@@ -176,7 +180,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					metadata[k] = v.String()
 				}
 				failedAssertions = runAssertion[any](failedAssertions,
-					"expect.txMeta",
+					"expect.txMetadata",
 					testCase.ExpectTxMeta,
 					metadata,
 					reflect.DeepEqual,
@@ -185,7 +189,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if testCase.ExpectAccountsMeta != nil {
 				failedAssertions = runAssertion[any](failedAssertions,
-					"expect.accountsMeta",
+					"expect.metadata",
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
 					reflect.DeepEqual,
@@ -211,11 +215,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectMovements != nil {
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.movements",
 					testCase.ExpectMovements,
 					getMovements(result.Postings),
-					reflect.DeepEqual,
+					compareMovements,
 				)
 			}
 
@@ -237,7 +241,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			It:               testCase.It,
 			Pass:             pass,
 			Meta:             meta,
-			Balances:         balances,
+			Balances:         mergedBalances,
 			Vars:             vars,
 			FailedAssertions: failedAssertions,
 			Postings:         postings,
@@ -266,10 +270,52 @@ func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsM
 	return out
 }
 
-func mergeBalances(b1 interpreter.Balances, b2 interpreter.Balances) interpreter.Balances {
-	out := b1.DeepClone()
-	out.Merge(b2)
-	return out
+// validateSpecs rejects a malformed specs file before any test case is run. A
+// balance list must not contain the same (account, asset, color) key twice: it's
+// the map key and the amount is its value, so duplicates are ambiguous. A key
+// shared across the outer and a test case's inner list is fine, since
+// mergeBalances lets the inner entry override the outer one.
+func validateSpecs(specs Specs) error {
+	if dup, ok := specs.Balances.FirstDuplicate(); ok {
+		return duplicateBalanceErr(dup)
+	}
+	for _, testCase := range specs.TestCases {
+		if dup, ok := testCase.Balances.FirstDuplicate(); ok {
+			return duplicateBalanceErr(dup)
+		}
+	}
+	return nil
+}
+
+func duplicateBalanceErr(dup interpreter.BalanceRow) error {
+	key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
+	if dup.Color != "" {
+		key += fmt.Sprintf(" color=%q", dup.Color)
+	}
+	return fmt.Errorf("balances must not contain duplicate entries: duplicate entry for %s", key)
+}
+
+// Merge two balance inputs, deduping by (account, asset, color).
+// Entries in "inner" override matching entries in "outer".
+func mergeBalances(outer interpreter.Balances, inner interpreter.Balances) interpreter.Balances {
+	merged := interpreter.Balances{}
+	indexByKey := map[string]int{}
+
+	addAll := func(items interpreter.Balances) {
+		for _, item := range items {
+			key := item.Account + "\x00" + item.Asset + "\x00" + item.Color
+			if i, ok := indexByKey[key]; ok {
+				merged[i] = item
+			} else {
+				indexByKey[key] = len(merged)
+				merged = append(merged, item)
+			}
+		}
+	}
+
+	addAll(outer)
+	addAll(inner)
+	return merged
 }
 
 type AssertionMismatch[T any] struct {
@@ -278,40 +324,133 @@ type AssertionMismatch[T any] struct {
 	Got       T      `json:"got,omitempty"`
 }
 
-// TODO test
-type Movements = map[string]map[string]map[string]*big.Int
+type Movement struct {
+	Source      string   `json:"source"`
+	Destination string   `json:"destination"`
+	Asset       string   `json:"asset"`
+	Amount      *big.Int `json:"amount"`
+	Color       string   `json:"color,omitempty"`
+}
 
-func getMovements(postings []interpreter.Posting) Movements {
-	m := Movements{}
+type Movements = []Movement
 
-	for _, posting := range postings {
-		assetsMap := utils.NestedMapGetOrPutDefault(m, posting.Source, posting.Destination, func() map[string]*big.Int {
-			return map[string]*big.Int{}
-		})
-
-		amt := utils.MapGetOrPutDefault(assetsMap, posting.Asset, func() *big.Int {
-			return new(big.Int)
-		})
-
-		amt.Add(amt, posting.Amount)
+// Compare movements as a set: order does not matter.
+// Each (source, destination, asset, color) tuple is unique within a Movements
+// list, so we match on that tuple and compare amounts.
+func compareMovements(expected Movements, got Movements) bool {
+	if len(expected) != len(got) {
+		return false
 	}
 
-	return m
+	key := func(m Movement) string {
+		return m.Source + "\x00" + m.Destination + "\x00" + m.Asset + "\x00" + m.Color
+	}
+
+	byKey := make(map[string]*big.Int, len(got))
+	for _, m := range got {
+		byKey[key(m)] = m.Amount
+	}
+
+	for _, m := range expected {
+		amount, ok := byKey[key(m)]
+		if !ok || m.Amount.Cmp(amount) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func getMovements(postings []interpreter.Posting) Movements {
+	movements := Movements{}
+
+	for _, posting := range postings {
+		found := false
+		for i := range movements {
+			m := &movements[i]
+			if m.Source == posting.Source &&
+				m.Destination == posting.Destination &&
+				m.Asset == posting.Asset &&
+				m.Color == posting.Color {
+				m.Amount = new(big.Int).Add(m.Amount, posting.Amount)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			movements = append(movements, Movement{
+				Source:      posting.Source,
+				Destination: posting.Destination,
+				Asset:       posting.Asset,
+				Color:       posting.Color,
+				Amount:      new(big.Int).Set(posting.Amount),
+			})
+		}
+	}
+
+	return movements
 }
 
 func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
-	balances := initialBalances.DeepClone()
-	for _, posting := range postings {
-		sourceBalance := utils.NestedMapGetOrPutDefault(balances, posting.Source, posting.Asset, func() *big.Int {
-			return new(big.Int)
+	// Working set keyed by account for O(1)-ish lookups.
+	balances := map[string][]interpreter.AccountBalance{}
+
+	getOrCreate := func(account, asset, color string) *big.Int {
+		entries := balances[account]
+		for i := range entries {
+			if entries[i].Asset == asset && entries[i].Color == color {
+				return entries[i].Amount
+			}
+		}
+		amount := new(big.Int)
+		balances[account] = append(entries, interpreter.AccountBalance{
+			Asset:  asset,
+			Color:  color,
+			Amount: amount,
 		})
+		return amount
+	}
+
+	// Seed from the initial balances. CLONE each amount (Set, not pointer copy)
+	// so the Sub/Add below never mutate the caller's *big.Int values.
+	for _, row := range initialBalances {
+		dst := getOrCreate(row.Account, row.Asset, row.Color)
+		if row.Amount != nil {
+			dst.Set(row.Amount)
+		}
+	}
+
+	for _, posting := range postings {
+		sourceBalance := getOrCreate(posting.Source, posting.Asset, posting.Color)
 		sourceBalance.Sub(sourceBalance, posting.Amount)
 
-		destinationBalance := utils.NestedMapGetOrPutDefault(balances, posting.Destination, posting.Asset, func() *big.Int {
-			return new(big.Int)
-		})
+		destinationBalance := getOrCreate(posting.Destination, posting.Asset, posting.Color)
 		destinationBalance.Add(destinationBalance, posting.Amount)
 	}
 
-	return balances
+	// Flatten back to []BalanceRow, sorted for deterministic output.
+	out := make(interpreter.Balances, 0)
+	accounts := make([]string, 0, len(balances))
+	for account := range balances {
+		accounts = append(accounts, account)
+	}
+	sort.Strings(accounts)
+	for _, account := range accounts {
+		entries := balances[account]
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].Asset != entries[j].Asset {
+				return entries[i].Asset < entries[j].Asset
+			}
+			return entries[i].Color < entries[j].Color
+		})
+		for _, e := range entries {
+			out = append(out, interpreter.BalanceRow{
+				Account: account,
+				Asset:   e.Asset,
+				Color:   e.Color,
+				Amount:  e.Amount,
+			})
+		}
+	}
+	return out
 }

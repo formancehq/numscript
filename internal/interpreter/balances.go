@@ -2,110 +2,98 @@ package interpreter
 
 import (
 	"math/big"
-	"strings"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func (b Balances) DeepClone() Balances {
-	cloned := make(Balances)
-	for account, accountBalances := range b {
-		for asset, amount := range accountBalances {
-			utils.NestedMapGetOrPutDefault(cloned, account, asset, func() *big.Int {
-				return new(big.Int).Set(amount)
-			})
+type BalanceRow struct {
+	Account string   `json:"account"`
+	Asset   string   `json:"asset"`
+	Amount  *big.Int `json:"amount"`
+	Color   string   `json:"color,omitempty"`
+}
+type Balances []BalanceRow
+
+// FirstDuplicate returns the first row whose (account, asset, color) key already
+// appeared earlier in the list, if any. That triple is the identity of a balance
+// entry and the amount is its value, so a repeated key is an ambiguous,
+// malformed input.
+func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
+	seen := make(map[[3]string]struct{}, len(rows))
+	for _, row := range rows {
+		key := [3]string{row.Account, row.Asset, row.Color}
+		if _, ok := seen[key]; ok {
+			return row, true
 		}
+		seen[key] = struct{}{}
 	}
-	return cloned
+	return BalanceRow{}, false
 }
 
-func coloredAsset(asset string, color *string) string {
-	if color == nil || *color == "" {
-		return asset
-	}
-
-	// note: 1 <= len(parts) <= 2
-	parts := strings.Split(asset, "/")
-
-	coloredAsset := parts[0] + "_" + *color
-	if len(parts) > 1 {
-		coloredAsset += "/" + parts[1]
-	}
-	return coloredAsset
-}
-
-// Get the (account, asset) tuple from the Balances
-// if the tuple is not present, it will write a big.NewInt(0) in it and return it
-func (b Balances) fetchBalance(account string, uncoloredAsset string, color string) *big.Int {
-	return utils.NestedMapGetOrPutDefault(b, account, coloredAsset(uncoloredAsset, &color), func() *big.Int {
-		return new(big.Int)
-	})
-}
-
-func (b Balances) has(account string, asset string) bool {
-	accountBalances := utils.MapGetOrPutDefault(b, account, func() AccountBalance {
-		return AccountBalance{}
+func (rows Balances) PrettyPrint() string {
+	// the Color column is shown only when at least one entry has a color
+	hasColor := slices.ContainsFunc(rows, func(row BalanceRow) bool {
+		return row.Color != ""
 	})
 
-	_, ok := accountBalances[asset]
-	return ok
-}
-
-// given a BalanceQuery, return a new query which only contains needed (asset, account) pairs
-// (that is, the ones that aren't already cached)
-func (b Balances) filterQuery(q BalanceQuery) BalanceQuery {
-	filteredQuery := BalanceQuery{}
-	for accountName, queriedCurrencies := range q {
-		filteredCurrencies := utils.Filter(queriedCurrencies, func(currency string) bool {
-			return !b.has(accountName, currency)
-		})
-
-		if len(filteredCurrencies) > 0 {
-			filteredQuery[accountName] = filteredCurrencies
-		}
-
+	var header []string
+	if hasColor {
+		header = []string{"Account", "Asset", "Color", "Balance"}
+	} else {
+		header = []string{"Account", "Asset", "Balance"}
 	}
-	return filteredQuery
-}
 
-// Merge balances by adding balances in the "update" arg
-func (b Balances) Merge(update Balances) {
-	// merge queried balance
-	for acc, accBalances := range update {
-		cachedAcc := utils.MapGetOrPutDefault(b, acc, func() AccountBalance {
-			return AccountBalance{}
-		})
-
-		for curr, amt := range accBalances {
-			cachedAcc[curr] = amt
+	var tableRows [][]string
+	for _, row := range rows {
+		var amount string
+		if row.Amount != nil {
+			amount = row.Amount.String()
+		}
+		if hasColor {
+			tableRows = append(tableRows, []string{row.Account, row.Asset, row.Color, amount})
+		} else {
+			tableRows = append(tableRows, []string{row.Account, row.Asset, amount})
 		}
 	}
+	return utils.CsvPretty(header, tableRows, true)
 }
 
-func (b Balances) PrettyPrint() string {
-	header := []string{"Account", "Asset", "Balance"}
-
-	var rows [][]string
-	for account, accBalances := range b {
-		for asset, balance := range accBalances {
-			row := []string{account, asset, balance.String()}
-			rows = append(rows, row)
+// findRow returns the amount for a given (account, asset, color), if present.
+func findRow(rows Balances, account, asset, color string) (*big.Int, bool) {
+	for i := range rows {
+		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color {
+			return rows[i].Amount, true
 		}
 	}
-	return utils.CsvPretty(header, rows, true)
+	return nil, false
+}
+
+// amountsEqual treats a nil *big.Int as zero, so it never panics.
+func amountsEqual(a, b *big.Int) bool {
+	if a == nil {
+		a = new(big.Int)
+	}
+	if b == nil {
+		b = new(big.Int)
+	}
+	return a.Cmp(b) == 0
 }
 
 func CompareBalances(b1 Balances, b2 Balances) bool {
-	return utils.Map2Cmp(b1, b2, func(ab1, ab2 *big.Int) bool {
-		return ab1.Cmp(ab2) == 0
-	})
+	if len(b1) != len(b2) {
+		return false
+	}
+	return CompareBalancesIncluding(b1, b2)
 }
 
-// Returns whether the first value is a subset of the second one
+// Returns whether the first value is a subset of the second one.
 func CompareBalancesIncluding(b1 Balances, b2 Balances) bool {
-	return utils.MapIncludes(b2, b1, func(a2 AccountBalance, a1 AccountBalance) bool {
-		return utils.MapIncludes(a2, a1, func(a2 *big.Int, a1 *big.Int) bool {
-			return a2.Cmp(a1) == 0
-		})
-	})
+	for _, entry := range b1 {
+		amount2, ok := findRow(b2, entry.Account, entry.Asset, entry.Color)
+		if !ok || !amountsEqual(entry.Amount, amount2) {
+			return false
+		}
+	}
+	return true
 }

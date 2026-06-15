@@ -4,6 +4,9 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
+type AccountMetadata = map[string]string
+type AccountsMetadata map[string]AccountMetadata
+
 func (m AccountsMetadata) fetchAccountMetadata(account string) AccountMetadata {
 	return utils.MapGetOrPutDefault(m, account, func() AccountMetadata {
 		return AccountMetadata{}

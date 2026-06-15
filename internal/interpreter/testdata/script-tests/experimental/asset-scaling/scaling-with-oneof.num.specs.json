@@ -4,20 +4,23 @@
     "experimental-oneof",
     "experimental-asset-scaling"
   ],
-  "balances": {
-    "acc1": {},
-    "acc2": {
-      "EUR/2": 100
+  "balances": [
+    {
+      "account": "acc2",
+      "asset": "EUR/2",
+      "amount": 100
     }
-  },
+  ],
   "testCases": [
     {
       "it": "fallbacks to the second branch when there's not enough",
-      "balances": {
-        "acc1": {
-          "EUR/2": 1
+      "balances": [
+        {
+          "account": "acc1",
+          "asset": "EUR/2",
+          "amount": 1
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "acc1",
@@ -35,11 +38,13 @@
     },
     {
       "it": "succeeds in the first branch",
-      "balances": {
-        "acc1": {
-          "EUR/2": 100
+      "balances": [
+        {
+          "account": "acc1",
+          "asset": "EUR/2",
+          "amount": 100
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "acc1",

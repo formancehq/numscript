@@ -73,27 +73,32 @@ GOT:[0m
 
 [4mexpect.endBalances[0m
 
-[90m  {[0m
-[90m    "alice": {[0m
-[32m-     "USD/2": -100[0m
-[31m+     "USD/2": 9899[0m
+[90m  [[0m
+[90m    {[0m
+[90m      "account": "alice",[0m
+[90m      "asset": "USD/2",[0m
+[32m-     "amount": -100[0m
+[31m+     "amount": 9899[0m
 [90m    },[0m
-[90m    "dest": {[0m
-[32m-     "USD/2": 1[0m
-[31m+     "USD/2": 100[0m
+[90m    {[0m
+[90m      "account": "dest",[0m
+[90m      "asset": "USD/2",[0m
+[32m-     "amount": 1[0m
+[31m+     "amount": 100[0m
 [90m    }[0m
-[90m  }[0m
+[90m  ][0m
 
 [4mexpect.movements[0m
 
-[90m  {[0m
-[90m    "alice": {[0m
-[90m      "dest": {[0m
-[32m-       "EUR": 100[0m
-[31m+       "USD/2": 100[0m
-[90m      }[0m
+[90m  [[0m
+[90m    {[0m
+[90m      "source": "alice",[0m
+[90m      "destination": "dest",[0m
+[32m-     "asset": "EUR",[0m
+[31m+     "asset": "USD/2",[0m
+[90m      "amount": 100[0m
 [90m    }[0m
-[90m  }[0m
+[90m  ][0m
 
 
 [90m Test files [0m [1m[91m1 failed[0m[1m[0m [90m(1)[0m
@@ -156,5 +161,21 @@ Error: example.num:1:29
 
 [90m Test files [0m [1m[92m1 passed[0m[1m[0m [90m(1)[0m
 [90m      Tests [0m [1m[92m1 passed[0m[1m[0m[90m | [0m[1m[93m1 skipped[0m[1m[0m [90m(2)[0m
+
+---
+
+[TestDuplicateBalanceInTestCaseErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
+
+---
+
+[TestDuplicateBalanceInOuterErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
 
 ---

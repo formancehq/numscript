@@ -2,11 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "a": {
-          "GEM": 15
+      "balances": [
+        {
+          "account": "a",
+          "asset": "GEM",
+          "amount": 15
         }
-      },
+      ],
       "variables": {
         "p": "15%"
       },

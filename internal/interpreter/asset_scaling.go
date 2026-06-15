@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func assetToScaledAsset(asset string) string {
-	parts := strings.Split(asset, "/")
+func assetToScaledAsset(asset Asset) Asset {
+	strAsset := string(asset)
+	parts := strings.Split(strAsset, "/")
 	if len(parts) == 1 {
-		return asset + "/*"
+		return Asset(strAsset + "/*")
 	}
-	return parts[0] + "/*"
+	return Asset(parts[0] + "/*")
 }
 
 func buildScaledAsset(baseAsset string, scale int64) string {
@@ -25,25 +25,17 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 	return fmt.Sprintf("%s/%d", baseAsset, scale)
 }
 
-func getAssetScale(asset string) (string, int64) {
-	parts := strings.Split(asset, "/")
-	if len(parts) == 2 {
-		scale, err := strconv.ParseInt(parts[1], 10, 64)
-		if err == nil {
-			return parts[0], scale
-		}
-		// fallback if parsing fails
-		return parts[0], 0
-	}
-	return asset, 0
-}
-
-func getAssets(balance AccountBalance, baseAsset string) map[int64]*big.Int {
+func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
-	for asset, amount := range balance {
-		if strings.HasPrefix(asset, baseAsset) {
-			_, scale := getAssetScale(asset)
-			result[scale] = amount
+	for _, accBalance := range accountBalances {
+		if accBalance.Color != "" {
+			// scaling converts only uncolored balances, and emits uncolored
+			// postings, so a colored balance must not be treated as available
+			continue
+		}
+		accBalanceAsset, scale := Asset(accBalance.Asset).GetBaseAndScale()
+		if accBalanceAsset == baseAsset {
+			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
 	}
 	return result

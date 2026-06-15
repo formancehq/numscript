@@ -1,5 +1,7 @@
 {
-  "featureFlags": ["experimental-get-asset-function"],
+  "featureFlags": [
+    "experimental-get-asset-function"
+  ],
   "testCases": [
     {
       "it": "-",

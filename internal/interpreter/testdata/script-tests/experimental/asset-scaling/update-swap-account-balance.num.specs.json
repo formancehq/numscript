@@ -6,11 +6,13 @@
   "testCases": [
     {
       "it": "updates the swap account balances",
-      "balances": {
-        "src": {
-          "EUR": 1
+      "balances": [
+        {
+          "account": "src",
+          "asset": "EUR",
+          "amount": 1
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "world",

@@ -89,25 +89,23 @@ func TestComplexAssertions(t *testing.T) {
 			"testCases": [
 				{
 					"it": "send when there are enough funds",
-					"balances": {
-						"alice": { "USD/2": 9999 }
-					},
-					"expect.endBalances": {
-							"alice": { "USD/2": -100 },
-							"dest": { "USD/2": 1 }
-					},
-					"expect.movements": {
-						"alice": {
-							"dest": { "EUR": 100 }
-						}
-					},
+					"balances": [
+						{ "account": "alice", "asset": "USD/2", "amount": 9999 }
+					],
+					"expect.endBalances": [
+							{ "account": "alice", "asset": "USD/2", "amount": -100 },
+							{ "account": "dest", "asset": "USD/2", "amount": 1 }
+					],
+					"expect.movements": [
+						{ "source": "alice", "destination": "dest", "asset": "EUR", "amount": 100 }
+					],
 					"expect.error.missingFunds": true
 				},
 				{
 					"it": "tpassing",
-					"balances": {
-						"alice": { "USD/2": 0 }
-					},
+					"balances": [
+						{ "account": "alice", "asset": "USD/2", "amount": 0 }
+					],
 					"expect.error.missingFunds": true
 				}
 			] 
@@ -169,6 +167,59 @@ func TestSchemaErrSpecs(t *testing.T) {
 	snaps.MatchSnapshot(t, out.String())
 }
 
+func TestDuplicateBalanceInTestCaseErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"balances": [
+					{ "account": "src", "asset": "USD", "amount": 9999 },
+					{ "account": "src", "asset": "USD", "amount": 1 }
+				],
+				"expect.postings": null
+			}
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestDuplicateBalanceInOuterErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"balances": [
+			{ "account": "src", "asset": "USD", "amount": 9999 },
+			{ "account": "src", "asset": "USD", "amount": 1 }
+		],
+		"testCases": [
+			{ "it": "t1", "expect.postings": null }
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
 func TestNumscriptParseErr(t *testing.T) {
 	var out bytes.Buffer
 
@@ -219,7 +270,7 @@ func TestFocusUi(t *testing.T) {
 			{
 				"it": "t1",
 				"variables": { "source": "src", "amount": "10" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]
@@ -228,7 +279,7 @@ func TestFocusUi(t *testing.T) {
 				"it": "t2",
 				"focus": true,
 				"variables": { "source": "src", "amount": "42" },
-				"balances": { "src": { "USD": 9999 } },
+				"balances": [ { "account": "src", "asset": "USD", "amount": 9999 } ],
 				"expect.postings": [
 					{ "source": "src", "destination": "dest", "asset": "USD", "amount": 42 }
 				]

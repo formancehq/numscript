@@ -56,7 +56,7 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			return nil, err
 		}
 
-		return Monetary{Asset: Asset(*asset), Amount: MonetaryInt(*amount)}, nil
+		return Monetary{Asset: asset, Amount: amount}, nil
 
 	case *parser.Variable:
 		value, ok := st.ParsedVars[expr.Name]
@@ -110,22 +110,24 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	}
 }
 
-func evaluateOptExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
+func evaluateOptExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
+	var t T
 	if expr == nil {
-		return nil, nil
+		return t, nil
 	}
 	return evaluateExprAs(st, expr, expect)
 }
 
-func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (*T, InterpreterError)) (*T, InterpreterError) {
+func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
+	var default_ T
 	value, err := st.evaluateExpr(expr)
 	if err != nil {
-		return nil, err
+		return default_, err
 	}
 
 	res, err := expect(value, expr.GetRange())
 	if err != nil {
-		return nil, err
+		return default_, err
 	}
 
 	return res, nil
@@ -143,21 +145,17 @@ func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Valu
 	return values, nil
 }
 
-func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (*string, InterpreterError) {
+func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, InterpreterError) {
 	color, err := evaluateOptExprAs(s, colorExpr, expectString)
 	if err != nil {
-		return nil, err
-	}
-	if color == nil {
-		col := ""
-		return &col, nil
+		return "", err
 	}
 
-	isValidColor := colorRe.Match([]byte(*color))
+	isValidColor := colorRe.Match([]byte(string(color)))
 	if !isValidColor {
-		return nil, InvalidColor{
+		return "", InvalidColor{
 			Range: colorExpr.GetRange(),
-			Color: *color,
+			Color: string(color),
 		}
 	}
 
@@ -165,14 +163,15 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (*string, Inter
 }
 
 func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+
 	leftValue, err := evaluateExprAs(st, left, expectOneOf(
 		expectMapped(expectMonetary, func(m Monetary) opAdd {
 			return m
 		}),
 
 		// while "x.map(identity)" is the same as "x", just writing "expectNumber" would't typecheck
-		expectMapped(expectNumber, func(bi big.Int) opAdd {
-			return MonetaryInt(bi)
+		expectMapped(expectNumber, func(bi MonetaryInt) opAdd {
+			return bi
 		}),
 	))
 
@@ -180,7 +179,7 @@ func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (V
 		return nil, err
 	}
 
-	return (*leftValue).evalAdd(st, right)
+	return leftValue.evalAdd(st, right)
 }
 
 func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
@@ -188,8 +187,8 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 		expectMapped(expectMonetary, func(m Monetary) opSub {
 			return m
 		}),
-		expectMapped(expectNumber, func(bi big.Int) opSub {
-			return MonetaryInt(bi)
+		expectMapped(expectNumber, func(bi MonetaryInt) opSub {
+			return bi
 		}),
 	))
 
@@ -197,7 +196,7 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 		return nil, err
 	}
 
-	return (*leftValue).evalSub(st, right)
+	return leftValue.evalSub(st, right)
 }
 
 func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
@@ -211,14 +210,16 @@ func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right par
 		return nil, err
 	}
 
-	if rightValue.Cmp(big.NewInt(0)) == 0 {
+	rightBi := (*big.Int)(&rightValue)
+	leftBi := (*big.Int)(&leftValue)
+	if rightBi.Cmp(big.NewInt(0)) == 0 {
 		return nil, DivideByZero{
 			Range:     rng,
-			Numerator: leftValue,
+			Numerator: leftBi,
 		}
 	}
 
-	rat := new(big.Rat).SetFrac(leftValue, rightValue)
+	rat := new(big.Rat).SetFrac(leftBi, rightBi)
 
 	return Portion(*rat), nil
 }
@@ -230,8 +231,8 @@ func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterErr
 		}),
 
 		// while "x.map(identity)" is the same as "x", just writing "expectNumber" would't typecheck
-		expectMapped(expectNumber, func(bi big.Int) opNeg {
-			return MonetaryInt(bi)
+		expectMapped(expectNumber, func(bi MonetaryInt) opNeg {
+			return bi
 		}),
 	))
 
@@ -239,7 +240,7 @@ func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterErr
 		return nil, err
 	}
 
-	return (*evExpr).evalNeg(st)
+	return evExpr.evalNeg(st)
 }
 
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {

@@ -2,12 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "src": {},
-        "src1": {
-          "USD/2": 0
+      "balances": [
+        {
+          "account": "src1",
+          "asset": "USD/2",
+          "amount": 0
         }
-      },
+      ],
       "expect.postings": []
     }
   ]

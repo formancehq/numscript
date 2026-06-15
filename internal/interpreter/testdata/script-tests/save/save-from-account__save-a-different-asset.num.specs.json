@@ -2,12 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "alice": {
-          "COIN": 100,
-          "USD": 20
+      "balances": [
+        {
+          "account": "alice",
+          "asset": "COIN",
+          "amount": 100
+        },
+        {
+          "account": "alice",
+          "asset": "USD",
+          "amount": 20
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "alice",

@@ -3,6 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -87,71 +89,68 @@ func (v Asset) String() string {
 	return string(v)
 }
 
-func expectMonetary(v Value, r parser.Range) (*Monetary, InterpreterError) {
+func expectMonetary(v Value, r parser.Range) (Monetary, InterpreterError) {
 	switch v := v.(type) {
 	case Monetary:
-		return &v, nil
+		return v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeMonetary, Value: v, Range: r}
+		return Monetary{}, TypeError{Expected: analysis.TypeMonetary, Value: v, Range: r}
 	}
 }
 
-func expectMonetaryOfAsset(expectedAsset string) func(Value, parser.Range) (*big.Int, InterpreterError) {
-	return func(v Value, r parser.Range) (*big.Int, InterpreterError) {
+func expectMonetaryOfAsset(expectedAsset Asset) func(Value, parser.Range) (MonetaryInt, InterpreterError) {
+	return func(v Value, r parser.Range) (MonetaryInt, InterpreterError) {
 		m, err := expectMonetary(v, r)
 		if err != nil {
-			return nil, err
+			return MonetaryInt{}, err
 		}
 
-		asset := string(m.Asset)
-
-		if asset != expectedAsset {
-			return nil, MismatchedCurrencyError{Expected: expectedAsset, Got: asset}
+		if m.Asset != expectedAsset {
+			return MonetaryInt{}, MismatchedCurrencyError{Expected: string(expectedAsset), Got: string(m.Asset)}
 		}
 
-		i := big.Int(m.Amount)
-		return &i, nil
+		return m.Amount, nil
 	}
 }
 
-func expectNumber(v Value, r parser.Range) (*big.Int, InterpreterError) {
+func expectNumber(v Value, r parser.Range) (MonetaryInt, InterpreterError) {
 	switch v := v.(type) {
 	case MonetaryInt:
-		return (*big.Int)(&v), nil
+		return v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeNumber, Value: v, Range: r}
+		return MonetaryInt{}, TypeError{Expected: analysis.TypeNumber, Value: v, Range: r}
 	}
 }
 
-func expectString(v Value, r parser.Range) (*string, InterpreterError) {
+func expectString(v Value, r parser.Range) (String, InterpreterError) {
 	switch v := v.(type) {
 	case String:
-		return (*string)(&v), nil
+		return v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeString, Value: v, Range: r}
+		return "", TypeError{Expected: analysis.TypeString, Value: v, Range: r}
 	}
 }
 
-func expectAsset(v Value, r parser.Range) (*string, InterpreterError) {
+func expectAsset(v Value, r parser.Range) (Asset, InterpreterError) {
 	switch v := v.(type) {
 	case Asset:
-		return (*string)(&v), nil
+		return v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAsset, Value: v, Range: r}
+		return "", TypeError{Expected: analysis.TypeAsset, Value: v, Range: r}
 	}
 }
 
-func expectAccount(v Value, r parser.Range) (*string, InterpreterError) {
+func expectAccount(v Value, r parser.Range) (AccountAddress, InterpreterError) {
 	switch v := v.(type) {
 	case AccountAddress:
-		return (*string)(&v), nil
+		return v, nil
 
 	default:
-		return nil, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
+		return "", TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
 	}
 }
 
@@ -165,12 +164,12 @@ func expectPortion(v Value, r parser.Range) (*big.Rat, InterpreterError) {
 	}
 }
 
-func expectAnything(v Value, _ parser.Range) (*Value, InterpreterError) {
-	return &v, nil
+func expectAnything(v Value, _ parser.Range) (Value, InterpreterError) {
+	return v, nil
 }
 
-func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (*T, InterpreterError)) func(v Value, r parser.Range) (*T, InterpreterError) {
-	return func(v Value, r parser.Range) (*T, InterpreterError) {
+func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (T, InterpreterError)) func(v Value, r parser.Range) (T, InterpreterError) {
+	return func(v Value, r parser.Range) (T, InterpreterError) {
 		if len(combinators) == 0 {
 			// this should be unreachable
 			panic("Invalid argument: no combinators given")
@@ -185,7 +184,8 @@ func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (*T, Interp
 
 			typeErr, ok := err.(TypeError)
 			if !ok {
-				return nil, err
+				var default_ T
+				return default_, err
 			}
 			errs = append(errs, typeErr)
 		}
@@ -199,7 +199,8 @@ func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (*T, Interp
 			expected += typeErr.Expected
 		}
 
-		return nil, TypeError{
+		var default_ T
+		return default_, TypeError{
 			Range:    r,
 			Value:    v,
 			Expected: expected,
@@ -208,16 +209,17 @@ func expectOneOf[T any](combinators ...func(v Value, r parser.Range) (*T, Interp
 }
 
 func expectMapped[T any, U any](
-	combinator func(v Value, r parser.Range) (*T, InterpreterError),
+	combinator func(v Value, r parser.Range) (T, InterpreterError),
 	mapper func(value T) U,
-) func(v Value, r parser.Range) (*U, InterpreterError) {
-	return func(v Value, r parser.Range) (*U, InterpreterError) {
+) func(v Value, r parser.Range) (U, InterpreterError) {
+	return func(v Value, r parser.Range) (U, InterpreterError) {
 		out, err := combinator(v, r)
 		if err != nil {
-			return nil, err
+			var default_ U
+			return default_, err
 		}
-		mapped := mapper(*out)
-		return &mapped, nil
+		mapped := mapper(out)
+		return mapped, nil
 	}
 }
 
@@ -226,6 +228,11 @@ func NewMonetary(asset string, n int64) Monetary {
 		Asset:  Asset(asset),
 		Amount: NewMonetaryInt(n),
 	}
+}
+
+func NewMonetaryIntBig(n *big.Int) MonetaryInt {
+	bi := new(big.Int).Set(n)
+	return MonetaryInt(*bi)
 }
 
 func NewMonetaryInt(n int64) MonetaryInt {
@@ -247,4 +254,18 @@ func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 
 	sum := new(big.Int).Sub(&bi, &otherBi)
 	return MonetaryInt(*sum)
+}
+
+func (asset Asset) GetBaseAndScale() (string, int64) {
+	parts := strings.Split(string(asset), "/")
+	if len(parts) == 2 {
+		scale, err := strconv.ParseInt(parts[1], 10, 64)
+		if err == nil {
+			return parts[0], scale
+		}
+		// fallback if parsing fails
+		return parts[0], 0
+	}
+	return string(asset), 0
+
 }

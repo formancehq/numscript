@@ -155,6 +155,14 @@ func runRawSpec(stdout io.Writer, stderr io.Writer, rawSpec RawSpec) (Specs, Spe
 		return Specs{}, SpecsResult{}, false
 	}
 
+	// Reject a malformed specs file before running anything, just like the JSON
+	// parse error above.
+	if err := validateSpecs(specs); err != nil {
+		_, _ = stderr.Write([]byte(ansi.ColorRed(fmt.Sprintf("\nError: %s.specs.json\n\n", rawSpec.NumscriptPath))))
+		_, _ = stderr.Write([]byte(err.Error() + "\n"))
+		return Specs{}, SpecsResult{}, false
+	}
+
 	out, iErr := Check(parseResult.Value, specs)
 
 	if iErr != nil {

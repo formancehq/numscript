@@ -2,14 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "users:001": {
-          "CREDIT": 100
+      "balances": [
+        {
+          "account": "users:001",
+          "asset": "CREDIT",
+          "amount": 100
         },
-        "users:002": {
-          "CREDIT": 110
+        {
+          "account": "users:002",
+          "asset": "CREDIT",
+          "amount": 110
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "users:001",

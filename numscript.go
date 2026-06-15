@@ -53,10 +53,12 @@ type (
 	Posting         = interpreter.Posting
 	ExecutionResult = interpreter.ExecutionResult
 	// For each account, list of the needed assets
-	BalanceQuery   = interpreter.BalanceQuery
-	MetadataQuery  = interpreter.MetadataQuery
-	AccountBalance = interpreter.AccountBalance
-	Balances       = interpreter.Balances
+	BalanceQuery     = interpreter.BalanceQuery
+	BalanceQueryItem = interpreter.BalanceQueryItem
+	MetadataQuery    = interpreter.MetadataQuery
+	AccountBalance   = interpreter.AccountBalance
+	Balances         = interpreter.Balances
+	BalanceRow       = interpreter.BalanceRow
 
 	AccountMetadata = interpreter.AccountMetadata
 

@@ -2,14 +2,18 @@
   "testCases": [
     {
       "it": "-",
-      "balances": {
-        "account1": {
-          "A": 100
+      "balances": [
+        {
+          "account": "account1",
+          "asset": "A",
+          "amount": 100
         },
-        "account2": {
-          "B": 100
+        {
+          "account": "account2",
+          "asset": "B",
+          "amount": 100
         }
-      },
+      ],
       "variables": {
         "a_account": "world"
       },

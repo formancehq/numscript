@@ -4,19 +4,23 @@
     "amt": "EUR/2 100",
     "limit": "EUR/2 150"
   },
-  "balances": {
-    "alice": {
-      "EUR/2": 9999
+  "balances": [
+    {
+      "account": "alice",
+      "asset": "EUR/2",
+      "amount": 9999
     }
-  },
+  ],
   "testCases": [
     {
       "it": "should send the amount when destination doesn't reach 150",
-      "balances": {
-        "jon": {
-          "EUR/2": 0
+      "balances": [
+        {
+          "account": "jon",
+          "asset": "EUR/2",
+          "amount": 0
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "alice",
@@ -28,11 +32,13 @@
     },
     {
       "it": "should send the amount when destination doesn't reach 150 (2)",
-      "balances": {
-        "jon": {
-          "EUR/2": 50
+      "balances": [
+        {
+          "account": "jon",
+          "asset": "EUR/2",
+          "amount": 50
         }
-      },
+      ],
       "expect.postings": [
         {
           "source": "alice",
@@ -44,11 +50,13 @@
     },
     {
       "it": "should fail if the end balance would exceed 150",
-      "balances": {
-        "jon": {
-          "EUR/2": 51
+      "balances": [
+        {
+          "account": "jon",
+          "asset": "EUR/2",
+          "amount": 51
         }
-      },
+      ],
       "expect.error.missingFunds": true
     }
   ]
