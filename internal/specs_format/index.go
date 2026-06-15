@@ -180,7 +180,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					metadata[k] = v.String()
 				}
 				failedAssertions = runAssertion[any](failedAssertions,
-					"expect.txMeta",
+					"expect.txMetadata",
 					testCase.ExpectTxMeta,
 					metadata,
 					reflect.DeepEqual,
@@ -189,7 +189,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 
 			if testCase.ExpectAccountsMeta != nil {
 				failedAssertions = runAssertion[any](failedAssertions,
-					"expect.accountsMeta",
+					"expect.metadata",
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
 					reflect.DeepEqual,
