@@ -7,6 +7,7 @@ type Expression[T ExprType] render
 func ExprAccount(name string) Expression[ExprTypeAccount] {
 	return func(env env, w int) {
 		id := env.accountsPool.getItemId(name)
+		env.builder.WriteByte('$')
 		env.builder.WriteString(accountToName(id))
 	}
 }
@@ -14,6 +15,7 @@ func ExprAccount(name string) Expression[ExprTypeAccount] {
 func ExprAsset(name string) Expression[ExprTypeAsset] {
 	return func(env env, w int) {
 		id := env.assetsPool.getItemId(name)
+		env.builder.WriteByte('$')
 		env.builder.WriteString(assetToName(id))
 	}
 }
@@ -21,6 +23,7 @@ func ExprAsset(name string) Expression[ExprTypeAsset] {
 func ExprString(name string) Expression[ExprTypeString] {
 	return func(env env, w int) {
 		id := env.stringsPool.getItemId(name)
+		env.builder.WriteByte('$')
 		env.builder.WriteString(stringToName(id))
 	}
 }

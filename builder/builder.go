@@ -3,6 +3,9 @@ package builder
 
 import (
 	"fmt"
+	"iter"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -58,7 +61,7 @@ type render = func(
 )
 
 func itemIdToName(id int, prefix string) string {
-	return fmt.Sprintf("$%s_%d", prefix, id)
+	return fmt.Sprintf("%s_%d", prefix, id)
 }
 func accountToName(id int) string {
 	return itemIdToName(id, "account")
@@ -66,14 +69,27 @@ func accountToName(id int) string {
 func assetToName(id int) string {
 	return itemIdToName(id, "asset")
 }
-func numberToName(id int) string {
-	return itemIdToName(id, "number")
-}
 func stringToName(id int) string {
 	return itemIdToName(id, "string")
 }
 
-func renderVars(env env) string {
+func sorted[K ~string, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		keys := slices.Collect(maps.Keys(m))
+		slices.Sort(keys)
+
+		for _, k := range keys {
+			if !yield(k, m[k]) {
+				return
+			}
+		}
+	}
+}
+
+func renderVars(
+	env env,
+	knownBindings map[string]string,
+) string {
 	var sb strings.Builder
 
 	hasVars := false
@@ -83,12 +99,15 @@ func renderVars(env env) string {
 		pool pool[string],
 		getVarName func(id int) string,
 	) {
-		for id := range len(pool.elems) {
+		for value, id := range sorted(pool.elems) {
 			hasVars = true
+			varName := getVarName(id)
+			knownBindings[varName] = value
+
 			sb.WriteString(indentStr)
 			sb.WriteString(typ)
-			sb.WriteString(" ")
-			sb.WriteString(getVarName(id))
+			sb.WriteString(" $")
+			sb.WriteString(varName)
 			sb.WriteByte('\n')
 		}
 	}
@@ -113,9 +132,10 @@ func BuildProgram(statements ...Statement) (any, string) {
 		stmt(env, 0)
 	}
 
-	// AFTER we've rendered the whole program, we can render the vars block
-	vars := renderVars(env)
+	knownBindings := map[string]string{}
 
-	// TODO!! vars needs to be returned
-	return nil, vars + env.builder.String()
+	// AFTER we've rendered the whole program, we can render the vars block
+	vars := renderVars(env, knownBindings)
+
+	return knownBindings, vars + env.builder.String()
 }

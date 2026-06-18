@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript/builder"
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSimpleSend(t *testing.T) {
@@ -52,7 +53,7 @@ func TestInorder(t *testing.T) {
 		),
 	)
 
-	_, script := builder.BuildProgram(stmt)
+	vars, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
@@ -65,6 +66,12 @@ send [$asset_0 42] (
     $account_1
   }
 )`))
+
+	require.Equal(t, map[string]string{
+		"account_0": "src1",
+		"account_1": "src2",
+		"asset_0":   "USD/2",
+	}, vars)
 }
 
 func TestInorderNested(t *testing.T) {
