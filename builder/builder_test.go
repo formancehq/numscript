@@ -26,11 +26,13 @@ func TestSimpleSend(t *testing.T) {
 	_, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
+  account $account_1
   asset $asset_0
 }
 
 send [$asset_0 42] (
   source = $account_0
+  destination = $account_1
 )`))
 }
 
@@ -57,6 +59,7 @@ func TestInorder(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
+  account $account_2
   asset $asset_0
 }
 
@@ -65,11 +68,13 @@ send [$asset_0 42] (
     $account_0
     $account_1
   }
+  destination = $account_2
 )`))
 
 	require.Equal(t, map[string]string{
 		"account_0": "src1",
 		"account_1": "src2",
+		"account_2": "dest",
 		"asset_0":   "USD/2",
 	}, vars)
 }
@@ -111,6 +116,7 @@ func TestInorderNested(t *testing.T) {
   account $account_2
   account $account_3
   account $account_4
+  account $account_5
   asset $asset_0
 }
 
@@ -124,6 +130,7 @@ send [$asset_0 42] (
     }
     $account_4
   }
+  destination = $account_5
 )`))
 }
 
@@ -151,6 +158,7 @@ func TestInorderWithColors(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
+  account $account_2
   string $string_0
   asset $asset_0
 }
@@ -160,5 +168,6 @@ send [$asset_0 42] (
     $account_0 \ $string_0
     $account_1
   }
+  destination = $account_2
 )`))
 }

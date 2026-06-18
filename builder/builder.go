@@ -2,8 +2,8 @@
 package builder
 
 import (
+	"cmp"
 	"fmt"
-	"iter"
 	"maps"
 	"slices"
 	"strings"
@@ -73,19 +73,6 @@ func stringToName(id int) string {
 	return itemIdToName(id, "string")
 }
 
-func sorted[K ~string, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		keys := slices.Collect(maps.Keys(m))
-		slices.Sort(keys)
-
-		for _, k := range keys {
-			if !yield(k, m[k]) {
-				return
-			}
-		}
-	}
-}
-
 func renderVars(
 	env env,
 	knownBindings map[string]string,
@@ -99,10 +86,17 @@ func renderVars(
 		pool pool[string],
 		getVarName func(id int) string,
 	) {
-		for value, id := range sorted(pool.elems) {
+		keys := slices.Collect(maps.Keys(pool.elems))
+		slices.SortFunc(keys, func(a, b string) int {
+			return cmp.Compare(pool.elems[a], pool.elems[b])
+		})
+
+		for _, key := range keys {
 			hasVars = true
+			id := pool.elems[key]
+
 			varName := getVarName(id)
-			knownBindings[varName] = value
+			knownBindings[varName] = key
 
 			sb.WriteString(indentStr)
 			sb.WriteString(typ)

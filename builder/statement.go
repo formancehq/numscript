@@ -14,6 +14,8 @@ func StmtSend(
 		env.builder.WriteString(" (")
 		env.builder.WriteString("\n  source = ")
 		source(env, w+1)
+		env.builder.WriteString("\n  destination = ")
+		destination(env, w+1)
 		env.builder.WriteString("\n)")
 	}
 }
