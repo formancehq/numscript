@@ -250,7 +250,7 @@ func (res *CheckResult) check() {
 				res.checkDuplicateVars(*varDecl.Name, varDecl)
 			}
 
-			if varDecl.Origin != nil {
+			if varDecl.Origin != nil && *varDecl.Origin != nil && varDecl.Type != nil {
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
 				res.unifyNodeWith(*varDecl.Origin, res.GetVarDeclType(varDecl))
 			}
