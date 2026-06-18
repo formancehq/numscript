@@ -23,7 +23,12 @@ func TestSimpleSend(t *testing.T) {
 	)
 
 	_, script := builder.BuildProgram(stmt)
-	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`send [$asset_0 42] (
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  asset $asset_0
+}
+
+send [$asset_0 42] (
   source = $account_0
 )`))
 }
@@ -48,13 +53,18 @@ func TestInorder(t *testing.T) {
 	)
 
 	_, script := builder.BuildProgram(stmt)
-	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`send [$asset_0 42] (
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
   source = {
     $account_0
     $account_1
   }
-)`),
-	)
+)`))
 }
 
 func TestInorderNested(t *testing.T) {
@@ -88,7 +98,16 @@ func TestInorderNested(t *testing.T) {
 	)
 
 	_, script := builder.BuildProgram(stmt)
-	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`send [$asset_0 42] (
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  account $account_2
+  account $account_3
+  account $account_4
+  asset $asset_0
+}
+
+send [$asset_0 42] (
   source = {
     $account_0
     $account_1
@@ -122,11 +141,17 @@ func TestInorderWithColors(t *testing.T) {
 	)
 
 	_, script := builder.BuildProgram(stmt)
-	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`send [$asset_0 42] (
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  string $string_0
+  asset $asset_0
+}
+
+send [$asset_0 42] (
   source = {
     $account_0 \ $string_0
     $account_1
   }
-)`),
-	)
+)`))
 }

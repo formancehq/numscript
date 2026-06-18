@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const identStr = "  "
+const indentStr = "  "
 
 func (p pool[T]) getItemId(elem T) int {
 	previousLookup, isElemInPool := p.elems[elem]
@@ -32,9 +32,9 @@ func writeIndentation(env env, w int) {
 		return
 	}
 
-	env.builder.Grow(w * len(identStr))
+	env.builder.Grow(w * len(indentStr))
 	for range w {
-		env.builder.WriteString(identStr)
+		env.builder.WriteString(indentStr)
 	}
 }
 
@@ -73,6 +73,39 @@ func stringToName(id int) string {
 	return itemIdToName(id, "string")
 }
 
+func renderVars(env env) string {
+	var sb strings.Builder
+
+	hasVars := false
+
+	renderVarsTyp := func(
+		typ string,
+		pool pool[string],
+		getVarName func(id int) string,
+	) {
+		for id := range len(pool.elems) {
+			hasVars = true
+			sb.WriteString(indentStr)
+			sb.WriteString(typ)
+			sb.WriteString(" ")
+			sb.WriteString(getVarName(id))
+			sb.WriteByte('\n')
+		}
+	}
+
+	sb.WriteString("vars {\n")
+	renderVarsTyp("account", env.accountsPool, accountToName)
+	renderVarsTyp("string", env.stringsPool, stringToName)
+	renderVarsTyp("asset", env.assetsPool, assetToName)
+	sb.WriteString("}\n\n")
+
+	if !hasVars {
+		return ""
+	}
+
+	return sb.String()
+}
+
 // TODO double check this one (do we need to handle vars?)
 func BuildProgram(statements ...Statement) (any, string) {
 	env := newEnv()
@@ -80,6 +113,9 @@ func BuildProgram(statements ...Statement) (any, string) {
 		stmt(env, 0)
 	}
 
+	// AFTER we've rendered the whole program, we can render the vars block
+	vars := renderVars(env)
+
 	// TODO!! vars needs to be returned
-	return nil, env.builder.String()
+	return nil, vars + env.builder.String()
 }
