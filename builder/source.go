@@ -10,7 +10,7 @@ func SrcColored(
 	accountExpr Expression[ExprTypeAccount],
 	colorExpr Expression[ExprTypeString],
 ) Source {
-	return func(env env, w int) {
+	return func(env *env, w int) {
 		accountExpr(env, w)
 		env.builder.WriteString(" \\ ")
 		colorExpr(env, w)
@@ -18,7 +18,7 @@ func SrcColored(
 }
 
 func SrcInorder(sources ...Source) Source {
-	return func(env env, w int) {
+	return func(env *env, w int) {
 		env.builder.WriteString("{\n")
 		for _, src := range sources {
 			writeIndentation(env, w+1)

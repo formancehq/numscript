@@ -8,7 +8,7 @@ func StmtSend(
 	source Source,
 	destination Destination,
 ) Statement {
-	return func(env env, w int) {
+	return func(env *env, w int) {
 		env.builder.WriteString("send ")
 		monetary(env, 0)
 		env.builder.WriteString(" (")

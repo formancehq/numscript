@@ -2,19 +2,23 @@
 package builder
 
 import (
-	"cmp"
 	"fmt"
-	"maps"
-	"slices"
+	"math/big"
 	"strings"
 )
 
 const indentStr = "  "
 
-func (p pool[T]) getItemId(elem T) int {
+func (p *pool[T]) getFreshId() int {
+	id := p.nextId
+	p.nextId += 1
+	return id
+}
+
+func (p *pool[T]) getItemId(elem T) int {
 	previousLookup, isElemInPool := p.elems[elem]
 	if !isElemInPool {
-		elemId := len(p.elems)
+		elemId := p.getFreshId()
 		p.elems[elem] = elemId
 		previousLookup = elemId
 	}
@@ -22,15 +26,14 @@ func (p pool[T]) getItemId(elem T) int {
 }
 
 type env struct {
-	builder *strings.Builder
-
+	builder      strings.Builder
 	accountsPool pool[string]
 	assetsPool   pool[string]
 	stringsPool  pool[string]
-	// numbersPool  pool[*big.Int]
+	numbersPool  pool[*big.Int]
 }
 
-func writeIndentation(env env, w int) {
+func writeIndentation(env *env, w int) {
 	if w == 0 {
 		return
 	}
@@ -42,19 +45,17 @@ func writeIndentation(env env, w int) {
 }
 
 func newEnv() env {
-	var sb strings.Builder
 	return env{
-		builder:      &sb,
 		accountsPool: newPool[string](),
 		assetsPool:   newPool[string](),
 		stringsPool:  newPool[string](),
-		// numbersPool:  newPool[*big.Int](),
+		numbersPool:  newPool[*big.Int](),
 	}
 }
 
 // The underlying type of any a pretty printing document
 type render = func(
-	env env,
+	env *env,
 
 	// The current width
 	w int,
@@ -72,64 +73,79 @@ func assetToName(id int) string {
 func stringToName(id int) string {
 	return itemIdToName(id, "string")
 }
+func numberToName(id int) string {
+	return itemIdToName(id, "number")
+}
 
-func renderVars(
-	env env,
-	knownBindings map[string]string,
-) string {
-	var sb strings.Builder
+type varRenderState struct {
+	hasVars       bool
+	sb            strings.Builder
+	knownBindings map[string]string
+}
 
-	hasVars := false
+func renderVar[T comparable](
+	st *varRenderState,
 
-	renderVarsTyp := func(
-		typ string,
-		pool pool[string],
-		getVarName func(id int) string,
-	) {
-		keys := slices.Collect(maps.Keys(pool.elems))
-		slices.SortFunc(keys, func(a, b string) int {
-			return cmp.Compare(pool.elems[a], pool.elems[b])
-		})
-
-		for _, key := range keys {
-			hasVars = true
-			id := pool.elems[key]
-
-			varName := getVarName(id)
-			knownBindings[varName] = key
-
-			sb.WriteString(indentStr)
-			sb.WriteString(typ)
-			sb.WriteString(" $")
-			sb.WriteString(varName)
-			sb.WriteByte('\n')
-		}
+	typ string,
+	pool pool[T],
+	getVarName func(id int) string,
+	stringifyValue func(value T) string,
+) {
+	for key, id := range pool.elems {
+		varName := getVarName(id)
+		st.knownBindings[varName] = stringifyValue(key)
 	}
 
-	sb.WriteString("vars {\n")
-	renderVarsTyp("account", env.accountsPool, accountToName)
-	renderVarsTyp("string", env.stringsPool, stringToName)
-	renderVarsTyp("asset", env.assetsPool, assetToName)
-	sb.WriteString("}\n\n")
+	for id := range pool.nextId {
+		st.hasVars = true
 
-	if !hasVars {
+		varName := getVarName(id)
+
+		st.sb.WriteString(indentStr)
+		st.sb.WriteString(typ)
+		st.sb.WriteString(" $")
+		st.sb.WriteString(varName)
+		st.sb.WriteByte('\n')
+	}
+
+}
+
+func stringId(x string) string          { return x }
+func bigIntToString(bi *big.Int) string { return bi.String() }
+
+func renderVars(
+	st *varRenderState,
+	env *env,
+) string {
+
+	st.sb.WriteString("vars {\n")
+	renderVar(st, "account", env.accountsPool, accountToName, stringId)
+	renderVar(st, "string", env.stringsPool, stringToName, stringId)
+	renderVar(st, "asset", env.assetsPool, assetToName, stringId)
+	renderVar(st, "number", env.numbersPool, numberToName, func(bi *big.Int) string {
+		return bi.String()
+	})
+	st.sb.WriteString("}\n\n")
+
+	if !st.hasVars {
 		return ""
 	}
 
-	return sb.String()
+	return st.sb.String()
 }
 
 // TODO double check this one (do we need to handle vars?)
 func BuildProgram(statements ...Statement) (any, string) {
 	env := newEnv()
 	for _, stmt := range statements {
-		stmt(env, 0)
+		stmt(&env, 0)
 	}
 
-	knownBindings := map[string]string{}
-
+	st := varRenderState{
+		knownBindings: make(map[string]string),
+	}
 	// AFTER we've rendered the whole program, we can render the vars block
-	vars := renderVars(env, knownBindings)
+	vars := renderVars(&st, &env)
 
-	return knownBindings, vars + env.builder.String()
+	return st.knownBindings, vars + env.builder.String()
 }

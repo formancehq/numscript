@@ -171,3 +171,48 @@ send [$asset_0 42] (
   destination = $account_2
 )`))
 }
+
+func TestWithExternVar(t *testing.T) {
+	accVar := builder.NewAccountVar()
+	amtVar := builder.NewNumberVar()
+
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprVar(&amtVar),
+		),
+		builder.SrcAccount(
+			builder.ExprVar(&accVar),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	vars, script := builder.BuildProgram(stmt)
+
+	k, v := accVar.FillAccount("my_src")
+	require.Equal(t, "account_0", k)
+	require.Equal(t, "my_src", v)
+
+	k, v = amtVar.FillNumber(big.NewInt(42))
+	require.Equal(t, "number_0", k)
+	require.Equal(t, "42", v)
+
+	require.Equal(t, map[string]string{
+		"asset_0":   "USD/2",
+		"account_1": "dest",
+	}, vars)
+
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+  number $number_0
+}
+
+send [$asset_0 $number_0] (
+  source = $account_0
+  destination = $account_1
+)`))
+}

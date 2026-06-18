@@ -1,7 +1,8 @@
 package builder
 
 type pool[T comparable] struct {
-	elems map[T]int
+	nextId int
+	elems  map[T]int
 }
 
 func newPool[T comparable]() pool[T] {
