@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-mid-script-function-call",
+    "experimental-scoped-function"
+  ],
+  "testCases": [
+    {
+      "it": "sets metadata scoped by the account's scope, distinct from the unscoped entry",
+      "expect.metadata": [
+        { "account": "acc", "key": "k", "value": "unscoped" },
+        { "account": "acc", "scope": "myscope", "key": "k", "value": "scoped" }
+      ]
+    }
+  ]
+}
