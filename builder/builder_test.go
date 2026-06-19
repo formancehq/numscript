@@ -173,13 +173,20 @@ send [$asset_0 42] (
 }
 
 func TestWithExternVar(t *testing.T) {
+	// The builder module exposes a type-safe API to create scripts
+
+	// We can create (typed) vars this way:
 	accVar := builder.NewAccountVar()
 	amtVar := builder.NewNumberVar()
 
+	// sources, destinations, expressions, and statements are typed, so you can never
+	// use a source node instead of a expression node, and so on.
+	// In addition to that, expressions are typed, so you can't use a string expression
+	// instead of a number expression
 	stmt := builder.StmtSend(
 		builder.ExprMonetary(
 			builder.ExprAsset("USD/2"),
-			builder.ExprVar(&amtVar),
+			builder.ExprVar(&amtVar), // <- you can reference vars this way (identified by address)
 		),
 		builder.SrcAccount(
 			builder.ExprVar(&accVar),
@@ -189,8 +196,27 @@ func TestWithExternVar(t *testing.T) {
 		),
 	)
 
+	// When you build the program, it'll create 3 values:
 	vars, varsEnv, script := builder.BuildProgram(stmt)
 
+	// 1: (vars) the map[string]string of KNOWN variables. This is generated via the
+	// strings literals you pass (in the example above, USD/2 and @dest).
+	// This way, you'll pass this map to the tx and numscript will handle interpolation instead of
+	// handling that in this lib
+	require.Equal(t, map[string]string{
+		"asset_0":   "USD/2",
+		"account_1": "dest",
+	}, vars)
+
+	// 2: (varsEnv) The env of the NAMES of each variable that is referenced within the script.
+	// You'll reference them by ptr address. The "Fill*()" methods are typed, and return you the name of the var,
+	// and the "stringified" value of the var content (in the case of account/asset/string, the string itself)
+	// user code would likely be something like:
+	//
+	// varsCp := maps.Clone(vars)
+	// k, v := varsEnv.FillAccount(..)
+	// varsCp[k] = v
+	// (etc)
 	k, v := varsEnv.FillAccount(&accVar, "my_src")
 	require.Equal(t, "account_0", k)
 	require.Equal(t, "my_src", v)
@@ -199,11 +225,8 @@ func TestWithExternVar(t *testing.T) {
 	require.Equal(t, "number_0", k)
 	require.Equal(t, "42", v)
 
-	require.Equal(t, map[string]string{
-		"asset_0":   "USD/2",
-		"account_1": "dest",
-	}, vars)
-
+	// 3: (script) the script itself. It's generated while trying to be as "stable" as possible,
+	// e.g. vars are declared with an hardcoded order of types, and with an increasing order of names
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
