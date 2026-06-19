@@ -264,9 +264,7 @@ func TestBadAssetInMeta(t *testing.T) {
 	)
 	`)
 	tc.meta = interpreter.AccountsMetadata{
-		"acc": interpreter.AccountMetadata{
-			"my-asset": "Aa",
-		},
+		{Account: "acc", Key: "my-asset", Value: "Aa"},
 	}
 
 	tc.expected = CaseResult{
@@ -526,7 +524,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: interpreter.TypeError{
 				Expected: "monetary",
-				Value:    interpreter.AccountAddress("bad:type"),
+				Value:    interpreter.AccountAddress{Name: "bad:type"},
 			},
 		}
 		test(t, tc)
@@ -666,7 +664,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: interpreter.TypeError{
 				Expected: "string",
-				Value:    interpreter.AccountAddress("key_wrong_type"),
+				Value:    interpreter.AccountAddress{Name: "key_wrong_type"},
 			},
 		}
 		test(t, tc)
@@ -725,13 +723,13 @@ func TestTrackBalancesTricky(t *testing.T) {
 	`)
 	tc.expected = CaseResult{
 		Postings: []interpreter.Posting{
-			interpreter.Posting{
+			{
 				Source:      "world",
 				Destination: "src",
 				Amount:      big.NewInt(10),
 				Asset:       "GEM",
 			},
-			interpreter.Posting{
+			{
 				Source:      "src",
 				Destination: "dest",
 				Amount:      big.NewInt(15),
@@ -792,7 +790,7 @@ func TestSaveFromAccount(t *testing.T) {
 
 	t.Run("negative amount", func(t *testing.T) {
 		script := `
-	
+
 			save [USD -100] from @A`
 		tc := NewTestCase()
 		tc.compile(t, script)
@@ -977,9 +975,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.meta = interpreter.AccountsMetadata{
-		"acc": {
-			"k": "42",
-		},
+		{Account: "acc", Key: "k", Value: "42"},
 	}
 	tc.compile(t, script)
 

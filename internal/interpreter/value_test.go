@@ -43,7 +43,7 @@ func TestMarshalAsset(t *testing.T) {
 func TestMarshalAddress(t *testing.T) {
 	t.Parallel()
 
-	x := interpreter.AccountAddress("abc")
+	x := interpreter.AccountAddress{Name: "abc"}
 
 	j, err := json.Marshal(x)
 	require.Nil(t, err)

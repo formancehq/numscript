@@ -2,18 +2,14 @@
   "testCases": [
     {
       "it": "-",
-      "metadata": {
-        "acc": {
-          "initial": "0",
-          "overridden": "1"
-        }
-      },
-      "expect.metadata": {
-        "acc": {
-          "new": "2",
-          "overridden": "100"
-        }
-      }
+      "metadata": [
+        { "account": "acc", "key": "initial", "value": "0" },
+        { "account": "acc", "key": "overridden", "value": "1" }
+      ],
+      "expect.metadata": [
+        { "account": "acc", "key": "new", "value": "2" },
+        { "account": "acc", "key": "overridden", "value": "100" }
+      ]
     }
   ]
 }

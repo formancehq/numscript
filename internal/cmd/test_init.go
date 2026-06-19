@@ -117,7 +117,7 @@ func makeSpecsFile(
 		DefaultBalance: defaultBalance,
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{},
-			Meta:     make(interpreter.AccountsMetadata),
+			Meta:     interpreter.AccountsMetadata{},
 		},
 	}
 

@@ -62,19 +62,18 @@ func meta(
 	}
 
 	meta, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
-		string(account): []string{string(key)},
+		{Account: account.Name, Scope: account.Scope, Keys: []string{string(key)}},
 	})
 	if fetchMetaErr != nil {
 		return "", QueryMetadataError{WrappedError: fetchMetaErr}
 	}
-	s.CachedAccountsMeta = meta
+	s.CachedAccountsMeta = FromAccountsMetadataRows(meta)
 
 	// body
-	accountMeta := s.CachedAccountsMeta[string(account)]
-	value, ok := accountMeta[string(key)]
+	value, ok := s.CachedAccountsMeta.Get(account.Name, account.Scope, string(key))
 
 	if !ok {
-		return "", MetadataNotFound{Account: string(account), Key: string(key), Range: rng}
+		return "", MetadataNotFound{Account: account.String(), Key: string(key), Range: rng}
 	}
 
 	return value, nil
@@ -104,7 +103,7 @@ func balance(
 
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return Monetary{}, NegativeBalanceError{
-			Account: string(account),
+			Account: account.String(),
 			Amount:  *balance,
 		}
 	}
@@ -156,4 +155,33 @@ func getAmount(
 	}
 
 	return mon.Amount, nil
+}
+
+func scoped(
+	s *programState,
+	r parser.Range,
+	args []Value,
+) (Value, InterpreterError) {
+	err := s.checkFeatureFlag(flags.ExperimentalScopedFunction)
+	if err != nil {
+		return nil, err
+	}
+
+	p := NewArgsParser(args)
+	acc := parseArg(p, r, expectAccount)
+	scope := parseArg(p, r, expectString)
+	err = p.parse()
+
+	scopeStr := string(scope)
+
+	// Precondition: scope is valid idenfitier
+	if err != nil {
+		return nil, err
+	}
+
+	if !validateScope(scopeStr) {
+		return nil, InvalidScope{Scope: scopeStr}
+	}
+
+	return AccountAddress{Name: acc.Name, Scope: scopeStr}, nil
 }

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -18,7 +19,15 @@ type Value interface {
 type String string
 type Asset string
 type Portion big.Rat
-type AccountAddress string
+
+// AccountAddress is an account, optionally partitioned by a scope. The scope is
+// a separate dimension of the account rather than part of its name, so it is
+// modeled as its own field instead of being encoded into the name string.
+type AccountAddress struct {
+	Name  string
+	Scope string
+}
+
 type MonetaryInt big.Int
 type Monetary struct {
 	Amount MonetaryInt
@@ -34,9 +43,9 @@ func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
 	if !checkAccountName(src) {
-		return AccountAddress(""), InvalidAccountName{Name: src}
+		return AccountAddress{}, InvalidAccountName{Name: src}
 	}
-	return AccountAddress(src), nil
+	return AccountAddress{Name: src}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
@@ -44,6 +53,10 @@ func NewAsset(src string) (Asset, InterpreterError) {
 		return Asset(""), InvalidAsset{Name: src}
 	}
 	return Asset(src), nil
+}
+
+func (v AccountAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(v.String())
 }
 
 func (v MonetaryInt) MarshalJSON() ([]byte, error) {
@@ -68,7 +81,10 @@ func (v String) String() string {
 }
 
 func (v AccountAddress) String() string {
-	return string(v)
+	if v.Scope == "" {
+		return v.Name
+	}
+	return v.Name + "/" + v.Scope
 }
 
 func (v MonetaryInt) String() string {
@@ -150,7 +166,7 @@ func expectAccount(v Value, r parser.Range) (AccountAddress, InterpreterError) {
 		return v, nil
 
 	default:
-		return "", TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
+		return AccountAddress{}, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
 	}
 }
 

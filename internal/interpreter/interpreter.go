@@ -24,11 +24,28 @@ type InterpreterError interface {
 type Metadata = map[string]Value
 
 type Posting struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Amount      *big.Int `json:"amount"`
-	Asset       string   `json:"asset"`
-	Color       string   `json:"color,omitempty"`
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Amount           *big.Int `json:"amount"`
+	Asset            string   `json:"asset"`
+	Color            string   `json:"color,omitempty"`
+}
+
+// newPosting builds a Posting from the source and destination addresses,
+// exposing each address's account and scope as the separate fields the posting
+// contract uses.
+func newPosting(source AccountAddress, destination AccountAddress, amount *big.Int, asset string, color string) Posting {
+	return Posting{
+		Source:           source.Name,
+		SourceScope:      source.Scope,
+		Destination:      destination.Name,
+		DestinationScope: destination.Scope,
+		Amount:           amount,
+		Asset:            asset,
+		Color:            color,
+	}
 }
 
 type ExecutionResult struct {
@@ -146,6 +163,8 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
+	case analysis.FnVarOriginScoped:
+		return scoped(s, fnCall.Range, args)
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
@@ -179,7 +198,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 const accountSegmentRegex = "[a-zA-Z0-9_-]+"
 
-var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
+var accountNameRegex = regexp.MustCompile("^@?" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*(?:/[a-z_]+)?$")
 
 // https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
 func checkAccountName(addr string) bool {
@@ -223,9 +242,9 @@ func RunProgram(
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
-		CachedAccountsMeta: AccountsMetadata{},
+		CachedAccountsMeta: InternalAccountsMetadata{},
 		CachedBalances:     InternalBalances{},
-		SetAccountsMeta:    AccountsMetadata{},
+		SetAccountsMeta:    InternalAccountsMetadata{},
 		Store:              store,
 		Postings:           make([]Posting, 0),
 		fundsQueue:         newFundsQueue(nil),
@@ -289,7 +308,7 @@ func RunProgram(
 	res := &ExecutionResult{
 		Postings:         st.Postings,
 		Metadata:         st.TxMeta,
-		AccountsMetadata: st.SetAccountsMeta,
+		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
 	return res, nil
 }
@@ -311,9 +330,9 @@ type programState struct {
 
 	Store Store
 
-	SetAccountsMeta AccountsMetadata
+	SetAccountsMeta InternalAccountsMetadata
 
-	CachedAccountsMeta AccountsMetadata
+	CachedAccountsMeta InternalAccountsMetadata
 	CachedBalances     InternalBalances
 
 	CurrentBalanceQuery BalanceQuery
@@ -332,9 +351,9 @@ func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, co
 	balance.Sub(balance, &monetaryBi)
 
 	st.fundsQueue.Push(Sender{
-		Name:   string(name),
-		Amount: &monetaryBi,
-		Color:  string(color),
+		Account: name,
+		Amount:  &monetaryBi,
+		Color:   string(color),
 	})
 }
 
@@ -359,16 +378,10 @@ func (st *programState) forcePushPostingUncolored(
 	destBalance := st.CachedBalances.fetchBalance(destination, asset, "")
 	destBalance.Add(destBalance, &amtBi)
 
-	st.Postings = append(st.Postings, Posting{
-		Source:      string(source),
-		Destination: string(destination),
-		Amount:      new(big.Int).Set(&amtBi),
-		Color:       "",
-		Asset:       string(asset),
-	})
+	st.Postings = append(st.Postings, newPosting(source, destination, new(big.Int).Set(&amtBi), string(asset), ""))
 }
 
-func (st *programState) pushReceiver(name string, monetary *big.Int) {
+func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
@@ -376,26 +389,20 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	senders := st.fundsQueue.PullAnything(monetary)
 
 	for _, sender := range senders {
-		postings := Posting{
-			Source:      sender.Name,
-			Destination: name,
-			Asset:       string(st.CurrentAsset),
-			Amount:      sender.Amount,
-			Color:       sender.Color,
-		}
+		posting := newPosting(sender.Account, name, sender.Amount, string(st.CurrentAsset), sender.Color)
 
-		if name == KEPT_ADDR {
+		if name.Name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Source), st.CurrentAsset, String(sender.Color))
-			srcBalance.Add(srcBalance, postings.Amount)
+			srcBalance := st.CachedBalances.fetchBalance(sender.Account, st.CurrentAsset, String(sender.Color))
+			srcBalance.Add(srcBalance, posting.Amount)
 
 			continue
 		}
 
-		destBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Destination), st.CurrentAsset, String(sender.Color))
-		destBalance.Add(destBalance, postings.Amount)
+		destBalance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, String(sender.Color))
+		destBalance.Add(destBalance, posting.Amount)
 
-		st.Postings = append(st.Postings, postings)
+		st.Postings = append(st.Postings, posting)
 	}
 }
 
@@ -517,9 +524,9 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	if account == "world" || overdraft == nil {
+	if account.Name == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: string(account),
+			Name: account.String(),
 		}
 	}
 
@@ -572,7 +579,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
-		acc, ok := s.CachedBalances[string(account)]
+		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -673,7 +680,7 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	if err != nil {
 		return nil, err
 	}
-	if account == "world" {
+	if account.Name == "world" {
 		overdraft = nil
 	}
 
@@ -735,7 +742,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
 
-		acc, ok := s.CachedBalances[string(account)]
+		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -858,7 +865,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 		if err != nil {
 			return err
 		}
-		s.pushReceiver(string(account), amount)
+		s.pushReceiver(account, amount)
 		return nil
 
 	case *parser.DestinationAllotment:
@@ -959,7 +966,7 @@ const KEPT_ADDR = "<kept>"
 func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.pushReceiver(KEPT_ADDR, amount)
+		s.pushReceiver(AccountAddress{Name: KEPT_ADDR}, amount)
 		return nil
 
 	case *parser.DestinationTo:
@@ -1163,11 +1170,13 @@ func PrettyPrintPostings(postings []Posting) string {
 
 	var rows [][]string
 	for _, posting := range postings {
+		source := AccountAddress{Name: posting.Source, Scope: posting.SourceScope}.String()
+		destination := AccountAddress{Name: posting.Destination, Scope: posting.DestinationScope}.String()
 		var row []string
 		if hasColor {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Color, posting.Amount.String()}
+			row = []string{source, destination, posting.Asset, posting.Color, posting.Amount.String()}
 		} else {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
+			row = []string{source, destination, posting.Asset, posting.Amount.String()}
 		}
 		rows = append(rows, row)
 	}

@@ -12,6 +12,7 @@ type BalanceRow struct {
 	Asset   string   `json:"asset"`
 	Amount  *big.Int `json:"amount"`
 	Color   string   `json:"color,omitempty"`
+	Scope   string   `json:"scope,omitempty"`
 }
 type Balances []BalanceRow
 
@@ -20,9 +21,9 @@ type Balances []BalanceRow
 // entry and the amount is its value, so a repeated key is an ambiguous,
 // malformed input.
 func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
-	seen := make(map[[3]string]struct{}, len(rows))
+	seen := make(map[[4]string]struct{}, len(rows))
 	for _, row := range rows {
-		key := [3]string{row.Account, row.Asset, row.Color}
+		key := [4]string{row.Account, row.Asset, row.Color, row.Scope}
 		if _, ok := seen[key]; ok {
 			return row, true
 		}
@@ -59,10 +60,10 @@ func (rows Balances) PrettyPrint() string {
 	return utils.CsvPretty(header, tableRows, true)
 }
 
-// findRow returns the amount for a given (account, asset, color), if present.
-func findRow(rows Balances, account, asset, color string) (*big.Int, bool) {
+// findRow returns the amount for a given (account, asset, color, scope), if present.
+func findRow(rows Balances, account, asset, color, scope string) (*big.Int, bool) {
 	for i := range rows {
-		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color {
+		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color && rows[i].Scope == scope {
 			return rows[i].Amount, true
 		}
 	}
@@ -90,7 +91,7 @@ func CompareBalances(b1 Balances, b2 Balances) bool {
 // Returns whether the first value is a subset of the second one.
 func CompareBalancesIncluding(b1 Balances, b2 Balances) bool {
 	for _, entry := range b1 {
-		amount2, ok := findRow(b2, entry.Account, entry.Asset, entry.Color)
+		amount2, ok := findRow(b2, entry.Account, entry.Asset, entry.Color, entry.Scope)
 		if !ok || !amountsEqual(entry.Amount, amount2) {
 			return false
 		}

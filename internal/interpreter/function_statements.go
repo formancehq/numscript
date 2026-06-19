@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError {
@@ -28,11 +27,7 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 		return err
 	}
 
-	accountMeta := utils.MapGetOrPutDefault(st.SetAccountsMeta, string(account), func() AccountMetadata {
-		return AccountMetadata{}
-	})
-
-	accountMeta[string(key)] = meta.String()
+	st.SetAccountsMeta.Set(account.Name, account.Scope, string(key), meta.String())
 
 	return nil
 }

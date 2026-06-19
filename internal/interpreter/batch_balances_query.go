@@ -51,14 +51,15 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 }
 
 func (st *programState) batchQuery(account AccountAddress, asset Asset, color String) {
-	if account == "world" {
+	if account.Name == "world" {
 		return
 	}
 
 	item := BalanceQueryItem{
-		Account: string(account),
+		Account: account.Name,
 		Asset:   string(asset),
 		Color:   string(color),
+		Scope:   account.Scope,
 	}
 
 	if !slices.Contains(st.CurrentBalanceQuery, item) {

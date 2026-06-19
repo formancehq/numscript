@@ -188,11 +188,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectAccountsMeta != nil {
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.metadata",
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
-					reflect.DeepEqual,
+					interpreter.CompareAccountsMetadata,
 				)
 			}
 
@@ -264,10 +264,27 @@ func mergeVars(v1 interpreter.VariablesMap, v2 interpreter.VariablesMap) interpr
 	return out
 }
 
-func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsMetadata) interpreter.AccountsMetadata {
-	out := m1.DeepClone()
-	out.Merge(m2)
-	return out
+// Merge two account-metadata inputs, deduping by (account, key, scope).
+// Entries in "inner" override matching entries in "outer".
+func mergeAccountsMeta(outer interpreter.AccountsMetadata, inner interpreter.AccountsMetadata) interpreter.AccountsMetadata {
+	merged := interpreter.AccountsMetadata{}
+	indexByKey := map[string]int{}
+
+	addAll := func(items interpreter.AccountsMetadata) {
+		for _, item := range items {
+			key := item.Account + "\x00" + item.Key + "\x00" + item.Scope
+			if i, ok := indexByKey[key]; ok {
+				merged[i] = item
+			} else {
+				indexByKey[key] = len(merged)
+				merged = append(merged, item)
+			}
+		}
+	}
+
+	addAll(outer)
+	addAll(inner)
+	return merged
 }
 
 // validateSpecs rejects a malformed specs file before any test case is run. A
@@ -292,6 +309,9 @@ func duplicateBalanceErr(dup interpreter.BalanceRow) error {
 	if dup.Color != "" {
 		key += fmt.Sprintf(" color=%q", dup.Color)
 	}
+	if dup.Scope != "" {
+		key += fmt.Sprintf(" scope=%q", dup.Scope)
+	}
 	return fmt.Errorf("balances must not contain duplicate entries: duplicate entry for %s", key)
 }
 
@@ -303,7 +323,7 @@ func mergeBalances(outer interpreter.Balances, inner interpreter.Balances) inter
 
 	addAll := func(items interpreter.Balances) {
 		for _, item := range items {
-			key := item.Account + "\x00" + item.Asset + "\x00" + item.Color
+			key := item.Account + "\x00" + item.Asset + "\x00" + item.Color + "\x00" + item.Scope
 			if i, ok := indexByKey[key]; ok {
 				merged[i] = item
 			} else {
@@ -364,11 +384,14 @@ func getMovements(postings []interpreter.Posting) Movements {
 	movements := Movements{}
 
 	for _, posting := range postings {
+		source := joinScope(posting.Source, posting.SourceScope)
+		destination := joinScope(posting.Destination, posting.DestinationScope)
+
 		found := false
 		for i := range movements {
 			m := &movements[i]
-			if m.Source == posting.Source &&
-				m.Destination == posting.Destination &&
+			if m.Source == source &&
+				m.Destination == destination &&
 				m.Asset == posting.Asset &&
 				m.Color == posting.Color {
 				m.Amount = new(big.Int).Add(m.Amount, posting.Amount)
@@ -379,8 +402,8 @@ func getMovements(postings []interpreter.Posting) Movements {
 
 		if !found {
 			movements = append(movements, Movement{
-				Source:      posting.Source,
-				Destination: posting.Destination,
+				Source:      source,
+				Destination: destination,
 				Asset:       posting.Asset,
 				Color:       posting.Color,
 				Amount:      new(big.Int).Set(posting.Amount),
@@ -391,19 +414,29 @@ func getMovements(postings []interpreter.Posting) Movements {
 	return movements
 }
 
-func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
-	// Working set keyed by account for O(1)-ish lookups.
-	balances := map[string][]interpreter.AccountBalance{}
+// joinScope re-encodes a separate (account, scope) pair into the scope-encoded
+// "account/scope" address. An empty scope yields the bare account.
+func joinScope(account, scope string) string {
+	if scope == "" {
+		return account
+	}
+	return account + "/" + scope
+}
 
-	getOrCreate := func(account, asset, color string) *big.Int {
-		entries := balances[account]
+func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
+	// Working set keyed by (account, scope) for O(1)-ish lookups.
+	balances := map[interpreter.AccountAddress][]interpreter.AccountBalance{}
+
+	getOrCreate := func(account, asset, scope, color string) *big.Int {
+		key := interpreter.AccountAddress{Name: account, Scope: scope}
+		entries := balances[key]
 		for i := range entries {
 			if entries[i].Asset == asset && entries[i].Color == color {
 				return entries[i].Amount
 			}
 		}
 		amount := new(big.Int)
-		balances[account] = append(entries, interpreter.AccountBalance{
+		balances[key] = append(entries, interpreter.AccountBalance{
 			Asset:  asset,
 			Color:  color,
 			Amount: amount,
@@ -414,27 +447,32 @@ func getBalances(postings []interpreter.Posting, initialBalances interpreter.Bal
 	// Seed from the initial balances. CLONE each amount (Set, not pointer copy)
 	// so the Sub/Add below never mutate the caller's *big.Int values.
 	for _, row := range initialBalances {
-		dst := getOrCreate(row.Account, row.Asset, row.Color)
+		dst := getOrCreate(row.Account, row.Asset, row.Scope, row.Color)
 		if row.Amount != nil {
 			dst.Set(row.Amount)
 		}
 	}
 
 	for _, posting := range postings {
-		sourceBalance := getOrCreate(posting.Source, posting.Asset, posting.Color)
+		sourceBalance := getOrCreate(posting.Source, posting.Asset, posting.SourceScope, posting.Color)
 		sourceBalance.Sub(sourceBalance, posting.Amount)
 
-		destinationBalance := getOrCreate(posting.Destination, posting.Asset, posting.Color)
+		destinationBalance := getOrCreate(posting.Destination, posting.Asset, posting.DestinationScope, posting.Color)
 		destinationBalance.Add(destinationBalance, posting.Amount)
 	}
 
 	// Flatten back to []BalanceRow, sorted for deterministic output.
 	out := make(interpreter.Balances, 0)
-	accounts := make([]string, 0, len(balances))
+	accounts := make([]interpreter.AccountAddress, 0, len(balances))
 	for account := range balances {
 		accounts = append(accounts, account)
 	}
-	sort.Strings(accounts)
+	sort.Slice(accounts, func(i, j int) bool {
+		if accounts[i].Name != accounts[j].Name {
+			return accounts[i].Name < accounts[j].Name
+		}
+		return accounts[i].Scope < accounts[j].Scope
+	})
 	for _, account := range accounts {
 		entries := balances[account]
 		sort.Slice(entries, func(i, j int) bool {
@@ -445,8 +483,9 @@ func getBalances(postings []interpreter.Posting, initialBalances interpreter.Bal
 		})
 		for _, e := range entries {
 			out = append(out, interpreter.BalanceRow{
-				Account: account,
+				Account: account.Name,
 				Asset:   e.Asset,
+				Scope:   account.Scope,
 				Color:   e.Color,
 				Amount:  e.Amount,
 			})

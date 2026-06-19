@@ -59,7 +59,7 @@ type (
 	Balances         = interpreter.Balances
 	BalanceRow       = interpreter.BalanceRow
 
-	AccountMetadata = interpreter.AccountMetadata
+	AccountMetadataRow = interpreter.AccountMetadataRow
 
 	// The newly defined account metadata after the execution
 	AccountsMetadata = interpreter.AccountsMetadata
