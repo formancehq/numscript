@@ -55,21 +55,21 @@ func NewNumberVar() Var[ExprTypeNumber] {
 }
 
 func (v VarsEnv) FillAccount(var_ *Var[ExprTypeAccount], account string) (string, string) {
-	name, _ := v.bindings[anyVar(var_)]
+	name := v.bindings[anyVar(var_)]
 	return name, account
 }
 
 func (v VarsEnv) FillAsset(var_ *Var[ExprTypeAsset], asset string) (string, string) {
-	name, _ := v.bindings[anyVar(var_)]
+	name := v.bindings[anyVar(var_)]
 	return name, asset
 }
 
 func (v VarsEnv) FillString(var_ *Var[ExprTypeString], str string) (string, string) {
-	name, _ := v.bindings[anyVar(var_)]
+	name := v.bindings[anyVar(var_)]
 	return name, str
 }
 
 func (v VarsEnv) FillNumber(var_ *Var[ExprTypeNumber], bi *big.Int) (string, string) {
-	name, _ := v.bindings[anyVar(var_)]
+	name := v.bindings[anyVar(var_)]
 	return name, bi.String()
 }

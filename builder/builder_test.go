@@ -211,6 +211,9 @@ func TestWithExternVar(t *testing.T) {
 	// 2: (varsEnv) The env of the NAMES of each variable that is referenced within the script.
 	// You'll reference them by ptr address. The "Fill*()" methods are typed, and return you the name of the var,
 	// and the "stringified" value of the var content (in the case of account/asset/string, the string itself)
+	// Behaviour of Fill*() of vars that are never referenced in the script (thus, whose name is never allocated) is undefined
+	// (it may panic in the future)
+	//
 	// user code would likely be something like:
 	//
 	// varsCp := maps.Clone(vars)
