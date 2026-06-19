@@ -1,0 +1,8 @@
+vars {
+  monetary $m = meta(scoped(@acc, "myscope"), "amt")
+}
+
+send $m (
+  source = @world
+  destination = @dest
+)
