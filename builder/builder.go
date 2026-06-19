@@ -31,6 +31,7 @@ type env struct {
 	assetsPool   pool[string]
 	stringsPool  pool[string]
 	numbersPool  pool[*big.Int]
+	varsEnv      VarsEnv
 }
 
 func writeIndentation(env *env, w int) {
@@ -50,6 +51,7 @@ func newEnv() env {
 		assetsPool:   newPool[string](),
 		stringsPool:  newPool[string](),
 		numbersPool:  newPool[*big.Int](),
+		varsEnv:      VarsEnv{bindings: map[anyVar]string{}},
 	}
 }
 
@@ -110,8 +112,7 @@ func renderVar[T comparable](
 
 }
 
-func stringId(x string) string          { return x }
-func bigIntToString(bi *big.Int) string { return bi.String() }
+func stringId(x string) string { return x }
 
 func renderVars(
 	st *varRenderState,
@@ -135,7 +136,7 @@ func renderVars(
 }
 
 // TODO double check this one (do we need to handle vars?)
-func BuildProgram(statements ...Statement) (any, string) {
+func BuildProgram(statements ...Statement) (map[string]string, VarsEnv, string) {
 	env := newEnv()
 	for _, stmt := range statements {
 		stmt(&env, 0)
@@ -147,5 +148,5 @@ func BuildProgram(statements ...Statement) (any, string) {
 	// AFTER we've rendered the whole program, we can render the vars block
 	vars := renderVars(&st, &env)
 
-	return st.knownBindings, vars + env.builder.String()
+	return st.knownBindings, env.varsEnv, vars + env.builder.String()
 }

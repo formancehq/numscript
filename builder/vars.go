@@ -3,9 +3,17 @@ package builder
 import "math/big"
 
 type var_[T ExprType] struct {
-	name  string
-	set   bool
 	alloc func(env *env) string
+}
+
+type anyVar interface {
+	anyVar()
+}
+
+func (*Var[T]) anyVar() {}
+
+type VarsEnv struct {
+	bindings map[anyVar]string
 }
 
 type Var[T ExprType] var_[ExprType]
@@ -46,18 +54,22 @@ func NewNumberVar() Var[ExprTypeNumber] {
 	}
 }
 
-func (v Var[ExprTypeAccount]) FillAccount(account string) (string, string) {
-	return v.name, account
+func (v VarsEnv) FillAccount(var_ *Var[ExprTypeAccount], account string) (string, string) {
+	name, _ := v.bindings[anyVar(var_)]
+	return name, account
 }
 
-func (v Var[ExprTypeAsset]) FillAsset(asset string) (string, string) {
-	return v.name, asset
+func (v VarsEnv) FillAsset(var_ *Var[ExprTypeAsset], asset string) (string, string) {
+	name, _ := v.bindings[anyVar(var_)]
+	return name, asset
 }
 
-func (v Var[ExprTypeString]) FillString(str string) (string, string) {
-	return v.name, str
+func (v VarsEnv) FillString(var_ *Var[ExprTypeString], str string) (string, string) {
+	name, _ := v.bindings[anyVar(var_)]
+	return name, str
 }
 
-func (v Var[ExprTypeNumber]) FillNumber(bi *big.Int) (string, string) {
-	return v.name, bi.String()
+func (v VarsEnv) FillNumber(var_ *Var[ExprTypeNumber], bi *big.Int) (string, string) {
+	name, _ := v.bindings[anyVar(var_)]
+	return name, bi.String()
 }

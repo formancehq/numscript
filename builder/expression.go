@@ -6,12 +6,13 @@ type Expression[T ExprType] render
 
 func ExprVar[T ExprType](v *Var[T]) Expression[T] {
 	return func(env *env, w int) {
-		if !v.set {
-			v.name = v.alloc(env)
-			v.set = true
+		varName, hasPreviousLookup := env.varsEnv.bindings[v]
+		if !hasPreviousLookup {
+			varName = v.alloc(env)
+			env.varsEnv.bindings[v] = varName
 		}
 		env.builder.WriteByte('$')
-		env.builder.WriteString(v.name)
+		env.builder.WriteString(varName)
 	}
 }
 

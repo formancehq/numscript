@@ -23,7 +23,7 @@ func TestSimpleSend(t *testing.T) {
 		),
 	)
 
-	_, script := builder.BuildProgram(stmt)
+	_, _, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
@@ -55,7 +55,7 @@ func TestInorder(t *testing.T) {
 		),
 	)
 
-	vars, script := builder.BuildProgram(stmt)
+	vars, _, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
@@ -109,7 +109,7 @@ func TestInorderNested(t *testing.T) {
 		),
 	)
 
-	_, script := builder.BuildProgram(stmt)
+	_, _, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
@@ -154,7 +154,7 @@ func TestInorderWithColors(t *testing.T) {
 		),
 	)
 
-	_, script := builder.BuildProgram(stmt)
+	_, _, script := builder.BuildProgram(stmt)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   account $account_0
   account $account_1
@@ -189,13 +189,13 @@ func TestWithExternVar(t *testing.T) {
 		),
 	)
 
-	vars, script := builder.BuildProgram(stmt)
+	vars, varsEnv, script := builder.BuildProgram(stmt)
 
-	k, v := accVar.FillAccount("my_src")
+	k, v := varsEnv.FillAccount(&accVar, "my_src")
 	require.Equal(t, "account_0", k)
 	require.Equal(t, "my_src", v)
 
-	k, v = amtVar.FillNumber(big.NewInt(42))
+	k, v = varsEnv.FillNumber(&amtVar, big.NewInt(42))
 	require.Equal(t, "number_0", k)
 	require.Equal(t, "42", v)
 
