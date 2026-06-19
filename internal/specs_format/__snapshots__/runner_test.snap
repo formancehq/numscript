@@ -179,3 +179,19 @@ Error: example.num.specs.json
 [0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
 
 ---
+
+[TestDuplicateMetaInTestCaseErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mmetadata must not contain duplicate entries: duplicate entry for account="acc" key="k"
+
+---
+
+[TestDuplicateMetaInOuterErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mmetadata must not contain duplicate entries: duplicate entry for account="acc" key="k"
+
+---

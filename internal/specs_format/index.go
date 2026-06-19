@@ -296,9 +296,15 @@ func validateSpecs(specs Specs) error {
 	if dup, ok := specs.Balances.FirstDuplicate(); ok {
 		return duplicateBalanceErr(dup)
 	}
+	if dup, ok := specs.Meta.FirstDuplicate(); ok {
+		return duplicateAccountMetaErr(dup)
+	}
 	for _, testCase := range specs.TestCases {
 		if dup, ok := testCase.Balances.FirstDuplicate(); ok {
 			return duplicateBalanceErr(dup)
+		}
+		if dup, ok := testCase.Meta.FirstDuplicate(); ok {
+			return duplicateAccountMetaErr(dup)
 		}
 	}
 	return nil
@@ -313,6 +319,14 @@ func duplicateBalanceErr(dup interpreter.BalanceRow) error {
 		key += fmt.Sprintf(" scope=%q", dup.Scope)
 	}
 	return fmt.Errorf("balances must not contain duplicate entries: duplicate entry for %s", key)
+}
+
+func duplicateAccountMetaErr(dup interpreter.AccountMetadataRow) error {
+	key := fmt.Sprintf("account=%q key=%q", dup.Account, dup.Key)
+	if dup.Scope != "" {
+		key += fmt.Sprintf(" scope=%q", dup.Scope)
+	}
+	return fmt.Errorf("metadata must not contain duplicate entries: duplicate entry for %s", key)
 }
 
 // Merge two balance inputs, deduping by (account, asset, color).

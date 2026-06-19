@@ -18,6 +18,22 @@ type AccountMetadataRow struct {
 // converts to this at the boundaries (store queries, execution result).
 type AccountsMetadata []AccountMetadataRow
 
+// FirstDuplicate returns the first row whose (account, key, scope) key already
+// appeared earlier in the list, if any. That triple is the identity of a
+// metadata entry and the value is its content, so a repeated key is an
+// ambiguous, malformed input.
+func (rows AccountsMetadata) FirstDuplicate() (AccountMetadataRow, bool) {
+	seen := make(map[[3]string]struct{}, len(rows))
+	for _, row := range rows {
+		key := [3]string{row.Account, row.Key, row.Scope}
+		if _, ok := seen[key]; ok {
+			return row, true
+		}
+		seen[key] = struct{}{}
+	}
+	return AccountMetadataRow{}, false
+}
+
 func (m AccountsMetadata) PrettyPrint() string {
 	// the Scope column is shown only when at least one entry has a scope
 	hasScope := slices.ContainsFunc(m, func(row AccountMetadataRow) bool {
