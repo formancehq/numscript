@@ -5,7 +5,9 @@ import (
 	"math/big"
 )
 
-// recordingStore wraps a Store and records all balance and metadata reads.
+// recordingStore wraps a Store and records all balance and metadata reads,
+// preserving the order in which the underlying store returned them.
+//
 // It is used by ResolveDependencies to discover which data a script depends on.
 type recordingStore struct {
 	inner         Store
@@ -27,13 +29,20 @@ func (r *recordingStore) GetBalances(ctx context.Context, query BalanceQuery) (B
 		return nil, err
 	}
 
-	for account, assets := range result {
-		if _, ok := r.balanceReads[account]; !ok {
-			r.balanceReads[account] = AccountBalance{}
+	for _, row := range result {
+		if r.balanceReads.hasRow(row.Account, row.Asset, row.Color) {
+			continue
 		}
-		for asset, balance := range assets {
-			r.balanceReads[account][asset] = new(big.Int).Set(balance)
+		amount := new(big.Int)
+		if row.Amount != nil {
+			amount.Set(row.Amount)
 		}
+		r.balanceReads = append(r.balanceReads, BalanceRow{
+			Account: row.Account,
+			Asset:   row.Asset,
+			Color:   row.Color,
+			Amount:  amount,
+		})
 	}
 
 	return result, nil
@@ -55,4 +64,13 @@ func (r *recordingStore) GetAccountsMetadata(ctx context.Context, query Metadata
 	}
 
 	return result, nil
+}
+
+func (rows Balances) hasRow(account, asset, color string) bool {
+	for i := range rows {
+		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color {
+			return true
+		}
+	}
+	return false
 }

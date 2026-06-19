@@ -112,17 +112,19 @@ func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.Involved
 }
 
 type (
-	ResolvedDependencies        = interpreter.ResolvedDependencies
-	ResolveDependenciesOptions  = interpreter.ResolveDependenciesOptions
-	ForbiddenFeatureErr         = interpreter.ForbiddenFeature
+	ResolvedDependencies       = interpreter.ResolvedDependencies
+	ResolvedReads              = interpreter.ResolvedReads
+	ResolvedWrites             = interpreter.ResolvedWrites
+	ResolveDependenciesOptions = interpreter.ResolveDependenciesOptions
 )
 
-// ResolveDependencies discovers which balances and metadata a script reads
-// by resolving all dependencies against the provided store. Returns the
-// concrete (account, asset) → balance and (account, key) → value pairs.
+// ResolveDependencies executes the script in dry-run mode and returns the
+// (account, asset) → balance and (account, key) → value pairs that were read
+// from the store, together with the (account, asset) pairs touched by the
+// resulting postings.
 //
-// The caller can use this to preload volumes and compute an input hash
-// for optimistic concurrency control.
+// Store calls are issued in a deterministic order across runs with identical
+// inputs, so the caller can hash them to detect input drift.
 func (p ParseResult) ResolveDependencies(
 	ctx context.Context,
 	vars VariablesMap,
