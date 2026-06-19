@@ -127,7 +127,7 @@ var Builtins = map[string]FnCallResolution{
 		VersionConstraints: []VersionClause{
 			{
 				Version:     parser.NewVersionInterpreter(0, 0, 25),
-				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+				FeatureFlag: flags.ExperimentalScopedFunction,
 			},
 		},
 	},
