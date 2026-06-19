@@ -19,11 +19,25 @@ type AccountMetadataRow struct {
 type AccountsMetadata []AccountMetadataRow
 
 func (m AccountsMetadata) PrettyPrint() string {
-	header := []string{"Account", "Name", "Value"}
+	// the Scope column is shown only when at least one entry has a scope
+	hasScope := slices.ContainsFunc(m, func(row AccountMetadataRow) bool {
+		return row.Scope != ""
+	})
+
+	var header []string
+	if hasScope {
+		header = []string{"Account", "Scope", "Name", "Value"}
+	} else {
+		header = []string{"Account", "Name", "Value"}
+	}
 
 	var rows [][]string
 	for _, row := range m {
-		rows = append(rows, []string{row.Account, row.Key, row.Value})
+		if hasScope {
+			rows = append(rows, []string{row.Account, row.Scope, row.Key, row.Value})
+		} else {
+			rows = append(rows, []string{row.Account, row.Key, row.Value})
+		}
 	}
 
 	return utils.CsvPretty(header, rows, true)
