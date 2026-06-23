@@ -149,3 +149,54 @@ func BuildProgram(statements ...Statement) (map[string]string, VarsEnv, string) 
 
 	return st.knownBindings, env.varsEnv, vars + env.builder.String()
 }
+
+// Check feature flag has only lower chars and "-" chars.
+// Less declarative than a regex, but this way we don't need a more complex api user-wise
+// just for the sake of perfs (this should be good enough)
+func checkIsFlagValid(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if !(ch >= 'a' && ch <= 'z') && ch != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// Same as `BuildProgram`, but accepts features flag.
+//
+// IMPORTANT NOTE: this function will panic if a feature flag doesn't match `^[a-z-]+$`. Flags are meant to be passed directly, and a sintactically
+// incorrect flag is treated as an argument error panic right away, not returned as an "error".
+// Also note we don't keep the list of valid flags here
+func BuildProgramWithFeatureFlags(
+	featureFlags []string,
+	statements ...Statement,
+) (map[string]string, VarsEnv, string) {
+	knownBindings, varsEnv, script := BuildProgram(statements...)
+
+	var flagsArgs strings.Builder
+	for index, flag := range featureFlags {
+		if !checkIsFlagValid(flag) {
+			// Yes, we are panicking instead of returning an error here.
+			// That's desidered: flags are meant to be passed manually. Not computed, created conditionally, etc.
+			// If a feature flag is wrong we want to crash the thing immediately instead of having the user handle that, log that, or whatever.
+			panic(fmt.Sprintf("Invalid argument: the `%s` feature flag is invalid. Only flags matching `^[a-z-]+$` are accepted.", flag))
+		}
+
+		if index != 0 {
+			flagsArgs.WriteString(", ")
+		}
+
+		flagsArgs.WriteByte('"')
+		flagsArgs.WriteString(flag)
+		flagsArgs.WriteByte('"')
+
+	}
+
+	updatedScript := fmt.Sprintf("#![feature(%s)]\n%s", flagsArgs.String(), script)
+	return knownBindings, varsEnv, updatedScript
+}
