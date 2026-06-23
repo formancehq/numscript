@@ -36,6 +36,30 @@ send [$asset_0 42] (
 )`))
 }
 
+func TestSendAll(t *testing.T) {
+	stmt := builder.StmtSendAll(
+		builder.ExprAsset("COIN"),
+		builder.SrcAccount(
+			builder.ExprAccount("src"),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 *] (
+  source = $account_0
+  destination = $account_1
+)`))
+}
+
 func TestSrcAllowingBoundedOverdraft(t *testing.T) {
 	stmt := builder.StmtSend(
 		builder.ExprMonetary(
