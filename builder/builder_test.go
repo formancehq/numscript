@@ -36,6 +36,70 @@ send [$asset_0 42] (
 )`))
 }
 
+func TestSrcAllowingBoundedOverdraft(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(100)),
+		),
+		builder.SrcAccountOverdraft(
+			builder.ExprAccount("tmp:acc"),
+			builder.BoundedOverdraft(
+				builder.ExprMonetary(
+					builder.ExprAsset("USD/2"),
+					builder.ExprNumberBigInt(big.NewInt(100)),
+				),
+			),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 100] (
+  source = $account_0 allowing overdraft up to [$asset_0 100]
+  destination = $account_1
+)`),
+	)
+}
+
+func TestColoredAllowingUnboundedOverdraft(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(100)),
+		),
+		builder.SrcColoredOverdraft(
+			builder.ExprAccount("tmp:acc"),
+			builder.ExprString("ABCDEF"),
+			builder.UnboundedOverdraft(),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  string $string_0
+  asset $asset_0
+}
+
+send [$asset_0 100] (
+  source = $account_0 \ $string_0 allowing unbounded overdraft
+  destination = $account_1
+)`))
+}
+
 func TestInorder(t *testing.T) {
 	stmt := builder.StmtSend(
 		builder.ExprMonetary(
@@ -96,8 +160,9 @@ func TestInorderNested(t *testing.T) {
 				builder.SrcAccount(
 					builder.ExprAccount("src_nested1"),
 				),
-				builder.SrcAccount(
+				builder.SrcAccountOverdraft(
 					builder.ExprAccount("src_nested2"),
+					builder.UnboundedOverdraft(),
 				),
 			),
 			builder.SrcAccount(
@@ -126,7 +191,7 @@ send [$asset_0 42] (
     $account_1
     {
       $account_2
-      $account_3
+      $account_3 allowing unbounded overdraft
     }
     $account_4
   }

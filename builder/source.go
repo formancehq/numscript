@@ -2,8 +2,33 @@ package builder
 
 type Source render
 
+type Overdraft render
+
+func UnboundedOverdraft() Overdraft {
+	return func(env *env, w int) {
+		env.builder.WriteString(" allowing unbounded overdraft")
+	}
+}
+
+func BoundedOverdraft(amt Expression[ExprTypeMonetary]) Overdraft {
+	return func(env *env, w int) {
+		env.builder.WriteString(" allowing overdraft up to ")
+		amt(env, w)
+	}
+}
+
 func SrcAccount(expr Expression[ExprTypeAccount]) Source {
 	return Source(expr)
+}
+
+func SrcAccountOverdraft(
+	expr Expression[ExprTypeAccount],
+	overdraft Overdraft,
+) Source {
+	return func(env *env, w int) {
+		SrcAccount(expr)(env, w)
+		overdraft(env, w)
+	}
 }
 
 func SrcColored(
@@ -17,16 +42,14 @@ func SrcColored(
 	}
 }
 
-// SrcAllowingUnboundedOverdraft wraps a source (typically SrcAccount or
-// SrcColored) and appends the `allowing unbounded overdraft` clause, per the
-// Numscript grammar rule `srcAccountUnboundedOverdraft`
-// (address colorConstraint? ALLOWING UNBOUNDED OVERDRAFT). It lets a non-world
-// source go negative — required, for instance, when minting a colour the
-// account does not yet hold.
-func SrcAllowingUnboundedOverdraft(source Source) Source {
+func SrcColoredOverdraft(
+	accountExpr Expression[ExprTypeAccount],
+	colorExpr Expression[ExprTypeString],
+	overdraft Overdraft,
+) Source {
 	return func(env *env, w int) {
-		source(env, w)
-		env.builder.WriteString(" allowing unbounded overdraft")
+		SrcColored(accountExpr, colorExpr)(env, w)
+		overdraft(env, w)
 	}
 }
 
