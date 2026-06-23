@@ -135,7 +135,6 @@ func renderVars(
 	return st.sb.String()
 }
 
-// TODO double check this one (do we need to handle vars?)
 func BuildProgram(statements ...Statement) (map[string]string, VarsEnv, string) {
 	env := newEnv()
 	for _, stmt := range statements {
