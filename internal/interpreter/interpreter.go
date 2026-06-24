@@ -1156,28 +1156,46 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
-	// the Color column is shown only when at least one posting has a color
+	// each optional column is shown only when at least one posting populates it
+	hasSourceScope := slices.ContainsFunc(postings, func(posting Posting) bool {
+		return posting.SourceScope != ""
+	})
+	hasDestinationScope := slices.ContainsFunc(postings, func(posting Posting) bool {
+		return posting.DestinationScope != ""
+	})
 	hasColor := slices.ContainsFunc(postings, func(posting Posting) bool {
 		return posting.Color != ""
 	})
 
-	var header []string
-	if hasColor {
-		header = []string{"Source", "Destination", "Asset", "Color", "Amount"}
-	} else {
-		header = []string{"Source", "Destination", "Asset", "Amount"}
+	header := []string{"Source"}
+	if hasSourceScope {
+		header = append(header, "Source Scope")
 	}
+	header = append(header, "Destination")
+	if hasDestinationScope {
+		header = append(header, "Destination Scope")
+	}
+	header = append(header, "Asset")
+	if hasColor {
+		header = append(header, "Color")
+	}
+	header = append(header, "Amount")
 
 	var rows [][]string
 	for _, posting := range postings {
-		source := AccountAddress{Name: posting.Source, Scope: posting.SourceScope}.String()
-		destination := AccountAddress{Name: posting.Destination, Scope: posting.DestinationScope}.String()
-		var row []string
-		if hasColor {
-			row = []string{source, destination, posting.Asset, posting.Color, posting.Amount.String()}
-		} else {
-			row = []string{source, destination, posting.Asset, posting.Amount.String()}
+		row := []string{posting.Source}
+		if hasSourceScope {
+			row = append(row, posting.SourceScope)
 		}
+		row = append(row, posting.Destination)
+		if hasDestinationScope {
+			row = append(row, posting.DestinationScope)
+		}
+		row = append(row, posting.Asset)
+		if hasColor {
+			row = append(row, posting.Color)
+		}
+		row = append(row, posting.Amount.String())
 		rows = append(rows, row)
 	}
 	return utils.CsvPretty(header, rows, false)
