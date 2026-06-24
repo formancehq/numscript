@@ -24,6 +24,16 @@
           "amount": 10,
           "asset": "USD"
         }
+      ],
+      "expect.movements": [
+        {
+          "source": "src",
+          "sourceScope": "x",
+          "destination": "dest",
+          "destinationScope": "y",
+          "amount": 10,
+          "asset": "USD"
+        }
       ]
     }
   ]

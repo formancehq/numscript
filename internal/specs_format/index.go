@@ -359,25 +359,27 @@ type AssertionMismatch[T any] struct {
 }
 
 type Movement struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Asset       string   `json:"asset"`
-	Amount      *big.Int `json:"amount"`
-	Color       string   `json:"color,omitempty"`
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Asset            string   `json:"asset"`
+	Amount           *big.Int `json:"amount"`
+	Color            string   `json:"color,omitempty"`
 }
 
 type Movements = []Movement
 
 // Compare movements as a set: order does not matter.
-// Each (source, destination, asset, color) tuple is unique within a Movements
-// list, so we match on that tuple and compare amounts.
+// Each (source, sourceScope, destination, destinationScope, asset, color) tuple
+// is unique within a Movements list, so we match on that tuple and compare amounts.
 func compareMovements(expected Movements, got Movements) bool {
 	if len(expected) != len(got) {
 		return false
 	}
 
 	key := func(m Movement) string {
-		return m.Source + "\x00" + m.Destination + "\x00" + m.Asset + "\x00" + m.Color
+		return m.Source + "\x00" + m.SourceScope + "\x00" + m.Destination + "\x00" + m.DestinationScope + "\x00" + m.Asset + "\x00" + m.Color
 	}
 
 	byKey := make(map[string]*big.Int, len(got))
@@ -398,14 +400,13 @@ func getMovements(postings []interpreter.Posting) Movements {
 	movements := Movements{}
 
 	for _, posting := range postings {
-		source := joinScope(posting.Source, posting.SourceScope)
-		destination := joinScope(posting.Destination, posting.DestinationScope)
-
 		found := false
 		for i := range movements {
 			m := &movements[i]
-			if m.Source == source &&
-				m.Destination == destination &&
+			if m.Source == posting.Source &&
+				m.SourceScope == posting.SourceScope &&
+				m.Destination == posting.Destination &&
+				m.DestinationScope == posting.DestinationScope &&
 				m.Asset == posting.Asset &&
 				m.Color == posting.Color {
 				m.Amount = new(big.Int).Add(m.Amount, posting.Amount)
@@ -416,25 +417,18 @@ func getMovements(postings []interpreter.Posting) Movements {
 
 		if !found {
 			movements = append(movements, Movement{
-				Source:      source,
-				Destination: destination,
-				Asset:       posting.Asset,
-				Color:       posting.Color,
-				Amount:      new(big.Int).Set(posting.Amount),
+				Source:           posting.Source,
+				SourceScope:      posting.SourceScope,
+				Destination:      posting.Destination,
+				DestinationScope: posting.DestinationScope,
+				Asset:            posting.Asset,
+				Color:            posting.Color,
+				Amount:           new(big.Int).Set(posting.Amount),
 			})
 		}
 	}
 
 	return movements
-}
-
-// joinScope re-encodes a separate (account, scope) pair into the scope-encoded
-// "account/scope" address. An empty scope yields the bare account.
-func joinScope(account, scope string) string {
-	if scope == "" {
-		return account
-	}
-	return account + "/" + scope
 }
 
 func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {

@@ -198,7 +198,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 
 const accountSegmentRegex = "[a-zA-Z0-9_-]+"
 
-var accountNameRegex = regexp.MustCompile("^@?" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*(?:/[a-z_]+)?$")
+var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
 
 // https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
 func checkAccountName(addr string) bool {

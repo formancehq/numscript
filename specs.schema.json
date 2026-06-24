@@ -162,7 +162,7 @@
 
     "Movements": {
       "type": "array",
-      "description": "List of funds sent from an account to another. The (source, destination, asset, color) tuple of each entry must be unique within the list.",
+      "description": "List of funds sent from an account to another. The (source, sourceScope, destination, destinationScope, asset, color) tuple of each entry must be unique within the list.",
       "items": { "$ref": "#/definitions/Movement" }
     },
 
@@ -174,11 +174,19 @@
       "properties": {
         "source": {
           "type": "string",
-          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)(/[a-z0-9_]+)?$"
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "sourceScope": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$"
         },
         "destination": {
           "type": "string",
-          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)(/[a-z0-9_]+)?$"
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "destinationScope": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$"
         },
         "asset": {
           "type": "string",
