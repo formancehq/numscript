@@ -3,7 +3,6 @@ package numscript
 import (
 	"context"
 
-	"github.com/formancehq/numscript/accounts"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -105,8 +104,4 @@ func (p ParseResult) RunWithFeatureFlags(
 
 func (p ParseResult) GetSource() string {
 	return p.parseResult.Source
-}
-
-func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.InvolvedAccount, []accounts.InvolvedMeta, InterpreterError) {
-	return interpreter.GetInvolvedAccounts(vars, p.parseResult.Value)
 }
