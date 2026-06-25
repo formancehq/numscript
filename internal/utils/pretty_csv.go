@@ -85,6 +85,12 @@ func CsvPrettyOmitEmptyCols(
 	rows [][]string,
 	sortRows bool,
 ) string {
+	// with no rows there's nothing to judge column emptiness from, so keep every
+	// column and still render the header
+	if len(rows) == 0 {
+		return CsvPretty(header, rows, sortRows)
+	}
+
 	keep := make([]bool, len(header))
 	for col := range header {
 		for _, row := range rows {

@@ -24,3 +24,7 @@
 | alice   | eu    | EUR/2 | 1       |
 | bob     |       | BTC   | 3       |
 ---
+
+[TestPrettyCsvOmitEmptyCols/with_no_rows,_still_shows_every_header - 1]
+| [36mAccount[0m | [36mScope[0m | [36mAsset[0m | [36mColor[0m | [36mBalance[0m |
+---

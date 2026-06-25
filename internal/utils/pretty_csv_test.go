@@ -31,6 +31,14 @@ func TestPrettyCsvOmitEmptyCols(t *testing.T) {
 		snaps.MatchSnapshot(t, out)
 	})
 
+	t.Run("with no rows, still shows every header", func(t *testing.T) {
+		out := utils.CsvPrettyOmitEmptyCols([]string{
+			"Account", "Scope", "Asset", "Color", "Balance",
+		}, [][]string{}, false)
+
+		snaps.MatchSnapshot(t, out)
+	})
+
 	t.Run("keeps a column when at least one cell is non-empty", func(t *testing.T) {
 		out := utils.CsvPrettyOmitEmptyCols([]string{
 			"Account", "Scope", "Asset", "Color", "Balance",
