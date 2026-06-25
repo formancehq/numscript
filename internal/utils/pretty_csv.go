@@ -74,6 +74,48 @@ func CsvPretty(
 	return strings.Join(allRows, "\n")
 }
 
+// CsvPrettyOmitEmptyCols renders the table like CsvPretty, but omits any column
+// whose data cells are all empty (its header is dropped along with it). This lets
+// callers always pass the full set of columns and have the optional ones (e.g. a
+// color or scope dimension that no row populates) disappear automatically.
+//
+// Fails if the header is shorter than any of the rows.
+func CsvPrettyOmitEmptyCols(
+	header []string,
+	rows [][]string,
+	sortRows bool,
+) string {
+	keep := make([]bool, len(header))
+	for col := range header {
+		for _, row := range rows {
+			if row[col] != "" {
+				keep[col] = true
+				break
+			}
+		}
+	}
+
+	filteredHeader := make([]string, 0, len(header))
+	for col, name := range header {
+		if keep[col] {
+			filteredHeader = append(filteredHeader, name)
+		}
+	}
+
+	filteredRows := make([][]string, len(rows))
+	for i, row := range rows {
+		filtered := make([]string, 0, len(filteredHeader))
+		for col := range header {
+			if keep[col] {
+				filtered = append(filtered, row[col])
+			}
+		}
+		filteredRows[i] = filtered
+	}
+
+	return CsvPretty(filteredHeader, filteredRows, sortRows)
+}
+
 func CsvPrettyMap(keyName string, valueName string, m map[string]string) string {
 	var rows [][]string
 	for k, v := range m {

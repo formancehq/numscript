@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"math/big"
-	"slices"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -33,17 +32,9 @@ func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
 }
 
 func (rows Balances) PrettyPrint() string {
-	// the Color column is shown only when at least one entry has a color
-	hasColor := slices.ContainsFunc(rows, func(row BalanceRow) bool {
-		return row.Color != ""
-	})
-
-	var header []string
-	if hasColor {
-		header = []string{"Account", "Asset", "Color", "Balance"}
-	} else {
-		header = []string{"Account", "Asset", "Balance"}
-	}
+	// the optional columns (scope, color) are dropped automatically when no entry
+	// populates them
+	header := []string{"Account", "Scope", "Asset", "Color", "Balance"}
 
 	var tableRows [][]string
 	for _, row := range rows {
@@ -51,13 +42,9 @@ func (rows Balances) PrettyPrint() string {
 		if row.Amount != nil {
 			amount = row.Amount.String()
 		}
-		if hasColor {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, row.Color, amount})
-		} else {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, amount})
-		}
+		tableRows = append(tableRows, []string{row.Account, row.Scope, row.Asset, row.Color, amount})
 	}
-	return utils.CsvPretty(header, tableRows, true)
+	return utils.CsvPrettyOmitEmptyCols(header, tableRows, true)
 }
 
 // findRow returns the amount for a given (account, asset, color, scope), if present.

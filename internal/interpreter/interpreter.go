@@ -1156,49 +1156,23 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
-	// each optional column is shown only when at least one posting populates it
-	hasSourceScope := slices.ContainsFunc(postings, func(posting Posting) bool {
-		return posting.SourceScope != ""
-	})
-	hasDestinationScope := slices.ContainsFunc(postings, func(posting Posting) bool {
-		return posting.DestinationScope != ""
-	})
-	hasColor := slices.ContainsFunc(postings, func(posting Posting) bool {
-		return posting.Color != ""
-	})
-
-	header := []string{"Source"}
-	if hasSourceScope {
-		header = append(header, "Source Scope")
-	}
-	header = append(header, "Destination")
-	if hasDestinationScope {
-		header = append(header, "Destination Scope")
-	}
-	header = append(header, "Asset")
-	if hasColor {
-		header = append(header, "Color")
-	}
-	header = append(header, "Amount")
+	// the optional columns (scopes, color) are dropped automatically when no
+	// posting populates them
+	header := []string{"Source", "Source Scope", "Destination", "Destination Scope", "Asset", "Color", "Amount"}
 
 	var rows [][]string
 	for _, posting := range postings {
-		row := []string{posting.Source}
-		if hasSourceScope {
-			row = append(row, posting.SourceScope)
-		}
-		row = append(row, posting.Destination)
-		if hasDestinationScope {
-			row = append(row, posting.DestinationScope)
-		}
-		row = append(row, posting.Asset)
-		if hasColor {
-			row = append(row, posting.Color)
-		}
-		row = append(row, posting.Amount.String())
-		rows = append(rows, row)
+		rows = append(rows, []string{
+			posting.Source,
+			posting.SourceScope,
+			posting.Destination,
+			posting.DestinationScope,
+			posting.Asset,
+			posting.Color,
+			posting.Amount.String(),
+		})
 	}
-	return utils.CsvPretty(header, rows, false)
+	return utils.CsvPrettyOmitEmptyCols(header, rows, false)
 }
 
 func PrettyPrintMeta(meta Metadata) string {

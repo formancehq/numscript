@@ -35,28 +35,15 @@ func (rows AccountsMetadata) FirstDuplicate() (AccountMetadataRow, bool) {
 }
 
 func (m AccountsMetadata) PrettyPrint() string {
-	// the Scope column is shown only when at least one entry has a scope
-	hasScope := slices.ContainsFunc(m, func(row AccountMetadataRow) bool {
-		return row.Scope != ""
-	})
-
-	var header []string
-	if hasScope {
-		header = []string{"Account", "Scope", "Name", "Value"}
-	} else {
-		header = []string{"Account", "Name", "Value"}
-	}
+	// the Scope column is dropped automatically when no entry has a scope
+	header := []string{"Account", "Scope", "Name", "Value"}
 
 	var rows [][]string
 	for _, row := range m {
-		if hasScope {
-			rows = append(rows, []string{row.Account, row.Scope, row.Key, row.Value})
-		} else {
-			rows = append(rows, []string{row.Account, row.Key, row.Value})
-		}
+		rows = append(rows, []string{row.Account, row.Scope, row.Key, row.Value})
 	}
 
-	return utils.CsvPretty(header, rows, true)
+	return utils.CsvPrettyOmitEmptyCols(header, rows, true)
 }
 
 // CompareAccountsMetadata reports whether two metadata lists hold the same set
