@@ -30,6 +30,19 @@ func TestCmpMaps(t *testing.T) {
 	require.Equal(t, false, CompareBalances(b1, b2))
 }
 
+func TestCompareBalancesMultiplicity(t *testing.T) {
+	x := BalanceRow{Account: "alice", Asset: "EUR", Amount: big.NewInt(1)}
+	y := BalanceRow{Account: "bob", Asset: "EUR", Amount: big.NewInt(1)}
+
+	// [x, x] must not equal [x, y] just because each x is "contained" in the other
+	require.False(t, CompareBalances(Balances{x, x}, Balances{x, y}))
+	require.False(t, CompareBalances(Balances{x, y}, Balances{x, x}))
+
+	// order-independent and multiplicity-exact equality still holds
+	require.True(t, CompareBalances(Balances{x, y}, Balances{y, x}))
+	require.True(t, CompareBalances(Balances{x, x}, Balances{x, x}))
+}
+
 func TestCmpMapsIncluding(t *testing.T) {
 	t.Run("including (subset)", func(t *testing.T) {
 		b2 := Balances{

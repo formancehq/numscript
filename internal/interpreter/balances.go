@@ -72,7 +72,29 @@ func CompareBalances(b1 Balances, b2 Balances) bool {
 	if len(b1) != len(b2) {
 		return false
 	}
-	return CompareBalancesIncluding(b1, b2)
+	// multiset comparison, respecting multiplicity: a duplicated row in b1 must be
+	// matched by the same number of occurrences in b2 (so [x, x] != [x, y]). A
+	// plain subset check would wrongly report equality there.
+	type rowKey struct{ account, asset, color, scope, amount string }
+	mk := func(r BalanceRow) rowKey {
+		amount := "0" // amountsEqual treats nil as zero
+		if r.Amount != nil {
+			amount = r.Amount.String()
+		}
+		return rowKey{r.Account, r.Asset, r.Color, r.Scope, amount}
+	}
+	counts := make(map[rowKey]int, len(b1))
+	for _, r := range b1 {
+		counts[mk(r)]++
+	}
+	for _, r := range b2 {
+		k := mk(r)
+		counts[k]--
+		if counts[k] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // Returns whether the first value is a subset of the second one.

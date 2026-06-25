@@ -378,18 +378,24 @@ func compareMovements(expected Movements, got Movements) bool {
 		return false
 	}
 
+	// multiset comparison, respecting multiplicity (so [x, x] != [x, y]): the
+	// amount is part of the key, so a row matches only an identical row.
 	key := func(m Movement) string {
-		return m.Source + "\x00" + m.SourceScope + "\x00" + m.Destination + "\x00" + m.DestinationScope + "\x00" + m.Asset + "\x00" + m.Color
+		amount := "0"
+		if m.Amount != nil {
+			amount = m.Amount.String()
+		}
+		return m.Source + "\x00" + m.SourceScope + "\x00" + m.Destination + "\x00" + m.DestinationScope + "\x00" + m.Asset + "\x00" + m.Color + "\x00" + amount
 	}
 
-	byKey := make(map[string]*big.Int, len(got))
-	for _, m := range got {
-		byKey[key(m)] = m.Amount
-	}
-
+	counts := make(map[string]int, len(expected))
 	for _, m := range expected {
-		amount, ok := byKey[key(m)]
-		if !ok || m.Amount.Cmp(amount) != 0 {
+		counts[key(m)]++
+	}
+	for _, m := range got {
+		k := key(m)
+		counts[k]--
+		if counts[k] < 0 {
 			return false
 		}
 	}
