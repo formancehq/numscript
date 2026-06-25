@@ -1,0 +1,8 @@
+vars {
+  monetary $b = balance(scoped(@treasury, "reserve"), EUR/2)
+}
+
+send $b (
+  source = @world
+  destination = @dest
+)
