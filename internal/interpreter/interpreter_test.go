@@ -276,6 +276,52 @@ func TestBadAssetInMeta(t *testing.T) {
 	test(t, tc)
 }
 
+// runScopedSend runs a scoped send once, with the scope passed in as a string
+// variable, and returns the (possibly nil) error.
+func runScopedSend(t *testing.T, scope string) interpreter.InterpreterError {
+	t.Helper()
+	parsed := parser.Parse(`
+		vars { string $scope }
+		send [COIN 1] (
+			source = scoped(@a, $scope) allowing unbounded overdraft
+			destination = @dest
+		)
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{"scope": scope},
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+	return err
+}
+
+func TestScopedRejectsInvalidScope(t *testing.T) {
+	// scopes must match ^[a-z0-9_]*$
+	invalid := []string{"UPPER", "Mixed", "with-dash", "with:colon", "with space", "with/slash", "with!bang", "with.dot"}
+	for _, scope := range invalid {
+		t.Run(scope, func(t *testing.T) {
+			require.Equal(t, interpreter.InvalidScope{Scope: scope}, runScopedSend(t, scope))
+		})
+	}
+}
+
+func TestScopedAcceptsValidScope(t *testing.T) {
+	// lowercase, digits, underscores — and the empty string (means "no scope")
+	valid := []string{"reserve", "x", "a1", "with_underscore", "123", ""}
+	for _, scope := range valid {
+		t.Run("scope="+scope, func(t *testing.T) {
+			require.Nil(t, runScopedSend(t, scope))
+		})
+	}
+}
+
 func TestInvalidAllotInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
