@@ -294,7 +294,13 @@ func ParsePercentageRatio(source string) (*big.Int, int, error) {
 func parsePercentageRatio(source string, range_ Range) *PercentageLiteral {
 	num, floatingDigits, err := ParsePercentageRatio(source)
 	if err != nil {
-		panic(err)
+		// This should be unreachable for tokens emitted by the lexer.
+		// Degrade gracefully to a zero-value literal instead of panicking,
+		// so that a malformed token cannot crash the process (e.g. the LSP server).
+		return &PercentageLiteral{
+			Range:  range_,
+			Amount: big.NewInt(0),
+		}
 	}
 
 	return &PercentageLiteral{
@@ -630,7 +636,10 @@ func parseNumberLiteral(numNode antlr.TerminalNode) *NumberLiteral {
 
 	amt, ok := new(big.Int).SetString(amtStr, 10)
 	if !ok {
-		panic("Invalid number: " + amtStr)
+		// This should be unreachable for tokens emitted by the lexer.
+		// Degrade gracefully to a zero-value literal instead of panicking,
+		// so that a malformed token cannot crash the process (e.g. the LSP server).
+		amt = big.NewInt(0)
 	}
 
 	return &NumberLiteral{
