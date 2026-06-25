@@ -210,25 +210,25 @@ func (s *TestInitStore) GetBalances(ctx context.Context, q interpreter.BalanceQu
 		return nil, err
 	}
 
-	type key struct{ account, asset, color string }
+	type key struct{ account, asset, color, scope string }
 
 	// StaticStore.GetBalances materializes a zero-amount row for every queried
-	// (account, asset, color), so its output can't tell a known account from an
-	// unknown one. Track what we've actually funded ourselves instead.
+	// (account, asset, color, scope), so its output can't tell a known account from
+	// an unknown one. Track what we've actually funded ourselves instead.
 	stored := make(map[key]struct{}, len(s.StaticStore.Balances))
 	for _, b := range s.StaticStore.Balances {
-		stored[key{b.Account, b.Asset, b.Color}] = struct{}{}
+		stored[key{b.Account, b.Asset, b.Color, b.Scope}] = struct{}{}
 	}
 
 	for i := range balances {
 		b := &balances[i]
-		k := key{b.Account, b.Asset, b.Color}
+		k := key{b.Account, b.Asset, b.Color, b.Scope}
 		if _, ok := stored[k]; ok {
 			continue
 		}
 
-		// Unknown (account, asset, color): fund it with the default balance, and
-		// remember it so later queries (and the generated specs file) see it.
+		// Unknown (account, asset, color, scope): fund it with the default balance,
+		// and remember it so later queries (and the generated specs file) see it.
 		amount := new(big.Int)
 		if s.DefaultBalance != nil {
 			amount.Set(s.DefaultBalance)
@@ -239,6 +239,7 @@ func (s *TestInitStore) GetBalances(ctx context.Context, q interpreter.BalanceQu
 			Account: b.Account,
 			Asset:   b.Asset,
 			Color:   b.Color,
+			Scope:   b.Scope,
 			Amount:  new(big.Int).Set(amount),
 		})
 		stored[k] = struct{}{}

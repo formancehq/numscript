@@ -23,6 +23,20 @@ func TestMakeSpecsFileRetryForMissingFunds(t *testing.T) {
 	}, out.Balances)
 }
 
+func TestMakeSpecsFileFundsScopedBalance(t *testing.T) {
+	out, err := cmd.MakeSpecsFile(`
+		send [USD/2 10000] (
+			 source = scoped(@alice, "reserve")
+			 destination = @bob
+		)
+ `)
+
+	require.Nil(t, err)
+	require.Equal(t, interpreter.Balances{
+		{Account: "alice", Asset: "USD/2", Scope: "reserve", Amount: big.NewInt(10000)},
+	}, out.Balances)
+}
+
 func TestUnusedVars(t *testing.T) {
 	out, err := cmd.MakeSpecsFile(`
 		vars { monetary $m }
