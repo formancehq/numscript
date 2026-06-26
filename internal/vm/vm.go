@@ -15,8 +15,7 @@ const nilReg byte = 0xFF
 const worldAccount = "world"
 
 type Vm struct {
-	program  Program
-	runstate runtime.RunState
+	program Program
 
 	stringsRegs    [256]string // asset,string,account
 	intsRegs       [256]big.Int
@@ -36,6 +35,7 @@ type Store interface {
 	GetBalance(
 		account string,
 		asset string,
+		color string,
 	) *big.Int
 }
 
@@ -44,6 +44,8 @@ func Exec[S Store](
 	vars any,
 	store S, // a generic S should allow monomorphisation of the Store
 ) ExecutionError {
+	runstate := runtime.New(store)
+
 	instrs := vm.program.instructions
 	instructionsLen := len(instrs)
 
@@ -83,7 +85,7 @@ func Exec[S Store](
 				color = vm.stringsRegs[instrExt.B]
 			}
 
-			vm.runstate.Pull(
+			runstate.Pull(
 				&vm.intsRegs[instr.A],
 				account,
 				cap,
@@ -108,9 +110,9 @@ func Exec[S Store](
 			}
 
 			if cap == nil {
-				vm.runstate.SendUncapped(dest, color)
+				runstate.SendUncapped(dest, color)
 			} else {
-				vm.runstate.Send(dest, cap, color)
+				runstate.Send(dest, cap, color)
 			}
 
 		case Op_MkAllotment:
