@@ -220,6 +220,44 @@ func (s *RunState) SendUncapped(dest *string, color *string) {
 	}
 }
 
+// ForcePosting records a direct movement of amount (of asset/color) from src to
+// dst, bypassing the funding queue: it debits src, credits dst, and appends the
+// posting. It is for movements the queue does not model — e.g. asset-scaling
+// conversions (interpreter.forcePushPostingUncolored). Unlike Send it uses the
+// explicit asset argument, which may differ from the current asset (a scaled
+// asset). A non-positive amount is a no-op. PRE: the caller has already checked
+// invariants (e.g. amount sign); no balance sufficiency check is performed.
+func (s *RunState) ForcePosting(src, dst, asset, color string, amount *big.Int) {
+	if amount.Sign() <= 0 {
+		return
+	}
+	s.addToBalance(src, asset, color, new(big.Int).Neg(amount))
+	s.addPosting(src, dst, asset, color, amount) // appends the posting and credits dst
+}
+
+// Save mirrors the numscript `save` statement: it protects funds from being
+// pulled later by reducing the (account, asset, color) balance, floored at zero.
+//
+//	amount != nil -> balance = max(0, balance - amount)   (PRE: amount >= 0)
+//	amount == nil -> "save all": a positive balance becomes 0; a negative
+//	                 balance is left unchanged (= min(balance, 0))
+func (s *RunState) Save(account, asset, color string, amount *big.Int) {
+	cur := s.cachedBalance(account, asset, color)
+	var next *big.Int
+	if amount == nil {
+		if cur.Sign() <= 0 {
+			return // negative/zero balance left unchanged
+		}
+		next = new(big.Int) // floor positive to zero
+	} else {
+		next = new(big.Int).Sub(cur, amount)
+		if next.Sign() < 0 {
+			next.SetInt64(0)
+		}
+	}
+	s.balances[PairKey{account, asset, color}] = next
+}
+
 // Snapshot returns a cheap marker of the current source-queue depth, for
 // backtracking a speculative source evaluation (e.g. a `oneof` branch). It is
 // just the queue length: O(1), no allocation, no map cloning.

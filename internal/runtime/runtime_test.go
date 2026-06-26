@@ -456,6 +456,73 @@ func TestBigInt_GetAccountBalanceReturnsCopy(t *testing.T) {
 	wantBalance(t, rs, "A", 100)
 }
 
+// --- ForcePosting (direct src->dst, bypassing the queue) -----------------
+
+func TestForcePosting_DebitsSourceCreditsDestAndRecords(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 10})
+	rs.ForcePosting("A", "B", usd, "", big.NewInt(30))
+	wantBalance(t, rs, "A", 70)
+	wantBalance(t, rs, "B", 40)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "B", Asset: usd, Amount: big.NewInt(30)},
+	})
+}
+
+func TestForcePosting_UsesExplicitAssetNotCurrent(t *testing.T) {
+	// asset-scaling emits postings on a scaled asset, distinct from currentAsset.
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "USD/2", ""}: 500})
+	rs.SetCurrentAsset(usd) // current asset is USD, but we post on USD/2
+	rs.ForcePosting("A", "B", "USD/2", "", big.NewInt(500))
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "B", Asset: "USD/2", Amount: big.NewInt(500)},
+	})
+	if b := rs.GetAccountBalance("A", "USD/2", ""); b.Sign() != 0 {
+		t.Errorf("A USD/2 = %s, want 0", b)
+	}
+}
+
+func TestForcePosting_ZeroIsNoOp(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
+	rs.ForcePosting("A", "B", usd, "", big.NewInt(0))
+	wantBalance(t, rs, "A", 100)
+	wantPostings(t, rs, []runtime.Posting{})
+}
+
+// --- Save (numscript `save` statement) -----------------------------------
+
+func TestSave_ReducesByAmount(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
+	rs.Save("A", usd, "", big.NewInt(30))
+	wantBalance(t, rs, "A", 70)
+}
+
+func TestSave_FlooredAtZero(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 20})
+	rs.Save("A", usd, "", big.NewInt(50)) // would be -30, floored to 0
+	wantBalance(t, rs, "A", 0)
+}
+
+func TestSave_AllZeroesPositiveBalance(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 80})
+	rs.Save("A", usd, "", nil) // save all
+	wantBalance(t, rs, "A", 0)
+}
+
+func TestSave_AllLeavesNegativeUntouched(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: -40})
+	rs.Save("A", usd, "", nil)
+	wantBalance(t, rs, "A", -40)
+}
+
+func TestSave_ThenPullSeesProtectedBalance(t *testing.T) {
+	// after saving, a bounded Pull can only take what's left
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
+	rs.Save("A", usd, "", big.NewInt(70)) // A -> 30 available
+	got := rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	wantReturn(t, "Pull", got, 30)
+	wantBalance(t, rs, "A", 0)
+}
+
 // --- Snapshot / Restore (cheap oneof backtracking) -----------------------
 
 func TestSnapshotRestore_UndoesPullsAndBalances(t *testing.T) {
