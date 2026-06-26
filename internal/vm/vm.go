@@ -1,14 +1,22 @@
 package vm
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/formancehq/numscript/internal/runtime"
+)
 
 type monetary struct {
 	asset  string
 	amount big.Int
 }
 
+const nilReg byte = 0xFF
+const worldAccount = "world"
+
 type Vm struct {
-	program Program
+	program  Program
+	runstate runtime.RunState
 
 	stringsRegs    [256]string // asset,string,account
 	intsRegs       [256]big.Int
@@ -31,6 +39,8 @@ type Store interface {
 	) *big.Int
 }
 
+// var zero = big.NewInt(0)
+
 func Exec[S Store](
 	vm *Vm,
 	vars any,
@@ -48,21 +58,93 @@ func Exec[S Store](
 
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
-		case Op_PullAccount,
-			Op_PullAccountCap,
-			Op_PullAccountCapOverdraft,
-			Op_PullAccountUnboundedOverdraft,
-			Op_PullAccountOverdraft:
-			panic("TODO impl pullAccount*")
+		case Op_PullAccount:
+			instrExt := instrs[pc]
+			pc++
+
+			account := vm.stringsRegs[instr.B]
+
+			var cap *big.Int
+			if instr.C != nilReg {
+				cap = &vm.intsRegs[instr.C]
+			}
+
+			var overdraft *big.Int
+			if account != worldAccount && instrExt.A != nilReg {
+				overdraft = &vm.intsRegs[instrExt.A]
+			}
+
+			if overdraft == nil && cap == nil {
+				return InvalidUncappedSource{
+					Account: account,
+				}
+			}
+
+			var color string
+			if instrExt.B != nilReg {
+				color = vm.stringsRegs[instrExt.B]
+			}
+
+			pulledAmt := vm.runstate.Pull(account, cap, overdraft, color)
+			vm.intsRegs[instr.A].Set(pulledAmt)
+
+		// case Op_PullAccountBoundedZero:
+		// 	account := vm.stringsRegs[instr.B]
+		// 	pulled := vm.runstate.Pull(
+		// 		account,
+		// 		nil,
+		// 		zero,
+		// 		"",
+		// 	)
+		// 	vm.intsRegs[instr.A].Set(pulled)
+
+		// case Op_PullAccountCap:
+		// 	// TODO check @world
+		// 	account := vm.stringsRegs[instr.B]
+		// 	cap := &vm.intsRegs[instr.C]
+		// 	pulled := vm.runstate.Pull(
+		// 		account,
+		// 		cap,
+		// 		zero,
+		// 		"",
+		// 	)
+		// 	vm.intsRegs[instr.A].Set(pulled)
+
+		// case Op_PullAccountUnboundedOverdraft:
+		// 	account := vm.stringsRegs[instr.B]
+		// 	cap := &vm.intsRegs[instr.C]
+		// 	pulled := vm.runstate.Pull(
+		// 		account,
+		// 		cap,
+		// 		nil,
+		// 		"",
+		// 	)
+		// 	vm.intsRegs[instr.A].Set(pulled)
+
+		// case Op_PullAccountOverdraft:
+		// 	// TODO prevent @world
+
+		// 	account := vm.stringsRegs[instr.B]
+		// 	overdraft := &vm.intsRegs[instr.C]
+		// 	pulled := vm.runstate.Pull(
+		// 		account,
+		// 		nil,
+		// 		overdraft,
+		// 		"",
+		// 	)
+		// 	vm.intsRegs[instr.A].Set(pulled)
+
+		case Op_SendToAccount:
+			panic("TODO")
+		case Op_SendToAccountAcc:
+			panic("TODO")
+		case Op_SendToAccountCap:
+			panic("TODO")
+		case Op_SendToAccountAccCap:
+			panic("TODO")
 
 		case Op_MkAllotment:
 			panic("TODO mk allotment")
-
-		case Op_SendToAccount,
-			Op_SendToAccountAcc,
-			Op_SendToAccountCap,
-			Op_SendToAccountAccCap:
-			panic("TODO send to account")
 
 		case Op_CheckEnoughFunds:
 			panic("TODO Op_CheckEnoughFunds")

@@ -31,11 +31,21 @@ const (
 	Op_CheckEnoughFunds
 
 	// --- PullAccount (cap? × overdraft) ---
-	Op_PullAccount             // cap=None, overdraft=BoundedZero
-	Op_PullAccountOverdraft    // cap=None, overdraft=Bounded r
-	Op_PullAccountCap          // cap=Some,  overdraft=BoundedZero
-	Op_PullAccountCapOverdraft // cap=Some,  overdraft=Bounded r  (spills to 2nd word)
-	Op_PullAccountUnboundedOverdraft
+
+	// The most general form:
+	// account,cap,overdraft,color
+	// The 0xFF special register means NULL for cap,overdraft and color
+	Op_PullAccount
+
+	// // cap=None, overdraft=BoundedZero
+	// Op_PullAccountBoundedZero
+	// // cap=None, overdraft=Bounded r
+	// Op_PullAccountOverdraft
+	// // cap=Some,  overdraft=BoundedZero
+	// Op_PullAccountCap
+
+	// // cap=Some,  overdraft=Unbounded
+	// Op_PullAccountUnboundedOverdraft
 
 	// --- allotment ---
 	Op_MkAllotment // b_c = allotment-table index

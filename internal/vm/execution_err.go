@@ -17,12 +17,18 @@ type (
 		Expected string
 		Got      string
 	}
+
+	InvalidUncappedSource struct {
+		Account string
+	}
 )
 
-func (MissingFundsError) execErr()  {}
-func (AssetMismatchError) execErr() {}
+func (MissingFundsError) execErr()     {}
+func (AssetMismatchError) execErr()    {}
+func (InvalidUncappedSource) execErr() {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
 	_ ExecutionError = (*AssetMismatchError)(nil)
+	_ ExecutionError = (*InvalidUncappedSource)(nil)
 )
