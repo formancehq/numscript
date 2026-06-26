@@ -215,15 +215,27 @@ func (s *RunState) Pull(out *big.Int, src string, cap *big.Int, overdraft *big.I
 
 // PullUncapped mirrors the OCaml `pull_uncapped`: makes available
 // max(0, balance + overdraftBound) of src's (currentAsset, color) balance,
-// queuing it only when positive.
-func (s *RunState) PullUncapped(src string, overdraftBound *big.Int, color string) *big.Int {
+// queuing it only when positive, and writes the available amount into out.
+//
+// Like Pull, the result is written into the caller-provided out (no return
+// allocation; out may be any addressable *big.Int). overdraftBound is not
+// mutated. When the available amount is positive it costs one allocation (the
+// queued source's own copy) and debits the balance in place; when it is zero
+// nothing is queued, nothing is debited, and no allocation occurs.
+func (s *RunState) PullUncapped(out *big.Int, src string, overdraftBound *big.Int, color string) {
 	currentBal := s.cachedBalance(src, s.currentAsset, color)
-	available := clampNonNeg(new(big.Int).Add(currentBal, overdraftBound))
-	if available.Sign() > 0 {
-		s.balances[PairKey{src, s.currentAsset, color}] = new(big.Int).Sub(currentBal, available)
-		s.sources = append(s.sources, source{src, available, color})
+
+	// available = max(0, currentBal + overdraftBound)
+	out.Add(currentBal, overdraftBound)
+	if out.Sign() < 0 {
+		out.SetInt64(0)
 	}
-	return new(big.Int).Set(available)
+
+	if out.Sign() > 0 {
+		amt := new(big.Int).Set(out)
+		s.sources = append(s.sources, source{src, amt, color})
+		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
+	}
 }
 
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
@@ -454,11 +466,3 @@ func (s *RunState) removeAt(i int) {
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
 }
 
-// clampNonNeg clamps x to >= 0 in place and returns it (for runtime-owned
-// intermediates).
-func clampNonNeg(x *big.Int) *big.Int {
-	if x.Sign() < 0 {
-		x.SetInt64(0)
-	}
-	return x
-}

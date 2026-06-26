@@ -56,6 +56,13 @@ func pull(rs *runtime.RunState, src string, cap, overdraft *big.Int, color strin
 	return out
 }
 
+// pullUncapped adapts the out-param PullUncapped to a value-returning form.
+func pullUncapped(rs *runtime.RunState, src string, overdraftBound *big.Int, color string) *big.Int {
+	out := new(big.Int)
+	rs.PullUncapped(out, src, overdraftBound, color)
+	return out
+}
+
 func wantBalance(t *testing.T, rs *runtime.RunState, account string, want int64) {
 	t.Helper()
 	if got := rs.GetAccountBalance(account, usd, ""); got.Cmp(big.NewInt(want)) != 0 {
@@ -268,21 +275,35 @@ func TestPull_UnboundedNegativeCapClampedToZero(t *testing.T) {
 
 func TestPullUncapped_Basic(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	got := rs.PullUncapped("A", big.NewInt(0), "")
+	got := pullUncapped(rs, "A", big.NewInt(0), "")
 	wantReturn(t, "PullUncapped", got, 100)
 	wantBalance(t, rs, "A", 0)
 }
 
 func TestPullUncapped_WithOverdraft(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	got := rs.PullUncapped("A", big.NewInt(50), "")
+	got := pullUncapped(rs, "A", big.NewInt(50), "")
 	wantReturn(t, "PullUncapped", got, 150)
 	wantBalance(t, rs, "A", -50)
 }
 
+func TestPullUncapped_WritesIntoOutAndDoesNotAliasQueue(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
+	out := new(big.Int)
+	rs.PullUncapped(out, "A", big.NewInt(0), "")
+	if out.Cmp(big.NewInt(100)) != 0 {
+		t.Fatalf("out = %s, want 100", out)
+	}
+	out.SetInt64(999) // mutate after: queued source must be an independent copy
+	rs.SendUncapped(strptr("X"), nil)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)},
+	})
+}
+
 func TestPullUncapped_ZeroNotQueuedNorDebited(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 0})
-	got := rs.PullUncapped("A", big.NewInt(0), "")
+	got := pullUncapped(rs, "A", big.NewInt(0), "")
 	wantReturn(t, "PullUncapped", got, 0)
 	wantBalance(t, rs, "A", 0)
 	// nothing queued -> a subsequent drain produces no postings
@@ -292,7 +313,7 @@ func TestPullUncapped_ZeroNotQueuedNorDebited(t *testing.T) {
 
 func TestPullUncapped_NegativeEffectiveNotQueued(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 10})
-	got := rs.PullUncapped("A", big.NewInt(-50), "") // max(0, 10-50) = 0
+	got := pullUncapped(rs, "A", big.NewInt(-50), "") // max(0, 10-50) = 0
 	wantReturn(t, "PullUncapped", got, 0)
 	wantBalance(t, rs, "A", 10)
 	rs.SendUncapped(strptr("X"), nil)

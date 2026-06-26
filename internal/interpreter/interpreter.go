@@ -474,7 +474,8 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 
 	// PullUncapped queues balance+overdraft (== CalculateMaxSafeWithdraw),
 	// debiting the (account, currentAsset, color) balance.
-	sentAmt := s.rs.PullUncapped(string(account), overdraft, string(color))
+	sentAmt := new(big.Int)
+	s.rs.PullUncapped(sentAmt, string(account), overdraft, string(color))
 	return sentAmt, nil
 }
 
