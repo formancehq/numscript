@@ -110,3 +110,26 @@ func (p ParseResult) GetSource() string {
 func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.InvolvedAccount, []accounts.InvolvedMeta, InterpreterError) {
 	return interpreter.GetInvolvedAccounts(vars, p.parseResult.Value)
 }
+
+type (
+	ResolvedDependencies       = interpreter.ResolvedDependencies
+	ResolvedReads              = interpreter.ResolvedReads
+	ResolvedWrites             = interpreter.ResolvedWrites
+	ResolveDependenciesOptions = interpreter.ResolveDependenciesOptions
+)
+
+// ResolveDependencies executes the script in dry-run mode and returns the
+// (account, asset) → balance and (account, key) → value pairs that were read
+// from the store, together with the (account, asset) pairs touched by the
+// resulting postings.
+//
+// Store calls are issued in a deterministic order across runs with identical
+// inputs, so the caller can hash them to detect input drift.
+func (p ParseResult) ResolveDependencies(
+	ctx context.Context,
+	vars VariablesMap,
+	store Store,
+	opts ResolveDependenciesOptions,
+) (*ResolvedDependencies, InterpreterError) {
+	return interpreter.ResolveDependencies(ctx, p.parseResult.Value, vars, store, opts)
+}
