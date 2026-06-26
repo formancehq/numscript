@@ -160,7 +160,7 @@ func checkIsFlagValid(s string) bool {
 
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
-		if !(ch >= 'a' && ch <= 'z') && ch != '-' {
+		if (ch < 'a' || ch > 'z') && ch != '-' {
 			return false
 		}
 	}
