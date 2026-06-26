@@ -112,7 +112,15 @@ func Exec[S Store](
 			panic("TODO mk allotment")
 
 		case Op_CheckEnoughFunds:
-			panic("TODO Op_CheckEnoughFunds")
+			got := &vm.intsRegs[instr.A]
+			needed := &vm.intsRegs[instr.B]
+			if got.Cmp(needed) == 1 {
+				return MissingFundsError{
+					Asset:  currentAsset,
+					Got:    got,
+					Needed: needed,
+				}
+			}
 
 		case Op_SetCurrentAsset:
 			currentAsset = vm.stringsRegs[instr.A]

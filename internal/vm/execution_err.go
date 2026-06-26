@@ -8,9 +8,9 @@ type (
 	}
 
 	MissingFundsError struct {
-		Asset    string
-		Expected *big.Int
-		Got      *big.Int
+		Asset  string
+		Needed *big.Int
+		Got    *big.Int
 	}
 
 	AssetMismatchError struct {
