@@ -1,9 +1,11 @@
 package interpreter
 
 import (
+	"math/big"
 	"slices"
 
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -67,7 +69,13 @@ func (st *programState) batchQuery(account AccountAddress, asset Asset, color St
 }
 
 func (st *programState) runBalancesQuery() error {
-	filteredQuery := st.CachedBalances.filterQuery(st.CurrentBalanceQuery)
+	// keep only triples the runtime hasn't already cached (prewarmed or touched)
+	var filteredQuery BalanceQuery
+	for _, item := range st.CurrentBalanceQuery {
+		if !st.rs.Has(item.Account, item.Asset, item.Color) {
+			filteredQuery = append(filteredQuery, item)
+		}
+	}
 
 	// avoid updating balances if we don't need to fetch new data
 	if len(filteredQuery) == 0 {
@@ -81,7 +89,13 @@ func (st *programState) runBalancesQuery() error {
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	st.CachedBalances.Merge(queriedBalances)
+	// seed the runtime's balance cache with the batch result, so its lazy
+	// per-key Store path is never hit for these triples
+	seed := make(map[runtime.PairKey]*big.Int, len(queriedBalances))
+	for _, row := range queriedBalances {
+		seed[runtime.PairKey{Account: row.Account, Asset: row.Asset, Color: row.Color}] = row.Amount
+	}
+	st.rs.Prewarm(seed)
 
 	return nil
 }

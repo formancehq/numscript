@@ -40,14 +40,17 @@ type Store interface {
 	GetBalance(account, asset, color string) *big.Int
 }
 
-// Posting mirrors Common_intf.posting: a recorded movement of Amount units of
-// Asset (of the given Color) from Source to Destination.
+// Posting is a recorded movement of Amount units of Asset (of the given Color)
+// from Source to Destination. It is the single source of truth for the
+// interpreter's public Posting type (aliased there), hence the json tags: field
+// names and order define the public ledger serialization contract — keep them
+// stable.
 type Posting struct {
-	Source      string
-	Destination string
-	Asset       string
-	Color       string
-	Amount      *big.Int
+	Source      string   `json:"source"`
+	Destination string   `json:"destination"`
+	Amount      *big.Int `json:"amount"`
+	Asset       string   `json:"asset"`
+	Color       string   `json:"color,omitempty"`
 }
 
 // PairKey identifies a balance slot. Exported so a Store mock/adapter can build
@@ -125,6 +128,39 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 		}
 		s.balances[key] = cloned
 	}
+}
+
+// Has reports whether (account, asset, color) is already in the balance cache
+// (prewarmed or touched). Lets a caller skip re-fetching balances it already
+// holds, without triggering a Store load.
+func (s *RunState) Has(account, asset, color string) bool {
+	_, ok := s.balances[PairKey{account, asset, color}]
+	return ok
+}
+
+// AccountBalance is a single cached (asset, color, amount) entry for an account.
+type AccountBalance struct {
+	Asset  string
+	Color  string
+	Amount *big.Int
+}
+
+// AccountBalances returns copies of every cached balance entry for account. It
+// only reports entries already in the cache (it does not consult the Store), so
+// an account that was never prewarmed/touched yields an empty slice. Used by
+// asset scaling, which must enumerate an account's holdings across scales.
+func (s *RunState) AccountBalances(account string) []AccountBalance {
+	var out []AccountBalance
+	for key, amount := range s.balances {
+		if key.Account == account {
+			out = append(out, AccountBalance{
+				Asset:  key.Asset,
+				Color:  key.Color,
+				Amount: new(big.Int).Set(amount),
+			})
+		}
+	}
+	return out
 }
 
 // GetAccountBalance returns the balance for (account, asset, color). An empty

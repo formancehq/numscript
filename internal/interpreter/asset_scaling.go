@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -23,6 +24,25 @@ func buildScaledAsset(baseAsset string, scale int64) string {
 		return baseAsset
 	}
 	return fmt.Sprintf("%s/%d", baseAsset, scale)
+}
+
+// AccountBalance is a single balance entry for an account: an (asset, color)
+// pair and its amount. Used by the asset-scaling helpers to enumerate an
+// account's holdings across scales.
+type AccountBalance struct {
+	Asset  string
+	Color  string
+	Amount *big.Int
+}
+
+// toAccountBalances adapts the runtime's account-balance snapshot to the
+// interpreter's AccountBalance type used by the asset-scaling helpers.
+func toAccountBalances(rs []runtime.AccountBalance) []AccountBalance {
+	out := make([]AccountBalance, len(rs))
+	for i, b := range rs {
+		out[i] = AccountBalance{Asset: b.Asset, Color: b.Color, Amount: b.Amount}
+	}
+	return out
 }
 
 func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
