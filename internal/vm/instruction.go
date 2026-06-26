@@ -47,8 +47,8 @@ const (
 	// // cap=Some,  overdraft=Unbounded
 	// Op_PullAccountUnboundedOverdraft
 
-	// --- allotment ---
-	Op_MkAllotment // b_c = allotment-table index
+	// dest_start,inp_arr_start,inp_arr_size|amt
+	Op_MkAllotment
 
 	// account?, cap?, color?
 	Op_SendToAccount

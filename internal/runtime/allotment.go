@@ -2,8 +2,15 @@ package runtime
 
 import "math/big"
 
-// MakeAllotment splits amount across portions, returning one integer amount per
-// portion such that the parts sum exactly to amount.
+// MakeAllotment splits amount across portions, writing one integer amount per
+// portion into out (out[i] for portions[i]) such that the written parts sum
+// exactly to amount.
+//
+// out must have the same length as portions; its elements are overwritten. They
+// are big.Int values, not pointers: MakeAllotment mutates them in place through
+// the slice (out[i] is addressable, so out[i].Div(...) writes the element). This
+// lets the caller allocate the whole result as one contiguous []big.Int rather
+// than len(portions) separate *big.Int.
 //
 // Portions are fractions of the whole (big.Rat) and are expected to sum to 1;
 // any "remaining" portion must already be resolved by the caller (i.e. computed
@@ -19,28 +26,24 @@ import "math/big"
 // strictly less than len(portions), so a single front-to-back pass distributes
 // it fully (given portions that sum to 1).
 //
-// Inputs are not mutated; every returned *big.Int is freshly allocated.
-func MakeAllotment(amount *big.Int, portions []*big.Rat) []*big.Int {
-	parts := make([]*big.Int, len(portions))
+// Inputs amount and portions are not mutated.
+func MakeAllotment(out []big.Int, amount *big.Int, portions []big.Rat) {
 	totalAllocated := new(big.Int)
 	amountRat := new(big.Rat).SetInt(amount)
 
-	for i, portion := range portions {
-		product := new(big.Rat).Mul(portion, amountRat)
-		// floor: Denom() is always positive, so this matches big.Int.Div
-		floored := new(big.Int).Div(product.Num(), product.Denom())
-		parts[i] = floored
-		totalAllocated.Add(totalAllocated, floored)
+	for i := range portions {
+		product := new(big.Rat).Mul(&portions[i], amountRat)
+		// floor into out[i] in place; Denom() is always positive (matches Div)
+		out[i].Div(product.Num(), product.Denom())
+		totalAllocated.Add(totalAllocated, &out[i])
 	}
 
 	one := big.NewInt(1)
-	for i := range parts {
+	for i := range out {
 		if totalAllocated.Cmp(amount) >= 0 {
 			break
 		}
-		parts[i].Add(parts[i], one)
+		out[i].Add(&out[i], one)
 		totalAllocated.Add(totalAllocated, one)
 	}
-
-	return parts
 }

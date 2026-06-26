@@ -761,7 +761,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			err := s.tryTakingExact(allotmentItem.From, MonetaryInt(*allot[i]))
+			err := s.tryTakingExact(allotmentItem.From, MonetaryInt(allot[i]))
 			if err != nil {
 				return nil, err
 			}
@@ -809,7 +809,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
-			amtToReceive := allot[i]
+			amtToReceive := &allot[i]
 			err := s.sendToKeptOrDest(allotmentItem.To, amtToReceive)
 			if err != nil {
 				return err
@@ -907,9 +907,9 @@ func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amo
 
 }
 
-func (s *programState) makeAllotment(monetary *big.Int, items []parser.AllotmentValue) ([]*big.Int, InterpreterError) {
+func (s *programState) makeAllotment(monetary *big.Int, items []parser.AllotmentValue) ([]big.Int, InterpreterError) {
 	totalAllotment := big.NewRat(0, 1)
-	var allotments []*big.Rat
+	allotments := make([]big.Rat, 0, len(items))
 
 	remainingAllotmentIndex := -1
 
@@ -922,24 +922,26 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			}
 
 			totalAllotment.Add(totalAllotment, rat)
-			allotments = append(allotments, rat)
+			allotments = append(allotments, *rat)
 
 		case *parser.RemainingAllotment:
 			remainingAllotmentIndex = i
-			allotments = append(allotments, new(big.Rat))
+			allotments = append(allotments, big.Rat{})
 			// TODO check there are not duplicate remaining clause
 		}
 	}
 
 	if remainingAllotmentIndex != -1 {
-		allotments[remainingAllotmentIndex] = new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		allotments[remainingAllotmentIndex] = *new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
 	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}
 
 	// portions are resolved (remaining computed, sum validated) — delegate the
-	// floor-then-distribute split to the runtime.
-	return runtime.MakeAllotment(monetary, allotments), nil
+	// floor-then-distribute split to the runtime, filling one contiguous buffer.
+	parts := make([]big.Int, len(allotments))
+	runtime.MakeAllotment(parts, monetary, allotments)
+	return parts, nil
 }
 
 // Utility function to get the balance
