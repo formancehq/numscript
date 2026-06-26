@@ -61,13 +61,23 @@ func meta(
 		return "", err
 	}
 
+	// Check the cache first, so that we don't query the store again
+	// for a (account, key) pair we already fetched
+	if value, ok := s.CachedAccountsMeta[*account][*key]; ok {
+		return value, nil
+	}
+
+	// Note: we do not cache negative lookups, so a key that is absent from
+	// the store is queried again (and errors again) on every meta() call
 	meta, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
 		string(account): []string{string(key)},
 	})
 	if fetchMetaErr != nil {
 		return "", QueryMetadataError{WrappedError: fetchMetaErr}
 	}
-	s.CachedAccountsMeta = meta
+	// Merge the fetched metadata into the cache instead of replacing it,
+	// so that previously cached entries are preserved
+	s.CachedAccountsMeta.Merge(meta)
 
 	// body
 	accountMeta := s.CachedAccountsMeta[string(account)]
