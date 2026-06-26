@@ -83,8 +83,13 @@ func Exec[S Store](
 				color = vm.stringsRegs[instrExt.B]
 			}
 
-			pulledAmt := vm.runstate.Pull(account, cap, overdraft, color)
-			vm.intsRegs[instr.A].Set(pulledAmt)
+			vm.runstate.Pull(
+				&vm.intsRegs[instr.A],
+				account,
+				cap,
+				overdraft,
+				color,
+			)
 
 		case Op_SendToAccount:
 			var dest *string

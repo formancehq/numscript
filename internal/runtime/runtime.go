@@ -167,29 +167,50 @@ func (s *RunState) GetAccountBalance(account, asset, color string) *big.Int {
 
 // Pull mirrors the OCaml `pull`. It debits up to cap from src's (currentAsset,
 // color) balance (clamped to non-negative), honoring the overdraft policy,
-// queues the pulled amount as a funding source tagged with color, and returns
-// the amount made available. The overdraft bound is an optional *big.Int (the
-// OCaml `int64 option`):
+// queues the pulled amount as a funding source tagged with color, and writes the
+// amount made available into out. The overdraft bound is an optional *big.Int
+// (the OCaml `int64 option`):
 //
-//	overdraft == nil -> unbounded: available = cap
-//	overdraft == b   -> available = min(max(0, balance + max(0,b)), cap)
+//	overdraft == nil -> unbounded: available = max(0, cap)
+//	overdraft == b   -> available = min(max(0, balance + max(0,b)), max(0, cap))
 //	                    (pass big.NewInt(0) for the "balance only" default)
-func (s *RunState) Pull(src string, cap *big.Int, overdraft *big.Int, color string) *big.Int {
-	cap = nonNeg(cap) // fresh, >= 0, decoupled from caller
+//
+// The result is written into the caller-provided out (overwritten), avoiding a
+// return allocation; out may be any addressable *big.Int (e.g. a VM register).
+// Inputs cap and overdraft are not mutated. The only allocation per call is the
+// queued source's own copy of the amount (it must outlive out and is mutated in
+// place by compactAt/Send); the balance is debited in place on the cached value.
+func (s *RunState) Pull(out *big.Int, src string, cap *big.Int, overdraft *big.Int, color string) {
 	currentBal := s.cachedBalance(src, s.currentAsset, color)
 
-	var available *big.Int
 	if overdraft == nil {
-		available = new(big.Int).Set(cap)
+		out.Set(cap) // unbounded; clamped to >= 0 below
 	} else {
-		bound := nonNeg(overdraft)
-		eff := clampNonNeg(new(big.Int).Add(currentBal, bound))
-		available = minBig(eff, cap)
+		// eff = max(0, currentBal + max(0, overdraft))
+		out.Set(currentBal)
+		if overdraft.Sign() > 0 {
+			out.Add(out, overdraft)
+		}
+		if out.Sign() < 0 {
+			out.SetInt64(0)
+		}
+		// available = min(eff, cap); a cap < eff (incl. negative) wins here and
+		// is clamped to >= 0 below
+		if cap.Cmp(out) < 0 {
+			out.Set(cap)
+		}
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
 	}
 
-	s.balances[PairKey{src, s.currentAsset, color}] = new(big.Int).Sub(currentBal, available)
-	s.sources = append(s.sources, source{src, available, color}) // available now owned by the queue
-	return new(big.Int).Set(available)
+	// queue the pulled funds — an independent copy (out stays the caller's; the
+	// queued amount is mutated in place by compactAt/Send)
+	amt := new(big.Int).Set(out)
+	s.sources = append(s.sources, source{src, amt, color})
+
+	// debit the source balance in place; the cache keeps the same *big.Int
+	currentBal.Sub(currentBal, out)
 }
 
 // PullUncapped mirrors the OCaml `pull_uncapped`: makes available
@@ -433,14 +454,6 @@ func (s *RunState) removeAt(i int) {
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
 }
 
-// nonNeg returns a fresh non-negative copy of x: max(0, x). nil is treated as 0.
-func nonNeg(x *big.Int) *big.Int {
-	if x == nil || x.Sign() < 0 {
-		return new(big.Int)
-	}
-	return new(big.Int).Set(x)
-}
-
 // clampNonNeg clamps x to >= 0 in place and returns it (for runtime-owned
 // intermediates).
 func clampNonNeg(x *big.Int) *big.Int {
@@ -448,12 +461,4 @@ func clampNonNeg(x *big.Int) *big.Int {
 		x.SetInt64(0)
 	}
 	return x
-}
-
-// minBig returns whichever of a, b is smaller (no copy).
-func minBig(a, b *big.Int) *big.Int {
-	if a.Cmp(b) < 0 {
-		return a
-	}
-	return b
 }

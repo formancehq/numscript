@@ -627,7 +627,8 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	// == CalculateSafeWithdraw; unbounded for world/overdraft==nil), debits the
 	// (account, currentAsset, color) balance, and queues the funds. The
 	// interpreter's overdraft convention (nil == unbounded) is exactly Pull's.
-	actuallySentAmt := s.rs.Pull(string(account), amount, overdraft, string(color))
+	actuallySentAmt := new(big.Int)
+	s.rs.Pull(actuallySentAmt, string(account), amount, overdraft, string(color))
 	return actuallySentAmt, nil
 }
 
