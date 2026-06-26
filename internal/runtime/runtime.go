@@ -71,20 +71,6 @@ type source struct {
 	color   string
 }
 
-// Overdraft expresses the OCaml inner `int64 option` overdraft bound:
-//
-//	UnboundedOverdraft()  -> OCaml None    (take the full cap)
-//	BoundedOverdraft(n)   -> OCaml Some n  (clamp by balance + n)
-//
-// The OCaml `pull` default is `Some 0L`; pass BoundedOverdraft(big.NewInt(0)).
-type Overdraft struct {
-	bounded bool
-	bound   *big.Int
-}
-
-func UnboundedOverdraft() Overdraft         { return Overdraft{bounded: false} }
-func BoundedOverdraft(n *big.Int) Overdraft { return Overdraft{bounded: true, bound: n} }
-
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
 // call New. All fields are unexported to preserve the .mli interface boundary.
 type RunState struct {
@@ -182,19 +168,21 @@ func (s *RunState) GetAccountBalance(account, asset, color string) *big.Int {
 // Pull mirrors the OCaml `pull`. It debits up to cap from src's (currentAsset,
 // color) balance (clamped to non-negative), honoring the overdraft policy,
 // queues the pulled amount as a funding source tagged with color, and returns
-// the amount made available.
+// the amount made available. The overdraft bound is an optional *big.Int (the
+// OCaml `int64 option`):
 //
-//	UnboundedOverdraft  -> available = cap
-//	BoundedOverdraft(b) -> available = min(max(0, balance + max(0,b)), cap)
-func (s *RunState) Pull(src string, cap *big.Int, ovd Overdraft, color string) *big.Int {
+//	overdraft == nil -> unbounded: available = cap
+//	overdraft == b   -> available = min(max(0, balance + max(0,b)), cap)
+//	                    (pass big.NewInt(0) for the "balance only" default)
+func (s *RunState) Pull(src string, cap *big.Int, overdraft *big.Int, color string) *big.Int {
 	cap = nonNeg(cap) // fresh, >= 0, decoupled from caller
 	currentBal := s.cachedBalance(src, s.currentAsset, color)
 
 	var available *big.Int
-	if !ovd.bounded {
+	if overdraft == nil {
 		available = new(big.Int).Set(cap)
 	} else {
-		bound := nonNeg(ovd.bound)
+		bound := nonNeg(overdraft)
 		eff := clampNonNeg(new(big.Int).Add(currentBal, bound))
 		available = minBig(eff, cap)
 	}

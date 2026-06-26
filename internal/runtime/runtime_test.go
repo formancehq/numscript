@@ -134,9 +134,9 @@ func TestCaching_WriteThroughCompounds(t *testing.T) {
 	// Pull decreases the balance; the next read must see the decreased value
 	// without consulting the store again.
 	rs, store := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 70
+	rs.Pull("A", big.NewInt(30), big.NewInt(0), "") // A -> 70
 	wantBalance(t, rs, "A", 70)
-	rs.Pull("A", big.NewInt(20), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 50
+	rs.Pull("A", big.NewInt(20), big.NewInt(0), "") // A -> 50
 	wantBalance(t, rs, "A", 50)
 	if c := store.callCount("A", usd); c != 1 {
 		t.Errorf("store consulted %d times across pulls, want 1", c)
@@ -147,14 +147,14 @@ func TestCaching_WriteThroughCompounds(t *testing.T) {
 
 func TestPull_BoundedClampedByBalance(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	got := rs.Pull("A", big.NewInt(200), runtime.BoundedOverdraft(big.NewInt(0)), "") // min(max(0,100+0),200)=100
+	got := rs.Pull("A", big.NewInt(200), big.NewInt(0), "") // min(max(0,100+0),200)=100
 	wantReturn(t, "Pull", got, 100)
 	wantBalance(t, rs, "A", 0)
 }
 
 func TestPull_BoundedClampedByCap(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	got := rs.Pull("A", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "") // min(100,30)=30
+	got := rs.Pull("A", big.NewInt(30), big.NewInt(0), "") // min(100,30)=30
 	wantReturn(t, "Pull", got, 30)
 	wantBalance(t, rs, "A", 70)
 }
@@ -162,14 +162,14 @@ func TestPull_BoundedClampedByCap(t *testing.T) {
 func TestPull_BoundedWithOverdraftBound(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	// eff = max(0, 100+50) = 150 ; available = min(150, 200) = 150
-	got := rs.Pull("A", big.NewInt(200), runtime.BoundedOverdraft(big.NewInt(50)), "")
+	got := rs.Pull("A", big.NewInt(200), big.NewInt(50), "")
 	wantReturn(t, "Pull", got, 150)
 	wantBalance(t, rs, "A", -50) // overdraft used
 }
 
 func TestPull_NegativeCapClampedToZero(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	got := rs.Pull("A", big.NewInt(-5), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got := rs.Pull("A", big.NewInt(-5), big.NewInt(0), "")
 	wantReturn(t, "Pull", got, 0)
 	wantBalance(t, rs, "A", 100)
 }
@@ -177,7 +177,7 @@ func TestPull_NegativeCapClampedToZero(t *testing.T) {
 func TestPull_NegativeOverdraftBoundClampedToZero(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	// bound clamped to 0 -> eff = 100 -> available = min(100, 200) = 100
-	got := rs.Pull("A", big.NewInt(200), runtime.BoundedOverdraft(big.NewInt(-1000)), "")
+	got := rs.Pull("A", big.NewInt(200), big.NewInt(-1000), "")
 	wantReturn(t, "Pull", got, 100)
 	wantBalance(t, rs, "A", 0)
 }
@@ -185,7 +185,7 @@ func TestPull_NegativeOverdraftBoundClampedToZero(t *testing.T) {
 func TestPull_NegativeStoreBalanceBounded(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: -20})
 	// eff = max(0, -20+0) = 0 -> available = min(0, cap) = 0
-	got := rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got := rs.Pull("A", big.NewInt(50), big.NewInt(0), "")
 	wantReturn(t, "Pull", got, 0)
 	wantBalance(t, rs, "A", -20)
 }
@@ -194,14 +194,14 @@ func TestPull_NegativeStoreBalanceBounded(t *testing.T) {
 
 func TestPull_UnboundedTakesFullCap(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 30})
-	got := rs.Pull("A", big.NewInt(100), runtime.UnboundedOverdraft(), "")
+	got := rs.Pull("A", big.NewInt(100), nil, "")
 	wantReturn(t, "Pull", got, 100)
 	wantBalance(t, rs, "A", -70) // balance can go negative
 }
 
 func TestPull_UnboundedNegativeCapClampedToZero(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 30})
-	got := rs.Pull("A", big.NewInt(-10), runtime.UnboundedOverdraft(), "")
+	got := rs.Pull("A", big.NewInt(-10), nil, "")
 	wantReturn(t, "Pull", got, 0)
 	wantBalance(t, rs, "A", 30)
 }
@@ -245,8 +245,8 @@ func TestPullUncapped_NegativeEffectiveNotQueued(t *testing.T) {
 
 func TestSend_PartialConsumeRequeuesFront(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:100
-	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")  // source B:50
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "") // source A:100
+	rs.Pull("B", big.NewInt(50), big.NewInt(0), "")  // source B:50
 
 	rs.Send(strptr("X"), big.NewInt(30), nil) // takes 30 from A, requeues A:70 at front
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(30)}})
@@ -261,9 +261,9 @@ func TestSend_PartialConsumeRequeuesFront(t *testing.T) {
 
 func TestSend_FIFOOrder(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 10, {"B", usd, ""}: 10, {"C", usd, ""}: 10})
-	rs.Pull("A", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Pull("B", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Pull("C", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(10), big.NewInt(0), "")
+	rs.Pull("B", big.NewInt(10), big.NewInt(0), "")
+	rs.Pull("C", big.NewInt(10), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(30), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(10)},
@@ -274,7 +274,7 @@ func TestSend_FIFOOrder(t *testing.T) {
 
 func TestSend_ExactMatchNoRequeue(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 50})
-	rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(50), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(50), nil) // exact
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(50)}})
 	// nothing left
@@ -284,14 +284,14 @@ func TestSend_ExactMatchNoRequeue(t *testing.T) {
 
 func TestSend_CapExceedsAvailableDrains(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(500), nil) // more than available; drains 100, no leftover
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
 
 func TestSend_ZeroCapIsNoOp(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(0), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 	// source remains -> uncapped drain still sees it
@@ -301,7 +301,7 @@ func TestSend_ZeroCapIsNoOp(t *testing.T) {
 
 func TestSend_NegativeCapIsNoOp(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(-5), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
@@ -318,8 +318,8 @@ func TestSend_MergesWithinSingleDrain(t *testing.T) {
 	// Two same-source funds drained by ONE Send to the same destination merge
 	// into a single posting (mirrors fundsQueue.compactTop within one Pull).
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:60
-	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:40
+	rs.Pull("A", big.NewInt(60), big.NewInt(0), "") // source A:60
+	rs.Pull("A", big.NewInt(40), big.NewInt(0), "") // source A:40
 	rs.Send(strptr("X"), big.NewInt(100), nil)                     // drains both A:60 then A:40 -> one posting
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
@@ -329,7 +329,7 @@ func TestSend_DoesNotMergeAcrossSeparateSends(t *testing.T) {
 	// matches the interpreter (fundsQueue), which only merges adjacent funds
 	// within a single Pull, never across send statements.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(40), nil) // posting A->X 40, requeue A:60
 	rs.Send(strptr("X"), big.NewInt(40), nil) // separate send: NOT merged, requeue A:20
 	wantPostings(t, rs, []runtime.Posting{
@@ -340,7 +340,7 @@ func TestSend_DoesNotMergeAcrossSeparateSends(t *testing.T) {
 
 func TestSend_DoesNotMergeDifferentDestination(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(40), nil)
 	rs.Send(strptr("Y"), big.NewInt(40), nil)
 	wantPostings(t, rs, []runtime.Posting{
@@ -355,7 +355,7 @@ func TestSend_CreditsDestinationOverExistingStoreBalance(t *testing.T) {
 	// X already has 500 in the store. Crediting must fetch that first, not
 	// treat X as 0.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"X", usd, ""}: 500})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(100), nil)
 	wantBalance(t, rs, "X", 600)
 }
@@ -364,7 +364,7 @@ func TestSend_CreditsDestinationOverExistingStoreBalance(t *testing.T) {
 
 func TestSend_RefundCreditsSourceNoPosting(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 0, source A:100
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "") // A -> 0, source A:100
 	rs.Send(nil, big.NewInt(60), nil)                               // refund 60 to A, requeue A:40
 	wantBalance(t, rs, "A", 60)
 	wantPostings(t, rs, []runtime.Posting{})
@@ -377,8 +377,8 @@ func TestSend_RefundCreditsSourceNoPosting(t *testing.T) {
 
 func TestSendUncapped_DrainsAllToDestination(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
+	rs.Pull("B", big.NewInt(50), big.NewInt(0), "")
 	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)},
@@ -388,8 +388,8 @@ func TestSendUncapped_DrainsAllToDestination(t *testing.T) {
 
 func TestSendUncapped_RefundsAll(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 0
-	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")  // B -> 0
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "") // A -> 0
+	rs.Pull("B", big.NewInt(50), big.NewInt(0), "")  // B -> 0
 	rs.SendUncapped(nil, nil)                           // refund both
 	wantBalance(t, rs, "A", 100)
 	wantBalance(t, rs, "B", 50)
@@ -406,7 +406,7 @@ func TestSendUncapped_NoSourcesIsNoOp(t *testing.T) {
 
 func TestGetPostings_ReturnsCopy(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	rs.Send(strptr("X"), big.NewInt(100), nil)
 
 	p := rs.GetPostings()
@@ -432,7 +432,7 @@ func TestBigInt_AmountsBeyondInt64(t *testing.T) {
 	rs := runtime.New(store)
 	rs.SetCurrentAsset(usd)
 
-	got := rs.Pull("A", new(big.Int).Set(huge), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got := rs.Pull("A", new(big.Int).Set(huge), big.NewInt(0), "")
 	if got.Cmp(huge) != 0 {
 		t.Fatalf("Pull returned %s, want %s", got, huge)
 	}
@@ -484,7 +484,7 @@ func TestPrewarm_ClonesValues(t *testing.T) {
 
 func TestPrewarm_DoesNotClobberLiveValue(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 70
+	rs.Pull("A", big.NewInt(30), big.NewInt(0), "") // A -> 70
 	rs.Prewarm(map[runtime.PairKey]*big.Int{{"A", usd, ""}: big.NewInt(100)}) // must NOT reset to 100
 	wantBalance(t, rs, "A", 70)
 }
@@ -551,7 +551,7 @@ func TestSave_ThenPullSeesProtectedBalance(t *testing.T) {
 	// after saving, a bounded Pull can only take what's left
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Save("A", usd, "", big.NewInt(70)) // A -> 30 available
-	got := rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got := rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	wantReturn(t, "Pull", got, 30)
 	wantBalance(t, rs, "A", 0)
 }
@@ -562,8 +562,8 @@ func TestSnapshotRestore_UndoesPullsAndBalances(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 80})
 
 	mark := rs.Snapshot() // == 0
-	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(60), big.NewInt(0), "")
+	rs.Pull("B", big.NewInt(50), big.NewInt(0), "")
 	// balances debited, two sources queued
 	wantBalance(t, rs, "A", 40)
 	wantBalance(t, rs, "B", 30)
@@ -583,13 +583,13 @@ func TestSnapshotRestore_OneofFailedBranchThenRealBranch(t *testing.T) {
 
 	// branch 1: @A can only provide 30 of the needed 100 -> abandon
 	mark := rs.Snapshot()
-	got := rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got := rs.Pull("A", big.NewInt(100), big.NewInt(0), "")
 	wantReturn(t, "branch1 pull", got, 30) // short
 	rs.Restore(mark)
 	wantBalance(t, rs, "A", 30) // A untouched after backtrack
 
 	// branch 2: @B covers it
-	got = rs.Pull("B", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	got = rs.Pull("B", big.NewInt(100), big.NewInt(0), "")
 	wantReturn(t, "branch2 pull", got, 100)
 	rs.Send(strptr("X"), big.NewInt(100), nil)
 	wantPostings(t, rs, []runtime.Posting{
@@ -602,10 +602,10 @@ func TestSnapshotRestore_OneofFailedBranchThenRealBranch(t *testing.T) {
 func TestSnapshotRestore_PartialMarkKeepsEarlierSources(t *testing.T) {
 	// A snapshot taken mid-stream must only undo what came after it.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 100})
-	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "") // kept
+	rs.Pull("A", big.NewInt(40), big.NewInt(0), "") // kept
 
 	mark := rs.Snapshot()
-	rs.Pull("B", big.NewInt(70), runtime.BoundedOverdraft(big.NewInt(0)), "") // undone
+	rs.Pull("B", big.NewInt(70), big.NewInt(0), "") // undone
 	rs.Restore(mark)
 
 	wantBalance(t, rs, "A", 60)  // still debited
@@ -642,7 +642,7 @@ func TestColor_BalancesTrackedSeparatelyPerColor(t *testing.T) {
 
 func TestColor_PullTagsSourceAndPostingCarriesColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, "red"}: 100})
-	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "red")
+	rs.Pull("A", big.NewInt(60), big.NewInt(0), "red")
 	rs.Send(strptr("X"), big.NewInt(60), strptr("red"))
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(60)},
@@ -665,9 +665,9 @@ func TestColor_SendSkipsNonMatchingColorLeavingItQueued(t *testing.T) {
 		{"B", usd, "blue"}: 30,
 		{"C", usd, "red"}:  40,
 	})
-	rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "red")
-	rs.Pull("B", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
-	rs.Pull("C", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "red")
+	rs.Pull("A", big.NewInt(50), big.NewInt(0), "red")
+	rs.Pull("B", big.NewInt(30), big.NewInt(0), "blue")
+	rs.Pull("C", big.NewInt(40), big.NewInt(0), "red")
 
 	rs.Send(strptr("X"), big.NewInt(100), strptr("red")) // only 90 red available; blue stays put
 	wantPostings(t, rs, []runtime.Posting{
@@ -691,8 +691,8 @@ func TestColor_SendDoesNotMergeAcrossColors(t *testing.T) {
 		{"A", usd, "red"}:  40,
 		{"A", usd, "blue"}: 40,
 	})
-	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "red")
-	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
+	rs.Pull("A", big.NewInt(40), big.NewInt(0), "red")
+	rs.Pull("A", big.NewInt(40), big.NewInt(0), "blue")
 	rs.SendUncapped(strptr("X"), strptr("red"))
 	rs.SendUncapped(strptr("X"), strptr("blue"))
 	wantPostings(t, rs, []runtime.Posting{
@@ -710,9 +710,9 @@ func TestColor_MatchAnyDrainsMixedColorsPreservingEach(t *testing.T) {
 		{"B", usd, "blue"}: 30,
 		{"C", usd, ""}:     20,
 	})
-	rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "red")
-	rs.Pull("B", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
-	rs.Pull("C", big.NewInt(20), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("A", big.NewInt(50), big.NewInt(0), "red")
+	rs.Pull("B", big.NewInt(30), big.NewInt(0), "blue")
+	rs.Pull("C", big.NewInt(20), big.NewInt(0), "")
 
 	rs.Send(strptr("X"), big.NewInt(100), nil) // nil = match anything
 	wantPostings(t, rs, []runtime.Posting{
@@ -731,7 +731,7 @@ func TestColor_MatchAnyDrainsMixedColorsPreservingEach(t *testing.T) {
 
 func TestColor_RefundUsesSourceColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, "red"}: 100})
-	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "red") // A red -> 0
+	rs.Pull("A", big.NewInt(100), big.NewInt(0), "red") // A red -> 0
 	rs.Send(nil, big.NewInt(60), strptr("red"))                               // refund 60 to A's red slot
 	if got := rs.GetAccountBalance("A", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
 		t.Errorf("A red after refund = %d, want 60", got)
@@ -748,8 +748,8 @@ func TestEndToEnd_TwoSourcesSplitAcrossDestinations(t *testing.T) {
 		{"carol", usd, ""}: 0,
 		{"dave", usd, ""}:  0,
 	})
-	rs.Pull("alice", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Pull("bob", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("alice", big.NewInt(100), big.NewInt(0), "")
+	rs.Pull("bob", big.NewInt(100), big.NewInt(0), "")
 
 	rs.Send(strptr("carol"), big.NewInt(150), nil) // alice:100 fully, bob:50 partial (requeue bob:50)
 	rs.Send(strptr("dave"), big.NewInt(50), nil)   // bob:50 fully
