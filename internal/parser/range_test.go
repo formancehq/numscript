@@ -53,6 +53,50 @@ func TestPositionGt(t *testing.T) {
 
 }
 
+func TestPositionLt(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, parser.Position{
+		Line:      10,
+		Character: 20,
+	}.Lt(parser.Position{
+		Line:      10,
+		Character: 20,
+	}), "a position is not Lt itself (strict ordering)")
+
+	assert.True(t, parser.Position{
+		Line:      10,
+		Character: 20,
+	}.Lt(parser.Position{
+		Line:      100,
+		Character: 0,
+	}), "x is Lt y when x line is lower")
+
+	assert.False(t, parser.Position{
+		Line:      100,
+		Character: 0,
+	}.Lt(parser.Position{
+		Line:      10,
+		Character: 20,
+	}), "x is not Lt y when x line is greater")
+
+	assert.True(t, parser.Position{
+		Line:      0,
+		Character: 19,
+	}.Lt(parser.Position{
+		Line:      0,
+		Character: 20,
+	}), "x is Lt y when they are on the same line and the char is lower")
+
+	assert.False(t, parser.Position{
+		Line:      0,
+		Character: 20,
+	}.Lt(parser.Position{
+		Line:      0,
+		Character: 19,
+	}), "x is not Lt y when they are on the same line and the char is greater")
+}
+
 func TestContainsSameLine(t *testing.T) {
 	t.Parallel()
 

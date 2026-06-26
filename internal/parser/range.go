@@ -29,6 +29,17 @@ func (p1 *Position) GtEq(p2 Position) bool {
 	return p1.Line > p2.Line
 }
 
+// Lt reports whether p1 comes strictly before p2 in source order,
+// comparing by line first and then by character.
+// It is a strict ordering, suitable as a less function for sorting.
+func (p1 Position) Lt(p2 Position) bool {
+	if p1.Line == p2.Line {
+		return p1.Character < p2.Character
+	}
+
+	return p1.Line < p2.Line
+}
+
 func (p *Position) AsRange() Range {
 	//  position >= r.Start && r.End >= position
 	return Range{Start: *p, End: *p}
