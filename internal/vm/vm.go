@@ -109,7 +109,19 @@ func Exec[S Store](
 			}
 
 		case Op_MkAllotment:
-			panic("TODO mk allotment")
+			instrExt := instrs[pc]
+			pc++
+
+			destArrStartReg := vm.intsRegs[instr.A : instr.A+instr.C]
+			inpArrStartReg := vm.portionsRegs[instr.B : instr.B+instr.C]
+
+			amt := &vm.intsRegs[instrExt.A]
+
+			runtime.MakeAllotment(
+				destArrStartReg,
+				amt,
+				inpArrStartReg,
+			)
 
 		case Op_CheckEnoughFunds:
 			got := &vm.intsRegs[instr.A]
