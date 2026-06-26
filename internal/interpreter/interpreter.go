@@ -937,32 +937,9 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}
 
-	parts := make([]*big.Int, len(allotments))
-
-	totalAllocated := big.NewInt(0)
-
-	for i, allot := range allotments {
-		monetaryRat := new(big.Rat).SetInt(monetary)
-		product := new(big.Rat).Mul(allot, monetaryRat)
-
-		floored := new(big.Int).Div(product.Num(), product.Denom())
-
-		parts[i] = floored
-		totalAllocated.Add(totalAllocated, floored)
-
-	}
-
-	for i := range parts {
-		if /* totalAllocated >= monetary */ totalAllocated.Cmp(monetary) != -1 {
-			break
-		}
-
-		parts[i].Add(parts[i], big.NewInt(1))
-		// totalAllocated++
-		totalAllocated.Add(totalAllocated, big.NewInt(1))
-	}
-
-	return parts, nil
+	// portions are resolved (remaining computed, sum validated) — delegate the
+	// floor-then-distribute split to the runtime.
+	return runtime.MakeAllotment(monetary, allotments), nil
 }
 
 // Utility function to get the balance
