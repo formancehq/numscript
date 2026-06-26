@@ -36,6 +36,37 @@ send [$asset_0 42] (
 )`))
 }
 
+func TestSimpleSendWithFlag(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAccount(
+			builder.ExprAccount("src"),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgramWithFeatureFlags([]string{
+		"my-flag",
+		"another-flag",
+	}, stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`#![feature("my-flag", "another-flag")]
+vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = $account_0
+  destination = $account_1
+)`))
+}
+
 func TestSendAll(t *testing.T) {
 	stmt := builder.StmtSendAll(
 		builder.ExprAsset("COIN"),
