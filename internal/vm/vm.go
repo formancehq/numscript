@@ -39,8 +39,6 @@ type Store interface {
 	) *big.Int
 }
 
-// var zero = big.NewInt(0)
-
 func Exec[S Store](
 	vm *Vm,
 	vars any,
@@ -88,60 +86,27 @@ func Exec[S Store](
 			pulledAmt := vm.runstate.Pull(account, cap, overdraft, color)
 			vm.intsRegs[instr.A].Set(pulledAmt)
 
-		// case Op_PullAccountBoundedZero:
-		// 	account := vm.stringsRegs[instr.B]
-		// 	pulled := vm.runstate.Pull(
-		// 		account,
-		// 		nil,
-		// 		zero,
-		// 		"",
-		// 	)
-		// 	vm.intsRegs[instr.A].Set(pulled)
-
-		// case Op_PullAccountCap:
-		// 	// TODO check @world
-		// 	account := vm.stringsRegs[instr.B]
-		// 	cap := &vm.intsRegs[instr.C]
-		// 	pulled := vm.runstate.Pull(
-		// 		account,
-		// 		cap,
-		// 		zero,
-		// 		"",
-		// 	)
-		// 	vm.intsRegs[instr.A].Set(pulled)
-
-		// case Op_PullAccountUnboundedOverdraft:
-		// 	account := vm.stringsRegs[instr.B]
-		// 	cap := &vm.intsRegs[instr.C]
-		// 	pulled := vm.runstate.Pull(
-		// 		account,
-		// 		cap,
-		// 		nil,
-		// 		"",
-		// 	)
-		// 	vm.intsRegs[instr.A].Set(pulled)
-
-		// case Op_PullAccountOverdraft:
-		// 	// TODO prevent @world
-
-		// 	account := vm.stringsRegs[instr.B]
-		// 	overdraft := &vm.intsRegs[instr.C]
-		// 	pulled := vm.runstate.Pull(
-		// 		account,
-		// 		nil,
-		// 		overdraft,
-		// 		"",
-		// 	)
-		// 	vm.intsRegs[instr.A].Set(pulled)
-
 		case Op_SendToAccount:
-			panic("TODO")
-		case Op_SendToAccountAcc:
-			panic("TODO")
-		case Op_SendToAccountCap:
-			panic("TODO")
-		case Op_SendToAccountAccCap:
-			panic("TODO")
+			var dest *string
+			if instr.A != nilReg {
+				dest = new(vm.stringsRegs[instr.A])
+			}
+
+			var cap *big.Int
+			if instr.B != nilReg {
+				cap = &vm.intsRegs[instr.B]
+			}
+
+			var color *string
+			if instr.C != nilReg {
+				color = &vm.stringsRegs[instr.C]
+			}
+
+			if cap == nil {
+				vm.runstate.SendUncapped(dest, color)
+			} else {
+				vm.runstate.Send(dest, cap, color)
+			}
 
 		case Op_MkAllotment:
 			panic("TODO mk allotment")

@@ -50,11 +50,8 @@ const (
 	// --- allotment ---
 	Op_MkAllotment // b_c = allotment-table index
 
-	// --- SendToAccount (account? × cap?) ---
-	Op_SendToAccount       // account=None, cap=None
-	Op_SendToAccountCap    // account=None, cap=Some
-	Op_SendToAccountAcc    // account=Some, cap=None
-	Op_SendToAccountAccCap // account=Some, cap=Some
+	// account?, cap?, color?
+	Op_SendToAccount
 
 	// --- control flow ---
 	Op_JmpIfZero // b_c = resolved instruction offset
