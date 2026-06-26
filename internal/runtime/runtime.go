@@ -105,6 +105,28 @@ func (s *RunState) SetCurrentAsset(asset string) {
 	s.currentAsset = asset
 }
 
+// Prewarm seeds the balance cache with balances fetched in bulk, so runtime's
+// lazy per-key Store.GetBalance path is never hit for them. This lets a caller
+// keep a single batched balance round-trip (e.g. the interpreter's pre-pass that
+// collects every needed (account, asset, color) and fetches them in one query)
+// instead of paying one Store call per triple.
+//
+// Call it once, before any Pull/Send/Save/ForcePosting. Amounts are cloned, so
+// the caller may reuse them. A key that is already cached is left untouched (the
+// live value wins), so a stray double-call can never clobber computed state.
+func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
+	for key, amount := range balances {
+		if _, ok := s.balances[key]; ok {
+			continue
+		}
+		cloned := new(big.Int)
+		if amount != nil {
+			cloned.Set(amount)
+		}
+		s.balances[key] = cloned
+	}
+}
+
 // GetAccountBalance returns the balance for (account, asset, color). An empty
 // asset means "use currentAsset" (the OCaml ?asset default). The value is
 // fetched from the Store on first access and cached thereafter. The returned

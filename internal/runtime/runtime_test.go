@@ -456,6 +456,39 @@ func TestBigInt_GetAccountBalanceReturnsCopy(t *testing.T) {
 	wantBalance(t, rs, "A", 100)
 }
 
+// --- Prewarm (batched balance seeding) -----------------------------------
+
+func TestPrewarm_SeedsCacheAndSkipsStore(t *testing.T) {
+	rs, store := newRS(nil) // store has nothing
+	rs.Prewarm(map[runtime.PairKey]*big.Int{
+		{"A", usd, ""}:    big.NewInt(100),
+		{"B", usd, "red"}: big.NewInt(40),
+	})
+	wantBalance(t, rs, "A", 100)
+	if b := rs.GetAccountBalance("B", usd, "red"); b.Cmp(big.NewInt(40)) != 0 {
+		t.Errorf("B red = %s, want 40", b)
+	}
+	// nothing was fetched lazily — the batch seed covered it
+	if c := store.callCount("A", usd); c != 0 {
+		t.Errorf("store consulted %d times for A, want 0", c)
+	}
+}
+
+func TestPrewarm_ClonesValues(t *testing.T) {
+	rs, _ := newRS(nil)
+	seed := big.NewInt(100)
+	rs.Prewarm(map[runtime.PairKey]*big.Int{{"A", usd, ""}: seed})
+	seed.SetInt64(999) // mutate caller's value after seeding
+	wantBalance(t, rs, "A", 100)
+}
+
+func TestPrewarm_DoesNotClobberLiveValue(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
+	rs.Pull("A", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 70
+	rs.Prewarm(map[runtime.PairKey]*big.Int{{"A", usd, ""}: big.NewInt(100)}) // must NOT reset to 100
+	wantBalance(t, rs, "A", 70)
+}
+
 // --- ForcePosting (direct src->dst, bypassing the queue) -----------------
 
 func TestForcePosting_DebitsSourceCreditsDestAndRecords(t *testing.T) {
