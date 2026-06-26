@@ -228,7 +228,7 @@ func TestPullUncapped_ZeroNotQueuedNorDebited(t *testing.T) {
 	wantReturn(t, "PullUncapped", got, 0)
 	wantBalance(t, rs, "A", 0)
 	// nothing queued -> a subsequent drain produces no postings
-	rs.SendUncapped(strptr("X"), "")
+	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
@@ -237,7 +237,7 @@ func TestPullUncapped_NegativeEffectiveNotQueued(t *testing.T) {
 	got := rs.PullUncapped("A", big.NewInt(-50), "") // max(0, 10-50) = 0
 	wantReturn(t, "PullUncapped", got, 0)
 	wantBalance(t, rs, "A", 10)
-	rs.SendUncapped(strptr("X"), "")
+	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
@@ -248,10 +248,10 @@ func TestSend_PartialConsumeRequeuesFront(t *testing.T) {
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:100
 	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")  // source B:50
 
-	rs.Send(strptr("X"), big.NewInt(30), "") // takes 30 from A, requeues A:70 at front
+	rs.Send(strptr("X"), big.NewInt(30), nil) // takes 30 from A, requeues A:70 at front
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(30)}})
 
-	rs.Send(strptr("Y"), big.NewInt(200), "") // A:70 then B:50, both fully
+	rs.Send(strptr("Y"), big.NewInt(200), nil) // A:70 then B:50, both fully
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(30)},
 		{Source: "A", Destination: "Y", Asset: usd, Amount: big.NewInt(70)},
@@ -264,7 +264,7 @@ func TestSend_FIFOOrder(t *testing.T) {
 	rs.Pull("A", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
 	rs.Pull("B", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
 	rs.Pull("C", big.NewInt(10), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(30), "")
+	rs.Send(strptr("X"), big.NewInt(30), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(10)},
 		{Source: "B", Destination: "X", Asset: usd, Amount: big.NewInt(10)},
@@ -275,40 +275,40 @@ func TestSend_FIFOOrder(t *testing.T) {
 func TestSend_ExactMatchNoRequeue(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 50})
 	rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(50), "") // exact
+	rs.Send(strptr("X"), big.NewInt(50), nil) // exact
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(50)}})
 	// nothing left
-	rs.SendUncapped(strptr("Y"), "")
+	rs.SendUncapped(strptr("Y"), nil)
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(50)}})
 }
 
 func TestSend_CapExceedsAvailableDrains(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(500), "") // more than available; drains 100, no leftover
+	rs.Send(strptr("X"), big.NewInt(500), nil) // more than available; drains 100, no leftover
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
 
 func TestSend_ZeroCapIsNoOp(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(0), "")
+	rs.Send(strptr("X"), big.NewInt(0), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 	// source remains -> uncapped drain still sees it
-	rs.SendUncapped(strptr("X"), "")
+	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
 
 func TestSend_NegativeCapIsNoOp(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(-5), "")
+	rs.Send(strptr("X"), big.NewInt(-5), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
 func TestSend_NoSourcesIsNoOp(t *testing.T) {
 	rs, _ := newRS(nil)
-	rs.Send(strptr("X"), big.NewInt(100), "")
+	rs.Send(strptr("X"), big.NewInt(100), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
@@ -320,7 +320,7 @@ func TestSend_MergesWithinSingleDrain(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:60
 	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "") // source A:40
-	rs.Send(strptr("X"), big.NewInt(100), "")                     // drains both A:60 then A:40 -> one posting
+	rs.Send(strptr("X"), big.NewInt(100), nil)                     // drains both A:60 then A:40 -> one posting
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
 
@@ -330,8 +330,8 @@ func TestSend_DoesNotMergeAcrossSeparateSends(t *testing.T) {
 	// within a single Pull, never across send statements.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(40), "") // posting A->X 40, requeue A:60
-	rs.Send(strptr("X"), big.NewInt(40), "") // separate send: NOT merged, requeue A:20
+	rs.Send(strptr("X"), big.NewInt(40), nil) // posting A->X 40, requeue A:60
+	rs.Send(strptr("X"), big.NewInt(40), nil) // separate send: NOT merged, requeue A:20
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)},
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)},
@@ -341,8 +341,8 @@ func TestSend_DoesNotMergeAcrossSeparateSends(t *testing.T) {
 func TestSend_DoesNotMergeDifferentDestination(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(40), "")
-	rs.Send(strptr("Y"), big.NewInt(40), "")
+	rs.Send(strptr("X"), big.NewInt(40), nil)
+	rs.Send(strptr("Y"), big.NewInt(40), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)},
 		{Source: "A", Destination: "Y", Asset: usd, Amount: big.NewInt(40)},
@@ -356,7 +356,7 @@ func TestSend_CreditsDestinationOverExistingStoreBalance(t *testing.T) {
 	// treat X as 0.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"X", usd, ""}: 500})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(100), "")
+	rs.Send(strptr("X"), big.NewInt(100), nil)
 	wantBalance(t, rs, "X", 600)
 }
 
@@ -365,11 +365,11 @@ func TestSend_CreditsDestinationOverExistingStoreBalance(t *testing.T) {
 func TestSend_RefundCreditsSourceNoPosting(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 0, source A:100
-	rs.Send(nil, big.NewInt(60), "")                               // refund 60 to A, requeue A:40
+	rs.Send(nil, big.NewInt(60), nil)                               // refund 60 to A, requeue A:40
 	wantBalance(t, rs, "A", 60)
 	wantPostings(t, rs, []runtime.Posting{})
 	// remaining 40 still queued
-	rs.Send(strptr("X"), big.NewInt(100), "")
+	rs.Send(strptr("X"), big.NewInt(100), nil)
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)}})
 }
 
@@ -379,7 +379,7 @@ func TestSendUncapped_DrainsAllToDestination(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
 	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.SendUncapped(strptr("X"), "")
+	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)},
 		{Source: "B", Destination: "X", Asset: usd, Amount: big.NewInt(50)},
@@ -390,7 +390,7 @@ func TestSendUncapped_RefundsAll(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "") // A -> 0
 	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")  // B -> 0
-	rs.SendUncapped(nil, "")                           // refund both
+	rs.SendUncapped(nil, nil)                           // refund both
 	wantBalance(t, rs, "A", 100)
 	wantBalance(t, rs, "B", 50)
 	wantPostings(t, rs, []runtime.Posting{})
@@ -398,7 +398,7 @@ func TestSendUncapped_RefundsAll(t *testing.T) {
 
 func TestSendUncapped_NoSourcesIsNoOp(t *testing.T) {
 	rs, _ := newRS(nil)
-	rs.SendUncapped(strptr("X"), "")
+	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
@@ -407,7 +407,7 @@ func TestSendUncapped_NoSourcesIsNoOp(t *testing.T) {
 func TestGetPostings_ReturnsCopy(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
-	rs.Send(strptr("X"), big.NewInt(100), "")
+	rs.Send(strptr("X"), big.NewInt(100), nil)
 
 	p := rs.GetPostings()
 	if len(p) != 1 {
@@ -436,7 +436,7 @@ func TestBigInt_AmountsBeyondInt64(t *testing.T) {
 	if got.Cmp(huge) != 0 {
 		t.Fatalf("Pull returned %s, want %s", got, huge)
 	}
-	rs.Send(strptr("X"), new(big.Int).Set(huge), "")
+	rs.Send(strptr("X"), new(big.Int).Set(huge), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: new(big.Int).Set(huge)},
 	})
@@ -454,6 +454,66 @@ func TestBigInt_GetAccountBalanceReturnsCopy(t *testing.T) {
 	b := rs.GetAccountBalance("A", usd, "")
 	b.SetInt64(999999)
 	wantBalance(t, rs, "A", 100)
+}
+
+// --- Snapshot / Restore (cheap oneof backtracking) -----------------------
+
+func TestSnapshotRestore_UndoesPullsAndBalances(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 80})
+
+	mark := rs.Snapshot() // == 0
+	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	rs.Pull("B", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	// balances debited, two sources queued
+	wantBalance(t, rs, "A", 40)
+	wantBalance(t, rs, "B", 30)
+
+	rs.Restore(mark)
+	// balances repaid, queue emptied
+	wantBalance(t, rs, "A", 100)
+	wantBalance(t, rs, "B", 80)
+	rs.SendUncapped(strptr("X"), nil)
+	wantPostings(t, rs, []runtime.Posting{}) // nothing left to send
+}
+
+func TestSnapshotRestore_OneofFailedBranchThenRealBranch(t *testing.T) {
+	// Models `oneof`: try branch 1 (snapshot, pull, falls short -> restore),
+	// then commit branch 2 from the restored state.
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 30, {"B", usd, ""}: 100})
+
+	// branch 1: @A can only provide 30 of the needed 100 -> abandon
+	mark := rs.Snapshot()
+	got := rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	wantReturn(t, "branch1 pull", got, 30) // short
+	rs.Restore(mark)
+	wantBalance(t, rs, "A", 30) // A untouched after backtrack
+
+	// branch 2: @B covers it
+	got = rs.Pull("B", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
+	wantReturn(t, "branch2 pull", got, 100)
+	rs.Send(strptr("X"), big.NewInt(100), nil)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "B", Destination: "X", Asset: usd, Amount: big.NewInt(100)},
+	})
+	wantBalance(t, rs, "A", 30)
+	wantBalance(t, rs, "B", 0)
+}
+
+func TestSnapshotRestore_PartialMarkKeepsEarlierSources(t *testing.T) {
+	// A snapshot taken mid-stream must only undo what came after it.
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 100})
+	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "") // kept
+
+	mark := rs.Snapshot()
+	rs.Pull("B", big.NewInt(70), runtime.BoundedOverdraft(big.NewInt(0)), "") // undone
+	rs.Restore(mark)
+
+	wantBalance(t, rs, "A", 60)  // still debited
+	wantBalance(t, rs, "B", 100) // repaid
+	rs.SendUncapped(strptr("X"), nil)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)},
+	})
 }
 
 // --- color ----------------------------------------------------------------
@@ -483,7 +543,7 @@ func TestColor_BalancesTrackedSeparatelyPerColor(t *testing.T) {
 func TestColor_PullTagsSourceAndPostingCarriesColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, "red"}: 100})
 	rs.Pull("A", big.NewInt(60), runtime.BoundedOverdraft(big.NewInt(0)), "red")
-	rs.Send(strptr("X"), big.NewInt(60), "red")
+	rs.Send(strptr("X"), big.NewInt(60), strptr("red"))
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(60)},
 	})
@@ -509,14 +569,14 @@ func TestColor_SendSkipsNonMatchingColorLeavingItQueued(t *testing.T) {
 	rs.Pull("B", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
 	rs.Pull("C", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "red")
 
-	rs.Send(strptr("X"), big.NewInt(100), "red") // only 90 red available; blue stays put
+	rs.Send(strptr("X"), big.NewInt(100), strptr("red")) // only 90 red available; blue stays put
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(50)},
 		{Source: "C", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(40)},
 	})
 
 	// the skipped blue source is still queued and drains on a blue send
-	rs.Send(strptr("Y"), big.NewInt(100), "blue")
+	rs.Send(strptr("Y"), big.NewInt(100), strptr("blue"))
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(50)},
 		{Source: "C", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(40)},
@@ -533,18 +593,46 @@ func TestColor_SendDoesNotMergeAcrossColors(t *testing.T) {
 	})
 	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "red")
 	rs.Pull("A", big.NewInt(40), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
-	rs.SendUncapped(strptr("X"), "red")
-	rs.SendUncapped(strptr("X"), "blue")
+	rs.SendUncapped(strptr("X"), strptr("red"))
+	rs.SendUncapped(strptr("X"), strptr("blue"))
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(40)},
 		{Source: "A", Destination: "X", Asset: usd, Color: "blue", Amount: big.NewInt(40)},
 	})
 }
 
+func TestColor_MatchAnyDrainsMixedColorsPreservingEach(t *testing.T) {
+	// This is the mode the interpreter's destinations use (fundsQueue.PullAnything):
+	// one drain (color == nil) consumes funds of several colors at once, and each
+	// posting keeps its source fund's own color.
+	rs, _ := newRS(map[runtime.PairKey]int64{
+		{"A", usd, "red"}:  50,
+		{"B", usd, "blue"}: 30,
+		{"C", usd, ""}:     20,
+	})
+	rs.Pull("A", big.NewInt(50), runtime.BoundedOverdraft(big.NewInt(0)), "red")
+	rs.Pull("B", big.NewInt(30), runtime.BoundedOverdraft(big.NewInt(0)), "blue")
+	rs.Pull("C", big.NewInt(20), runtime.BoundedOverdraft(big.NewInt(0)), "")
+
+	rs.Send(strptr("X"), big.NewInt(100), nil) // nil = match anything
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(50)},
+		{Source: "B", Destination: "X", Asset: usd, Color: "blue", Amount: big.NewInt(30)},
+		{Source: "C", Destination: "X", Asset: usd, Color: "", Amount: big.NewInt(20)},
+	})
+	// destination credited on each respective color slot
+	if b := rs.GetAccountBalance("X", usd, "red"); b.Cmp(big.NewInt(50)) != 0 {
+		t.Errorf("X red = %s, want 50", b)
+	}
+	if b := rs.GetAccountBalance("X", usd, "blue"); b.Cmp(big.NewInt(30)) != 0 {
+		t.Errorf("X blue = %s, want 30", b)
+	}
+}
+
 func TestColor_RefundUsesSourceColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, "red"}: 100})
 	rs.Pull("A", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "red") // A red -> 0
-	rs.Send(nil, big.NewInt(60), "red")                               // refund 60 to A's red slot
+	rs.Send(nil, big.NewInt(60), strptr("red"))                               // refund 60 to A's red slot
 	if got := rs.GetAccountBalance("A", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
 		t.Errorf("A red after refund = %d, want 60", got)
 	}
@@ -563,8 +651,8 @@ func TestEndToEnd_TwoSourcesSplitAcrossDestinations(t *testing.T) {
 	rs.Pull("alice", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
 	rs.Pull("bob", big.NewInt(100), runtime.BoundedOverdraft(big.NewInt(0)), "")
 
-	rs.Send(strptr("carol"), big.NewInt(150), "") // alice:100 fully, bob:50 partial (requeue bob:50)
-	rs.Send(strptr("dave"), big.NewInt(50), "")   // bob:50 fully
+	rs.Send(strptr("carol"), big.NewInt(150), nil) // alice:100 fully, bob:50 partial (requeue bob:50)
+	rs.Send(strptr("dave"), big.NewInt(50), nil)   // bob:50 fully
 
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "alice", Destination: "carol", Asset: usd, Amount: big.NewInt(100)},

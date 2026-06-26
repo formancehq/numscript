@@ -160,20 +160,30 @@ func (s *RunState) PullUncapped(src string, overdraftBound *big.Int, color strin
 }
 
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
-// funding sources whose color matches `color` in FIFO order until cap is
-// satisfied or matching sources run out. Sources of a different color are
-// skipped and left in place (matching fundsQueue.Pull's color-skip). dest ==
-// nil is the "keep/refund" path: the source is credited back and no posting is
-// emitted. A partially consumed source's remainder stays at its position.
-func (s *RunState) Send(dest *string, cap *big.Int, color string) {
+// funding sources in FIFO order until cap is satisfied or eligible sources run
+// out, and each emitted posting carries the *consumed source's* own color.
+//
+// The color filter selects which sources are eligible:
+//
+//	color == nil   -> match anything (fundsQueue.PullAnything); a single drain
+//	                  may consume and emit funds of several colors at once. This
+//	                  is the mode the interpreter's destinations use.
+//	color != nil   -> only sources whose color == *color are consumed; others
+//	                  are skipped and left in place (fundsQueue.PullColored /
+//	                  PullUncolored, with *color == "" meaning uncolored).
+//
+// dest == nil is the "keep/refund" path: the source is credited back and no
+// posting is emitted. A partially consumed source's remainder stays at its
+// position.
+func (s *RunState) Send(dest *string, cap *big.Int, color *string) {
 	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
 	i := 0
 	for cap.Sign() > 0 && i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,color) funds at i
 		src := s.sources[i]
-		if src.color != color {
-			i++ // different color: skip, leave in place
+		if color != nil && src.color != *color {
+			i++ // filtered out: skip, leave in place
 			continue
 		}
 		if src.amount.Cmp(cap) >= 0 {
@@ -191,22 +201,49 @@ func (s *RunState) Send(dest *string, cap *big.Int, color string) {
 	}
 }
 
-// SendUncapped mirrors the OCaml `send_uncapped`, extended with a color filter:
-// drains every queued source whose color matches `color`, leaving others in
+// SendUncapped mirrors the OCaml `send_uncapped`, extended with the same color
+// filter as Send: color == nil drains every queued source (each posting keeping
+// its own color); color != nil drains only matching ones, leaving others in
 // place.
-func (s *RunState) SendUncapped(dest *string, color string) {
+func (s *RunState) SendUncapped(dest *string, color *string) {
 	asset := s.currentAsset
 	i := 0
 	for i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,color) funds at i
 		src := s.sources[i]
-		if src.color != color {
-			i++ // different color: skip, leave in place
+		if color != nil && src.color != *color {
+			i++ // filtered out: skip, leave in place
 			continue
 		}
 		s.credit(dest, src, asset, src.amount)
 		s.removeAt(i)
 	}
+}
+
+// Snapshot returns a cheap marker of the current source-queue depth, for
+// backtracking a speculative source evaluation (e.g. a `oneof` branch). It is
+// just the queue length: O(1), no allocation, no map cloning.
+func (s *RunState) Snapshot() int {
+	return len(s.sources)
+}
+
+// Restore undoes every Pull/PullUncapped performed since the matching Snapshot:
+// it repays each source queued after the mark back to the (account, color)
+// balance it was debited from, then truncates the queue to the mark. Balances
+// are restored exactly without cloning maps — repaying the queued amounts is the
+// exact inverse of the debits Pull made.
+//
+// PRECONDITION: nothing queued after the mark has been sent, and the current
+// asset is unchanged since the Snapshot. Both hold during source evaluation,
+// which is the only place backtracking happens — Send runs later, in the
+// destination phase. (compactAt may have folded same-(account,color) funds, but
+// the fold preserves both per the merge key, so the repay still lands correctly.)
+func (s *RunState) Restore(mark int) {
+	for i := mark; i < len(s.sources); i++ {
+		src := s.sources[i]
+		s.addToBalance(src.account, s.currentAsset, src.color, src.amount)
+	}
+	s.sources = s.sources[:mark]
 }
 
 // GetPostings returns a deep copy of the recorded postings, so callers cannot
