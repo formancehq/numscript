@@ -20,17 +20,24 @@
 // Concurrency: a *RunState is mutable and NOT safe for concurrent use. Use one
 // per execution.
 //
-// NOTE on numeric width: this layer is int64-native, matching the OCaml
-// run_state (balances, postings, sources are all int64). The VM's register
-// layer uses math/big. If your VM-level Store returns *big.Int, wrap it in an
-// adapter that narrows to int64 here, or unify the two on one representation.
+// Numeric model: all amounts are *big.Int (arbitrary precision), matching the
+// numscript interpreter. Because *big.Int is a mutable reference type, this
+// package is careful about aliasing: it clones values it ingests from the Store
+// and clones caller-supplied amounts it intends to mutate, it only mutates
+// big.Ints it privately owns (queued source amounts), and it never hands out a
+// live reference to its internal state (GetAccountBalance / GetPostings return
+// copies).
 package runtime
+
+import "math/big"
 
 // Store supplies the authoritative starting balance for an (account, asset,
 // color) triple. A triple never seen by the ledger is fetched once, then cached.
-// Implementations should return 0 for unknown triples (not an error).
+// Implementations should return 0 (or nil, treated as 0) for unknown triples,
+// not an error. The returned *big.Int is cloned on ingest, so the Store may
+// safely reuse it.
 type Store interface {
-	GetBalance(account, asset, color string) int64
+	GetBalance(account, asset, color string) *big.Int
 }
 
 // Posting mirrors Common_intf.posting: a recorded movement of Amount units of
@@ -40,7 +47,7 @@ type Posting struct {
 	Destination string
 	Asset       string
 	Color       string
-	Amount      int64
+	Amount      *big.Int
 }
 
 // PairKey identifies a balance slot. Exported so a Store mock/adapter can build
@@ -53,10 +60,11 @@ type PairKey struct {
 
 // source is an internal funding entry queued by Pull / PullUncapped. It carries
 // the color of the funds so Send can filter and so postings/refunds land on the
-// right (asset, color) balance.
+// right (asset, color) balance. The amount is privately owned by the queue and
+// may be mutated in place.
 type source struct {
 	account string
-	amount  int64
+	amount  *big.Int
 	color   string
 }
 
@@ -65,21 +73,21 @@ type source struct {
 //	UnboundedOverdraft()  -> OCaml None    (take the full cap)
 //	BoundedOverdraft(n)   -> OCaml Some n  (clamp by balance + n)
 //
-// The OCaml `pull` default is `Some 0L`; pass BoundedOverdraft(0) for that.
+// The OCaml `pull` default is `Some 0L`; pass BoundedOverdraft(big.NewInt(0)).
 type Overdraft struct {
 	bounded bool
-	bound   int64
+	bound   *big.Int
 }
 
-func UnboundedOverdraft() Overdraft      { return Overdraft{bounded: false} }
-func BoundedOverdraft(n int64) Overdraft { return Overdraft{bounded: true, bound: n} }
+func UnboundedOverdraft() Overdraft         { return Overdraft{bounded: false} }
+func BoundedOverdraft(n *big.Int) Overdraft { return Overdraft{bounded: true, bound: n} }
 
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
 // call New. All fields are unexported to preserve the .mli interface boundary.
 type RunState struct {
 	store        Store
-	balances     map[PairKey]int64 // write-through cache over store
-	sources      []source          // FIFO: front = index 0
+	balances     map[PairKey]*big.Int // write-through cache over store
+	sources      []source             // FIFO: front = index 0
 	postings     []Posting
 	currentAsset string
 }
@@ -88,7 +96,7 @@ type RunState struct {
 func New(store Store) *RunState {
 	return &RunState{
 		store:    store,
-		balances: make(map[PairKey]int64),
+		balances: make(map[PairKey]*big.Int),
 	}
 }
 
@@ -99,16 +107,18 @@ func (s *RunState) SetCurrentAsset(asset string) {
 
 // GetAccountBalance returns the balance for (account, asset, color). An empty
 // asset means "use currentAsset" (the OCaml ?asset default). The value is
-// fetched from the Store on first access and cached thereafter.
+// fetched from the Store on first access and cached thereafter. The returned
+// *big.Int is a fresh copy: callers may keep or mutate it freely without
+// affecting runtime state.
 //
 // Note: "" is the unset sentinel for asset, consistent with currentAsset
 // starting as "". A real asset must never be the empty string. For color, ""
 // is a legitimate value meaning "uncolored".
-func (s *RunState) GetAccountBalance(account, asset, color string) int64 {
+func (s *RunState) GetAccountBalance(account, asset, color string) *big.Int {
 	if asset == "" {
 		asset = s.currentAsset
 	}
-	return s.cachedBalance(account, asset, color)
+	return new(big.Int).Set(s.cachedBalance(account, asset, color))
 }
 
 // Pull mirrors the OCaml `pull`. It debits up to cap from src's (currentAsset,
@@ -118,36 +128,35 @@ func (s *RunState) GetAccountBalance(account, asset, color string) int64 {
 //
 //	UnboundedOverdraft  -> available = cap
 //	BoundedOverdraft(b) -> available = min(max(0, balance + max(0,b)), cap)
-func (s *RunState) Pull(src string, cap int64, ovd Overdraft, color string) int64 {
-	cap = nonNeg(cap)
-	currentBal := s.GetAccountBalance(src, "", color) // resolves to currentAsset, caches
+func (s *RunState) Pull(src string, cap *big.Int, ovd Overdraft, color string) *big.Int {
+	cap = nonNeg(cap) // fresh, >= 0, decoupled from caller
+	currentBal := s.cachedBalance(src, s.currentAsset, color)
 
-	var available int64
+	var available *big.Int
 	if !ovd.bounded {
-		available = cap
+		available = new(big.Int).Set(cap)
 	} else {
 		bound := nonNeg(ovd.bound)
-		eff := nonNeg(currentBal + bound)
-		available = min64(eff, cap)
+		eff := clampNonNeg(new(big.Int).Add(currentBal, bound))
+		available = minBig(eff, cap)
 	}
 
-	// key is already cached by GetAccountBalance above, so direct write is safe.
-	s.balances[PairKey{src, s.currentAsset, color}] = currentBal - available
-	s.sources = append(s.sources, source{src, available, color})
-	return available
+	s.balances[PairKey{src, s.currentAsset, color}] = new(big.Int).Sub(currentBal, available)
+	s.sources = append(s.sources, source{src, available, color}) // available now owned by the queue
+	return new(big.Int).Set(available)
 }
 
 // PullUncapped mirrors the OCaml `pull_uncapped`: makes available
 // max(0, balance + overdraftBound) of src's (currentAsset, color) balance,
 // queuing it only when positive.
-func (s *RunState) PullUncapped(src string, overdraftBound int64, color string) int64 {
-	currentBal := s.GetAccountBalance(src, "", color)
-	available := nonNeg(currentBal + overdraftBound)
-	if available > 0 {
-		s.balances[PairKey{src, s.currentAsset, color}] = currentBal - available
+func (s *RunState) PullUncapped(src string, overdraftBound *big.Int, color string) *big.Int {
+	currentBal := s.cachedBalance(src, s.currentAsset, color)
+	available := clampNonNeg(new(big.Int).Add(currentBal, overdraftBound))
+	if available.Sign() > 0 {
+		s.balances[PairKey{src, s.currentAsset, color}] = new(big.Int).Sub(currentBal, available)
 		s.sources = append(s.sources, source{src, available, color})
 	}
-	return available
+	return new(big.Int).Set(available)
 }
 
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
@@ -156,19 +165,20 @@ func (s *RunState) PullUncapped(src string, overdraftBound int64, color string) 
 // skipped and left in place (matching fundsQueue.Pull's color-skip). dest ==
 // nil is the "keep/refund" path: the source is credited back and no posting is
 // emitted. A partially consumed source's remainder stays at its position.
-func (s *RunState) Send(dest *string, cap int64, color string) {
+func (s *RunState) Send(dest *string, cap *big.Int, color string) {
+	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
 	i := 0
-	for cap > 0 && i < len(s.sources) {
+	for cap.Sign() > 0 && i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,color) funds at i
 		src := s.sources[i]
 		if src.color != color {
 			i++ // different color: skip, leave in place
 			continue
 		}
-		if src.amount >= cap {
+		if src.amount.Cmp(cap) >= 0 {
 			s.credit(dest, src, asset, cap)
-			if diff := src.amount - cap; diff > 0 {
+			if diff := new(big.Int).Sub(src.amount, cap); diff.Sign() > 0 {
 				s.sources[i].amount = diff // remainder stays at this position
 			} else {
 				s.removeAt(i)
@@ -176,7 +186,7 @@ func (s *RunState) Send(dest *string, cap int64, color string) {
 			return // cap fully satisfied
 		}
 		s.credit(dest, src, asset, src.amount)
-		cap -= src.amount
+		cap.Sub(cap, src.amount)
 		s.removeAt(i) // do not advance i; the next source shifts into position i
 	}
 }
@@ -199,11 +209,15 @@ func (s *RunState) SendUncapped(dest *string, color string) {
 	}
 }
 
-// GetPostings returns a copy of the recorded postings, so callers cannot mutate
-// internal state (matching the OCaml Dynarray.to_list, which copies).
+// GetPostings returns a deep copy of the recorded postings, so callers cannot
+// mutate internal state (matching the OCaml Dynarray.to_list, which copies).
 func (s *RunState) GetPostings() []Posting {
 	out := make([]Posting, len(s.postings))
-	copy(out, s.postings)
+	for i, p := range s.postings {
+		cp := p
+		cp.Amount = new(big.Int).Set(p.Amount)
+		out[i] = cp
+	}
 	return out
 }
 
@@ -212,10 +226,11 @@ func (s *RunState) GetPostings() []Posting {
 // credit routes a consumed source amount either into a posting (dest != nil) or
 // back to the source as a refund (dest == nil). The funds keep their color, so
 // both the posting and the destination/source balance land on (asset, color).
-func (s *RunState) credit(dest *string, src source, asset string, amount int64) {
+// amount is treated as read-only.
+func (s *RunState) credit(dest *string, src source, asset string, amount *big.Int) {
 	if dest != nil {
 		s.addPosting(src.account, *dest, asset, src.color, amount)
-	} else if amount > 0 {
+	} else if amount.Sign() > 0 {
 		// refund the source: consume funding, emit no posting
 		s.addToBalance(src.account, asset, src.color, amount)
 	}
@@ -223,22 +238,30 @@ func (s *RunState) credit(dest *string, src source, asset string, amount int64) 
 
 // cachedBalance returns the cached balance for (account, asset, color), fetching
 // from the Store and caching on first access. Presence in the map distinguishes
-// "already fetched (possibly 0)" from "not yet fetched".
-func (s *RunState) cachedBalance(account, asset, color string) int64 {
+// "already fetched (possibly 0)" from "not yet fetched". The Store's value is
+// cloned on ingest so runtime never mutates a pointer the Store owns. The
+// returned pointer is the live cache entry — internal callers must not mutate it
+// in place; they replace the map entry with a freshly allocated value instead.
+func (s *RunState) cachedBalance(account, asset, color string) *big.Int {
 	key := PairKey{account, asset, color}
 	if v, ok := s.balances[key]; ok {
 		return v
 	}
-	v := s.store.GetBalance(account, asset, color)
-	s.balances[key] = v
-	return v
+	fromStore := s.store.GetBalance(account, asset, color)
+	cached := new(big.Int)
+	if fromStore != nil {
+		cached.Set(fromStore)
+	}
+	s.balances[key] = cached
+	return cached
 }
 
 // addToBalance applies delta to (account, asset, color), loading the base value
-// through the cache first so an un-fetched account is not treated as 0.
-func (s *RunState) addToBalance(account, asset, color string, delta int64) {
+// through the cache first so an un-fetched account is not treated as 0. delta is
+// read-only; the cache entry is replaced with a freshly allocated sum.
+func (s *RunState) addToBalance(account, asset, color string, delta *big.Int) {
 	cur := s.cachedBalance(account, asset, color)
-	s.balances[PairKey{account, asset, color}] = cur + delta
+	s.balances[PairKey{account, asset, color}] = new(big.Int).Add(cur, delta)
 }
 
 // addPosting appends a posting verbatim and credits the destination balance.
@@ -246,9 +269,9 @@ func (s *RunState) addToBalance(account, asset, color string, delta int64) {
 // funds are instead coalesced upstream in the source queue by compactAt, so a
 // posting can only ever fuse adjacent funds *within* one drain — never across
 // separate sends. This mirrors the interpreter's fundsQueue, which merges in the
-// queue (compactTop), not in the posting list.
-func (s *RunState) addPosting(src, dst, asset, color string, amount int64) {
-	if amount <= 0 {
+// queue (compactTop), not in the posting list. amount is cloned into the posting.
+func (s *RunState) addPosting(src, dst, asset, color string, amount *big.Int) {
+	if amount.Sign() <= 0 {
 		return
 	}
 	s.postings = append(s.postings, Posting{
@@ -256,7 +279,7 @@ func (s *RunState) addPosting(src, dst, asset, color string, amount int64) {
 		Destination: dst,
 		Asset:       asset,
 		Color:       color,
-		Amount:      amount,
+		Amount:      new(big.Int).Set(amount),
 	})
 	s.addToBalance(dst, asset, color, amount)
 }
@@ -267,18 +290,19 @@ func (s *RunState) addPosting(src, dst, asset, color string, amount int64) {
 // merges adjacent same-source funds in the queue before they are drained, so
 // one drain over them yields a single posting. Because it operates on the queue
 // (which each send fully consumes) and never on the posting list, it cannot fuse
-// funds belonging to different sends.
+// funds belonging to different sends. The fold mutates s.sources[i].amount in
+// place, which is safe because queued amounts are privately owned.
 func (s *RunState) compactAt(i int) {
 	for i+1 < len(s.sources) {
 		next := s.sources[i+1]
-		if next.amount == 0 {
+		if next.amount.Sign() == 0 {
 			s.removeAt(i + 1)
 			continue
 		}
 		if next.account != s.sources[i].account || next.color != s.sources[i].color {
 			return
 		}
-		s.sources[i].amount += next.amount
+		s.sources[i].amount.Add(s.sources[i].amount, next.amount)
 		s.removeAt(i + 1)
 	}
 }
@@ -288,15 +312,26 @@ func (s *RunState) removeAt(i int) {
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
 }
 
-func nonNeg(x int64) int64 {
-	if x < 0 {
-		return 0
+// nonNeg returns a fresh non-negative copy of x: max(0, x). nil is treated as 0.
+func nonNeg(x *big.Int) *big.Int {
+	if x == nil || x.Sign() < 0 {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(x)
+}
+
+// clampNonNeg clamps x to >= 0 in place and returns it (for runtime-owned
+// intermediates).
+func clampNonNeg(x *big.Int) *big.Int {
+	if x.Sign() < 0 {
+		x.SetInt64(0)
 	}
 	return x
 }
 
-func min64(a, b int64) int64 {
-	if a < b {
+// minBig returns whichever of a, b is smaller (no copy).
+func minBig(a, b *big.Int) *big.Int {
+	if a.Cmp(b) < 0 {
 		return a
 	}
 	return b
