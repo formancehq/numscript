@@ -153,6 +153,14 @@ func (e InvalidAllotmentInSendAll) Error() string {
 	return "cannot take all balance of an allotment source"
 }
 
+type InvalidRemainingAllotment struct {
+	parser.Range
+}
+
+func (e InvalidRemainingAllotment) Error() string {
+	return "Only one 'remaining' clause is allowed in an allotment expression"
+}
+
 type DivideByZero struct {
 	parser.Range
 	Numerator *big.Int
