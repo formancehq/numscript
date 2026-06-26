@@ -2,6 +2,7 @@ package specs_format_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/specs_format"
@@ -23,6 +24,13 @@ func TestShowDiff(t *testing.T) {
 		},
 	)
 	snaps.MatchSnapshot(t, buf.String())
+}
+
+func TestReadSpecsFilesNonexistentPath(t *testing.T) {
+	specs, err := specs_format.ReadSpecsFiles([]string{"path/that/does/not/exist"})
+	require.Error(t, err)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	require.Nil(t, specs)
 }
 
 func TestSingleTest(t *testing.T) {
