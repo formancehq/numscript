@@ -56,11 +56,11 @@ func (i pullAccount) String() string {
 }
 
 func (i sendToAccount) String() string {
-	opts := joinOpts(optLabel("cap", i.cap), optLabel("color", i.color))
-	if i.dest == nil {
+	opts := joinOpts(optLabel("cap", i.cap))
+	if i.account == nil {
 		return fmt.Sprintf("kept(%s)", opts)
 	}
-	s := fmt.Sprintf("send_to_account(%s", *i.dest)
+	s := fmt.Sprintf("send_to_account(%s", *i.account)
 	if opts != "" {
 		s += ", " + opts
 	}

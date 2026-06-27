@@ -33,7 +33,7 @@ type (
 		cap, overdraft, color *reg // int, int, str
 	}
 	sendToAccount struct {
-		dest, cap, color *reg // str, int, str
+		account, cap *reg // str, int
 	}
 	makeAllotment struct {
 		dest     []reg // int, len N
@@ -79,7 +79,7 @@ func (i pullAccount) dests() []reg   { return []reg{i.dest} }
 func (i pullAccount) sources() []reg { return present(&i.account, i.cap, i.overdraft, i.color) }
 
 func (i sendToAccount) dests() []reg   { return nil }
-func (i sendToAccount) sources() []reg { return present(i.dest, i.cap, i.color) }
+func (i sendToAccount) sources() []reg { return present(i.account, i.cap) }
 
 func (i makeAllotment) dests() []reg   { return i.dest }
 func (i makeAllotment) sources() []reg { return append(append([]reg{}, i.portions...), i.amount) }
