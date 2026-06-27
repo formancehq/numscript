@@ -46,7 +46,7 @@ func Exec[S Store](
 ) ExecutionError {
 	runstate := runtime.New(store)
 
-	instrs := vm.program.instructions
+	instrs := vm.program.Instructions
 	instructionsLen := len(instrs)
 
 	var currentAsset string
@@ -168,11 +168,11 @@ func Exec[S Store](
 
 		// --- consts
 		case Op_LoadInt:
-			const_ := &vm.program.intsPool[instr.GetBC()]
+			const_ := &vm.program.IntsPool[instr.GetBC()]
 			vm.intsRegs[instr.A].Set(const_)
 
 		case Op_LoadStr:
-			const_ := vm.program.stringsPool[instr.GetBC()]
+			const_ := vm.program.StringsPool[instr.GetBC()]
 			vm.stringsRegs[instr.A] = const_
 
 			// ---  Binary ops

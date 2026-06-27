@@ -7,10 +7,10 @@ import (
 )
 
 type Program struct {
-	instructions []Instruction
+	Instructions []Instruction
 
-	stringsPool []string
-	intsPool    []big.Int
+	StringsPool []string
+	IntsPool    []big.Int
 }
 
 var le = binary.LittleEndian
@@ -160,8 +160,8 @@ func DecodeProgram(buf []byte) (Program, error) {
 	}
 
 	return Program{
-		instructions: instructions,
-		stringsPool:  stringsPool,
-		intsPool:     intsPool,
+		Instructions: instructions,
+		StringsPool:  stringsPool,
+		IntsPool:     intsPool,
 	}, nil
 }

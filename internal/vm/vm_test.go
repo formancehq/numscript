@@ -87,9 +87,9 @@ func inorderProgram() Program {
 	}
 
 	return Program{
-		instructions: instrs,
-		stringsPool:  []string{"USD/2", "s1", "s2", "dest"},
-		intsPool:     []big.Int{*big.NewInt(10), *big.NewInt(0)},
+		Instructions: instrs,
+		StringsPool:  []string{"USD/2", "s1", "s2", "dest"},
+		IntsPool:     []big.Int{*big.NewInt(10), *big.NewInt(0)},
 	}
 }
 
