@@ -137,6 +137,51 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	requirePostingsEqual(t, want, res.Postings)
 }
 
+// TestE2E_ReusedVMStaysCorrect runs the same Vm many times (reusing its runstate,
+// which recycles big.Ints across runs via the freelist). It guards against pool
+// aliasing/corruption: every run must yield identical, correct postings, and
+// varying the store between runs must be reflected.
+func TestE2E_ReusedVMStaysCorrect(t *testing.T) {
+	src := `
+		send [USD/2 10] (
+			source = { @a max [USD/2 5] from @b @c }
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value)
+	require.Nil(t, cErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+	want := []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
+	}
+
+	machine := vm.NewVm(program)
+	for run := 0; run < 50; run++ {
+		res, execErr := vm.Exec(context.Background(), machine, nil, store)
+		require.Nil(t, execErr, "run %d", run)
+		requirePostingsEqual(t, want, res.Postings)
+	}
+
+	// A different store on the same Vm must be reflected (no stale cached state).
+	store2 := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(10),
+	}}
+	res, execErr := vm.Exec(context.Background(), machine, nil, store2)
+	require.Nil(t, execErr)
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, res.Postings)
+}
+
 // TestE2E_InsufficientFunds checks the failure path: when the source can't cover
 // the sent amount, the VM's CheckEnoughFunds must report a MissingFundsError.
 func TestE2E_InsufficientFunds(t *testing.T) {

@@ -107,6 +107,29 @@ type RunState struct {
 	sources      []source // FIFO: front = index 0
 	postings     []Posting
 	currentAsset string
+
+	// free recycles *big.Int across runs to avoid per-run allocation. It holds
+	// runtime-OWNED queued source amounts that never escape (reclaimed when a
+	// source is consumed, merged, or dropped, and any leftovers at Reset). Balance
+	// amounts are NOT pooled — they live inline in balanceEntry (a value big.Int),
+	// not as separate pointers. Posting amounts are NOT pooled either — they escape
+	// via GetPostings. takeBig() returns a (possibly dirty) one to overwrite;
+	// putBig() returns a dead one. See Reset for the lifetime contract.
+	free []*big.Int
+}
+
+func (s *RunState) takeBig() *big.Int {
+	n := len(s.free)
+	if n == 0 {
+		return new(big.Int)
+	}
+	v := s.free[n-1]
+	s.free = s.free[:n-1]
+	return v
+}
+
+func (s *RunState) putBig(x *big.Int) {
+	s.free = append(s.free, x)
 }
 
 // New creates an empty RunState backed by store.
@@ -133,6 +156,11 @@ func (s *RunState) SetCurrentAsset(asset string) {
 func (s *RunState) Reset(store Store) {
 	s.store = store
 	clear(s.balances)
+	// reclaim any leftover source amounts: they are runtime-owned and now dead,
+	// so recycle them for the next run.
+	for i := range s.sources {
+		s.free = append(s.free, s.sources[i].amount)
+	}
 	s.sources = s.sources[:0]
 	s.postings = s.postings[:0]
 	s.currentAsset = ""
@@ -245,7 +273,8 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		amt := new(big.Int).Set(out)
+		amt := s.takeBig()
+		amt.Set(out)
 		s.sources = append(s.sources, source{src, scope, amt, color})
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
@@ -274,9 +303,10 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// queue the pulled funds — an independent copy (out stays the caller's; the
-	// queued amount is mutated in place by compactAt/Send)
-	amt := new(big.Int).Set(out)
+	// queue the pulled funds — an independent (recycled) copy (out stays the
+	// caller's; the queued amount is mutated in place by compactAt/Send)
+	amt := s.takeBig()
+	amt.Set(out)
 	s.sources = append(s.sources, source{src, scope, amt, color})
 
 	// debit the source balance in place; the cache keeps the same *big.Int
@@ -312,7 +342,8 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	}
 
 	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
+		amt := s.takeBig()
+		amt.Set(out)
 		s.sources = append(s.sources, source{src, scope, amt, color})
 		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	}
@@ -349,9 +380,9 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 			if err := s.credit(dest, destScope, src, asset, cap); err != nil {
 				return err
 			}
-			if diff := new(big.Int).Sub(src.amount, cap); diff.Sign() > 0 {
-				s.sources[i].amount = diff // remainder stays at this position
-			} else {
+			src.amount.Sub(src.amount, cap) // remainder stays in place (no alloc)
+			if src.amount.Sign() == 0 {
+				s.putBig(src.amount)
 				s.removeAt(i)
 			}
 			return nil // cap fully satisfied
@@ -360,7 +391,8 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 			return err
 		}
 		cap.Sub(cap, src.amount)
-		s.removeAt(i) // do not advance i; the next source shifts into position i
+		s.putBig(src.amount) // source fully consumed; recycle its amount
+		s.removeAt(i)        // do not advance i; the next source shifts into position i
 	}
 	return nil
 }
@@ -382,6 +414,7 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 		if err := s.credit(dest, destScope, src, asset, src.amount); err != nil {
 			return err
 		}
+		s.putBig(src.amount) // source fully consumed; recycle its amount
 		s.removeAt(i)
 	}
 	return nil
@@ -573,6 +606,7 @@ func (s *RunState) compactAt(i int) {
 	for i+1 < len(s.sources) {
 		next := s.sources[i+1]
 		if next.amount.Sign() == 0 {
+			s.putBig(next.amount) // dropped; recycle
 			s.removeAt(i + 1)
 			continue
 		}
@@ -580,6 +614,7 @@ func (s *RunState) compactAt(i int) {
 			return
 		}
 		s.sources[i].amount.Add(s.sources[i].amount, next.amount)
+		s.putBig(next.amount) // merged away; recycle
 		s.removeAt(i + 1)
 	}
 }
