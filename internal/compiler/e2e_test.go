@@ -55,6 +55,47 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	requirePostingsEqual(t, want, postings)
 }
 
+// TestE2E_Inorder exercises an inorder source { @a @b @c } end-to-end, including
+// the early-exit jump: @a has 6, @b has 10, @c has 100; sending 10 pulls 6 from
+// @a (cap -> 4), then 4 from @b (cap -> 0 -> jump past @c). @c is never touched.
+func TestE2E_Inorder(t *testing.T) {
+	src := `
+		send [USD/2 10] (
+			source = {
+				@a
+				@b
+				@c
+			}
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(6),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(10),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+
+	machine := vm.NewVm(program)
+	postings, execErr := vm.Exec(machine, nil, store)
+	require.Nil(t, execErr)
+
+	want := []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
+	}
+	requirePostingsEqual(t, want, postings)
+}
+
 // TestE2E_InsufficientFunds checks the failure path: when the source can't cover
 // the sent amount, the VM's CheckEnoughFunds must report a MissingFundsError.
 func TestE2E_InsufficientFunds(t *testing.T) {
