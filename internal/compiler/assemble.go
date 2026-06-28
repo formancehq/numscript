@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -64,9 +63,18 @@ func (b *regPool) index(r reg) (byte, error) {
 	return idx, nil
 }
 
+type patch struct {
+	label          label
+	index          int
+	getInstruction func(labelIndex uint16) vm.Instruction
+}
+
 // assembler lowers virtual instructions into a vm.Program.
 type assembler struct {
 	instructions []vm.Instruction
+
+	patches []patch
+	labels  map[label]uint16
 
 	// one register bank per VM register bank
 	ints       regPool
@@ -85,6 +93,8 @@ func Assemble(instrs []vInstr) (vm.Program, error) {
 		portions:   newRegPool(),
 		monetaries: newRegPool(),
 
+		labels: map[label]uint16{},
+
 		intsPool: newConstPool(func(i big.Int) string {
 			return i.String()
 		}),
@@ -97,6 +107,17 @@ func Assemble(instrs []vInstr) (vm.Program, error) {
 			return vm.Program{}, err
 		}
 	}
+
+	// now we run the patches
+	for _, patch := range a.patches {
+		labelIndex, ok := a.labels[patch.label]
+		if !ok {
+			return vm.Program{}, fmt.Errorf("Missing label declaration of `%s`", string(patch.label))
+		}
+
+		a.instructions[patch.index] = patch.getInstruction(labelIndex)
+	}
+
 	return vm.Program{
 		Instructions: a.instructions,
 		StringsPool:  a.stringsPool.items,
@@ -135,15 +156,7 @@ func (as *assembler) emit(op vm.Opcode, a, b, c byte) {
 }
 
 func (as *assembler) emitBC(op vm.Opcode, a byte, bc uint16) {
-	var bcBytes [2]byte
-	binary.LittleEndian.PutUint16(bcBytes[:], bc)
-
-	as.instructions = append(as.instructions, vm.Instruction{
-		Opcode: byte(op),
-		A:      a,
-		B:      bcBytes[0],
-		C:      bcBytes[1],
-	})
+	as.instructions = append(as.instructions, vm.NewBC(op, a, bc))
 }
 
 // regResolver maps a virtual register to a concrete bank index. Op sigs hold
@@ -397,7 +410,36 @@ func (i checkEqCurrentAsset) assemble(a *assembler) error {
 	return nil
 }
 
+func (i jmpIfZero) assemble(a *assembler) error {
+	cond, err := a.intReg(i.cond)
+	if err != nil {
+		return err
+	}
+
+	a.patches = append(a.patches, patch{
+		label: i.target,
+		index: len(a.instructions),
+		getInstruction: func(labelIndex uint16) vm.Instruction {
+			return vm.NewBC(vm.Op_JmpIfZero, cond, labelIndex)
+		},
+	})
+
+	// Emit dummy instruction
+	a.emit(0, 0, 0, 0)
+
+	return nil
+}
+
 func (i makeAllotment) assemble(a *assembler) error { panic("TODO assemble makeAllotment") }
 func (i fetchVariable) assemble(a *assembler) error { panic("TODO assemble fetchVariable") }
-func (i jmpIfZero) assemble(a *assembler) error     { panic("TODO assemble jmpIfZero") }
-func (i labelMarker) assemble(a *assembler) error   { panic("TODO assemble labelMarker") }
+
+func (i labelMarker) assemble(a *assembler) error {
+	l := len(a.instructions)
+	if l > math.MaxUint16 {
+		return fmt.Errorf("too many labels: overflown max safe uint16")
+	}
+
+	a.labels[i.label] = uint16(l)
+
+	return nil
+}
