@@ -96,6 +96,48 @@ func TestE2E_Inorder(t *testing.T) {
 	requirePostingsEqual(t, want, postings)
 }
 
+// TestE2E_InorderWithCap exercises a capped (`max`) source inside an inorder
+// end-to-end. @b holds 100 but is capped at 5, so the cap must bind: @a gives 3
+// (remaining 10->7), @b gives only 5 (not 7) -> remaining 2, @c gives 2.
+func TestE2E_InorderWithCap(t *testing.T) {
+	src := `
+		send [USD/2 10] (
+			source = {
+				@a
+				max [USD/2 5] from @b
+				@c
+			}
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+
+	machine := vm.NewVm(program)
+	postings, execErr := vm.Exec(machine, nil, store)
+	require.Nil(t, execErr)
+
+	want := []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
+	}
+	requirePostingsEqual(t, want, postings)
+}
+
 // TestE2E_InsufficientFunds checks the failure path: when the source can't cover
 // the sent amount, the VM's CheckEnoughFunds must report a MissingFundsError.
 func TestE2E_InsufficientFunds(t *testing.T) {
