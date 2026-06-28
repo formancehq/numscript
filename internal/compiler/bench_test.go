@@ -100,3 +100,128 @@ func BenchmarkCompiledVM(b *testing.B) {
 		}
 	}
 }
+
+// --- Capped inorder script: `{ @a ; max [USD/2 5] from @b ; @c }` -----------
+// Same methodology as above, on a more representative script (inorder traversal,
+// a `max` cap with a min_int, running total, and an early-exit jump). Balances:
+// a=3, b=100 (capped to 5), c=100 → pulls 3 / 5 / 2.
+const benchSrcCapped = `send [USD/2 10] (
+	source = {
+		@a
+		max [USD/2 5] from @b
+		@c
+	}
+	destination = @dest
+)`
+
+func BenchmarkTreeWalkerCapped(b *testing.B) {
+	parsed := parser.Parse(benchSrcCapped)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	store := interpreter.StaticStore{
+		Balances: interpreter.Balances{
+			{Account: "a", Asset: "USD/2", Amount: big.NewInt(3)},
+			{Account: "b", Asset: "USD/2", Amount: big.NewInt(100)},
+			{Account: "c", Asset: "USD/2", Amount: big.NewInt(100)},
+		},
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := interpreter.RunProgram(ctx, parsed.Value, nil, store, nil)
+		if err != nil {
+			b.Fatalf("run: %v", err)
+		}
+	}
+}
+
+func cappedStore() e2eStore {
+	return e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+}
+
+// BenchmarkRuntimeBaselineCapped is the floor: it drives runtime.RunState
+// directly, performing the funds ops the capped-inorder script lowers to (with
+// the cap/running-total/early-exit arithmetic done inline on reused big.Ints) —
+// no AST walk, no bytecode dispatch. RunState reused across iterations.
+func BenchmarkRuntimeBaselineCapped(b *testing.B) {
+	store := cappedStore()
+	rs := runtime.New(store)
+
+	zero := big.NewInt(0)
+	ten := big.NewInt(10)
+	five := big.NewInt(5)
+	remaining := new(big.Int)
+	capB := new(big.Int)
+	pulled := new(big.Int)
+	total := new(big.Int)
+	dest := "dest"
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rs.Reset(store)
+		rs.SetCurrentAsset("USD/2")
+		total.SetInt64(0)
+		remaining.Set(ten) // inorder cap = copy(amount)
+
+		// @a (cap = remaining)
+		rs.Pull(pulled, "a", remaining, zero, "")
+		total.Add(total, pulled)
+		remaining.Sub(remaining, pulled)
+
+		if remaining.Sign() != 0 { // jmp_if_zero(remaining)
+			// max [USD/2 5] from @b  ->  cap = min(5, remaining)
+			if five.Cmp(remaining) < 0 {
+				capB.Set(five)
+			} else {
+				capB.Set(remaining)
+			}
+			rs.Pull(pulled, "b", capB, zero, "")
+			total.Add(total, pulled)
+			remaining.Sub(remaining, pulled)
+
+			if remaining.Sign() != 0 {
+				rs.Pull(pulled, "c", remaining, zero, "") // @c (cap = remaining)
+				total.Add(total, pulled)
+			}
+		}
+
+		_ = total.Cmp(ten) // check_enough_funds
+		rs.SendUncapped(&dest, nil)
+		_ = rs.GetPostings()
+	}
+}
+
+func BenchmarkCompiledVMCapped(b *testing.B) {
+	parsed := parser.Parse(benchSrcCapped)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	if cErr != nil {
+		b.Fatalf("compile: %v", cErr)
+	}
+	program, aErr := Assemble(compiled.instructions)
+	if aErr != nil {
+		b.Fatalf("assemble: %v", aErr)
+	}
+	store := cappedStore()
+
+	machine := vm.NewVm(program) // reused across iterations
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := vm.Exec(machine, nil, store)
+		if err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
