@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -24,6 +25,7 @@ type compiledProgramVirtual struct {
 
 type state struct {
 	nextReg      int
+	nextLabelId  int
 	instructions []vInstr
 }
 
@@ -35,6 +37,12 @@ func (st *state) getFreshReg() reg {
 
 func (st *state) pushInstruction(instr vInstr) {
 	st.instructions = append(st.instructions, instr)
+}
+
+func (st *state) getFreshLabel(prefix string) label {
+	l := label(fmt.Sprintf("%s_%d", prefix, st.nextLabelId))
+	st.nextLabelId++
+	return l
 }
 
 func (st *state) pushInstructionWithDest(getInstr func(dest reg) vInstr) reg {
@@ -205,7 +213,60 @@ func (st *state) compileSource(
 		})
 
 	case *parser.SourceInorder:
-		panic("TODO impl source")
+		if capReg == nil {
+			panic("TODO unbounded inorder")
+		}
+
+		inorderTotalReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return loadInt{
+				value: *big.NewInt(0),
+				dest:  dest,
+			}
+		})
+
+		endLabel := st.getFreshLabel("inorder_end")
+		inorderCap := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{
+				op:   opIntCopy{},
+				arg:  *capReg,
+				dest: dest,
+			}
+		})
+
+		for idx, subSrc := range src.Sources {
+			innerPulledAmtReg, err := st.compileSource(&inorderCap, subSrc)
+			if err != nil {
+				return 0, err
+			}
+
+			// inorderTotalReg += innerPulledAmtReg
+			st.pushInstruction(binaryOp{
+				op:    opAddInt{},
+				dest:  inorderTotalReg,
+				left:  inorderTotalReg,
+				right: innerPulledAmtReg,
+			})
+
+			isLast := idx == len(src.Sources)-1
+			if !isLast {
+				// inorderCap -= innerPulledAmtReg
+				st.pushInstruction(binaryOp{
+					op:    opSubInt{},
+					dest:  inorderCap,
+					left:  inorderCap,
+					right: innerPulledAmtReg,
+				})
+				st.pushInstruction(jmpIfZero{
+					cond:   inorderCap,
+					target: endLabel,
+				})
+			}
+		}
+		st.pushInstruction(labelMarker{
+			label: endLabel,
+		})
+		return inorderTotalReg, nil
+
 	case *parser.SourceOneof:
 		panic("TODO impl source")
 	case *parser.SourceAllotment:
