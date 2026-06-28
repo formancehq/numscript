@@ -1,5 +1,7 @@
 package vm
 
+import "encoding/binary"
+
 type Instruction struct {
 	Opcode byte
 	A      byte
@@ -10,6 +12,22 @@ type Instruction struct {
 // Little endian view of the b and c fields
 func (i Instruction) GetBC() uint16 {
 	return uint16(i.B) | uint16(i.C)<<8
+}
+
+func NewBC(
+	opcode Opcode,
+	a byte,
+	bc uint16,
+) Instruction {
+	var bcBytes [2]byte
+	binary.LittleEndian.PutUint16(bcBytes[:], bc)
+
+	return Instruction{
+		Opcode: byte(opcode),
+		A:      a,
+		B:      bcBytes[0],
+		C:      bcBytes[1],
+	}
 }
 
 type Opcode byte
