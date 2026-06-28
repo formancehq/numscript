@@ -212,6 +212,36 @@ func (st *state) compileSource(
 			}
 		})
 
+	case *parser.SourceCapped:
+		clauseCapMonetaryReg, err := st.compileExpr(src.Cap)
+		if err != nil {
+			return 0, err
+		}
+		clauseCapIntReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{
+				op:   opGetAmount{},
+				arg:  clauseCapMonetaryReg,
+				dest: dest,
+			}
+		})
+
+		var innerCapReg reg
+		if capReg == nil {
+			innerCapReg = clauseCapIntReg
+		} else {
+			minReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return binaryOp{
+					op:    opMinInt{},
+					left:  clauseCapIntReg,
+					right: *capReg,
+					dest:  dest,
+				}
+			})
+			innerCapReg = minReg
+		}
+
+		return st.compileSource(&innerCapReg, src.From)
+
 	case *parser.SourceInorder:
 		if capReg == nil {
 			panic("TODO unbounded inorder")
@@ -271,8 +301,7 @@ func (st *state) compileSource(
 		panic("TODO impl source")
 	case *parser.SourceAllotment:
 		panic("TODO impl source")
-	case *parser.SourceCapped:
-		panic("TODO impl source")
+
 	case *parser.SourceWithScaling:
 		panic("TODO impl source")
 
