@@ -94,6 +94,22 @@ func (s *RunState) SetCurrentAsset(asset string) {
 	s.currentAsset = asset
 }
 
+// Reset clears all per-execution state — the balance cache, the source queue,
+// the postings, and the current asset — and rebinds the store, while retaining
+// the underlying map/slice capacity. This lets a single RunState be reused
+// across executions without reallocating its containers (the balances map and
+// the sources/postings slices keep their backing storage).
+//
+// Note: GetPostings returns deep copies, so a result obtained before Reset stays
+// valid afterward.
+func (s *RunState) Reset(store Store) {
+	s.store = store
+	clear(s.balances)
+	s.sources = s.sources[:0]
+	s.postings = s.postings[:0]
+	s.currentAsset = ""
+}
+
 // Prewarm seeds the balance cache with balances fetched in bulk, so runtime's
 // lazy per-key Store.GetBalance path is never hit for them. This lets a caller
 // keep a single batched balance round-trip (e.g. the interpreter's pre-pass that
@@ -363,15 +379,14 @@ func (s *RunState) Restore(mark int) {
 	s.sources = s.sources[:mark]
 }
 
-// GetPostings returns a deep copy of the recorded postings, so callers cannot
-// mutate internal state (matching the OCaml Dynarray.to_list, which copies).
+// GetPostings returns a copy of the recorded postings: a fresh slice, so callers
+// cannot alter the internal queue's length/order. Posting amounts are write-once
+// (addPosting appends a freshly-cloned Amount and never mutates an existing
+// posting), so the *big.Int values are shared rather than deep-cloned — safe,
+// and it avoids an allocation per posting.
 func (s *RunState) GetPostings() []Posting {
 	out := make([]Posting, len(s.postings))
-	for i, p := range s.postings {
-		cp := p
-		cp.Amount = new(big.Int).Set(p.Amount)
-		out[i] = cp
-	}
+	copy(out, s.postings)
 	return out
 }
 
@@ -411,11 +426,13 @@ func (s *RunState) cachedBalance(account, asset, color string) *big.Int {
 }
 
 // addToBalance applies delta to (account, asset, color), loading the base value
-// through the cache first so an un-fetched account is not treated as 0. delta is
-// read-only; the cache entry is replaced with a freshly allocated sum.
+// through the cache first so an un-fetched account is not treated as 0. The
+// cached value is mutated in place (no realloc): it is runtime-owned and never
+// aliased externally — GetAccountBalance hands out copies — so this is safe, and
+// it mirrors Pull's in-place debit. delta is read-only.
 func (s *RunState) addToBalance(account, asset, color string, delta *big.Int) {
 	cur := s.cachedBalance(account, asset, color)
-	s.balances[PairKey{account, asset, color}] = new(big.Int).Add(cur, delta)
+	cur.Add(cur, delta)
 }
 
 // addPosting appends a posting verbatim and credits the destination balance.

@@ -15,7 +15,8 @@ const nilReg byte = 0xFF
 const worldAccount = "world"
 
 type Vm struct {
-	program Program
+	program  Program
+	runstate *runtime.RunState
 
 	stringsRegs    [256]string // asset,string,account
 	intsRegs       [256]big.Int
@@ -44,7 +45,12 @@ func Exec[S Store](
 	vars any,
 	store S, // a generic S should allow monomorphisation of the Store
 ) ([]runtime.Posting, ExecutionError) {
-	runstate := runtime.New(store)
+	if vm.runstate == nil {
+		vm.runstate = runtime.New(store)
+	} else {
+		vm.runstate.Reset(store)
+	}
+	runstate := vm.runstate
 
 	instrs := vm.program.Instructions
 	instructionsLen := len(instrs)
