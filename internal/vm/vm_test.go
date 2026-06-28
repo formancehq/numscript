@@ -118,14 +118,14 @@ func TestInorderSend(t *testing.T) {
 		{Account: "s2", Asset: "USD/2"}: 10,
 	}}
 
-	rs := runtime.New(store) // TODO: adjust to your Store wiring
 	vm := NewVm(prog)
 
-	if err := Exec(vm, nil, store); err != nil {
+	got, err := Exec(vm, nil, store)
+	if err != nil {
 		t.Fatalf("Exec returned error: %v", err)
 	}
 
-	got := rs.GetPostings()
+
 	want := []runtime.Posting{
 		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},

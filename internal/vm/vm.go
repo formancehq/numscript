@@ -43,7 +43,7 @@ func Exec[S Store](
 	vm *Vm,
 	vars any,
 	store S, // a generic S should allow monomorphisation of the Store
-) ExecutionError {
+) ([]runtime.Posting, ExecutionError) {
 	runstate := runtime.New(store)
 
 	instrs := vm.program.Instructions
@@ -75,7 +75,7 @@ func Exec[S Store](
 			}
 
 			if overdraft == nil && cap == nil {
-				return InvalidUncappedSource{
+				return nil, InvalidUncappedSource{
 					Account: account,
 				}
 			}
@@ -96,7 +96,8 @@ func Exec[S Store](
 		case Op_SendToAccount:
 			var dest *string
 			if instr.A != nilReg {
-				dest = new(vm.stringsRegs[instr.A])
+				s := vm.stringsRegs[instr.A]
+				dest = &s
 			}
 
 			var cap *big.Int
@@ -133,8 +134,8 @@ func Exec[S Store](
 		case Op_CheckEnoughFunds:
 			got := &vm.intsRegs[instr.A]
 			needed := &vm.intsRegs[instr.B]
-			if got.Cmp(needed) == 1 {
-				return MissingFundsError{
+			if got.Cmp(needed) == -1 {
+				return nil, MissingFundsError{
 					Asset:  currentAsset,
 					Got:    got,
 					Needed: needed,
@@ -143,11 +144,12 @@ func Exec[S Store](
 
 		case Op_SetCurrentAsset:
 			currentAsset = vm.stringsRegs[instr.A]
+			runstate.SetCurrentAsset(currentAsset)
 
 		case Op_CheckEqCurrentAsset:
 			got := vm.stringsRegs[instr.A]
 			if got != currentAsset {
-				return AssetMismatchError{
+				return nil, AssetMismatchError{
 					Got:      got,
 					Expected: currentAsset,
 				}
@@ -235,5 +237,5 @@ func Exec[S Store](
 		}
 	}
 
-	return nil
+	return runstate.GetPostings(), nil
 }
