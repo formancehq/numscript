@@ -36,6 +36,7 @@ func TestSimpleProgram(t *testing.T) {
   $r5 <- load_const("src")
   $r6 <- load_const(0)
   $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
   $r8 <- load_const("dest")
   send_to_account($r8)
 `))

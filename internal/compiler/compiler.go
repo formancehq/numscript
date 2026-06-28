@@ -68,7 +68,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 	case *parser.NumberLiteral:
 		return st.pushInstructionWithDestErr(func(reg reg) vInstr {
 			return loadInt{
-				value: expr.Number,
+				value: *expr.Number,
 				dest:  reg,
 			}
 		})
@@ -155,7 +155,7 @@ func (st *state) compileSource(
 
 		overdraftReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 			return loadInt{
-				value: big.NewInt(0),
+				value: *big.NewInt(0),
 				dest:  dest,
 			}
 		})
@@ -278,12 +278,15 @@ func (st *state) compileKeptOrDestination(keptOrDest parser.KeptOrDestination) C
 	return nil
 }
 
-func (st *state) compileSentValue(sentValue parser.SentValue) (*reg, CompilerError) {
+func (st *state) compileSentValue(
+	sentValue parser.SentValue,
+	source parser.Source,
+) (reg, CompilerError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueLiteral:
 		monetaryReg, err := st.compileExpr(sentValue.Monetary)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		assetReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 			return unaryOp{
@@ -302,20 +305,21 @@ func (st *state) compileSentValue(sentValue parser.SentValue) (*reg, CompilerErr
 				dest: dest,
 			}
 		})
-		return &capReg, nil
+
+		return st.compileSourceWithRequiredAmount(capReg, source)
 
 	case *parser.SentValueAll:
 		assetReg, err := st.compileExpr(sentValue.Asset)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		st.pushInstruction(setCurrentAsset{
 			asset: assetReg,
 		})
-		return nil, nil
+		return st.compileSource(nil, source)
 
 	default:
-		return utils.NonExhaustiveMatchPanic[*reg](sentValue), nil
+		return utils.NonExhaustiveMatchPanic[reg](sentValue), nil
 	}
 
 }
@@ -323,12 +327,7 @@ func (st *state) compileSentValue(sentValue parser.SentValue) (*reg, CompilerErr
 func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 	switch stmt := stmt.(type) {
 	case *parser.SendStatement:
-		capReg, err := st.compileSentValue(stmt.SentValue)
-		if err != nil {
-			return err
-		}
-
-		pulledAmtReg, err := st.compileSource(capReg, stmt.Source)
+		pulledAmtReg, err := st.compileSentValue(stmt.SentValue, stmt.Source)
 		if err != nil {
 			return err
 		}
