@@ -8,39 +8,17 @@ import (
 func (r reg) String() string   { return fmt.Sprintf("$r%d", int(r)) }
 func (l label) String() string { return fmt.Sprintf("#%s", string(l)) }
 
-func (k binKind) String() string {
-	switch k {
-	case opMinInt:
-		return "min_int"
-	case opAddInt:
-		return "add_int"
-	case opSubInt:
-		return "sub_int"
-	case opSubPortion:
-		return "sub_portion"
-	case opMakePortion:
-		return "mk_portion"
-	case opMakeMonetary:
-		return "mk_monetary"
-	default:
-		return "bin?"
-	}
-}
+func (opMinInt) String() string       { return "min_int" }
+func (opAddInt) String() string       { return "add_int" }
+func (opSubInt) String() string       { return "sub_int" }
+func (opSubPortion) String() string   { return "sub_portion" }
+func (opMakePortion) String() string  { return "mk_portion" }
+func (opMakeMonetary) String() string { return "mk_monetary" }
 
-func (k unKind) String() string {
-	switch k {
-	case opIntCopy:
-		return "int_copy"
-	case opPortionCopy:
-		return "portion_copy"
-	case opGetAsset:
-		return "get_asset"
-	case opGetAmount:
-		return "get_amount"
-	default:
-		return "un?"
-	}
-}
+func (opIntCopy) String() string     { return "int_copy" }
+func (opPortionCopy) String() string { return "portion_copy" }
+func (opGetAsset) String() string    { return "get_asset" }
+func (opGetAmount) String() string   { return "get_amount" }
 
 func (i pullAccount) String() string {
 	opts := joinOpts(
@@ -92,7 +70,7 @@ func (i jmpIfZero) String() string {
 }
 
 func (i loadInt) String() string {
-	return fmt.Sprintf("%s <- load_const(%s)", i.dest, i.value)
+	return fmt.Sprintf("%s <- load_const(%s)", i.dest, i.value.String())
 }
 
 func (i loadStr) String() string {
@@ -104,7 +82,7 @@ func (i binaryOp) String() string {
 }
 
 func (i unaryOp) String() string {
-	return fmt.Sprintf("%s <- %s(%s)", i.dest, i.op, i.src)
+	return fmt.Sprintf("%s <- %s(%s)", i.dest, i.op, i.arg)
 }
 
 func (i labelMarker) String() string { return i.label.String() }

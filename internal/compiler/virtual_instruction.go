@@ -1,29 +1,38 @@
 package compiler
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 type reg int
 
 type label string
 
-type binKind uint8
+type binKind interface {
+	fmt.Stringer
+	sig() binaryOpSig
+}
 
-const (
-	opMinInt binKind = iota
-	opAddInt
-	opSubInt
-	opSubPortion
-	opMakePortion
-	opMakeMonetary
+type (
+	opMinInt       struct{}
+	opAddInt       struct{}
+	opSubInt       struct{}
+	opSubPortion   struct{}
+	opMakePortion  struct{}
+	opMakeMonetary struct{}
 )
 
-type unKind uint8
+type unKind interface {
+	fmt.Stringer
+	sig() unaryOpSig
+}
 
-const (
-	opIntCopy unKind = iota
-	opPortionCopy
-	opGetAsset
-	opGetAmount
+type (
+	opIntCopy     struct{}
+	opPortionCopy struct{}
+	opGetAsset    struct{}
+	opGetAmount   struct{}
 )
 
 type (
@@ -53,7 +62,7 @@ type (
 	}
 	loadInt struct {
 		dest  reg
-		value *big.Int
+		value big.Int
 	}
 	loadStr struct {
 		dest  reg
@@ -65,7 +74,7 @@ type (
 	}
 	unaryOp struct {
 		op        unKind
-		dest, src reg
+		dest, arg reg
 	}
 	labelMarker struct{ label label }
 )
@@ -73,6 +82,7 @@ type (
 type vInstr interface {
 	dests() []reg   // registers written
 	sources() []reg // registers read
+	assemble(a *assembler) error
 }
 
 func (i pullAccount) dests() []reg   { return []reg{i.dest} }
@@ -109,7 +119,7 @@ func (i binaryOp) dests() []reg   { return []reg{i.dest} }
 func (i binaryOp) sources() []reg { return []reg{i.left, i.right} }
 
 func (i unaryOp) dests() []reg   { return []reg{i.dest} }
-func (i unaryOp) sources() []reg { return []reg{i.src} }
+func (i unaryOp) sources() []reg { return []reg{i.arg} }
 
 func (i labelMarker) dests() []reg   { return nil }
 func (i labelMarker) sources() []reg { return nil }

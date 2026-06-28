@@ -86,7 +86,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 
 		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
 			return binaryOp{
-				op:    opMakeMonetary,
+				op:    opMakeMonetary{},
 				left:  assetReg,
 				right: amtReg,
 				dest:  dest,
@@ -290,8 +290,8 @@ func (st *state) compileSentValue(
 		}
 		assetReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 			return unaryOp{
-				op:   opGetAsset,
-				src:  monetaryReg,
+				op:   opGetAsset{},
+				arg:  monetaryReg,
 				dest: dest,
 			}
 		})
@@ -300,8 +300,8 @@ func (st *state) compileSentValue(
 		})
 		capReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 			return unaryOp{
-				op:   opGetAmount,
-				src:  monetaryReg,
+				op:   opGetAmount{},
+				arg:  monetaryReg,
 				dest: dest,
 			}
 		})
