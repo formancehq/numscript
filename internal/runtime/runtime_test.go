@@ -399,7 +399,7 @@ func TestSend_MergesWithinSingleDrain(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	pull(rs, "A", big.NewInt(60), big.NewInt(0), "") // source A:60
 	pull(rs, "A", big.NewInt(40), big.NewInt(0), "") // source A:40
-	rs.Send(strptr("X"), big.NewInt(100), nil)                     // drains both A:60 then A:40 -> one posting
+	rs.Send(strptr("X"), big.NewInt(100), nil)       // drains both A:60 then A:40 -> one posting
 	wantPostings(t, rs, []runtime.Posting{{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(100)}})
 }
 
@@ -444,7 +444,7 @@ func TestSend_CreditsDestinationOverExistingStoreBalance(t *testing.T) {
 func TestSend_RefundCreditsSourceNoPosting(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
 	pull(rs, "A", big.NewInt(100), big.NewInt(0), "") // A -> 0, source A:100
-	rs.Send(nil, big.NewInt(60), nil)                               // refund 60 to A, requeue A:40
+	rs.Send(nil, big.NewInt(60), nil)                 // refund 60 to A, requeue A:40
 	wantBalance(t, rs, "A", 60)
 	wantPostings(t, rs, []runtime.Posting{})
 	// remaining 40 still queued
@@ -469,7 +469,7 @@ func TestSendUncapped_RefundsAll(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100, {"B", usd, ""}: 50})
 	pull(rs, "A", big.NewInt(100), big.NewInt(0), "") // A -> 0
 	pull(rs, "B", big.NewInt(50), big.NewInt(0), "")  // B -> 0
-	rs.SendUncapped(nil, nil)                           // refund both
+	rs.SendUncapped(nil, nil)                         // refund both
 	wantBalance(t, rs, "A", 100)
 	wantBalance(t, rs, "B", 50)
 	wantPostings(t, rs, []runtime.Posting{})
@@ -563,7 +563,7 @@ func TestPrewarm_ClonesValues(t *testing.T) {
 
 func TestPrewarm_DoesNotClobberLiveValue(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 100})
-	pull(rs, "A", big.NewInt(30), big.NewInt(0), "") // A -> 70
+	pull(rs, "A", big.NewInt(30), big.NewInt(0), "")                          // A -> 70
 	rs.Prewarm(map[runtime.PairKey]*big.Int{{"A", usd, ""}: big.NewInt(100)}) // must NOT reset to 100
 	wantBalance(t, rs, "A", 70)
 }
@@ -811,7 +811,7 @@ func TestColor_MatchAnyDrainsMixedColorsPreservingEach(t *testing.T) {
 func TestColor_RefundUsesSourceColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, "red"}: 100})
 	pull(rs, "A", big.NewInt(100), big.NewInt(0), "red") // A red -> 0
-	rs.Send(nil, big.NewInt(60), strptr("red"))                               // refund 60 to A's red slot
+	rs.Send(nil, big.NewInt(60), strptr("red"))          // refund 60 to A's red slot
 	if got := rs.GetAccountBalance("A", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
 		t.Errorf("A red after refund = %d, want 60", got)
 	}
