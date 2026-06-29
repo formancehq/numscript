@@ -297,6 +297,16 @@ func (i loadInt) assemble(a *assembler) error {
 		return err
 	}
 
+	// Small unsigned constants are encoded directly in the instruction (no const
+	// pool entry, no big.Int copy on load) — numscript constants are unsigned in
+	// the common case (overdraft 0, small caps, allotment num/den).
+	if i.value.IsUint64() {
+		if v := i.value.Uint64(); v <= math.MaxUint16 {
+			a.emitBC(vm.Op_LoadIntImm, dest, uint16(v))
+			return nil
+		}
+	}
+
 	poolIndex, err := a.intsPool.alloc(i.value)
 	if err != nil {
 		return err
@@ -355,6 +365,16 @@ func (i pullAccount) assemble(a *assembler) error {
 	account, err := a.strReg(i.account)
 	if err != nil {
 		return err
+	}
+
+	// compact single-word form: bounded-zero overdraft, no color, cap present
+	if i.boundedZero && i.color == nil && i.cap != nil {
+		cap, err := a.intReg(*i.cap)
+		if err != nil {
+			return err
+		}
+		a.emit(vm.Op_PullAccountCapZero, dest, account, cap)
+		return nil
 	}
 
 	cap, err := a.optionalReg((*assembler).intReg, i.cap)

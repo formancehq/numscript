@@ -40,6 +40,10 @@ type (
 		dest                  reg  // int: amount pulled
 		account               reg  // str
 		cap, overdraft, color *reg // int, int, str
+		// boundedZero means "overdraft of exactly 0" without a register (the
+		// plain-account case). It is mutually exclusive with overdraft != nil;
+		// when set, the assembler can emit the compact single-word pull op.
+		boundedZero bool
 	}
 	sendToAccount struct {
 		account, cap *reg // str, int
@@ -83,6 +87,12 @@ type vInstr interface {
 	dests() []reg   // registers written
 	sources() []reg // registers read
 	assemble(a *assembler) error
+
+	// mapSources returns a copy of the instruction with every source (read)
+	// register replaced by f(r). Destinations are left untouched. It is the
+	// rewrite primitive peephole passes use for register substitution. (See
+	// virtual_instruction_map.go for the implementations.)
+	mapSources(f func(reg) reg) vInstr
 }
 
 func (i pullAccount) dests() []reg   { return []reg{i.dest} }

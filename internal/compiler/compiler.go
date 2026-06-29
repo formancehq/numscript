@@ -161,20 +161,14 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		overdraftReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-			return loadInt{
-				value: *big.NewInt(0),
-				dest:  dest,
-			}
-		})
-
+		// a plain account has an overdraft of exactly 0 — encode it as boundedZero
+		// (no register, no load) so the assembler can use the compact pull op.
 		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
 			return pullAccount{
-				dest:      dest,
-				account:   accReg,
-				cap:       capReg,
-				overdraft: &overdraftReg,
-				color:     nil,
+				dest:        dest,
+				account:     accReg,
+				cap:         capReg,
+				boundedZero: true,
 			}
 		})
 
@@ -194,12 +188,15 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
+		// Bounded != nil -> bounded by that amount (a register); Bounded == nil ->
+		// unbounded (overdraft stays nil).
 		var overdraftReg *reg
 		if src.Bounded != nil {
-			*overdraftReg, err = st.compileExpr(*src.Bounded)
+			r, err := st.compileExpr(*src.Bounded)
 			if err != nil {
 				return 0, err
 			}
+			overdraftReg = &r
 		}
 
 		return st.pushInstructionWithDestErr(func(dest reg) vInstr {

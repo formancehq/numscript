@@ -14,6 +14,10 @@ type monetary struct {
 const nilReg byte = 0xFF
 const worldAccount = "world"
 
+// bigZero is the implicit overdraft bound for Op_PullAccountCapZero. The runtime
+// only reads the overdraft (never mutates it), so a shared instance is safe.
+var bigZero = new(big.Int)
+
 type Vm struct {
 	program  Program
 	runstate *runtime.RunState
@@ -99,6 +103,15 @@ func Exec[S Store](
 				color,
 			)
 
+		case Op_PullAccountCapZero:
+			// compact pull: cap present, overdraft bounded-zero, no color
+			account := vm.stringsRegs[instr.B]
+			overdraft := bigZero // bounded by 0...
+			if account == worldAccount {
+				overdraft = nil // ...except world, which is unbounded
+			}
+			runstate.Pull(&vm.intsRegs[instr.A], account, &vm.intsRegs[instr.C], overdraft, "")
+
 		case Op_SendToAccount:
 			var dest *string
 			if instr.A != nilReg {
@@ -178,6 +191,9 @@ func Exec[S Store](
 		case Op_LoadInt:
 			const_ := &vm.program.IntsPool[instr.GetBC()]
 			vm.intsRegs[instr.A].Set(const_)
+
+		case Op_LoadIntImm:
+			vm.intsRegs[instr.A].SetUint64(uint64(instr.GetBC()))
 
 		case Op_LoadStr:
 			const_ := vm.program.StringsPool[instr.GetBC()]

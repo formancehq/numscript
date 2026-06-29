@@ -42,26 +42,26 @@ const (
 	Op_FetchVariable
 
 	// may split into one opcode per expr_typ later
-	Op_LoadInt // LoadConst (`Int)    -> b_c = const-pool index
-	Op_LoadStr // LoadConst (`String) -> b_c = const-pool index
+	Op_LoadInt    // LoadConst (`Int)    -> b_c = const-pool index
+	Op_LoadStr    // LoadConst (`String) -> b_c = const-pool index
+	Op_LoadIntImm // LoadInt immediate   -> b_c = the (unsigned, u16) value itself
 
 	// --- funds ---
 	Op_CheckEnoughFunds
 
 	// --- PullAccount (cap? × overdraft) ---
 
-	// The most general form:
-	// account,cap,overdraft,color
+	// The most general form: account,cap,overdraft,color (2 words).
 	// The 0xFF special register means NULL for cap,overdraft and color
 	Op_PullAccount
 
-	// // cap=None, overdraft=BoundedZero
-	// Op_PullAccountBoundedZero
+	// Compact single-word form for the common plain-account pull:
+	// cap=Some, overdraft=BoundedZero, no color. A=dest, B=account, C=cap.
+	// (world is still treated as unbounded.)
+	Op_PullAccountCapZero
+
 	// // cap=None, overdraft=Bounded r
 	// Op_PullAccountOverdraft
-	// // cap=Some,  overdraft=BoundedZero
-	// Op_PullAccountCap
-
 	// // cap=Some,  overdraft=Unbounded
 	// Op_PullAccountUnboundedOverdraft
 

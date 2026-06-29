@@ -21,9 +21,13 @@ func (opGetAsset) String() string    { return "get_asset" }
 func (opGetAmount) String() string   { return "get_amount" }
 
 func (i pullAccount) String() string {
+	overdraft := optLabel("overdraft", i.overdraft)
+	if i.boundedZero {
+		overdraft = "overdraft: 0"
+	}
 	opts := joinOpts(
 		optLabel("cap", i.cap),
-		optLabel("overdraft", i.overdraft),
+		overdraft,
 		optLabel("color", i.color),
 	)
 	s := fmt.Sprintf("%s <- pull_account(account: %s", i.dest, i.account)

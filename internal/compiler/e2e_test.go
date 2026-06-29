@@ -144,6 +144,59 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	requirePostingsEqual(t, want, postings)
 }
 
+// TestE2E_OptimizedMatches runs each script through the OPTIONAL peephole pass
+// (compile -> optimize -> assemble -> run) and asserts the postings are identical
+// to the unoptimized pipeline, and that the pass actually removed instructions.
+func TestE2E_OptimizedMatches(t *testing.T) {
+	cases := []struct {
+		name  string
+		src   string
+		store e2eStore
+		want  []runtime.Posting
+	}{
+		{
+			name: "simple",
+			src:  `send [USD/2 10] (source = @src destination = @dest)`,
+			store: e2eStore{balances: map[runtime.PairKey]*big.Int{
+				{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+			}},
+			want: []runtime.Posting{{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)}},
+		},
+		{
+			name: "capped-inorder",
+			src:  `send [USD/2 10] (source = { @a max [USD/2 5] from @b @c } destination = @dest)`,
+			store: e2eStore{balances: map[runtime.PairKey]*big.Int{
+				{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+				{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+				{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+			}},
+			want: []runtime.Posting{
+				{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
+				{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+				{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed := parser.Parse(tc.src)
+			require.Empty(t, parsed.Errors)
+			compiled, cErr := compileProgramToVirtual(parsed.Value)
+			require.Nil(t, cErr)
+
+			opted := optimize(compiled.instructions, defaultPeepholes())
+			require.Less(t, len(opted), len(compiled.instructions), "peephole should remove instructions")
+
+			program, aErr := Assemble(opted)
+			require.NoError(t, aErr)
+
+			postings, execErr := vm.Exec(vm.NewVm(program), nil, tc.store)
+			require.Nil(t, execErr)
+			requirePostingsEqual(t, tc.want, postings)
+		})
+	}
+}
+
 // TestE2E_ReusedVMStaysCorrect runs the same Vm many times (reusing its runstate,
 // which recycles big.Ints across runs via the freelist). It guards against pool
 // aliasing/corruption: every run must yield identical, correct postings, and
