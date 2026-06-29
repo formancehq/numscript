@@ -249,3 +249,35 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 		}
 	}
 }
+
+// --- peephole-optimized VM (compile -> optimize -> assemble -> reused VM) ----
+
+func benchCompiledVMOpt(b *testing.B, src string, store benchStore) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	_, program, cErr := compiler.CompileWithOptimizations(parsed.Value)
+	if cErr != nil {
+		b.Fatalf("compile: %v", cErr)
+	}
+	machine := vm.NewVm(program)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+}
+
+func BenchmarkCompiledVMOptCapped(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
+}

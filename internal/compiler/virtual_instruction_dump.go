@@ -26,9 +26,13 @@ func (opPortionToString) String() string  { return "portion_to_string" }
 func (opMonetaryToString) String() string { return "monetary_to_string" }
 
 func (i pullAccount) String() string {
+	overdraft := optLabel("overdraft", i.overdraft)
+	if i.boundedZero {
+		overdraft = "overdraft: 0"
+	}
 	opts := joinOpts(
 		optLabel("cap", i.cap),
-		optLabel("overdraft", i.overdraft),
+		overdraft,
 		optLabel("color", i.color),
 	)
 	s := fmt.Sprintf("%s <- pull_account(account: %s", i.dest, i.account)
