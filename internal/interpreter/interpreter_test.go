@@ -322,6 +322,35 @@ func TestScopedAcceptsValidScope(t *testing.T) {
 	}
 }
 
+func TestCannotInterpolateScopedAccount(t *testing.T) {
+	parsed := parser.Parse(`
+		vars {
+			account $scoped = scoped(@a, "s")
+		}
+		send [COIN 1] (
+			source = @foo:$scoped allowing unbounded overdraft
+			destination = @dest
+		)
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:           {},
+			flags.ExperimentalAccountInterpolationFlag: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotCastScopedAccountToString
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "a", scopedErr.Account)
+	require.Equal(t, "s", scopedErr.Scope)
+}
+
 func TestInvalidAllotInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

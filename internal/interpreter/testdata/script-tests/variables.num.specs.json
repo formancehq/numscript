@@ -25,8 +25,8 @@
         }
       ],
       "expect.txMetadata": {
-        "description": "midnight ride",
-        "ride": "1"
+        "description": { "type": "string", "value": "midnight ride" },
+        "ride": { "type": "number", "value": "1" }
       }
     }
   ]

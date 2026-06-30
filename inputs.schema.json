@@ -90,12 +90,6 @@
           "pattern": "^[a-z0-9_]*$"
         }
       }
-    },
-
-    "TxMetadata": {
-      "type": "object",
-      "description": "Map from a metadata's key to the transaction's metadata stringied value",
-      "additionalProperties": { "type": "string" }
     }
   }
 }

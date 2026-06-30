@@ -2,6 +2,7 @@ package specs_format
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -11,6 +12,28 @@ import (
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
+
+// ExpectedTxMeta is the expected transaction metadata of a test case. Each value
+// is written in the tagged value format (e.g. {"type":"account","name":"x"}) and
+// decoded into the corresponding interpreter.Value.
+type ExpectedTxMeta map[string]interpreter.Value
+
+func (m *ExpectedTxMeta) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	out := ExpectedTxMeta{}
+	for k, v := range raw {
+		value, err := interpreter.ParseTaggedValue(v)
+		if err != nil {
+			return err
+		}
+		out[k] = value
+	}
+	*m = out
+	return nil
+}
 
 // --- Specs:
 type Specs struct {
@@ -38,12 +61,12 @@ type TestCase struct {
 	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
 	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
 
-	ExpectPostings           []interpreter.Posting        `json:"expect.postings,omitempty"`
-	ExpectTxMeta             map[string]string            `json:"expect.txMetadata,omitempty"`
-	ExpectAccountsMeta       interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectEndBalances        interpreter.Balances         `json:"expect.endBalances,omitempty"`
-	ExpectEndBalancesInclude interpreter.Balances         `json:"expect.endBalances.include,omitempty"`
-	ExpectMovements          Movements                    `json:"expect.movements,omitempty"`
+	ExpectPostings           []interpreter.Posting           `json:"expect.postings,omitempty"`
+	ExpectTxMeta             ExpectedTxMeta                  `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta       interpreter.SetAccountsMetadata `json:"expect.metadata,omitempty"`
+	ExpectEndBalances        interpreter.Balances            `json:"expect.endBalances,omitempty"`
+	ExpectEndBalancesInclude interpreter.Balances            `json:"expect.endBalances.include,omitempty"`
+	ExpectMovements          Movements                       `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -175,14 +198,20 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectTxMeta != nil {
-				metadata := map[string]string{}
+				// compare on the canonical source form of each value, so a string
+				// "42" and the number 42 are not conflated
+				got := map[string]string{}
 				for k, v := range result.Metadata {
-					metadata[k] = v.String()
+					got[k] = v.String()
+				}
+				expected := map[string]string{}
+				for k, v := range testCase.ExpectTxMeta {
+					expected[k] = v.String()
 				}
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.txMetadata",
-					testCase.ExpectTxMeta,
-					metadata,
+					expected,
+					got,
 					reflect.DeepEqual,
 				)
 			}
@@ -192,7 +221,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					"expect.metadata",
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
-					interpreter.CompareAccountsMetadata,
+					interpreter.CompareSetAccountsMetadata,
 				)
 			}
 

@@ -3,11 +3,11 @@
     {
       "it": "-",
       "expect.txMetadata": {
-        "account": "acc",
-        "asset": "COIN",
-        "num": "42",
-        "portion": "3/25",
-        "str": "abc"
+        "account": { "type": "account", "name": "acc" },
+        "asset": { "type": "asset", "name": "COIN" },
+        "num": { "type": "number", "value": "42" },
+        "portion": { "type": "portion", "value": "3/25" },
+        "str": { "type": "string", "value": "abc" }
       }
     }
   ]

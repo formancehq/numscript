@@ -53,7 +53,7 @@ type ExecutionResult struct {
 
 	Metadata Metadata `json:"txMeta"`
 
-	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
+	AccountsMetadata SetAccountsMetadata `json:"accountsMeta"`
 }
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
@@ -244,7 +244,7 @@ func RunProgram(
 		TxMeta:             make(map[string]Value),
 		CachedAccountsMeta: InternalAccountsMetadata{},
 		CachedBalances:     InternalBalances{},
-		SetAccountsMeta:    InternalAccountsMetadata{},
+		SetAccountsMeta:    internalSetAccountsMeta{},
 		Store:              store,
 		Postings:           make([]Posting, 0),
 		fundsQueue:         newFundsQueue(nil),
@@ -330,7 +330,7 @@ type programState struct {
 
 	Store Store
 
-	SetAccountsMeta InternalAccountsMetadata
+	SetAccountsMeta internalSetAccountsMeta
 
 	CachedAccountsMeta InternalAccountsMetadata
 	CachedBalances     InternalBalances
@@ -526,7 +526,8 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 
 	if account.Name == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: account.String(),
+			Name:  account.Name,
+			Scope: account.Scope,
 		}
 	}
 

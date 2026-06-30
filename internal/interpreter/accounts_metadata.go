@@ -43,27 +43,3 @@ func (m AccountsMetadata) PrettyPrint() string {
 
 	return utils.CsvPrettyOmitEmptyCols(header, rows, true)
 }
-
-// CompareAccountsMetadata reports whether two metadata lists hold the same rows,
-// ignoring order but respecting multiplicity. A duplicated row in one list must
-// be matched by the same number of occurrences in the other, so e.g. [x, x] is
-// not considered equal to [x, y].
-func CompareAccountsMetadata(a AccountsMetadata, b AccountsMetadata) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	// AccountMetadataRow is an all-string (comparable) struct, so it can key the
-	// multiset directly.
-	counts := make(map[AccountMetadataRow]int, len(a))
-	for _, row := range a {
-		counts[row]++
-	}
-	for _, row := range b {
-		counts[row]--
-		if counts[row] < 0 {
-			return false
-		}
-	}
-	// equal lengths + every b row consumed a distinct a row => exact multiset match
-	return true
-}

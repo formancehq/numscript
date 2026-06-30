@@ -3,7 +3,7 @@
     {
       "it": "-",
       "expect.txMetadata": {
-        "k": "USD/2 7"
+        "k": { "type": "monetary", "asset": "USD/2", "amount": "7" }
       }
     }
   ]

@@ -8,8 +8,8 @@
     {
       "it": "sets metadata scoped by the account's scope, distinct from the unscoped entry",
       "expect.metadata": [
-        { "account": "acc", "key": "k", "value": "unscoped" },
-        { "account": "acc", "scope": "myscope", "key": "k", "value": "scoped" }
+        { "account": "acc", "key": "k", "value": { "type": "string", "value": "unscoped" } },
+        { "account": "acc", "scope": "myscope", "key": "k", "value": { "type": "string", "value": "scoped" } }
       ]
     }
   ]

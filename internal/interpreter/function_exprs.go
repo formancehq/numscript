@@ -73,7 +73,12 @@ func meta(
 	value, ok := s.CachedAccountsMeta.Get(account.Name, account.Scope, string(key))
 
 	if !ok {
-		return "", MetadataNotFound{Account: account.String(), Key: string(key), Range: rng}
+		return "", MetadataNotFound{
+			Account: account.Name,
+			Scope:   account.Scope,
+			Key:     string(key),
+			Range:   rng,
+		}
 	}
 
 	return value, nil
@@ -103,7 +108,8 @@ func balance(
 
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return Monetary{}, NegativeBalanceError{
-			Account: account.String(),
+			Account: account.Name,
+			Scope:   account.Scope,
 			Amount:  *balance,
 		}
 	}

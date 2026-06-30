@@ -6,7 +6,7 @@
     {
       "it": "-",
       "expect.txMetadata": {
-        "asset": "ABC"
+        "asset": { "type": "asset", "name": "ABC" }
       }
     }
   ]

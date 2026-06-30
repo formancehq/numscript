@@ -59,10 +59,13 @@ type (
 	Balances         = interpreter.Balances
 	BalanceRow       = interpreter.BalanceRow
 
+	// Input account metadata (opaque, string-valued) read via meta()
 	AccountMetadataRow = interpreter.AccountMetadataRow
+	AccountsMetadata   = interpreter.AccountsMetadata
 
-	// The newly defined account metadata after the execution
-	AccountsMetadata = interpreter.AccountsMetadata
+	// The account metadata set during the execution (tagged, typed values)
+	SetAccountMetadataRow = interpreter.SetAccountMetadataRow
+	SetAccountsMetadata   = interpreter.SetAccountsMetadata
 
 	// The transaction metadata, set by set_tx_meta()
 	Metadata = interpreter.Metadata

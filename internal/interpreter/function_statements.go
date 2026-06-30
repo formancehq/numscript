@@ -27,7 +27,7 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 		return err
 	}
 
-	st.SetAccountsMeta.Set(account.Name, account.Scope, string(key), meta.String())
+	st.SetAccountsMeta.Set(account.Name, account.Scope, string(key), meta)
 
 	return nil
 }

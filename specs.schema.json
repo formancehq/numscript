@@ -73,7 +73,7 @@
         },
 
         "expect.metadata": {
-          "$ref": "#/definitions/AccountsMetadata"
+          "$ref": "#/definitions/SetAccountsMetadata"
         },
 
         "expect.error.missingFunds": {
@@ -133,7 +133,7 @@
 
     "AccountMetadataRow": {
       "type": "object",
-      "description": "A single metadata entry: the value of a given (account, key, scope)",
+      "description": "A single input metadata entry: the (opaque, string) value of a given (account, key, scope)",
       "additionalProperties": false,
       "required": ["account", "key", "value"],
       "properties": {
@@ -154,10 +154,96 @@
       }
     },
 
+    "SetAccountsMetadata": {
+      "type": "array",
+      "description": "List of account metadata entries set during execution. Each value is a tagged value.",
+      "items": { "$ref": "#/definitions/SetAccountMetadataRow" }
+    },
+
+    "SetAccountMetadataRow": {
+      "type": "object",
+      "description": "A single set metadata entry: the tagged value of a given (account, key, scope)",
+      "additionalProperties": false,
+      "required": ["account", "key", "value"],
+      "properties": {
+        "account": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/definitions/Value"
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$"
+        }
+      }
+    },
+
     "TxMetadata": {
       "type": "object",
-      "description": "Map from a metadata's key to the transaction's metadata stringied value",
-      "additionalProperties": { "type": "string" }
+      "description": "Map from a metadata's key to the transaction's metadata value, in tagged form",
+      "additionalProperties": { "$ref": "#/definitions/Value" }
+    },
+
+    "Value": {
+      "type": "object",
+      "description": "A tagged value, discriminated by its \"type\"",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "const": "string" },
+            "value": { "type": "string" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "const": "number" },
+            "value": { "type": "string", "pattern": "^-?[0-9]+$" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "const": "asset" },
+            "name": { "type": "string", "pattern": "^([A-Z]+(/[0-9]+)?)$" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "const": "account" },
+            "name": { "type": "string", "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$" },
+            "scope": { "type": "string", "pattern": "^[a-z0-9_]*$" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "asset", "amount"],
+          "properties": {
+            "type": { "const": "monetary" },
+            "asset": { "type": "string", "pattern": "^([A-Z]+(/[0-9]+)?)$" },
+            "amount": { "type": "string", "pattern": "^-?[0-9]+$" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "const": "portion" },
+            "value": { "type": "string" }
+          }
+        }
+      ]
     },
 
     "Movements": {

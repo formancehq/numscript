@@ -7,8 +7,8 @@
         { "account": "acc", "key": "overridden", "value": "1" }
       ],
       "expect.metadata": [
-        { "account": "acc", "key": "new", "value": "2" },
-        { "account": "acc", "key": "overridden", "value": "100" }
+        { "account": "acc", "key": "new", "value": { "type": "number", "value": "2" } },
+        { "account": "acc", "key": "overridden", "value": { "type": "number", "value": "100" } }
       ]
     }
   ]

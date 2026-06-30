@@ -6,16 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAccountAddressString(t *testing.T) {
-	t.Run("no scope", func(t *testing.T) {
-		require.Equal(t, AccountAddress{Name: "acc"}.String(), "acc")
-	})
-
-	t.Run("with scope", func(t *testing.T) {
-		require.Equal(t, AccountAddress{Name: "acc", Scope: "xyz"}.String(), "acc/xyz")
-	})
-}
-
 func TestScopeValidation(t *testing.T) {
 	t.Run("valid scopes", func(t *testing.T) {
 		require.True(t, validateScope(""))

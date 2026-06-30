@@ -3,7 +3,7 @@
     {
       "it": "-",
       "expect.txMetadata": {
-        "k": "3"
+        "k": { "type": "number", "value": "3" }
       }
     }
   ]

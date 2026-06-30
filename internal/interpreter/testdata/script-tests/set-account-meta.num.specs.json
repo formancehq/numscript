@@ -3,12 +3,12 @@
     {
       "it": "-",
       "expect.metadata": [
-        { "account": "acc", "key": "account", "value": "acc" },
-        { "account": "acc", "key": "asset", "value": "COIN" },
-        { "account": "acc", "key": "num", "value": "42" },
-        { "account": "acc", "key": "portion", "value": "2/7" },
-        { "account": "acc", "key": "portion-perc", "value": "1/100" },
-        { "account": "acc", "key": "str", "value": "abc" }
+        { "account": "acc", "key": "account", "value": { "type": "account", "name": "acc" } },
+        { "account": "acc", "key": "asset", "value": { "type": "asset", "name": "COIN" } },
+        { "account": "acc", "key": "num", "value": { "type": "number", "value": "42" } },
+        { "account": "acc", "key": "portion", "value": { "type": "portion", "value": "2/7" } },
+        { "account": "acc", "key": "portion-perc", "value": { "type": "portion", "value": "1/100" } },
+        { "account": "acc", "key": "str", "value": { "type": "string", "value": "abc" } }
       ]
     }
   ]
