@@ -69,7 +69,7 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	}
 	err = request.BindArguments(&args)
 	if err != nil {
-		return nil, err
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	if dup, ok := args.Balances.FirstDuplicate(); ok {
