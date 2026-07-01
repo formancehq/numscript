@@ -24,10 +24,10 @@
           "asset": "EUR/2"
         }
       ],
-      "expect.txMetadata": {
-        "description": { "type": "string", "value": "midnight ride" },
-        "ride": { "type": "number", "value": "1" }
-      }
+      "expect.txMetadata": [
+        { "key": "description", "value": { "type": "string", "value": "midnight ride" } },
+        { "key": "ride", "value": { "type": "number", "value": "1" } }
+      ]
     }
   ]
 }

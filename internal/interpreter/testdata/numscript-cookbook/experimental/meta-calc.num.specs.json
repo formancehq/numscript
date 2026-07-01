@@ -8,9 +8,9 @@
   "testCases": [
     {
       "it": "sets the expected meta",
-      "expect.txMetadata": {
-        "key": { "type": "portion", "numerator": "11", "denominator": "2" }
-      }
+      "expect.txMetadata": [
+        { "key": "key", "value": { "type": "portion", "numerator": "11", "denominator": "2" } }
+      ]
     }
   ]
 }

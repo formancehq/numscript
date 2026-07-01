@@ -13,26 +13,70 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
-// ExpectedTxMeta is the expected transaction metadata of a test case. Each value
-// is written in the tagged value format (e.g. {"type":"account","name":"x"}) and
-// decoded into the corresponding interpreter.Value.
-type ExpectedTxMeta map[string]interpreter.Value
+// TxMetadataRow is a single transaction metadata entry. Like SetAccountMetadataRow,
+// the value's type is known, so it is carried as a typed Value written in the tagged
+// value format (e.g. {"type":"account","name":"x"}).
+type TxMetadataRow struct {
+	Key   string            `json:"key"`
+	Value interpreter.Value `json:"value"`
+}
 
-func (m *ExpectedTxMeta) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
+// ExpectedTxMeta is a test case's expected transaction metadata: a list of rows,
+// mirroring expect.metadata. Comparison ignores order (see compareTxMeta).
+type ExpectedTxMeta []TxMetadataRow
+
+func (r *TxMetadataRow) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Key   string          `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	out := ExpectedTxMeta{}
-	for k, v := range raw {
-		value, err := interpreter.ParseTaggedValue(v)
-		if err != nil {
-			return err
-		}
-		out[k] = value
+	value, err := interpreter.ParseTaggedValue(raw.Value)
+	if err != nil {
+		return err
 	}
-	*m = out
+	r.Key, r.Value = raw.Key, value
 	return nil
+}
+
+// compareTxMeta reports whether two lists hold the same rows, ignoring order but
+// respecting multiplicity (so [x, x] != [x, y]). Values are compared on their
+// canonical source form, so a string "42" and the number 42 are not conflated.
+func compareTxMeta(a ExpectedTxMeta, b ExpectedTxMeta) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	key := func(r TxMetadataRow) string {
+		value := ""
+		if r.Value != nil {
+			value = r.Value.String()
+		}
+		return r.Key + "\x00" + value
+	}
+	counts := make(map[string]int, len(a))
+	for _, r := range a {
+		counts[key(r)]++
+	}
+	for _, r := range b {
+		k := key(r)
+		counts[k]--
+		if counts[k] < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// txMetaToRows flattens the interpreter's (map-based) transaction metadata into the
+// row form used by expect.txMetadata, so the two can be compared.
+func txMetaToRows(m interpreter.Metadata) ExpectedTxMeta {
+	rows := make(ExpectedTxMeta, 0, len(m))
+	for k, v := range m {
+		rows = append(rows, TxMetadataRow{Key: k, Value: v})
+	}
+	return rows
 }
 
 // --- Specs:
@@ -198,21 +242,11 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectTxMeta != nil {
-				// compare on the canonical source form of each value, so a string
-				// "42" and the number 42 are not conflated
-				got := map[string]string{}
-				for k, v := range result.Metadata {
-					got[k] = v.String()
-				}
-				expected := map[string]string{}
-				for k, v := range testCase.ExpectTxMeta {
-					expected[k] = v.String()
-				}
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.txMetadata",
-					expected,
-					got,
-					reflect.DeepEqual,
+					testCase.ExpectTxMeta,
+					txMetaToRows(result.Metadata),
+					compareTxMeta,
 				)
 			}
 

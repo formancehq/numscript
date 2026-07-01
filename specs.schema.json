@@ -184,9 +184,24 @@
     },
 
     "TxMetadata": {
+      "type": "array",
+      "description": "List of transaction metadata entries set during execution. The key of each entry must be unique within the list.",
+      "items": { "$ref": "#/definitions/TxMetadataRow" }
+    },
+
+    "TxMetadataRow": {
       "type": "object",
-      "description": "Map from a metadata's key to the transaction's metadata value, in tagged form",
-      "additionalProperties": { "$ref": "#/definitions/Value" }
+      "description": "A single transaction metadata entry: the tagged value of a given key",
+      "additionalProperties": false,
+      "required": ["key", "value"],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/definitions/Value"
+        }
+      }
     },
 
     "Value": {

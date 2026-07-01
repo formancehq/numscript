@@ -25,11 +25,11 @@
           "asset": "EUR/2"
         }
       ],
-      "expect.txMetadata": {
-        "description": { "type": "string", "value": "midnight ride" },
-        "por": { "type": "portion", "numerator": "21", "denominator": "50" },
-        "ride": { "type": "number", "value": "1" }
-      }
+      "expect.txMetadata": [
+        { "key": "description", "value": { "type": "string", "value": "midnight ride" } },
+        { "key": "por", "value": { "type": "portion", "numerator": "21", "denominator": "50" } },
+        { "key": "ride", "value": { "type": "number", "value": "1" } }
+      ]
     }
   ]
 }
