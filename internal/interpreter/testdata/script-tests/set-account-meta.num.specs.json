@@ -6,8 +6,8 @@
         { "account": "acc", "key": "account", "value": { "type": "account", "name": "acc" } },
         { "account": "acc", "key": "asset", "value": { "type": "asset", "name": "COIN" } },
         { "account": "acc", "key": "num", "value": { "type": "number", "value": "42" } },
-        { "account": "acc", "key": "portion", "value": { "type": "portion", "value": "2/7" } },
-        { "account": "acc", "key": "portion-perc", "value": { "type": "portion", "value": "1/100" } },
+        { "account": "acc", "key": "portion", "value": { "type": "portion", "numerator": "2", "denominator": "7" } },
+        { "account": "acc", "key": "portion-perc", "value": { "type": "portion", "numerator": "1", "denominator": "100" } },
         { "account": "acc", "key": "str", "value": { "type": "string", "value": "abc" } }
       ]
     }

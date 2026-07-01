@@ -237,10 +237,11 @@
         },
         {
           "additionalProperties": false,
-          "required": ["type", "value"],
+          "required": ["type", "numerator", "denominator"],
           "properties": {
             "type": { "const": "portion" },
-            "value": { "type": "string" }
+            "numerator": { "type": "string", "pattern": "^-?[0-9]+$" },
+            "denominator": { "type": "string", "pattern": "^-?[0-9]+$" }
           }
         }
       ]

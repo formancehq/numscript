@@ -64,7 +64,7 @@ func NewAsset(src string) (Asset, InterpreterError) {
 //	asset    -> { "type": "asset",    "name": "COIN" }
 //	account  -> { "type": "account",  "name": "x", "scope": "s" }   // scope optional
 //	monetary -> { "type": "monetary", "asset": "COIN", "amount": "100" }
-//	portion  -> { "type": "portion",  "value": "1/2" }
+//	portion  -> { "type": "portion",  "numerator": "1", "denominator": "2" }
 const (
 	valueTypeString   = "string"
 	valueTypeNumber   = "number"
@@ -77,10 +77,11 @@ const (
 // The per-shape tagged-JSON structs below are each shared by their type's
 // MarshalJSON and by ParseTaggedValue, so the layout is defined once.
 //
-//	scalar (string/number/portion) -> { "type": ..., "value": "..." }
-//	asset                          -> { "type": "asset",    "name": "COIN" }
-//	account                        -> { "type": "account",  "name": "x", "scope": "s" }
-//	monetary                       -> { "type": "monetary", "asset": "COIN", "amount": "100" }
+//	scalar (string/number) -> { "type": ..., "value": "..." }
+//	asset                  -> { "type": "asset",    "name": "COIN" }
+//	account                -> { "type": "account",  "name": "x", "scope": "s" }
+//	monetary               -> { "type": "monetary", "asset": "COIN", "amount": "100" }
+//	portion                -> { "type": "portion",  "numerator": "1", "denominator": "2" }
 type (
 	taggedScalar struct {
 		Type  string `json:"type"`
@@ -99,6 +100,11 @@ type (
 		Type   string `json:"type"`
 		Asset  string `json:"asset"`
 		Amount string `json:"amount"`
+	}
+	taggedPortion struct {
+		Type        string `json:"type"`
+		Numerator   string `json:"numerator"`
+		Denominator string `json:"denominator"`
 	}
 )
 
@@ -158,15 +164,22 @@ func ParseTaggedValue(data []byte) (Value, error) {
 		return Monetary{Asset: Asset(v.Asset), Amount: MonetaryInt(*n)}, nil
 
 	case valueTypePortion:
-		var v taggedScalar
+		var v taggedPortion
 		if err := json.Unmarshal(data, &v); err != nil {
 			return nil, err
 		}
-		r, ok := new(big.Rat).SetString(v.Value)
+		num, ok := new(big.Int).SetString(v.Numerator, 10)
 		if !ok {
-			return nil, fmt.Errorf("invalid portion value: %q", v.Value)
+			return nil, fmt.Errorf("invalid portion numerator: %q", v.Numerator)
 		}
-		return Portion(*r), nil
+		denom, ok := new(big.Int).SetString(v.Denominator, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid portion denominator: %q", v.Denominator)
+		}
+		if denom.Sign() == 0 {
+			return nil, fmt.Errorf("invalid portion: zero denominator")
+		}
+		return Portion(*new(big.Rat).SetFrac(num, denom)), nil
 
 	case "":
 		return nil, fmt.Errorf("missing value type")
@@ -194,7 +207,7 @@ func (v MonetaryInt) MarshalJSON() ([]byte, error) {
 
 func (v Portion) MarshalJSON() ([]byte, error) {
 	r := big.Rat(v)
-	return json.Marshal(taggedScalar{valueTypePortion, r.String()})
+	return json.Marshal(taggedPortion{valueTypePortion, r.Num().String(), r.Denom().String()})
 }
 
 func (v Monetary) MarshalJSON() ([]byte, error) {

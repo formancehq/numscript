@@ -59,7 +59,7 @@ func TestMarshalPortion(t *testing.T) {
 
 	j, err := json.Marshal(x)
 	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"portion","value":"2/3"}`, string(j))
+	require.JSONEq(t, `{"type":"portion","numerator":"2","denominator":"3"}`, string(j))
 }
 
 func TestMarshalMonetary(t *testing.T) {

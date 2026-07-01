@@ -27,7 +27,7 @@
       ],
       "expect.txMetadata": {
         "description": { "type": "string", "value": "midnight ride" },
-        "por": { "type": "portion", "value": "21/50" },
+        "por": { "type": "portion", "numerator": "21", "denominator": "50" },
         "ride": { "type": "number", "value": "1" }
       }
     }
