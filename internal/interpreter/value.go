@@ -132,6 +132,12 @@ func ParseTaggedValue(data []byte) (Value, error) {
 		if err := json.Unmarshal(data, &v); err != nil {
 			return nil, err
 		}
+		if !checkAccountName(v.Name) {
+			return nil, fmt.Errorf("invalid account name: %q", v.Name)
+		}
+		if !checkScopeName(v.Scope) {
+			return nil, fmt.Errorf("invalid account scope: %q", v.Scope)
+		}
 		return AccountAddress{Name: v.Name, Scope: v.Scope}, nil
 
 	case valueTypeAsset:

@@ -212,6 +212,12 @@ func checkAssetName(v string) bool {
 	return assetNameRegexp.Match([]byte(v))
 }
 
+var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
+
+func checkScopeName(scope string) bool {
+	return scopeRegex.MatchString(scope)
+}
+
 // Check the following invariants:
 //   - no negative postings
 //   - no invalid account names

@@ -185,7 +185,7 @@ func scoped(
 		return nil, err
 	}
 
-	if !validateScope(scopeStr) {
+	if !checkScopeName(scopeStr) {
 		return nil, InvalidScope{Scope: scopeStr}
 	}
 

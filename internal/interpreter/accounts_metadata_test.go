@@ -45,6 +45,24 @@ func TestCompareSetAccountsMetadata(t *testing.T) {
 	})
 }
 
+func TestScopeValidation(t *testing.T) {
+	t.Run("valid scopes", func(t *testing.T) {
+		require.True(t, checkScopeName(""))
+		require.True(t, checkScopeName("myscope"))
+		require.True(t, checkScopeName("x"))
+		require.True(t, checkScopeName("x1"))
+		require.True(t, checkScopeName("my_scope_with_underscores"))
+	})
+
+	t.Run("invalid scopes", func(t *testing.T) {
+		require.False(t, checkScopeName("!"))
+		require.False(t, checkScopeName("$"))
+		require.False(t, checkScopeName("UPPERCASE"))
+		require.False(t, checkScopeName("dash-case"))
+		require.False(t, checkScopeName("colons:within"))
+	})
+}
+
 func TestPrettyPrintAccountsMetadata(t *testing.T) {
 	t.Run("without scope (no Scope column)", func(t *testing.T) {
 		meta := AccountsMetadata{
