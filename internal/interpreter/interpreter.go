@@ -111,17 +111,9 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
-	// Special case for top-level meta() call
-	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+func (s *programState) evaluateVarOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+	if fnCall, ok := expr.(*parser.FnCall); ok {
 		return s.handleFnCall(&type_, *fnCall)
-	}
-
-	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
-		err := s.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return s.evaluateExpr(expr)
@@ -186,7 +178,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			}
 			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value, err := s.handleFnOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			value, err := s.evaluateVarOrigin(varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}
@@ -275,14 +267,12 @@ func RunProgram(
 		st.FeatureFlags[flag.String] = struct{}{}
 	}
 
-	st.varOriginPosition = true
 	if program.Vars != nil {
 		err := st.parseVars(program.Vars.Declarations, vars)
 		if err != nil {
 			return nil, err
 		}
 	}
-	st.varOriginPosition = false
 
 	// preload balances before executing the script
 	for _, statement := range program.Statements {
@@ -321,8 +311,6 @@ func RunProgram(
 
 type programState struct {
 	ctx context.Context
-
-	varOriginPosition bool
 
 	// Asset of the send statement currently being executed.
 	//

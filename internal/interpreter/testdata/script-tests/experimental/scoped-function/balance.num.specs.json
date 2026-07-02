@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
-  "featureFlags": ["experimental-scoped-function"],
+  "featureFlags": ["experimental-scoped-function", "experimental-mid-script-function-call"],
   "balances": [
     { "account": "treasury", "asset": "EUR/2", "amount": 42 },
     {
