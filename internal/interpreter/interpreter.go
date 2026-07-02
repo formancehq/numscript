@@ -113,55 +113,27 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 func (s *programState) evaluateVarOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
 	if fnCall, ok := expr.(*parser.FnCall); ok {
-		return s.handleFnCall(&type_, *fnCall)
+		return evaluateFnCall(s, &type_, *fnCall)
 	}
 
-	return s.evaluateExpr(expr)
+	return evaluateExpr(s, expr)
 }
 
-func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
-	args, err := s.evaluateExpressions(fnCall.Args)
-	if err != nil {
-		return nil, err
+func (s *programState) getVariable(name string) Value {
+	return s.ParsedVars[name]
+}
+
+func (s *programState) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
+	rows, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
+		{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
+	})
+	if fetchMetaErr != nil {
+		return "", false, QueryMetadataError{WrappedError: fetchMetaErr}
 	}
+	s.CachedAccountsMeta = FromAccountsMetadataRows(rows)
 
-	switch fnCall.Caller.Name {
-	case analysis.FnVarOriginMeta:
-		if type_ == nil {
-			return nil, InvalidNestedMeta{}
-		}
-
-		rawValue, err := meta(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return parseVar(*type_, rawValue, fnCall.Range)
-
-	case analysis.FnVarOriginBalance:
-		monetary, err := balance(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return monetary, nil
-
-	case analysis.FnVarOriginOverdraft:
-		monetary, err := overdraft(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return monetary, nil
-
-	case analysis.FnVarOriginGetAsset:
-		return getAsset(s, fnCall.Range, args)
-	case analysis.FnVarOriginGetAmount:
-		return getAmount(s, fnCall.Range, args)
-	case analysis.FnVarOriginScoped:
-		return scoped(s, fnCall.Range, args)
-
-	default:
-		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
-	}
-
+	value, ok := s.CachedAccountsMeta.Get(account.Name, account.Scope, key)
+	return value, ok, nil
 }
 
 func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) InterpreterError {
@@ -403,7 +375,7 @@ func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
 func (st *programState) runStatement(statement parser.Statement) InterpreterError {
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		args, err := st.evaluateExpressions(statement.Args)
+		args, err := evaluateExpressions(st, statement.Args)
 		if err != nil {
 			return err
 		}
@@ -1033,8 +1005,8 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 }
 
 // Utility function to get the balance
-func getBalance(
-	s *programState,
+// getBalance implements expressionEnv: the raw (possibly negative) balance.
+func (s *programState) getBalance(
 	account AccountAddress,
 	asset Asset,
 ) (*big.Int, InterpreterError) {
@@ -1116,12 +1088,20 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 }
 
 func (s programState) checkFeatureFlag(flag string) InterpreterError {
-	_, ok := s.FeatureFlags[flag]
-	if ok {
+	if hasFeatureFlag(s.FeatureFlags, flag) {
 		return nil
-	} else {
-		return ExperimentalFeature{FlagName: flag}
 	}
+	return ExperimentalFeature{FlagName: flag}
+}
+
+// hasFeatureFlag reports whether flag is enabled. A nil set enables every
+// feature (used e.g. by dependency resolution, which doesn't gate features).
+func hasFeatureFlag(featureFlags map[string]struct{}, flag string) bool {
+	if featureFlags == nil {
+		return true
+	}
+	_, ok := featureFlags[flag]
+	return ok
 }
 
 /*
