@@ -351,6 +351,52 @@ func TestCannotInterpolateScopedAccount(t *testing.T) {
 	require.Equal(t, "s", scopedErr.Scope)
 }
 
+func TestCannotStoreScopedAccountInAccountMeta(t *testing.T) {
+	parsed := parser.Parse(`
+		set_account_meta(@acc, "beneficiary", scoped(@clients, "premium"))
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotStoreScopedAccountInMeta
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "clients", scopedErr.Account)
+	require.Equal(t, "premium", scopedErr.Scope)
+}
+
+func TestCannotStoreScopedAccountInTxMeta(t *testing.T) {
+	parsed := parser.Parse(`
+		set_tx_meta("beneficiary", scoped(@clients, "premium"))
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotStoreScopedAccountInMeta
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "clients", scopedErr.Account)
+	require.Equal(t, "premium", scopedErr.Scope)
+}
+
 func TestInvalidAllotInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

@@ -239,6 +239,16 @@ func (e CannotCastScopedAccountToString) Error() string {
 	return fmt.Sprintf("Cannot cast a scoped account to string (account %q has scope %q)", e.Account, e.Scope)
 }
 
+type CannotStoreScopedAccountInMeta struct {
+	parser.Range
+	Account string
+	Scope   string
+}
+
+func (e CannotStoreScopedAccountInMeta) Error() string {
+	return fmt.Sprintf("Cannot store a scoped account as metadata (account %q has scope %q)", e.Account, e.Scope)
+}
+
 type InvalidAccountName struct {
 	parser.Range
 	Name string
