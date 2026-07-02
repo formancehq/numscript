@@ -111,12 +111,12 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) evaluateVarOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+func evaluateVarOrigin(env expressionEnv, type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
 	if fnCall, ok := expr.(*parser.FnCall); ok {
-		return evaluateFnCall(s, &type_, *fnCall)
+		return evaluateFnCall(env, &type_, *fnCall)
 	}
 
-	return evaluateExpr(s, expr)
+	return evaluateExpr(env, expr)
 }
 
 func (s *programState) getVariable(name string) Value {
@@ -150,7 +150,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			}
 			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value, err := s.evaluateVarOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			value, err := evaluateVarOrigin(s, varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}
