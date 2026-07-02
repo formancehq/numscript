@@ -3,16 +3,67 @@ package interpreter
 import (
 	"math/big"
 
+	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+func evaluateFnCall(env expressionEnv, type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
+	if type_ == nil {
+		if err := env.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall); err != nil {
+			return nil, err
+		}
+	}
+
+	args, err := evaluateExpressions(env, fnCall.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	switch fnCall.Caller.Name {
+	case analysis.FnVarOriginMeta:
+		if type_ == nil {
+			return nil, InvalidNestedMeta{}
+		}
+
+		rawValue, err := meta(env, fnCall.Range, args)
+		if err != nil {
+			return nil, err
+		}
+		return parseVar(*type_, rawValue, fnCall.Range)
+
+	case analysis.FnVarOriginBalance:
+		monetary, err := balance(env, fnCall.Range, args)
+		if err != nil {
+			return nil, err
+		}
+		return monetary, nil
+
+	case analysis.FnVarOriginOverdraft:
+		monetary, err := overdraft(env, fnCall.Range, args)
+		if err != nil {
+			return nil, err
+		}
+		return monetary, nil
+
+	case analysis.FnVarOriginGetAsset:
+		return getAsset(env, fnCall.Range, args)
+	case analysis.FnVarOriginGetAmount:
+		return getAmount(env, fnCall.Range, args)
+	case analysis.FnVarOriginScoped:
+		return scoped(env, fnCall.Range, args)
+
+	default:
+		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
+	}
+}
+
 func overdraft(
-	s *programState,
+	env expressionEnv,
 	r parser.Range,
 	args []Value,
 ) (Monetary, InterpreterError) {
-	err := s.checkFeatureFlag(flags.ExperimentalOverdraftFunctionFeatureFlag)
+	err := env.checkFeatureFlag(flags.ExperimentalOverdraftFunctionFeatureFlag)
 	if err != nil {
 		return Monetary{}, err
 	}
@@ -27,7 +78,7 @@ func overdraft(
 	}
 
 	// overdraft call doesn't handle colors
-	balance_, err := getBalance(s, account, asset)
+	balance_, err := env.getBalance(account, asset)
 	if err != nil {
 		return Monetary{}, err
 	}
@@ -48,7 +99,7 @@ func overdraft(
 }
 
 func meta(
-	s *programState,
+	env expressionEnv,
 	rng parser.Range,
 	args []Value,
 ) (string, InterpreterError) {
@@ -61,16 +112,10 @@ func meta(
 		return "", err
 	}
 
-	meta, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
-		{Account: account.Name, Scope: account.Scope, Keys: []string{string(key)}},
-	})
-	if fetchMetaErr != nil {
-		return "", QueryMetadataError{WrappedError: fetchMetaErr}
+	value, ok, err := env.getMetadata(account, string(key))
+	if err != nil {
+		return "", err
 	}
-	s.CachedAccountsMeta = FromAccountsMetadataRows(meta)
-
-	// body
-	value, ok := s.CachedAccountsMeta.Get(account.Name, account.Scope, string(key))
 
 	if !ok {
 		return "", MetadataNotFound{
@@ -85,7 +130,7 @@ func meta(
 }
 
 func balance(
-	s *programState,
+	env expressionEnv,
 	r parser.Range,
 	args []Value,
 ) (Monetary, InterpreterError) {
@@ -101,7 +146,7 @@ func balance(
 	// body
 
 	// balance call doesn't handle colors
-	balance, err := getBalance(s, account, asset)
+	balance, err := env.getBalance(account, asset)
 	if err != nil {
 		return Monetary{}, err
 	}
@@ -124,11 +169,11 @@ func balance(
 }
 
 func getAsset(
-	s *programState,
+	env expressionEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
-	err := s.checkFeatureFlag(flags.ExperimentalGetAssetFunctionFeatureFlag)
+	err := env.checkFeatureFlag(flags.ExperimentalGetAssetFunctionFeatureFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +189,11 @@ func getAsset(
 }
 
 func getAmount(
-	s *programState,
+	env expressionEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
-	err := s.checkFeatureFlag(flags.ExperimentalGetAmountFunctionFeatureFlag)
+	err := env.checkFeatureFlag(flags.ExperimentalGetAmountFunctionFeatureFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -164,11 +209,11 @@ func getAmount(
 }
 
 func scoped(
-	s *programState,
+	env expressionEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
-	err := s.checkFeatureFlag(flags.ExperimentalScopedFunction)
+	err := env.checkFeatureFlag(flags.ExperimentalScopedFunction)
 	if err != nil {
 		return nil, err
 	}
