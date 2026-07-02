@@ -24,8 +24,8 @@ func addEvalTool(s *server.MCPServer) {
 		),
 		mcp.WithArray("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", and an optional "color".
-			The (account, asset, color) triple of each entry must be unique within the list.
+			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", an optional "color", and an optional "scope".
+			The (account, asset, color, scope) tuple of each entry must be unique within the list.
 			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
 			`),
 		),
@@ -69,11 +69,18 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	}
 	err = request.BindArguments(&args)
 	if err != nil {
-		return nil, err
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	if dup, ok := args.Balances.FirstDuplicate(); ok {
-		return mcp.NewToolResultError(fmt.Sprintf("balances must not contain duplicate entries: duplicate entry for account=%q asset=%q color=%q", dup.Account, dup.Asset, dup.Color)), nil
+		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
+		if dup.Color != "" {
+			key += fmt.Sprintf(" color=%q", dup.Color)
+		}
+		if dup.Scope != "" {
+			key += fmt.Sprintf(" scope=%q", dup.Scope)
+		}
+		return mcp.NewToolResultError("balances must not contain duplicate entries: duplicate entry for " + key), nil
 	}
 
 	out, iErr := interpreter.RunProgram(

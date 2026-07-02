@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "balances": [
+    { "account": "a", "asset": "COIN", "amount": 999, "scope": "s" },
+    { "account": "b", "asset": "COIN", "amount": 60 }
+  ],
+  "testCases": [
+    {
+      "it": "a scoped source can be capped with max",
+      "expect.postings": [
+        {
+          "source": "a",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "COIN",
+          "amount": 40
+        },
+        { "source": "b", "destination": "dest", "asset": "COIN", "amount": 60 }
+      ]
+    }
+  ]
+}

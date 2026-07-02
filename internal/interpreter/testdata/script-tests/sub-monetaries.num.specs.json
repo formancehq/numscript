@@ -2,9 +2,9 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMetadata": {
-        "k": "USD/2 7"
-      }
+      "expect.txMetadata": [
+        { "key": "k", "value": { "type": "monetary", "asset": "USD/2", "amount": "7" } }
+      ]
     }
   ]
 }

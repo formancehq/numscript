@@ -6,7 +6,7 @@ import "math/big"
 // Whereas the external representation (interpreter.Balances) is user-facing and be a stable contract,
 // (for example, allowing more columns if we need an higher level of fungibility), this one is used internally by the runtime, and
 // could change over time, for example to add more indexes for faster lookups
-type InternalBalances map[string][]AccountBalance
+type InternalBalances map[AccountAddress][]AccountBalance
 
 // A single balance entry for an account: an (asset, color) pair and its amount.
 type AccountBalance struct {
@@ -22,7 +22,10 @@ func FromBalancesRows(b Balances) InternalBalances {
 		if row.Amount != nil {
 			amount.Set(row.Amount)
 		}
-		out[row.Account] = append(out[row.Account], AccountBalance{
+		// the cache is keyed by the (account, scope) pair; the scope is part of the
+		// key, so entries don't repeat it as a field
+		key := AccountAddress{Name: row.Account, Scope: row.Scope}
+		out[key] = append(out[key], AccountBalance{
 			Asset:  row.Asset,
 			Color:  row.Color,
 			Amount: amount,
@@ -50,16 +53,15 @@ func (b InternalBalances) DeepClone() InternalBalances {
 // Get the (account, asset, color) balance from the cache.
 // If it is not present, it writes a zero balance in it and returns it.
 func (b InternalBalances) fetchBalance(account AccountAddress, asset Asset, color String) *big.Int {
-	acc := string(account)
-	for i := range b[acc] {
-		entry := &b[acc][i]
+	for i := range b[account] {
+		entry := &b[account][i]
 		if entry.Asset == string(asset) && entry.Color == string(color) {
 			return entry.Amount
 		}
 	}
 
 	amount := new(big.Int)
-	b[acc] = append(b[acc], AccountBalance{
+	b[account] = append(b[account], AccountBalance{
 		Asset:  string(asset),
 		Color:  string(color),
 		Amount: amount,
@@ -68,7 +70,7 @@ func (b InternalBalances) fetchBalance(account AccountAddress, asset Asset, colo
 }
 
 // Set assigns amount to the (account, asset, color) balance.
-func (b InternalBalances) Set(account string, asset string, color string, amount *big.Int) {
+func (b InternalBalances) Set(account AccountAddress, asset string, color string, amount *big.Int) {
 	for i := range b[account] {
 		if b[account][i].Asset == asset && b[account][i].Color == color {
 			b[account][i].Amount = amount
@@ -82,7 +84,7 @@ func (b InternalBalances) Set(account string, asset string, color string, amount
 	})
 }
 
-func (b InternalBalances) has(account string, asset string, color string) bool {
+func (b InternalBalances) has(account AccountAddress, asset string, color string) bool {
 	for _, entry := range b[account] {
 		if entry.Asset == asset && entry.Color == color {
 			return true
@@ -96,7 +98,8 @@ func (b InternalBalances) has(account string, asset string, color string) bool {
 func (b InternalBalances) filterQuery(q BalanceQuery) BalanceQuery {
 	filteredQuery := BalanceQuery{}
 	for _, item := range q {
-		if !b.has(item.Account, item.Asset, item.Color) {
+		key := AccountAddress{Name: item.Account, Scope: item.Scope}
+		if !b.has(key, item.Asset, item.Color) {
 			filteredQuery = append(filteredQuery, item)
 		}
 	}
@@ -106,6 +109,7 @@ func (b InternalBalances) filterQuery(q BalanceQuery) BalanceQuery {
 // Merge the queried balance rows into the cache
 func (b InternalBalances) Merge(update []BalanceRow) {
 	for _, row := range update {
-		b.Set(row.Account, row.Asset, row.Color, row.Amount)
+		key := AccountAddress{Name: row.Account, Scope: row.Scope}
+		b.Set(key, row.Asset, row.Color, row.Amount)
 	}
 }

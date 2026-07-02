@@ -19,6 +19,38 @@ func TestPrettyCsv(t *testing.T) {
 	snaps.MatchSnapshot(t, out)
 }
 
+func TestPrettyCsvOmitEmptyCols(t *testing.T) {
+	t.Run("drops a column whose cells are all empty", func(t *testing.T) {
+		out := utils.CsvPrettyOmitEmptyCols([]string{
+			"Account", "Scope", "Asset", "Color", "Balance",
+		}, [][]string{
+			{"alice", "", "EUR/2", "", "1"},
+			{"bob", "", "BTC", "", "3"},
+		}, false)
+
+		snaps.MatchSnapshot(t, out)
+	})
+
+	t.Run("with no rows, still shows every header", func(t *testing.T) {
+		out := utils.CsvPrettyOmitEmptyCols([]string{
+			"Account", "Scope", "Asset", "Color", "Balance",
+		}, [][]string{}, false)
+
+		snaps.MatchSnapshot(t, out)
+	})
+
+	t.Run("keeps a column when at least one cell is non-empty", func(t *testing.T) {
+		out := utils.CsvPrettyOmitEmptyCols([]string{
+			"Account", "Scope", "Asset", "Color", "Balance",
+		}, [][]string{
+			{"alice", "eu", "EUR/2", "", "1"},
+			{"bob", "", "BTC", "", "3"},
+		}, false)
+
+		snaps.MatchSnapshot(t, out)
+	})
+}
+
 func TestPrettyCsvMap(t *testing.T) {
 	out := utils.CsvPrettyMap("Name", "Value", map[string]string{
 		"a":                       "0",

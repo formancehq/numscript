@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call",
+    "experimental-asset-colors"
+  ],
+  "balances": [
+    {
+      "account": "a",
+      "asset": "COIN",
+      "amount": 50,
+      "scope": "s",
+      "color": "RED"
+    },
+    { "account": "a", "asset": "COIN", "amount": 50, "scope": "s" },
+    { "account": "a", "asset": "COIN", "amount": 50, "color": "RED" }
+  ],
+  "testCases": [
+    {
+      "it": "color and scope are orthogonal: send-all draws exactly the (scope=s, color=RED) balance (50), not the scope-only or color-only 999s",
+      "expect.postings": [
+        {
+          "source": "a",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 50
+        }
+      ]
+    }
+  ]
+}

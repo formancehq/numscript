@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "metadata": [
+    { "account": "acc", "key": "amt", "value": "EUR 1" },
+    { "account": "acc", "scope": "myscope", "key": "amt", "value": "EUR 2" }
+  ],
+  "testCases": [
+    {
+      "it": "reads metadata from the scoped account (amt=2), not the unscoped one (amt=1)",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "asset": "EUR",
+          "amount": 2
+        }
+      ]
+    }
+  ]
+}

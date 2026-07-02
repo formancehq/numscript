@@ -220,6 +220,84 @@ func TestDuplicateBalanceInOuterErr(t *testing.T) {
 	snaps.MatchSnapshot(t, out.String())
 }
 
+func TestDuplicateMetaInTestCaseErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"testCases": [
+			{
+				"it": "t1",
+				"metadata": [
+					{ "account": "acc", "key": "k", "value": "a" },
+					{ "account": "acc", "key": "k", "value": "b" }
+				],
+				"expect.postings": null
+			}
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+func TestDuplicateMetaInOuterErr(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"metadata": [
+			{ "account": "acc", "key": "k", "value": "a" },
+			{ "account": "acc", "key": "k", "value": "b" }
+		],
+		"testCases": [
+			{ "it": "t1", "expect.postings": null }
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.False(t, success)
+	snaps.MatchSnapshot(t, out.String())
+}
+
+// A (account, key) pair that differs only by scope is NOT a duplicate.
+func TestSameMetaKeyDifferentScopeIsNotDuplicate(t *testing.T) {
+	var out bytes.Buffer
+
+	specs := `{
+		"metadata": [
+			{ "account": "acc", "key": "k", "value": "a" },
+			{ "account": "acc", "key": "k", "value": "b", "scope": "myscope" }
+		],
+		"testCases": [
+			{ "it": "t1", "expect.postings": null }
+		]
+	}`
+
+	success := specs_format.RunSpecs(&out, &out, []specs_format.RawSpec{
+		{
+			NumscriptPath:    "example.num",
+			SpecsPath:        "example.num.specs.json",
+			NumscriptContent: "",
+			SpecsFileContent: []byte(specs),
+		},
+	})
+	require.True(t, success)
+}
+
 func TestNumscriptParseErr(t *testing.T) {
 	var out bytes.Buffer
 

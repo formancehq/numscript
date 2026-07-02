@@ -53,6 +53,7 @@ func (e InvalidNumberLiteral) Error() string {
 type MetadataNotFound struct {
 	parser.Range
 	Account string
+	Scope   string
 	Key     string
 }
 
@@ -67,7 +68,7 @@ type TypeError struct {
 }
 
 func (e TypeError) Error() string {
-	return fmt.Sprintf("Invalid value received. Expecting value of type %s (got %s instead)", e.Expected, e.Value.String())
+	return fmt.Sprintf("Invalid value received. Expecting value of type `%s` (got `%s` instead)", e.Expected, e.Value.String())
 }
 
 type UnboundVariableErr struct {
@@ -129,6 +130,7 @@ func (e InvalidTypeErr) Error() string {
 type NegativeBalanceError struct {
 	parser.Range
 	Account string
+	Scope   string
 	Amount  big.Int
 }
 
@@ -164,7 +166,8 @@ func (e DivideByZero) Error() string {
 
 type InvalidUnboundedInSendAll struct {
 	parser.Range
-	Name string
+	Name  string
+	Scope string
 }
 
 func (e InvalidUnboundedInSendAll) Error() string {
@@ -226,6 +229,26 @@ func (e CannotCastToString) Error() string {
 	return fmt.Sprintf("Cannot cast this value to string: %s", e.Value)
 }
 
+type CannotCastScopedAccountToString struct {
+	parser.Range
+	Account string
+	Scope   string
+}
+
+func (e CannotCastScopedAccountToString) Error() string {
+	return fmt.Sprintf("Cannot cast a scoped account to string (account %q has scope %q)", e.Account, e.Scope)
+}
+
+type CannotStoreScopedAccountInMeta struct {
+	parser.Range
+	Account string
+	Scope   string
+}
+
+func (e CannotStoreScopedAccountInMeta) Error() string {
+	return fmt.Sprintf("Cannot store a scoped account as metadata (account %q has scope %q)", e.Account, e.Scope)
+}
+
 type InvalidAccountName struct {
 	parser.Range
 	Name string
@@ -285,4 +308,13 @@ type InvalidOperatorErr struct {
 
 func (e InvalidOperatorErr) Error() string {
 	return fmt.Sprintf("Invalid operator: %s", e.Operator)
+}
+
+type InvalidScope struct {
+	parser.Range
+	Scope string
+}
+
+func (e InvalidScope) Error() string {
+	return fmt.Sprintf("Invalid scope syntax: %s", e.Scope)
 }

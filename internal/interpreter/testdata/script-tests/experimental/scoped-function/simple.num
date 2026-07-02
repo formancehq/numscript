@@ -1,0 +1,4 @@
+send [USD 10] (
+  source = scoped(@src, "x")
+  destination = scoped(@dest, "y")
+)

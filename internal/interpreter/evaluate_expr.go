@@ -95,13 +95,10 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		}
 
 	case *parser.FnCall:
-		if !st.varOriginPosition {
-			err := st.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
-			if err != nil {
-				return nil, err
-			}
-		}
 
+		if err := st.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall); err != nil {
+			return nil, err
+		}
 		return st.handleFnCall(nil, *expr)
 
 	default:
@@ -246,9 +243,12 @@ func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterErr
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {
 	switch v := v.(type) {
 	case AccountAddress:
-		return v.String(), nil
+		if v.Scope != "" {
+			return "", CannotCastScopedAccountToString{Account: v.Name, Scope: v.Scope, Range: rng}
+		}
+		return v.Name, nil
 	case String:
-		return v.String(), nil
+		return string(v), nil
 	case MonetaryInt:
 		return v.String(), nil
 

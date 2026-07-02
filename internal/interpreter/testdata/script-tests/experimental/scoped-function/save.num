@@ -1,0 +1,6 @@
+save [COIN 30] from scoped(@a, "s")
+
+send [COIN *] (
+  source = scoped(@a, "s")
+  destination = @dest
+)

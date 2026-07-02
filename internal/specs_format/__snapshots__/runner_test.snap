@@ -148,7 +148,7 @@ Error: example.num:1:5
 [31m
 Error: example.num:1:29
 
-[0mInvalid value received. Expecting value of type account (got ops! instead)
+[0mInvalid value received. Expecting value of type `account` (got `"ops!"` instead)
 
 
   0 | send [USD/2 100] ( source = "ops!" destination = @world)
@@ -177,5 +177,21 @@ Error: example.num.specs.json
 Error: example.num.specs.json
 
 [0mbalances must not contain duplicate entries: duplicate entry for account="src" asset="USD"
+
+---
+
+[TestDuplicateMetaInTestCaseErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mmetadata must not contain duplicate entries: duplicate entry for account="acc" key="k"
+
+---
+
+[TestDuplicateMetaInOuterErr - 1]
+[31m
+Error: example.num.specs.json
+
+[0mmetadata must not contain duplicate entries: duplicate entry for account="acc" key="k"
 
 ---

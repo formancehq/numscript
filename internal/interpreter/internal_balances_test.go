@@ -9,11 +9,11 @@ import (
 
 func TestFilterQuery(t *testing.T) {
 	fullBalance := InternalBalances{
-		"alice": {
+		AccountAddress{Name: "alice"}: {
 			{Asset: "EUR/2", Amount: big.NewInt(1)},
 			{Asset: "USD/2", Amount: big.NewInt(2)},
 		},
-		"bob": {
+		AccountAddress{Name: "bob"}: {
 			{Asset: "BTC", Amount: big.NewInt(3)},
 		},
 	}
@@ -54,11 +54,11 @@ func TestBalancesFirstDuplicate(t *testing.T) {
 
 func TestCloneBalances(t *testing.T) {
 	fullBalance := InternalBalances{
-		"alice": {
+		AccountAddress{Name: "alice"}: {
 			{Asset: "EUR/2", Amount: big.NewInt(1)},
 			{Asset: "USD/2", Amount: big.NewInt(2)},
 		},
-		"bob": {
+		AccountAddress{Name: "bob"}: {
 			{Asset: "BTC", Amount: big.NewInt(3)},
 		},
 	}
@@ -66,7 +66,7 @@ func TestCloneBalances(t *testing.T) {
 	cloned := fullBalance.DeepClone()
 
 	// USD/2 is the second entry for alice (index 1).
-	fullBalance["alice"][1].Amount.Set(big.NewInt(42))
+	fullBalance[AccountAddress{Name: "alice"}][1].Amount.Set(big.NewInt(42))
 
-	require.Equal(t, big.NewInt(2), cloned["alice"][1].Amount)
+	require.Equal(t, big.NewInt(2), cloned[AccountAddress{Name: "alice"}][1].Amount)
 }

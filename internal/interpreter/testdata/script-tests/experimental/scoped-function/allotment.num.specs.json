@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "balances": [
+    { "account": "a", "asset": "COIN", "amount": 60, "scope": "s" },
+    { "account": "b", "asset": "COIN", "amount": 40 }
+  ],
+  "testCases": [
+    {
+      "it": "a scoped account works as an allotment sub-source",
+      "expect.postings": [
+        {
+          "source": "a",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "COIN",
+          "amount": 60
+        },
+        { "source": "b", "destination": "dest", "asset": "COIN", "amount": 40 }
+      ]
+    }
+  ]
+}

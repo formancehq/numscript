@@ -11,12 +11,18 @@ type BalanceQueryItem struct {
 	Account string
 	Asset   string
 	Color   string
+	Scope   string
+}
+
+type MetadataQueryItem = struct {
+	Account string
+	Scope   string
+	Keys    []string
 }
 
 type BalanceQuery []BalanceQueryItem
 
-// For each account, list of the needed keys
-type MetadataQuery map[string][]string
+type MetadataQuery []MetadataQueryItem
 
 type Store interface {
 	// Returns the batched balances for a given batched query.
@@ -40,7 +46,7 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 		if isCatchAll {
 			// return every stored asset (of the queried color) under the base asset
 			for _, row := range s.Balances {
-				if row.Account != item.Account || row.Color != item.Color {
+				if row.Account != item.Account || row.Color != item.Color || row.Scope != item.Scope {
 					continue
 				}
 				if row.Asset == baseAsset || strings.HasPrefix(row.Asset, baseAsset+"/") {
@@ -48,6 +54,7 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 						Account: row.Account,
 						Asset:   row.Asset,
 						Color:   row.Color,
+						Scope:   row.Scope,
 						Amount:  new(big.Int).Set(row.Amount),
 					})
 				}
@@ -55,10 +62,10 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 			continue
 		}
 
-		// materialize the queried (account, asset, color), defaulting to a zero balance
+		// materialize the queried (account, asset, color, scope), defaulting to a zero balance
 		amount := new(big.Int)
 		for _, row := range s.Balances {
-			if row.Account == item.Account && row.Asset == item.Asset && row.Color == item.Color {
+			if row.Account == item.Account && row.Asset == item.Asset && row.Color == item.Color && row.Scope == item.Scope {
 				amount.Set(row.Amount)
 				break
 			}
@@ -67,6 +74,7 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 			Account: item.Account,
 			Asset:   item.Asset,
 			Color:   item.Color,
+			Scope:   item.Scope,
 			Amount:  amount,
 		})
 	}

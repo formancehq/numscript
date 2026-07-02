@@ -17,14 +17,10 @@
       "variables": {
         "sale": "sales:042"
       },
-      "metadata": {
-        "sales:042": {
-          "seller": "users:053"
-        },
-        "users:053": {
-          "commission": "12.5%"
-        }
-      },
+      "metadata": [
+        { "account": "sales:042", "key": "seller", "value": "users:053" },
+        { "account": "users:053", "key": "commission", "value": "12.5%" }
+      ],
       "expect.postings": [
         {
           "source": "sales:042",

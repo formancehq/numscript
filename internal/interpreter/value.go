@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -18,7 +19,15 @@ type Value interface {
 type String string
 type Asset string
 type Portion big.Rat
-type AccountAddress string
+
+// AccountAddress is an account, optionally partitioned by a scope. The scope is
+// a separate dimension of the account rather than part of its name, so it is
+// modeled as its own field instead of being encoded into the name string.
+type AccountAddress struct {
+	Name  string
+	Scope string
+}
+
 type MonetaryInt big.Int
 type Monetary struct {
 	Amount MonetaryInt
@@ -34,9 +43,9 @@ func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
 	if !checkAccountName(src) {
-		return AccountAddress(""), InvalidAccountName{Name: src}
+		return AccountAddress{}, InvalidAccountName{Name: src}
 	}
-	return AccountAddress(src), nil
+	return AccountAddress{Name: src}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
@@ -46,29 +55,180 @@ func NewAsset(src string) (Asset, InterpreterError) {
 	return Asset(src), nil
 }
 
+// A Value is (de)serialized as a tagged-JSON discriminated union, keyed by
+// "type", so the on-wire form is type-explicit and unambiguous (e.g. the string
+// "42" and the number 42 are distinguishable), rather than stringly-typed:
+//
+//	string   -> { "type": "string",   "value": "abc" }
+//	number   -> { "type": "number",   "value": "42" }
+//	asset    -> { "type": "asset",    "name": "COIN" }
+//	account  -> { "type": "account",  "name": "x", "scope": "s" }   // scope optional
+//	monetary -> { "type": "monetary", "asset": "COIN", "amount": "100" }
+//	portion  -> { "type": "portion",  "numerator": "1", "denominator": "2" }
+const (
+	valueTypeString   = "string"
+	valueTypeNumber   = "number"
+	valueTypeAsset    = "asset"
+	valueTypeAccount  = "account"
+	valueTypeMonetary = "monetary"
+	valueTypePortion  = "portion"
+)
+
+// The per-shape tagged-JSON structs below are each shared by their type's
+// MarshalJSON and by ParseTaggedValue, so the layout is defined once.
+//
+//	scalar (string/number) -> { "type": ..., "value": "..." }
+//	asset                  -> { "type": "asset",    "name": "COIN" }
+//	account                -> { "type": "account",  "name": "x", "scope": "s" }
+//	monetary               -> { "type": "monetary", "asset": "COIN", "amount": "100" }
+//	portion                -> { "type": "portion",  "numerator": "1", "denominator": "2" }
+type (
+	taggedScalar struct {
+		Type  string `json:"type"`
+		Value string `json:"value"`
+	}
+	taggedAsset struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+	taggedAccount struct {
+		Type  string `json:"type"`
+		Name  string `json:"name"`
+		Scope string `json:"scope,omitempty"`
+	}
+	taggedMonetary struct {
+		Type   string `json:"type"`
+		Asset  string `json:"asset"`
+		Amount string `json:"amount"`
+	}
+	taggedPortion struct {
+		Type        string `json:"type"`
+		Numerator   string `json:"numerator"`
+		Denominator string `json:"denominator"`
+	}
+)
+
+// ParseTaggedValue decodes the tagged-JSON representation of a Value. It reads
+// the "type" discriminator (json can't unmarshal directly into the Value
+// interface), then decodes into the struct shared with that type's MarshalJSON.
+func ParseTaggedValue(data []byte) (Value, error) {
+	var tag struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &tag); err != nil {
+		return nil, err
+	}
+
+	switch tag.Type {
+	case valueTypeString:
+		var v taggedScalar
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		return String(v.Value), nil
+
+	case valueTypeAccount:
+		var v taggedAccount
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		if !checkAccountName(v.Name) {
+			return nil, fmt.Errorf("invalid account name: %q", v.Name)
+		}
+		if !checkScopeName(v.Scope) {
+			return nil, fmt.Errorf("invalid account scope: %q", v.Scope)
+		}
+		return AccountAddress{Name: v.Name, Scope: v.Scope}, nil
+
+	case valueTypeAsset:
+		var v taggedAsset
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		return Asset(v.Name), nil
+
+	case valueTypeNumber:
+		var v taggedScalar
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		n, ok := new(big.Int).SetString(v.Value, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid number value: %q", v.Value)
+		}
+		return MonetaryInt(*n), nil
+
+	case valueTypeMonetary:
+		var v taggedMonetary
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		n, ok := new(big.Int).SetString(v.Amount, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid monetary amount: %q", v.Amount)
+		}
+		return Monetary{Asset: Asset(v.Asset), Amount: MonetaryInt(*n)}, nil
+
+	case valueTypePortion:
+		var v taggedPortion
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		num, ok := new(big.Int).SetString(v.Numerator, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid portion numerator: %q", v.Numerator)
+		}
+		denom, ok := new(big.Int).SetString(v.Denominator, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid portion denominator: %q", v.Denominator)
+		}
+		if denom.Sign() == 0 {
+			return nil, fmt.Errorf("invalid portion: zero denominator")
+		}
+		return Portion(*new(big.Rat).SetFrac(num, denom)), nil
+
+	case "":
+		return nil, fmt.Errorf("missing value type")
+	default:
+		return nil, fmt.Errorf("unknown value type: %q", tag.Type)
+	}
+}
+
+func (v String) MarshalJSON() ([]byte, error) {
+	return json.Marshal(taggedScalar{valueTypeString, string(v)})
+}
+
+func (v Asset) MarshalJSON() ([]byte, error) {
+	return json.Marshal(taggedAsset{valueTypeAsset, string(v)})
+}
+
+func (v AccountAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(taggedAccount{valueTypeAccount, v.Name, v.Scope})
+}
+
 func (v MonetaryInt) MarshalJSON() ([]byte, error) {
-	bigInt := big.Int(v)
-	s := fmt.Sprintf(`"%s"`, bigInt.String())
-	return []byte(s), nil
+	bi := big.Int(v)
+	return json.Marshal(taggedScalar{valueTypeNumber, bi.String()})
 }
 
 func (v Portion) MarshalJSON() ([]byte, error) {
 	r := big.Rat(v)
-	s := fmt.Sprintf(`"%s"`, r.String())
-	return []byte(s), nil
+	return json.Marshal(taggedPortion{valueTypePortion, r.Num().String(), r.Denom().String()})
 }
 
 func (v Monetary) MarshalJSON() ([]byte, error) {
-	m := fmt.Sprintf("\"%s %s\"", v.Asset, v.Amount.String())
-	return []byte(m), nil
+	return json.Marshal(taggedMonetary{valueTypeMonetary, string(v.Asset), v.Amount.String()})
 }
 
 func (v String) String() string {
-	return string(v)
+	return fmt.Sprintf(`"%s"`, string(v))
 }
 
 func (v AccountAddress) String() string {
-	return string(v)
+	if v.Scope == "" {
+		return fmt.Sprintf(`@%s`, v.Name)
+	}
+	return fmt.Sprintf(`scoped(%s, "%s")`, v.Name, v.Scope)
 }
 
 func (v MonetaryInt) String() string {
@@ -150,7 +310,7 @@ func expectAccount(v Value, r parser.Range) (AccountAddress, InterpreterError) {
 		return v, nil
 
 	default:
-		return "", TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
+		return AccountAddress{}, TypeError{Expected: analysis.TypeAccount, Value: v, Range: r}
 	}
 }
 
