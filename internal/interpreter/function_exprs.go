@@ -8,7 +8,7 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
-func evaluateFnCall(env expressionEnv, type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
+func evaluateFnCall(env *evalEnv, type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
 	if type_ == nil {
 		if err := env.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall); err != nil {
 			return nil, err
@@ -59,7 +59,7 @@ func evaluateFnCall(env expressionEnv, type_ *string, fnCall parser.FnCall) (Val
 }
 
 func overdraft(
-	env expressionEnv,
+	env *evalEnv,
 	r parser.Range,
 	args []Value,
 ) (Monetary, InterpreterError) {
@@ -99,7 +99,7 @@ func overdraft(
 }
 
 func meta(
-	env expressionEnv,
+	env *evalEnv,
 	rng parser.Range,
 	args []Value,
 ) (string, InterpreterError) {
@@ -130,7 +130,7 @@ func meta(
 }
 
 func balance(
-	env expressionEnv,
+	env *evalEnv,
 	r parser.Range,
 	args []Value,
 ) (Monetary, InterpreterError) {
@@ -169,7 +169,7 @@ func balance(
 }
 
 func getAsset(
-	env expressionEnv,
+	env *evalEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
@@ -189,7 +189,7 @@ func getAsset(
 }
 
 func getAmount(
-	env expressionEnv,
+	env *evalEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
@@ -209,7 +209,7 @@ func getAmount(
 }
 
 func scoped(
-	env expressionEnv,
+	env *evalEnv,
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {

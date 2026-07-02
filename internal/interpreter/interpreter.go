@@ -111,53 +111,12 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func evaluateVarOrigin(env expressionEnv, type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+func evaluateVarOrigin(env *evalEnv, type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
 	if fnCall, ok := expr.(*parser.FnCall); ok {
 		return evaluateFnCall(env, &type_, *fnCall)
 	}
 
 	return evaluateExpr(env, expr)
-}
-
-func (s *programState) getVariable(name string) Value {
-	return s.ParsedVars[name]
-}
-
-func (s *programState) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
-	rows, fetchMetaErr := s.Store.GetAccountsMetadata(s.ctx, MetadataQuery{
-		{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
-	})
-	if fetchMetaErr != nil {
-		return "", false, QueryMetadataError{WrappedError: fetchMetaErr}
-	}
-	s.CachedAccountsMeta = FromAccountsMetadataRows(rows)
-
-	value, ok := s.CachedAccountsMeta.Get(account.Name, account.Scope, key)
-	return value, ok, nil
-}
-
-func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) InterpreterError {
-	for _, varsDecl := range varDeclrs {
-		if varsDecl.Origin == nil {
-			raw, ok := rawVars[varsDecl.Name.Name]
-			if !ok {
-				return MissingVariableErr{Name: varsDecl.Name.Name}
-			}
-
-			parsed, err := parseVar(varsDecl.Type.Name, raw, varsDecl.Type.Range)
-			if err != nil {
-				return err
-			}
-			s.ParsedVars[varsDecl.Name.Name] = parsed
-		} else {
-			value, err := evaluateVarOrigin(s, varsDecl.Type.Name, *varsDecl.Origin)
-			if err != nil {
-				return err
-			}
-			s.ParsedVars[varsDecl.Name.Name] = value
-		}
-	}
-	return nil
 }
 
 const accountSegmentRegex = "[a-zA-Z0-9_-]+"
@@ -209,25 +168,10 @@ func RunProgram(
 	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
 
-	st := programState{
-		ParsedVars:         make(map[string]Value),
-		TxMeta:             make(map[string]Value),
-		CachedAccountsMeta: InternalAccountsMetadata{},
-		CachedBalances:     InternalBalances{},
-		SetAccountsMeta:    internalSetAccountsMeta{},
-		Store:              store,
-		Postings:           make([]Posting, 0),
-		fundsQueue:         newFundsQueue(nil),
-
-		CurrentBalanceQuery: BalanceQuery{},
-		ctx:                 ctx,
-		FeatureFlags:        maps.Clone(featureFlags),
+	flagSet := maps.Clone(featureFlags)
+	if flagSet == nil {
+		flagSet = make(map[string]struct{}, len(program.Flags))
 	}
-
-	if st.FeatureFlags == nil {
-		st.FeatureFlags = make(map[string]struct{}, len(program.Flags))
-	}
-
 	for _, flag := range program.Flags {
 		index := slices.Index(flags.AllFlags, flag.String)
 		if index == -1 {
@@ -235,15 +179,21 @@ func RunProgram(
 				Feature: flag.String,
 			}
 		}
-
-		st.FeatureFlags[flag.String] = struct{}{}
+		flagSet[flag.String] = struct{}{}
 	}
 
-	if program.Vars != nil {
-		err := st.parseVars(program.Vars.Declarations, vars)
-		if err != nil {
-			return nil, err
-		}
+	env, err := newEvalEnv(ctx, store, flagSet, program.Vars, vars)
+	if err != nil {
+		return nil, err
+	}
+
+	st := programState{
+		evalEnv:             env,
+		TxMeta:              make(map[string]Value),
+		SetAccountsMeta:     internalSetAccountsMeta{},
+		Postings:            make([]Posting, 0),
+		fundsQueue:          newFundsQueue(nil),
+		CurrentBalanceQuery: BalanceQuery{},
 	}
 
 	// preload balances before executing the script
@@ -282,28 +232,20 @@ func RunProgram(
 }
 
 type programState struct {
-	ctx context.Context
+	evalEnv
 
 	// Asset of the send statement currently being executed.
 	//
 	// its value is undefined outside of send statements execution
 	CurrentAsset Asset
 
-	ParsedVars map[string]Value
 	TxMeta     map[string]Value
 	Postings   []Posting
 	fundsQueue fundsQueue
 
-	Store Store
-
 	SetAccountsMeta internalSetAccountsMeta
 
-	CachedAccountsMeta InternalAccountsMetadata
-	CachedBalances     InternalBalances
-
 	CurrentBalanceQuery BalanceQuery
-
-	FeatureFlags map[string]struct{}
 }
 
 func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, color String) {
@@ -375,7 +317,7 @@ func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
 func (st *programState) runStatement(statement parser.Statement) InterpreterError {
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		args, err := evaluateExpressions(st, statement.Args)
+		args, err := evaluateExpressions(&st.evalEnv, statement.Args)
 		if err != nil {
 			return err
 		}
@@ -402,12 +344,12 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 }
 
 func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) InterpreterError {
-	asset, amt, err := st.evaluateSentAmt(saveStatement.SentValue)
+	asset, amt, err := evaluateSentAmt(&st.evalEnv, saveStatement.SentValue)
 	if err != nil {
 		return err
 	}
 
-	account, err := evaluateExprAs(st, saveStatement.Account, expectAccount)
+	account, err := evaluateExprAs(&st.evalEnv, saveStatement.Account, expectAccount)
 	if err != nil {
 		return err
 	}
@@ -441,7 +383,7 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 func (st *programState) runSendStatement(statement parser.SendStatement) InterpreterError {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(&st.evalEnv, sentValue.Asset, expectAsset)
 		if err != nil {
 			return err
 		}
@@ -453,7 +395,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 		return st.sendTo(statement.Destination, sentAmt)
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(&st.evalEnv, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return err
 		}
@@ -485,7 +427,7 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		}
 	}
 
-	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +462,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			bounded, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			bounded, err := evaluateExprAs(&s.evalEnv, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -535,12 +477,12 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
-		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return nil, err
 		}
 
-		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		scalingAccount, err := evaluateExprAs(&s.evalEnv, source.Through, expectAccount)
 		if err != nil {
 			return nil, err
 		}
@@ -597,7 +539,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		return s.takeAll(first)
 
 	case *parser.SourceCapped:
-		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		monetary, err := evaluateExprAs(&s.evalEnv, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -643,7 +585,7 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		}
 	}
 
-	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -698,11 +640,11 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 
-		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return nil, err
 		}
-		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		scalingAccount, err := evaluateExprAs(&s.evalEnv, source.Through, expectAccount)
 		if err != nil {
 			return nil, err
 		}
@@ -741,7 +683,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			upTo, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			upTo, err := evaluateExprAs(&s.evalEnv, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -808,7 +750,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		return amount, nil
 
 	case *parser.SourceCapped:
-		cap, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		cap, err := evaluateExprAs(&s.evalEnv, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -828,7 +770,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 func (s *programState) sendTo(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -880,7 +822,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 				break
 			}
 
-			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(&s.evalEnv, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -905,7 +847,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 			return err
 		}
 		for _, destinationClause := range destination.Clauses {
-			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(&s.evalEnv, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -955,7 +897,7 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 	for i, item := range items {
 		switch allotment := item.(type) {
 		case *parser.ValueExprAllotment:
-			rat, err := evaluateExprAs(s, allotment.Value, expectPortion)
+			rat, err := evaluateExprAs(&s.evalEnv, allotment.Value, expectPortion)
 			if err != nil {
 				return nil, err
 			}
@@ -1005,7 +947,7 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 }
 
 // Utility function to get the balance
-// getBalance implements expressionEnv: the raw (possibly negative) balance.
+// getBalance implements *evalEnv: the raw (possibly negative) balance.
 func (s *programState) getBalance(
 	account AccountAddress,
 	asset Asset,
@@ -1022,17 +964,17 @@ func (s *programState) getBalance(
 
 }
 
-func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
+func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(env, sentValue.Asset, expectAsset)
 		if err != nil {
 			return "", nil, err
 		}
 		return asset, nil, nil
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(env, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return "", nil, err
 		}
@@ -1085,23 +1027,6 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	}
 
 	return res, nil
-}
-
-func (s programState) checkFeatureFlag(flag string) InterpreterError {
-	if hasFeatureFlag(s.FeatureFlags, flag) {
-		return nil
-	}
-	return ExperimentalFeature{FlagName: flag}
-}
-
-// hasFeatureFlag reports whether flag is enabled. A nil set enables every
-// feature (used e.g. by dependency resolution, which doesn't gate features).
-func hasFeatureFlag(featureFlags map[string]struct{}, flag string) bool {
-	if featureFlags == nil {
-		return true
-	}
-	_, ok := featureFlags[flag]
-	return ok
 }
 
 /*

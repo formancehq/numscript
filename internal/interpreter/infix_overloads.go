@@ -7,13 +7,13 @@ import (
 )
 
 type opAdd interface {
-	evalAdd(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError)
+	evalAdd(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError)
 }
 
 var _ opAdd = (*MonetaryInt)(nil)
 var _ opAdd = (*Monetary)(nil)
 
-func (m MonetaryInt) evalAdd(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError) {
+func (m MonetaryInt) evalAdd(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError) {
 	leftBi := big.Int(m)
 	m2, err := evaluateExprAs(env, other, expectNumber)
 	if err != nil {
@@ -25,7 +25,7 @@ func (m MonetaryInt) evalAdd(env expressionEnv, other parser.ValueExpr) (Value, 
 	return MonetaryInt(*sum), nil
 }
 
-func (m Monetary) evalAdd(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError) {
+func (m Monetary) evalAdd(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError) {
 	m2, err := evaluateExprAs(env, other, expectMonetary)
 	if err != nil {
 		return nil, err
@@ -46,13 +46,13 @@ func (m Monetary) evalAdd(env expressionEnv, other parser.ValueExpr) (Value, Int
 }
 
 type opSub interface {
-	evalSub(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError)
+	evalSub(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError)
 }
 
 var _ opSub = (*MonetaryInt)(nil)
 var _ opSub = (*Monetary)(nil)
 
-func (m MonetaryInt) evalSub(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError) {
+func (m MonetaryInt) evalSub(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError) {
 	leftBi := big.Int(m)
 	m2, err := evaluateExprAs(env, other, expectNumber)
 	if err != nil {
@@ -63,7 +63,7 @@ func (m MonetaryInt) evalSub(env expressionEnv, other parser.ValueExpr) (Value, 
 	return MonetaryInt(*sum), nil
 }
 
-func (m Monetary) evalSub(env expressionEnv, other parser.ValueExpr) (Value, InterpreterError) {
+func (m Monetary) evalSub(env *evalEnv, other parser.ValueExpr) (Value, InterpreterError) {
 	m2, err := evaluateExprAs(env, other, expectMonetary)
 	if err != nil {
 		return nil, err
@@ -84,19 +84,19 @@ func (m Monetary) evalSub(env expressionEnv, other parser.ValueExpr) (Value, Int
 }
 
 type opNeg interface {
-	evalNeg(env expressionEnv) (Value, InterpreterError)
+	evalNeg(env *evalEnv) (Value, InterpreterError)
 }
 
 var _ opNeg = (*MonetaryInt)(nil)
 var _ opNeg = (*Monetary)(nil)
 
-func (m MonetaryInt) evalNeg(env expressionEnv) (Value, InterpreterError) {
+func (m MonetaryInt) evalNeg(env *evalEnv) (Value, InterpreterError) {
 	m1 := big.Int(m)
 	neg := new(big.Int).Neg(&m1)
 	return MonetaryInt(*neg), nil
 }
 
-func (m Monetary) evalNeg(env expressionEnv) (Value, InterpreterError) {
+func (m Monetary) evalNeg(env *evalEnv) (Value, InterpreterError) {
 	m1 := big.Int(m.Amount)
 	neg := new(big.Int).Neg(&m1)
 	return Monetary{
