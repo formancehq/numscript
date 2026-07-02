@@ -1,21 +1,13 @@
 package interpreter
 
 import (
-	"errors"
-
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-// errStopWalk is a sentinel that a hook can return to abort the walk without it
-// being treated as a failure by the caller.
-var errStopWalk = errors.New("stop walk")
-
+// A nil hook is skipped. Hooks fire pre-order; a non-nil error aborts the walk.
 type astVisitor struct {
-	// Any hook may be nil (then it is skipped). Returning a non-nil error
-	// aborts the whole walk and that error is propagated to walkProgram's
-	// caller. Hooks fire pre-order (parent before children).
 	OnVariable    func(*parser.Variable) error
 	OnAsset       func(*parser.AssetLiteral) error
 	OnNumber      func(*parser.NumberLiteral) error
@@ -28,14 +20,13 @@ type astVisitor struct {
 	OnFnCall      func(*parser.FnCall) error
 
 	// OnMeta fires for meta() calls in place of OnFnCall. originType is the
-	// declared var type when the call is directly a var origin (the only place
-	// meta() is valid), and nil when meta() appears anywhere else — i.e. nested
-	// in a sub-expression or in a statement.
+	// declared var type when meta() is directly a var origin, else nil.
 	OnMeta func(originType *string, fnCall *parser.FnCall) error
 
 	OnSource        func(parser.Source) error
 	OnDestination   func(parser.Destination) error
 	OnStatement     func(parser.Statement) error
+	OnSendStatement func(*parser.SendStatement) error
 	OnSaveStatement func(*parser.SaveStatement) error
 	OnVarDecl       func(parser.VarDeclaration) error
 }
@@ -67,9 +58,6 @@ func (v astVisitor) walkVarDecl(decl parser.VarDeclaration) error {
 	}
 	origin := *decl.Origin
 
-	// A meta() that is directly the var origin is the only valid meta position:
-	// route it to OnMeta with the declared type and walk its args, bypassing
-	// the generic (nil-type) meta dispatch in walkFnCall.
 	if fnCall, ok := origin.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
 		if v.OnMeta != nil {
 			if err := v.OnMeta(&decl.Type.Name, fnCall); err != nil {
@@ -93,6 +81,11 @@ func (v astVisitor) walkStatement(statement parser.Statement) error {
 		return v.walkFnCall(statement)
 
 	case *parser.SendStatement:
+		if v.OnSendStatement != nil {
+			if err := v.OnSendStatement(statement); err != nil {
+				return err
+			}
+		}
 		if err := v.walkSentValue(statement.SentValue); err != nil {
 			return err
 		}
@@ -327,8 +320,6 @@ func (v astVisitor) walkValueExpr(valueExpr parser.ValueExpr) error {
 				return err
 			}
 		}
-		// account name parts can only be text or *Variable; the variables are
-		// worth descending into so OnVariable fires for interpolations.
 		for _, part := range valueExpr.Parts {
 			if variable, ok := part.(*parser.Variable); ok && v.OnVariable != nil {
 				if err := v.OnVariable(variable); err != nil {
@@ -368,8 +359,6 @@ func (v astVisitor) walkValueExpr(valueExpr parser.ValueExpr) error {
 
 func (v astVisitor) walkFnCall(fnCall *parser.FnCall) error {
 	if fnCall.Caller.Name == analysis.FnVarOriginMeta {
-		// Reached through the generic walk, so this meta() is never a top-level
-		// var origin (those are intercepted in walkVarDecl): its type is nil.
 		if v.OnMeta != nil {
 			if err := v.OnMeta(nil, fnCall); err != nil {
 				return err
