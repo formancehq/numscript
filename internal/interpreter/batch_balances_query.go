@@ -15,7 +15,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		return nil
 
 	case *parser.SaveStatement:
-		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		asset, _, err := evaluateSentAmt(&st.evalEnv, statement.SentValue)
 		if err != nil {
 			return err
 		}
@@ -27,7 +27,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		//
 		// this would mean that the "save" statement was not needed in the first place,
 		// so preventing this query would hardly be an useful optimization
-		account, err := evaluateExprAs(st, statement.Account, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, statement.Account, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -35,7 +35,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		return nil
 
 	case *parser.SendStatement:
-		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		asset, _, err := evaluateSentAmt(&st.evalEnv, statement.SentValue)
 		if err != nil {
 			return err
 		}
@@ -90,12 +90,12 @@ func (st *programState) runBalancesQuery() error {
 func (st *programState) findBalancesQueries(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateExprAs(st, source.ValueExpr, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
 
-		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		color, err := evaluateOptExprAs(&st.evalEnv, source.Color, expectString)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		return nil
 
 	case *parser.SourceWithScaling:
-		account, err := evaluateExprAs(st, source.Address, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -119,11 +119,11 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return nil
 		}
 
-		account, err := evaluateExprAs(st, source.Address, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return err
 		}
-		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		color, err := evaluateOptExprAs(&st.evalEnv, source.Color, expectString)
 		if err != nil {
 			return err
 		}
