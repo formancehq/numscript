@@ -122,6 +122,30 @@ func TestSnapshotRestore_OverDeadPrefix(t *testing.T) {
 	wantBalance(t, rs, "B", 0)
 }
 
+// Posting amounts are pooled and recycled at Reset; a reused RunState must still
+// produce correct, independent results each run (no stale/aliased amounts), and
+// PostingsRef must agree with GetPostings within a run.
+func TestReset_PooledPostingAmountsStayCorrect(t *testing.T) {
+	store := newMockStore(map[runtime.PairKey]int64{{"A", "", usd, ""}: 1000})
+	rs := runtime.New(store)
+	for run := 1; run <= 10; run++ {
+		rs.Reset(store)
+		rs.SetCurrentAsset(usd)
+		amt := int64(run) // a different amount each run
+		pull(rs, "A", big.NewInt(amt), big.NewInt(0), "")
+		rs.SendUncapped(strptr("dest"), "", nil)
+
+		ref := rs.PostingsRef()
+		cp := rs.GetPostings()
+		if len(ref) != 1 || len(cp) != 1 {
+			t.Fatalf("run %d: want 1 posting, got ref=%d cp=%d", run, len(ref), len(cp))
+		}
+		if ref[0].Amount.Cmp(big.NewInt(amt)) != 0 || cp[0].Amount.Cmp(big.NewInt(amt)) != 0 {
+			t.Fatalf("run %d: amount ref=%s cp=%s, want %d", run, ref[0].Amount, cp[0].Amount, amt)
+		}
+	}
+}
+
 // Drain a large queue front-to-back on a reused RunState. With the head index the
 // per-pop cost is O(1), so the whole drain is O(n) rather than O(n^2).
 func BenchmarkSend_ManySources(b *testing.B) {

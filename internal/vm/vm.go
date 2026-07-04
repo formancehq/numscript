@@ -76,6 +76,13 @@ func (s runtimeStoreAdapter) GetBalance(
 	return s.store.GetBalance(s.ctx, account, asset, color)
 }
 
+// Exec runs the compiled program on the (reused) VM and returns the resulting
+// postings.
+//
+// LIFETIME: the returned slice and its posting Amounts are owned by the VM and
+// valid only until the next Exec on this Vm (which recycles them). This suits the
+// hot loop, where the caller consumes/persists the postings before the next run;
+// a caller that needs to retain them must deep-copy first.
 func Exec[S Store](
 	ctx context.Context,
 	vm *Vm,
@@ -448,7 +455,7 @@ func Exec[S Store](
 	}
 
 	return runtime.ExecutionResult{
-		Postings:         runstate.GetPostings(),
+		Postings:         runstate.PostingsRef(),
 		Metadata:         txMeta,
 		AccountsMetadata: accountsMeta,
 	}, nil

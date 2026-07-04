@@ -32,8 +32,8 @@
 // package is careful about aliasing: it clones values it ingests from the Store
 // and clones caller-supplied amounts it intends to mutate, it only mutates
 // big.Ints it privately owns (queued source amounts), and it never hands out a
-// live reference to its internal state (GetAccountBalance / GetPostings return
-// copies).
+// live reference to its internal state (GetAccountBalance returns a copy;
+// GetPostings returns a fresh slice whose amounts are valid until the next Reset).
 package runtime
 
 import "math/big"
@@ -110,13 +110,18 @@ type RunState struct {
 	currentAsset string
 
 	// free recycles *big.Int across runs to avoid per-run allocation. It holds
-	// runtime-OWNED queued source amounts that never escape (reclaimed when a
-	// source is consumed, merged, or dropped, and any leftovers at Reset). Balance
-	// amounts are NOT pooled — they live inline in balanceEntry (a value big.Int),
-	// not as separate pointers. Posting amounts are NOT pooled either — they escape
-	// via GetPostings. takeBig() returns a (possibly dirty) one to overwrite;
-	// putBig() returns a dead one. See Reset for the lifetime contract.
+	// runtime-OWNED big.Ints that never escape past the next Reset: queued source
+	// amounts (reclaimed when a source is consumed, merged, or dropped, and any
+	// leftovers at Reset) and posting amounts (reclaimed on Reset — see the
+	// GetPostings/PostingsRef lifetime contract). Balance amounts are NOT pooled:
+	// they live inline in balanceEntry (a value big.Int), not as separate pointers.
+	// takeBig() returns a (possibly dirty) one to overwrite; putBig() returns a dead
+	// one.
 	free []*big.Int
+
+	// capScratch is a reusable big.Int for Send's decrementing cap, so a capped
+	// send allocates nothing. Safe to reuse: Send is not reentrant.
+	capScratch big.Int
 }
 
 func (s *RunState) takeBig() *big.Int {
@@ -152,8 +157,9 @@ func (s *RunState) SetCurrentAsset(asset string) {
 // across executions without reallocating its containers (the balances map and
 // the sources/postings slices keep their backing storage).
 //
-// Note: GetPostings returns deep copies, so a result obtained before Reset stays
-// valid afterward.
+// Note: Reset recycles the posting amounts into the pool, so a GetPostings /
+// PostingsRef result from before this Reset must not be used afterward (see their
+// lifetime contract). A RunState that is never Reset keeps such results valid.
 func (s *RunState) Reset(store Store) {
 	s.store = store
 	clear(s.balances)
@@ -166,6 +172,9 @@ func (s *RunState) Reset(store Store) {
 	}
 	s.sources = s.sources[:0]
 	s.head = 0
+	for i := range s.postings {
+		s.free = append(s.free, s.postings[i].Amount)
+	}
 	s.postings = s.postings[:0]
 	s.currentAsset = ""
 }
@@ -370,7 +379,10 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 // posting is emitted. A partially consumed source's remainder stays at its
 // position.
 func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
-	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
+	// copy cap into a reusable scratch we decrement as sources are consumed; the
+	// caller's cap is left untouched and no allocation is made.
+	s.capScratch.Set(cap)
+	cap = &s.capScratch
 	asset := s.currentAsset
 	i := s.head
 	for cap.Sign() > 0 && i < len(s.sources) {
@@ -459,6 +471,8 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 	if err != nil {
 		return err
 	}
+	// mutate the cached balance in place (it is runtime-owned and never aliased
+	// externally — GetAccountBalance hands out copies — like addToBalance).
 	if amount == nil {
 		if cur.Sign() <= 0 {
 			return nil // negative/zero balance left unchanged
@@ -507,15 +521,28 @@ func (s *RunState) Restore(mark int) error {
 	return nil
 }
 
-// GetPostings returns a copy of the recorded postings: a fresh slice, so callers
-// cannot alter the internal queue's length/order. Posting amounts are write-once
-// (addPosting appends a freshly-cloned Amount and never mutates an existing
-// posting), so the *big.Int values are shared rather than deep-cloned — safe,
-// and it avoids an allocation per posting.
+// GetPostings returns the recorded postings in a fresh slice, so callers cannot
+// alter the internal queue's length/order. The posting Amounts are shared, not
+// deep-cloned (avoiding an allocation per posting).
+//
+// LIFETIME: the shared Amounts are pooled and recycled by the next Reset of this
+// RunState, so the result is valid only until then. A RunState that is never
+// Reset (e.g. the tree-walker's fresh-per-run state) keeps them valid for good.
+// A caller that reuses a RunState across runs (the VM) and needs to retain a
+// result past the next run must deep-copy the Amounts itself.
 func (s *RunState) GetPostings() []Posting {
 	out := make([]Posting, len(s.postings))
 	copy(out, s.postings)
 	return out
+}
+
+// PostingsRef returns the internal postings slice directly, with no copy — for
+// hot-loop callers that consume the result immediately. It is valid only until
+// the next Reset or the next posting append (which may reallocate the slice), and
+// its Amounts are pooled (recycled by the next Reset). Do not retain it. Use
+// GetPostings when you need an independent slice.
+func (s *RunState) PostingsRef() []Posting {
+	return s.postings
 }
 
 // --- internal helpers ---
@@ -598,6 +625,11 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 	if amount.Sign() <= 0 {
 		return nil
 	}
+	// the posting amount is recycled from the pool and reclaimed at Reset; it is a
+	// distinct big.Int from amount (takeBig never returns a live one), so the
+	// following in-place balance credit does not alias it.
+	amt := s.takeBig()
+	amt.Set(amount)
 	s.postings = append(s.postings, Posting{
 		Source:           src,
 		SourceScope:      srcScope,
@@ -605,7 +637,7 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 		DestinationScope: dstScope,
 		Asset:            asset,
 		Color:            color,
-		Amount:           new(big.Int).Set(amount),
+		Amount:           amt,
 	})
 	return s.addToBalance(dst, dstScope, asset, color, amount)
 }

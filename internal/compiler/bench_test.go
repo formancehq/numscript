@@ -98,7 +98,7 @@ func BenchmarkRuntimeBaseline(b *testing.B) {
 		rs.Pull(pulled, "src", "", ten, zero, "")
 		_ = pulled.Cmp(ten) // CheckEnoughFunds
 		rs.SendUncapped(&dest, "", nil)
-		_ = rs.GetPostings()
+		_ = rs.PostingsRef()
 	}
 }
 
@@ -223,7 +223,7 @@ func BenchmarkRuntimeBaselineCapped(b *testing.B) {
 
 		_ = total.Cmp(ten) // check_enough_funds
 		rs.SendUncapped(&dest, "", nil)
-		_ = rs.GetPostings()
+		_ = rs.PostingsRef()
 	}
 }
 
