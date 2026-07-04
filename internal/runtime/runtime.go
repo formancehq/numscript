@@ -104,7 +104,8 @@ type balanceEntry struct {
 type RunState struct {
 	store        Store
 	balances     map[PairKey]*balanceEntry
-	sources      []source // FIFO: front = index 0
+	sources      []source // FIFO; the live window is sources[head:]
+	head         int      // index of the front: consuming it is head++, no shift
 	postings     []Posting
 	currentAsset string
 
@@ -156,12 +157,15 @@ func (s *RunState) SetCurrentAsset(asset string) {
 func (s *RunState) Reset(store Store) {
 	s.store = store
 	clear(s.balances)
-	// reclaim any leftover source amounts: they are runtime-owned and now dead,
-	// so recycle them for the next run.
-	for i := range s.sources {
+	// reclaim any leftover source amounts: they are runtime-owned and now dead, so
+	// recycle them for the next run. Only the live window (sources[head:]) still
+	// holds amounts that haven't been recycled; the dead prefix left by
+	// front-consumption (head > 0) was already recycled at consume time.
+	for i := s.head; i < len(s.sources); i++ {
 		s.free = append(s.free, s.sources[i].amount)
 	}
 	s.sources = s.sources[:0]
+	s.head = 0
 	s.postings = s.postings[:0]
 	s.currentAsset = ""
 }
@@ -307,7 +311,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 	// caller's; the queued amount is mutated in place by compactAt/Send)
 	amt := s.takeBig()
 	amt.Set(out)
-	s.sources = append(s.sources, source{src, scope, amt, color})
+	s.pushSource(src, scope, amt, color)
 
 	// debit the source balance in place; the cache keeps the same *big.Int
 	currentBal.Sub(currentBal, out)
@@ -344,7 +348,7 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	if out.Sign() > 0 {
 		amt := s.takeBig()
 		amt.Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
+		s.pushSource(src, scope, amt, color)
 		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	}
 	return nil
@@ -368,7 +372,7 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
 	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
-	i := 0
+	i := s.head
 	for cap.Sign() > 0 && i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,scope,color) funds at i
 		src := s.sources[i]
@@ -392,7 +396,11 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 		}
 		cap.Sub(cap, src.amount)
 		s.putBig(src.amount) // source fully consumed; recycle its amount
-		s.removeAt(i)        // do not advance i; the next source shifts into position i
+		s.removeAt(i)
+		if i < s.head {
+			i = s.head // consumed the front (head advanced); resume at the new front
+		}
+		// otherwise a mid source was removed and the tail shifted into i; re-read i
 	}
 	return nil
 }
@@ -403,7 +411,7 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 // place.
 func (s *RunState) SendUncapped(dest *string, destScope string, color *string) error {
 	asset := s.currentAsset
-	i := 0
+	i := s.head
 	for i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,scope,color) funds at i
 		src := s.sources[i]
@@ -416,6 +424,9 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 		}
 		s.putBig(src.amount) // source fully consumed; recycle its amount
 		s.removeAt(i)
+		if i < s.head {
+			i = s.head // consumed the front (head advanced); resume at the new front
+		}
 	}
 	return nil
 }
@@ -466,6 +477,11 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 // backtracking a speculative source evaluation (e.g. a `oneof` branch). It is
 // just the queue length: O(1), no allocation, no map cloning.
 func (s *RunState) Snapshot() int {
+	// Normalize a fully-drained queue back to the front so the mark (an absolute
+	// index) stays valid even though front-consumption may have left head > 0 with
+	// a dead prefix. Without this a stale head==len would make Restore truncate to
+	// an out-of-range mark after the next Pull rewinds the backing.
+	s.rewindIfEmpty()
 	return len(s.sources)
 }
 
@@ -619,7 +635,37 @@ func (s *RunState) compactAt(i int) {
 	}
 }
 
-// removeAt deletes the source at index i, preserving the order of the rest.
+// removeAt deletes the live source at index i, preserving the order of the rest.
+// Removing the front (i == head) is O(1): just advance head, leaving behind a
+// dead entry whose amount the caller has already recycled. A mid removal — only
+// the rare color-skip and compaction cases — shifts the suffix down and
+// truncates, as before. This makes the common front-to-back drain O(1) per pop
+// instead of O(n) (an O(n^2) drain becomes O(n)).
 func (s *RunState) removeAt(i int) {
+	if i == s.head {
+		s.head++
+		return
+	}
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
+}
+
+// pushSource appends a funding source at the tail of the queue, first rewinding
+// the backing array to the front if the queue has been fully drained — so
+// front-consumption's dead prefix doesn't make the slice grow across the
+// pull/send cycles of a single run.
+func (s *RunState) pushSource(account, scope string, amount *big.Int, color string) {
+	s.rewindIfEmpty()
+	s.sources = append(s.sources, source{account, scope, amount, color})
+}
+
+// rewindIfEmpty resets the queue to index 0 when it holds no live sources
+// (head == len). The dead prefix left by front-consumption holds only
+// already-recycled amounts, so discarding it loses nothing and keeps the backing
+// array bounded by the max concurrently-queued sources rather than the total
+// pulled over the run.
+func (s *RunState) rewindIfEmpty() {
+	if s.head == len(s.sources) {
+		s.head = 0
+		s.sources = s.sources[:0]
+	}
 }
