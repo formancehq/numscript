@@ -2,12 +2,179 @@ package interpreter_test
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/stretchr/testify/require"
 )
+
+// queryLog wraps a store and records every balance/metadata actually queried,
+// so a test can assert that resolution is a superset of what execution touches.
+type queryLog struct {
+	inner    interpreter.Store
+	balances map[interpreter.AccountDependency]struct{}
+	meta     map[interpreter.MetaDependency]struct{}
+}
+
+func (q *queryLog) GetBalances(ctx context.Context, query interpreter.BalanceQuery) (interpreter.Balances, error) {
+	for _, item := range query {
+		q.balances[interpreter.AccountDependency{Account: item.Account, Scope: item.Scope, Color: item.Color, Asset: item.Asset}] = struct{}{}
+	}
+	return q.inner.GetBalances(ctx, query)
+}
+
+func (q *queryLog) GetAccountsMetadata(ctx context.Context, query interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	for _, item := range query {
+		for _, key := range item.Keys {
+			q.meta[interpreter.MetaDependency{Account: item.Account, Scope: item.Scope, Key: key}] = struct{}{}
+		}
+	}
+	return q.inner.GetAccountsMetadata(ctx, query)
+}
+
+// TestResolveDependenciesCoversRuntime checks the soundness property: for a
+// script that executes successfully, every balance/metadata the interpreter
+// queries is a resolved read, and every account a posting touches is a resolved
+// write. Resolution may over-approximate (e.g. both branches of a oneof), so
+// these are subset checks.
+func TestResolveDependenciesCoversRuntime(t *testing.T) {
+	allFlags := map[string]struct{}{}
+	for _, f := range flags.AllFlags {
+		allFlags[f] = struct{}{}
+	}
+
+	testCases := []struct {
+		name     string
+		src      string
+		vars     map[string]string
+		balances interpreter.Balances
+		meta     interpreter.AccountsMetadata
+	}{
+		{
+			name: "simple send",
+			src: `
+				send [USD 10] (
+					source = @a
+					destination = @b
+				)
+			`,
+			balances: interpreter.Balances{{Account: "a", Asset: "USD", Amount: big.NewInt(100)}},
+		},
+		{
+			name: "balance var origin used as sent value",
+			src: `
+				vars { monetary $x = balance(@t, USD) }
+				send $x (
+					source = @t
+					destination = @o
+				)
+			`,
+			balances: interpreter.Balances{{Account: "t", Asset: "USD", Amount: big.NewInt(100)}},
+		},
+		{
+			name: "bounded overdraft",
+			src: `
+				send [USD 50] (
+					source = @a allowing overdraft up to [USD 100]
+					destination = @b
+				)
+			`,
+			balances: interpreter.Balances{{Account: "a", Asset: "USD", Amount: big.NewInt(0)}},
+		},
+		{
+			name: "allotment source",
+			src: `
+				send [USD 100] (
+					source = {
+						50% from @a
+						50% from @b
+					}
+					destination = @c
+				)
+			`,
+			balances: interpreter.Balances{
+				{Account: "a", Asset: "USD", Amount: big.NewInt(50)},
+				{Account: "b", Asset: "USD", Amount: big.NewInt(50)},
+			},
+		},
+		{
+			name: "balance inside a cap",
+			src: `
+				send [USD 5] (
+					source = max balance(@r, USD) from @funder
+					destination = @out
+				)
+			`,
+			balances: interpreter.Balances{
+				{Account: "r", Asset: "USD", Amount: big.NewInt(10)},
+				{Account: "funder", Asset: "USD", Amount: big.NewInt(100)},
+			},
+		},
+		{
+			name: "meta-derived destination",
+			src: `
+				vars { account $d = meta(@config, "recipient") }
+				send [USD 10] (
+					source = @world
+					destination = $d
+				)
+			`,
+			meta: interpreter.AccountsMetadata{{Account: "config", Key: "recipient", Value: "out"}},
+		},
+		{
+			name: "destination allotment",
+			src: `
+				send [USD 100] (
+					source = @world
+					destination = {
+						50% to @a
+						remaining to @b
+					}
+				)
+			`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed := parser.Parse(tc.src)
+			require.Empty(t, parsed.Errors)
+
+			static := interpreter.StaticStore{Balances: tc.balances, Meta: tc.meta}
+			log := &queryLog{
+				inner:    static,
+				balances: map[interpreter.AccountDependency]struct{}{},
+				meta:     map[interpreter.MetaDependency]struct{}{},
+			}
+
+			result, runErr := interpreter.RunProgram(context.Background(), parsed.Value, tc.vars, log, allFlags)
+			require.Nil(t, runErr)
+
+			deps, err := interpreter.ResolveDependencies(context.Background(), static, tc.vars, parsed.Value)
+			require.NoError(t, err)
+
+			for dep := range log.balances {
+				require.Contains(t, deps.AccountsReads, dep, "queried balance not resolved as a read")
+			}
+			for m := range log.meta {
+				require.Contains(t, deps.MetaReads, m, "queried metadata not resolved as a meta read")
+			}
+
+			// posting accounts must be resolved writes (color isn't statically known for destinations)
+			writes := map[[3]string]struct{}{}
+			for w := range deps.AccountsWrites {
+				writes[[3]string{w.Account, w.Scope, w.Asset}] = struct{}{}
+			}
+			for _, p := range result.Postings {
+				require.Contains(t, writes, [3]string{p.Source, p.SourceScope, p.Asset}, "posting source not resolved as a write")
+				require.Contains(t, writes, [3]string{p.Destination, p.DestinationScope, p.Asset}, "posting destination not resolved as a write")
+			}
+		})
+	}
+}
 
 func resolve(t *testing.T, src string, vars map[string]string, store interpreter.Store) interpreter.ResolvedDependencies {
 	parsed := parser.Parse(src)
@@ -361,6 +528,105 @@ func TestResolveDeeplyNestedSources(t *testing.T) {
 		{Account: "c", Asset: "USD"}:     {},
 		{Account: "d", Asset: "USD"}:     {},
 		{Account: "dest", Asset: "USD"}:  {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveDestinationInorder(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 100] (
+			source = @world
+			destination = {
+				max [USD 20] to @a
+				remaining to @b
+			}
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Empty(t, deps.AccountsReads)
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "world", Asset: "USD"}: {},
+		{Account: "a", Asset: "USD"}:     {},
+		{Account: "b", Asset: "USD"}:     {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveDestinationOneof(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 100] (
+			source = @world
+			destination = oneof {
+				max [USD 20] to @a
+				remaining to @b
+			}
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "world", Asset: "USD"}: {},
+		{Account: "a", Asset: "USD"}:     {},
+		{Account: "b", Asset: "USD"}:     {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveDestinationRemainingKept(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 100] (
+			source = @world
+			destination = {
+				max [USD 20] to @a
+				remaining kept
+			}
+		)
+	`, nil, interpreter.StaticStore{})
+
+	// "remaining kept" holds no account
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "world", Asset: "USD"}: {},
+		{Account: "a", Asset: "USD"}:     {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveBalanceInsideDestinationCap(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 10] (
+			source = @funder
+			destination = {
+				max balance(@reserve, USD) to @a
+				remaining to @b
+			}
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "funder", Asset: "USD"}:  {},
+		{Account: "reserve", Asset: "USD"}: {},
+	}, deps.AccountsReads)
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "funder", Asset: "USD"}: {},
+		{Account: "a", Asset: "USD"}:      {},
+		{Account: "b", Asset: "USD"}:      {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveNestedDestinations(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 100] (
+			source = @world
+			destination = {
+				max [USD 50] to {
+					max [USD 10] to @a
+					remaining to @b
+				}
+				remaining to @c
+			}
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "world", Asset: "USD"}: {},
+		{Account: "a", Asset: "USD"}:     {},
+		{Account: "b", Asset: "USD"}:     {},
+		{Account: "c", Asset: "USD"}:     {},
 	}, deps.AccountsWrites)
 }
 
