@@ -48,7 +48,7 @@ func (env *evalEnv) checkFeatureFlag(flag string) InterpreterError {
 
 func (env *evalEnv) getBalance(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
 	color := String("")
-	if account.Name != "world" && !env.CachedBalances.has(account, string(asset), string(color)) {
+	if !env.CachedBalances.has(account, string(asset), string(color)) {
 		rows, err := env.Store.GetBalances(env.ctx, BalanceQuery{
 			{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
 		})
