@@ -123,10 +123,13 @@ func (st *resolveDependenciesState) resolveStatement(statement parser.Statement)
 		if err != nil {
 			return err
 		}
-		if err := st.resolveSource(statement.Source, asset); err != nil {
+		// funds keep their source color all the way to the destination, so a
+		// destination can be credited in any of the send's source colors
+		srcColors := map[String]struct{}{}
+		if err := st.resolveSource(statement.Source, asset, srcColors); err != nil {
 			return err
 		}
-		return st.resolveDestination(statement.Destination, asset)
+		return st.resolveDestination(statement.Destination, asset, srcColors)
 
 	case *parser.SaveStatement:
 		asset, _, err := evaluateSentAmt(st.env, statement.SentValue)
@@ -172,7 +175,7 @@ func (st *resolveDependenciesState) resolveFnCallStatement(fnCall *parser.FnCall
 	}
 }
 
-func (st *resolveDependenciesState) resolveSource(source parser.Source, asset Asset) error {
+func (st *resolveDependenciesState) resolveSource(source parser.Source, asset Asset, srcColors map[String]struct{}) error {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
 		account, err := evaluateExprAs(st.env, source.ValueExpr, expectAccount)
@@ -183,6 +186,7 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 		if err != nil {
 			return err
 		}
+		srcColors[color] = struct{}{}
 		st.recordSource(account, asset, color, account.Name == "world")
 		return nil
 
@@ -195,6 +199,7 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 		if err != nil {
 			return err
 		}
+		srcColors[color] = struct{}{}
 		st.recordSource(account, asset, color, source.Bounded == nil)
 		if source.Bounded != nil {
 			return st.eval(*source.Bounded)
@@ -203,7 +208,7 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 
 	case *parser.SourceInorder:
 		for _, sub := range source.Sources {
-			if err := st.resolveSource(sub, asset); err != nil {
+			if err := st.resolveSource(sub, asset, srcColors); err != nil {
 				return err
 			}
 		}
@@ -211,7 +216,7 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 
 	case *parser.SourceOneof:
 		for _, sub := range source.Sources {
-			if err := st.resolveSource(sub, asset); err != nil {
+			if err := st.resolveSource(sub, asset, srcColors); err != nil {
 				return err
 			}
 		}
@@ -221,14 +226,14 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 		if err := st.eval(source.Cap); err != nil {
 			return err
 		}
-		return st.resolveSource(source.From, asset)
+		return st.resolveSource(source.From, asset, srcColors)
 
 	case *parser.SourceAllotment:
 		for _, item := range source.Items {
 			if err := st.resolveAllotment(item.Allotment); err != nil {
 				return err
 			}
-			if err := st.resolveSource(item.From, asset); err != nil {
+			if err := st.resolveSource(item.From, asset, srcColors); err != nil {
 				return err
 			}
 		}
@@ -252,14 +257,17 @@ func (st *resolveDependenciesState) recordSource(account AccountAddress, asset A
 	addAccountDep(st.deps.AccountsWrites, account, asset, color)
 }
 
-func (st *resolveDependenciesState) resolveDestination(destination parser.Destination, asset Asset) error {
+func (st *resolveDependenciesState) resolveDestination(destination parser.Destination, asset Asset, srcColors map[String]struct{}) error {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
 		account, err := evaluateExprAs(st.env, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
-		addAccountDep(st.deps.AccountsWrites, account, asset, "")
+		// the destination can be credited in any of the source colors
+		for color := range srcColors {
+			addAccountDep(st.deps.AccountsWrites, account, asset, color)
+		}
 		return nil
 
 	case *parser.DestinationInorder:
@@ -267,29 +275,29 @@ func (st *resolveDependenciesState) resolveDestination(destination parser.Destin
 			if err := st.eval(clause.Cap); err != nil {
 				return err
 			}
-			if err := st.resolveKeptOrDestination(clause.To, asset); err != nil {
+			if err := st.resolveKeptOrDestination(clause.To, asset, srcColors); err != nil {
 				return err
 			}
 		}
-		return st.resolveKeptOrDestination(destination.Remaining, asset)
+		return st.resolveKeptOrDestination(destination.Remaining, asset, srcColors)
 
 	case *parser.DestinationOneof:
 		for _, clause := range destination.Clauses {
 			if err := st.eval(clause.Cap); err != nil {
 				return err
 			}
-			if err := st.resolveKeptOrDestination(clause.To, asset); err != nil {
+			if err := st.resolveKeptOrDestination(clause.To, asset, srcColors); err != nil {
 				return err
 			}
 		}
-		return st.resolveKeptOrDestination(destination.Remaining, asset)
+		return st.resolveKeptOrDestination(destination.Remaining, asset, srcColors)
 
 	case *parser.DestinationAllotment:
 		for _, item := range destination.Items {
 			if err := st.resolveAllotment(item.Allotment); err != nil {
 				return err
 			}
-			if err := st.resolveKeptOrDestination(item.To, asset); err != nil {
+			if err := st.resolveKeptOrDestination(item.To, asset, srcColors); err != nil {
 				return err
 			}
 		}
@@ -301,12 +309,12 @@ func (st *resolveDependenciesState) resolveDestination(destination parser.Destin
 	}
 }
 
-func (st *resolveDependenciesState) resolveKeptOrDestination(kd parser.KeptOrDestination, asset Asset) error {
+func (st *resolveDependenciesState) resolveKeptOrDestination(kd parser.KeptOrDestination, asset Asset, srcColors map[String]struct{}) error {
 	switch kd := kd.(type) {
 	case *parser.DestinationKept:
 		return nil
 	case *parser.DestinationTo:
-		return st.resolveDestination(kd.Destination, asset)
+		return st.resolveDestination(kd.Destination, asset, srcColors)
 	default:
 		utils.NonExhaustiveMatchPanic[any](kd)
 		return nil

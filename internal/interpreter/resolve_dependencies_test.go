@@ -471,9 +471,31 @@ func TestResolveColoredSource(t *testing.T) {
 	require.Equal(t, map[interpreter.AccountDependency]struct{}{
 		{Account: "src", Asset: "COIN", Color: "RED"}: {},
 	}, deps.AccountsReads)
+	// the destination is credited in the source's color
 	require.Equal(t, map[interpreter.AccountDependency]struct{}{
-		{Account: "src", Asset: "COIN", Color: "RED"}: {},
-		{Account: "dest", Asset: "COIN"}:              {},
+		{Account: "src", Asset: "COIN", Color: "RED"}:  {},
+		{Account: "dest", Asset: "COIN", Color: "RED"}: {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveMixedColorSourceWidensDestination(t *testing.T) {
+	// funds from a colored and an uncolored source can both reach the
+	// destination, so it's recorded as a write in every source color
+	deps := resolve(t, `
+		send [COIN 10] (
+			source = {
+				@s1 \ "C"
+				@s2
+			}
+			destination = @dest
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "s1", Asset: "COIN", Color: "C"}: {},
+		{Account: "s2", Asset: "COIN"}:             {},
+		{Account: "dest", Asset: "COIN", Color: "C"}: {},
+		{Account: "dest", Asset: "COIN"}:             {},
 	}, deps.AccountsWrites)
 }
 

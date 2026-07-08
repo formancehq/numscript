@@ -946,24 +946,6 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 	return parts, nil
 }
 
-// Utility function to get the balance
-// getBalance implements *evalEnv: the raw (possibly negative) balance.
-func (s *programState) getBalance(
-	account AccountAddress,
-	asset Asset,
-) (*big.Int, InterpreterError) {
-	color := String("")
-
-	s.batchQuery(account, asset, color)
-	fetchBalanceErr := s.runBalancesQuery()
-	if fetchBalanceErr != nil {
-		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
-	}
-	balance := s.CachedBalances.fetchBalance(account, asset, color)
-	return balance, nil
-
-}
-
 func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
