@@ -492,8 +492,8 @@ func TestResolveMixedColorSourceWidensDestination(t *testing.T) {
 	`, nil, interpreter.StaticStore{})
 
 	require.Equal(t, map[interpreter.AccountDependency]struct{}{
-		{Account: "s1", Asset: "COIN", Color: "C"}: {},
-		{Account: "s2", Asset: "COIN"}:             {},
+		{Account: "s1", Asset: "COIN", Color: "C"}:   {},
+		{Account: "s2", Asset: "COIN"}:               {},
 		{Account: "dest", Asset: "COIN", Color: "C"}: {},
 		{Account: "dest", Asset: "COIN"}:             {},
 	}, deps.AccountsWrites)
@@ -650,6 +650,69 @@ func TestResolveNestedDestinations(t *testing.T) {
 		{Account: "b", Asset: "USD"}:     {},
 		{Account: "c", Asset: "USD"}:     {},
 	}, deps.AccountsWrites)
+}
+
+func TestResolveScopedSource(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 10] (
+			source = scoped(@treasury, "reserve")
+			destination = @out
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "treasury", Scope: "reserve", Asset: "USD"}: {},
+	}, deps.AccountsReads)
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "treasury", Scope: "reserve", Asset: "USD"}: {},
+		{Account: "out", Asset: "USD"}:                        {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveScopedDestination(t *testing.T) {
+	deps := resolve(t, `
+		send [USD 10] (
+			source = @world
+			destination = scoped(@out, "escrow")
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "world", Asset: "USD"}:                {},
+		{Account: "out", Scope: "escrow", Asset: "USD"}: {},
+	}, deps.AccountsWrites)
+}
+
+func TestResolveScopedBalanceRead(t *testing.T) {
+	deps := resolve(t, `
+		vars { monetary $b = balance(scoped(@treasury, "reserve"), USD) }
+		send $b (
+			source = @world
+			destination = @out
+		)
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[interpreter.AccountDependency]struct{}{
+		{Account: "treasury", Scope: "reserve", Asset: "USD"}: {},
+	}, deps.AccountsReads)
+}
+
+func TestResolveScopedMetaRead(t *testing.T) {
+	deps := resolve(t, `
+		vars { account $d = meta(scoped(@config, "settings"), "recipient") }
+		send [USD 10] (
+			source = @world
+			destination = @out
+		)
+	`, nil, interpreter.StaticStore{
+		Meta: interpreter.AccountsMetadata{
+			{Account: "config", Scope: "settings", Key: "recipient", Value: "out"},
+		},
+	})
+
+	require.Equal(t, map[interpreter.MetaDependency]struct{}{
+		{Account: "config", Scope: "settings", Key: "recipient"}: {},
+	}, deps.MetaReads)
 }
 
 func TestResolveSetAccountMetaIsMetaWrite(t *testing.T) {
