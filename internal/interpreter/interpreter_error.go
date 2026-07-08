@@ -199,6 +199,10 @@ func (e QueryBalanceError) Error() string {
 	return e.WrappedError.Error()
 }
 
+func (e QueryBalanceError) Unwrap() error {
+	return e.WrappedError
+}
+
 type QueryMetadataError struct {
 	parser.Range
 	WrappedError error
@@ -206,6 +210,10 @@ type QueryMetadataError struct {
 
 func (e QueryMetadataError) Error() string {
 	return e.WrappedError.Error()
+}
+
+func (e QueryMetadataError) Unwrap() error {
+	return e.WrappedError
 }
 
 type ExperimentalFeature struct {
