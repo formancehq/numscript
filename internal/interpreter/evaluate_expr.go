@@ -7,7 +7,6 @@ import (
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 type evalEnv struct {
@@ -122,6 +121,9 @@ func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError)
 					return nil, err
 				}
 				parts = append(parts, strValue)
+
+			default:
+				return nil, unhandledErr(part)
 			}
 		}
 		name := strings.Join(parts, "")
@@ -168,8 +170,7 @@ func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError)
 			return divOp(env, expr.Range, expr.Left, expr.Right)
 
 		default:
-			utils.NonExhaustiveMatchPanic[any](expr.Operator)
-			return nil, nil
+			return nil, unhandledErr(expr.Operator)
 		}
 
 	case *parser.Prefix:
@@ -178,8 +179,7 @@ func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError)
 			return unaryNegOp(env, expr.Expr)
 
 		default:
-			utils.NonExhaustiveMatchPanic[any](expr.Operator)
-			return nil, nil
+			return nil, unhandledErr(expr.Operator)
 		}
 
 	case *parser.FnCall:
@@ -187,8 +187,7 @@ func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError)
 		return evaluateFnCall(env, nil, *expr)
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](expr)
-		return nil, nil
+		return nil, unhandledErr(expr)
 	}
 }
 

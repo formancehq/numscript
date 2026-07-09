@@ -7,6 +7,22 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+// UnhandledError is returned instead of panicking when expression evaluation or
+// dependency resolution meets an AST node it doesn't handle (e.g. a language
+// construct added after this code was written).
+type UnhandledError struct {
+	parser.Range
+	Node string
+}
+
+func (e UnhandledError) Error() string {
+	return fmt.Sprintf("internal error: unhandled ast node (%s)", e.Node)
+}
+
+func unhandledErr(node any) UnhandledError {
+	return UnhandledError{Node: fmt.Sprintf("%#v", node)}
+}
+
 type InternalError struct {
 	parser.Range
 	Posting Posting

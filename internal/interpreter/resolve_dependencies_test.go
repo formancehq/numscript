@@ -737,6 +737,14 @@ func TestResolveSetTxMetaIsTxMetaWrite(t *testing.T) {
 	require.Empty(t, deps.MetaWrites)
 }
 
+func TestResolveUnknownStatementFnErrors(t *testing.T) {
+	parsed := parser.Parse(`unknown_fn(@a, "x")`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.ResolveDependencies(context.Background(), interpreter.StaticStore{}, nil, parsed.Value)
+	require.IsType(t, interpreter.UnboundFunctionErr{}, err)
+}
+
 func TestResolveScalingIsNotSupported(t *testing.T) {
 	parsed := parser.Parse(`
 		send [USD 10] (

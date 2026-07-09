@@ -965,8 +965,7 @@ func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int,
 		return monetary.Asset, &bi, nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](sentValue)
-		return "", nil, nil
+		return "", nil, unhandledErr(sentValue)
 	}
 }
 

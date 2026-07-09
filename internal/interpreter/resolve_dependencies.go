@@ -6,7 +6,6 @@ import (
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 var ErrScalingNotSupported = errors.New("scaling is not supported")
@@ -149,8 +148,7 @@ func (st *resolveDependenciesState) resolveStatement(statement parser.Statement)
 		return st.resolveFnCallStatement(statement)
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](statement)
-		return nil
+		return unhandledErr(statement)
 	}
 }
 
@@ -183,7 +181,7 @@ func (st *resolveDependenciesState) resolveFnCallStatement(fnCall *parser.FnCall
 		return nil
 
 	default:
-		return nil
+		return UnboundFunctionErr{Name: fnCall.Caller.Name}
 	}
 }
 
@@ -255,8 +253,7 @@ func (st *resolveDependenciesState) resolveSource(source parser.Source, asset As
 		return ErrScalingNotSupported
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](source)
-		return nil
+		return unhandledErr(source)
 	}
 }
 
@@ -316,8 +313,7 @@ func (st *resolveDependenciesState) resolveDestination(destination parser.Destin
 		return nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](destination)
-		return nil
+		return unhandledErr(destination)
 	}
 }
 
@@ -328,14 +324,17 @@ func (st *resolveDependenciesState) resolveKeptOrDestination(kd parser.KeptOrDes
 	case *parser.DestinationTo:
 		return st.resolveDestination(kd.Destination, asset, srcColors)
 	default:
-		utils.NonExhaustiveMatchPanic[any](kd)
-		return nil
+		return unhandledErr(kd)
 	}
 }
 
 func (st *resolveDependenciesState) resolveAllotment(allotment parser.AllotmentValue) error {
-	if allotment, ok := allotment.(*parser.ValueExprAllotment); ok {
+	switch allotment := allotment.(type) {
+	case *parser.ValueExprAllotment:
 		return st.eval(allotment.Value)
+	case *parser.RemainingAllotment:
+		return nil
+	default:
+		return unhandledErr(allotment)
 	}
-	return nil
 }
