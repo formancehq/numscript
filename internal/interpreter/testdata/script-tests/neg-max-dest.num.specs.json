@@ -10,7 +10,7 @@
         }
       ],
       "variables": {},
-      "metadata": {},
+      "metadata": [],
       "expect.postings": [
         {
           "source": "memo:main",

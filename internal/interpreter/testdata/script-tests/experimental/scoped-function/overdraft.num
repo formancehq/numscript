@@ -1,0 +1,4 @@
+send [USD/2 100] (
+  source = scoped(@empty, "s") allowing unbounded overdraft
+  destination = @dest
+)

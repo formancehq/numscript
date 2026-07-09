@@ -22,13 +22,13 @@
   "definitions": {
     "Balances": {
       "type": "array",
-      "description": "List of account balances. The (account, asset, color) triple of each entry must be unique within the list.",
+      "description": "List of account balances. The (account, asset, color, scope) tuple of each entry must be unique within the list.",
       "items": { "$ref": "#/definitions/BalanceRow" }
     },
 
     "BalanceRow": {
       "type": "object",
-      "description": "The balance of a given (account, asset, color)",
+      "description": "The balance of a given (account, asset, color, scope)",
       "additionalProperties": false,
       "required": ["account", "asset", "amount"],
       "properties": {
@@ -46,6 +46,10 @@
         "color": {
           "type": "string",
           "pattern": "^[A-Z]*$"
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$"
         }
       }
     },
@@ -60,21 +64,32 @@
     },
 
     "AccountsMetadata": {
-      "type": "object",
-      "description": "Map of an account metadata to the account's metadata",
-      "additionalProperties": false,
-      "patternProperties": {
-        "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
-        }
-      }
+      "type": "array",
+      "description": "List of account metadata entries. The (account, key, scope) tuple of each entry must be unique within the list.",
+      "items": { "$ref": "#/definitions/AccountMetadataRow" }
     },
 
-    "TxMetadata": {
+    "AccountMetadataRow": {
       "type": "object",
-      "description": "Map from a metadata's key to the transaction's metadata stringied value",
-      "additionalProperties": { "type": "string" }
+      "description": "A single metadata entry: the value of a given (account, key, scope)",
+      "additionalProperties": false,
+      "required": ["account", "key", "value"],
+      "properties": {
+        "account": {
+          "type": "string",
+          "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$"
+        }
+      }
     }
   }
 }

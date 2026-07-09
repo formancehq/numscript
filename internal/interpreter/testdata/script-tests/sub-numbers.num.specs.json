@@ -2,9 +2,9 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMetadata": {
-        "k": "9"
-      }
+      "expect.txMetadata": [
+        { "key": "k", "value": { "type": "number", "value": "9" } }
+      ]
     }
   ]
 }

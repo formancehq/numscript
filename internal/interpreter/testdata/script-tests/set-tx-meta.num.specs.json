@@ -2,13 +2,13 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMetadata": {
-        "account": "acc",
-        "asset": "COIN",
-        "num": "42",
-        "portion": "3/25",
-        "str": "abc"
-      }
+      "expect.txMetadata": [
+        { "key": "account", "value": { "type": "account", "name": "acc" } },
+        { "key": "asset", "value": { "type": "asset", "name": "COIN" } },
+        { "key": "num", "value": { "type": "number", "value": "42" } },
+        { "key": "portion", "value": { "type": "portion", "numerator": "3", "denominator": "25" } },
+        { "key": "str", "value": { "type": "string", "value": "abc" } }
+      ]
     }
   ]
 }

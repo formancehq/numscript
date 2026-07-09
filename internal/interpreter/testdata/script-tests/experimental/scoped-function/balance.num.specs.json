@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": ["experimental-scoped-function", "experimental-mid-script-function-call"],
+  "balances": [
+    { "account": "treasury", "asset": "EUR/2", "amount": 42 },
+    {
+      "account": "treasury",
+      "asset": "EUR/2",
+      "amount": 42,
+      "scope": "reserve"
+    }
+  ],
+  "testCases": [
+    {
+      "it": "balance() reads the scoped balance (42), not the unscoped one (100)",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 42
+        }
+      ]
+    }
+  ]
+}

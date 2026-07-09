@@ -24,11 +24,28 @@ type InterpreterError interface {
 type Metadata = map[string]Value
 
 type Posting struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Amount      *big.Int `json:"amount"`
-	Asset       string   `json:"asset"`
-	Color       string   `json:"color,omitempty"`
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Amount           *big.Int `json:"amount"`
+	Asset            string   `json:"asset"`
+	Color            string   `json:"color,omitempty"`
+}
+
+// newPosting builds a Posting from the source and destination addresses,
+// exposing each address's account and scope as the separate fields the posting
+// contract uses.
+func newPosting(source AccountAddress, destination AccountAddress, amount *big.Int, asset string, color string) Posting {
+	return Posting{
+		Source:           source.Name,
+		SourceScope:      source.Scope,
+		Destination:      destination.Name,
+		DestinationScope: destination.Scope,
+		Amount:           amount,
+		Asset:            asset,
+		Color:            color,
+	}
 }
 
 type ExecutionResult struct {
@@ -36,7 +53,7 @@ type ExecutionResult struct {
 
 	Metadata Metadata `json:"txMeta"`
 
-	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
+	AccountsMetadata SetAccountsMetadata `json:"accountsMeta"`
 }
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
@@ -94,17 +111,9 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
-	// Special case for top-level meta() call
-	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+func (s *programState) evaluateVarOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+	if fnCall, ok := expr.(*parser.FnCall); ok {
 		return s.handleFnCall(&type_, *fnCall)
-	}
-
-	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
-		err := s.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return s.evaluateExpr(expr)
@@ -146,6 +155,8 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		return getAsset(s, fnCall.Range, args)
 	case analysis.FnVarOriginGetAmount:
 		return getAmount(s, fnCall.Range, args)
+	case analysis.FnVarOriginScoped:
+		return scoped(s, fnCall.Range, args)
 
 	default:
 		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
@@ -167,7 +178,7 @@ func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[
 			}
 			s.ParsedVars[varsDecl.Name.Name] = parsed
 		} else {
-			value, err := s.handleFnOrigin(varsDecl.Type.Name, *varsDecl.Origin)
+			value, err := s.evaluateVarOrigin(varsDecl.Type.Name, *varsDecl.Origin)
 			if err != nil {
 				return err
 			}
@@ -191,6 +202,12 @@ var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/
 // https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
 func checkAssetName(v string) bool {
 	return assetNameRegexp.Match([]byte(v))
+}
+
+var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
+
+func checkScopeName(scope string) bool {
+	return scopeRegex.MatchString(scope)
 }
 
 // Check the following invariants:
@@ -223,9 +240,9 @@ func RunProgram(
 	st := programState{
 		ParsedVars:         make(map[string]Value),
 		TxMeta:             make(map[string]Value),
-		CachedAccountsMeta: AccountsMetadata{},
+		CachedAccountsMeta: InternalAccountsMetadata{},
 		CachedBalances:     InternalBalances{},
-		SetAccountsMeta:    AccountsMetadata{},
+		SetAccountsMeta:    internalSetAccountsMeta{},
 		Store:              store,
 		Postings:           make([]Posting, 0),
 		fundsQueue:         newFundsQueue(nil),
@@ -250,14 +267,12 @@ func RunProgram(
 		st.FeatureFlags[flag.String] = struct{}{}
 	}
 
-	st.varOriginPosition = true
 	if program.Vars != nil {
 		err := st.parseVars(program.Vars.Declarations, vars)
 		if err != nil {
 			return nil, err
 		}
 	}
-	st.varOriginPosition = false
 
 	// preload balances before executing the script
 	for _, statement := range program.Statements {
@@ -289,15 +304,13 @@ func RunProgram(
 	res := &ExecutionResult{
 		Postings:         st.Postings,
 		Metadata:         st.TxMeta,
-		AccountsMetadata: st.SetAccountsMeta,
+		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
 	return res, nil
 }
 
 type programState struct {
 	ctx context.Context
-
-	varOriginPosition bool
 
 	// Asset of the send statement currently being executed.
 	//
@@ -311,9 +324,9 @@ type programState struct {
 
 	Store Store
 
-	SetAccountsMeta AccountsMetadata
+	SetAccountsMeta internalSetAccountsMeta
 
-	CachedAccountsMeta AccountsMetadata
+	CachedAccountsMeta InternalAccountsMetadata
 	CachedBalances     InternalBalances
 
 	CurrentBalanceQuery BalanceQuery
@@ -332,9 +345,9 @@ func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, co
 	balance.Sub(balance, &monetaryBi)
 
 	st.fundsQueue.Push(Sender{
-		Name:   string(name),
-		Amount: &monetaryBi,
-		Color:  string(color),
+		Account: name,
+		Amount:  &monetaryBi,
+		Color:   string(color),
 	})
 }
 
@@ -359,16 +372,10 @@ func (st *programState) forcePushPostingUncolored(
 	destBalance := st.CachedBalances.fetchBalance(destination, asset, "")
 	destBalance.Add(destBalance, &amtBi)
 
-	st.Postings = append(st.Postings, Posting{
-		Source:      string(source),
-		Destination: string(destination),
-		Amount:      new(big.Int).Set(&amtBi),
-		Color:       "",
-		Asset:       string(asset),
-	})
+	st.Postings = append(st.Postings, newPosting(source, destination, new(big.Int).Set(&amtBi), string(asset), ""))
 }
 
-func (st *programState) pushReceiver(name string, monetary *big.Int) {
+func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
 	if monetary.Cmp(big.NewInt(0)) == 0 {
 		return
 	}
@@ -376,26 +383,20 @@ func (st *programState) pushReceiver(name string, monetary *big.Int) {
 	senders := st.fundsQueue.PullAnything(monetary)
 
 	for _, sender := range senders {
-		postings := Posting{
-			Source:      sender.Name,
-			Destination: name,
-			Asset:       string(st.CurrentAsset),
-			Amount:      sender.Amount,
-			Color:       sender.Color,
-		}
+		posting := newPosting(sender.Account, name, sender.Amount, string(st.CurrentAsset), sender.Color)
 
-		if name == KEPT_ADDR {
+		if name.Name == KEPT_ADDR {
 			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Source), st.CurrentAsset, String(sender.Color))
-			srcBalance.Add(srcBalance, postings.Amount)
+			srcBalance := st.CachedBalances.fetchBalance(sender.Account, st.CurrentAsset, String(sender.Color))
+			srcBalance.Add(srcBalance, posting.Amount)
 
 			continue
 		}
 
-		destBalance := st.CachedBalances.fetchBalance(AccountAddress(postings.Destination), st.CurrentAsset, String(sender.Color))
-		destBalance.Add(destBalance, postings.Amount)
+		destBalance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, String(sender.Color))
+		destBalance.Add(destBalance, posting.Amount)
 
-		st.Postings = append(st.Postings, postings)
+		st.Postings = append(st.Postings, posting)
 	}
 }
 
@@ -517,9 +518,10 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	if account == "world" || overdraft == nil {
+	if account.Name == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: string(account),
+			Name:  account.Name,
+			Scope: account.Scope,
 		}
 	}
 
@@ -572,7 +574,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
-		acc, ok := s.CachedBalances[string(account)]
+		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -673,7 +675,7 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	if err != nil {
 		return nil, err
 	}
-	if account == "world" {
+	if account.Name == "world" {
 		overdraft = nil
 	}
 
@@ -735,7 +737,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
 
-		acc, ok := s.CachedBalances[string(account)]
+		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -858,7 +860,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 		if err != nil {
 			return err
 		}
-		s.pushReceiver(string(account), amount)
+		s.pushReceiver(account, amount)
 		return nil
 
 	case *parser.DestinationAllotment:
@@ -959,7 +961,7 @@ const KEPT_ADDR = "<kept>"
 func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.pushReceiver(KEPT_ADDR, amount)
+		s.pushReceiver(AccountAddress{Name: KEPT_ADDR}, amount)
 		return nil
 
 	case *parser.DestinationTo:
@@ -1149,29 +1151,23 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
-	// the Color column is shown only when at least one posting has a color
-	hasColor := slices.ContainsFunc(postings, func(posting Posting) bool {
-		return posting.Color != ""
-	})
-
-	var header []string
-	if hasColor {
-		header = []string{"Source", "Destination", "Asset", "Color", "Amount"}
-	} else {
-		header = []string{"Source", "Destination", "Asset", "Amount"}
-	}
+	// the optional columns (scopes, color) are dropped automatically when no
+	// posting populates them
+	header := []string{"Source", "Source Scope", "Destination", "Destination Scope", "Asset", "Color", "Amount"}
 
 	var rows [][]string
 	for _, posting := range postings {
-		var row []string
-		if hasColor {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Color, posting.Amount.String()}
-		} else {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
-		}
-		rows = append(rows, row)
+		rows = append(rows, []string{
+			posting.Source,
+			posting.SourceScope,
+			posting.Destination,
+			posting.DestinationScope,
+			posting.Asset,
+			posting.Color,
+			posting.Amount.String(),
+		})
 	}
-	return utils.CsvPretty(header, rows, false)
+	return utils.CsvPrettyOmitEmptyCols(header, rows, false)
 }
 
 func PrettyPrintMeta(meta Metadata) string {

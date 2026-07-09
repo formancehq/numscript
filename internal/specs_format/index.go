@@ -2,6 +2,7 @@ package specs_format
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -11,6 +12,72 @@ import (
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 )
+
+// TxMetadataRow is a single transaction metadata entry. Like SetAccountMetadataRow,
+// the value's type is known, so it is carried as a typed Value written in the tagged
+// value format (e.g. {"type":"account","name":"x"}).
+type TxMetadataRow struct {
+	Key   string            `json:"key"`
+	Value interpreter.Value `json:"value"`
+}
+
+// ExpectedTxMeta is a test case's expected transaction metadata: a list of rows,
+// mirroring expect.metadata. Comparison ignores order (see compareTxMeta).
+type ExpectedTxMeta []TxMetadataRow
+
+func (r *TxMetadataRow) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Key   string          `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	value, err := interpreter.ParseTaggedValue(raw.Value)
+	if err != nil {
+		return err
+	}
+	r.Key, r.Value = raw.Key, value
+	return nil
+}
+
+// compareTxMeta reports whether two lists hold the same rows, ignoring order but
+// respecting multiplicity (so [x, x] != [x, y]). Values are compared on their
+// canonical source form, so a string "42" and the number 42 are not conflated.
+func compareTxMeta(a ExpectedTxMeta, b ExpectedTxMeta) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	key := func(r TxMetadataRow) string {
+		value := ""
+		if r.Value != nil {
+			value = r.Value.String()
+		}
+		return r.Key + "\x00" + value
+	}
+	counts := make(map[string]int, len(a))
+	for _, r := range a {
+		counts[key(r)]++
+	}
+	for _, r := range b {
+		k := key(r)
+		counts[k]--
+		if counts[k] < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// txMetaToRows flattens the interpreter's (map-based) transaction metadata into the
+// row form used by expect.txMetadata, so the two can be compared.
+func txMetaToRows(m interpreter.Metadata) ExpectedTxMeta {
+	rows := make(ExpectedTxMeta, 0, len(m))
+	for k, v := range m {
+		rows = append(rows, TxMetadataRow{Key: k, Value: v})
+	}
+	return rows
+}
 
 // --- Specs:
 type Specs struct {
@@ -38,12 +105,12 @@ type TestCase struct {
 	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
 	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
 
-	ExpectPostings           []interpreter.Posting        `json:"expect.postings,omitempty"`
-	ExpectTxMeta             map[string]string            `json:"expect.txMetadata,omitempty"`
-	ExpectAccountsMeta       interpreter.AccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectEndBalances        interpreter.Balances         `json:"expect.endBalances,omitempty"`
-	ExpectEndBalancesInclude interpreter.Balances         `json:"expect.endBalances.include,omitempty"`
-	ExpectMovements          Movements                    `json:"expect.movements,omitempty"`
+	ExpectPostings           []interpreter.Posting           `json:"expect.postings,omitempty"`
+	ExpectTxMeta             ExpectedTxMeta                  `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta       interpreter.SetAccountsMetadata `json:"expect.metadata,omitempty"`
+	ExpectEndBalances        interpreter.Balances            `json:"expect.endBalances,omitempty"`
+	ExpectEndBalancesInclude interpreter.Balances            `json:"expect.endBalances.include,omitempty"`
+	ExpectMovements          Movements                       `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -175,24 +242,20 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectTxMeta != nil {
-				metadata := map[string]string{}
-				for k, v := range result.Metadata {
-					metadata[k] = v.String()
-				}
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.txMetadata",
 					testCase.ExpectTxMeta,
-					metadata,
-					reflect.DeepEqual,
+					txMetaToRows(result.Metadata),
+					compareTxMeta,
 				)
 			}
 
 			if testCase.ExpectAccountsMeta != nil {
-				failedAssertions = runAssertion[any](failedAssertions,
+				failedAssertions = runAssertion(failedAssertions,
 					"expect.metadata",
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
-					reflect.DeepEqual,
+					interpreter.CompareSetAccountsMetadata,
 				)
 			}
 
@@ -264,10 +327,27 @@ func mergeVars(v1 interpreter.VariablesMap, v2 interpreter.VariablesMap) interpr
 	return out
 }
 
-func mergeAccountsMeta(m1 interpreter.AccountsMetadata, m2 interpreter.AccountsMetadata) interpreter.AccountsMetadata {
-	out := m1.DeepClone()
-	out.Merge(m2)
-	return out
+// Merge two account-metadata inputs, deduping by (account, key, scope).
+// Entries in "inner" override matching entries in "outer".
+func mergeAccountsMeta(outer interpreter.AccountsMetadata, inner interpreter.AccountsMetadata) interpreter.AccountsMetadata {
+	merged := interpreter.AccountsMetadata{}
+	indexByKey := map[string]int{}
+
+	addAll := func(items interpreter.AccountsMetadata) {
+		for _, item := range items {
+			key := item.Account + "\x00" + item.Key + "\x00" + item.Scope
+			if i, ok := indexByKey[key]; ok {
+				merged[i] = item
+			} else {
+				indexByKey[key] = len(merged)
+				merged = append(merged, item)
+			}
+		}
+	}
+
+	addAll(outer)
+	addAll(inner)
+	return merged
 }
 
 // validateSpecs rejects a malformed specs file before any test case is run. A
@@ -279,9 +359,15 @@ func validateSpecs(specs Specs) error {
 	if dup, ok := specs.Balances.FirstDuplicate(); ok {
 		return duplicateBalanceErr(dup)
 	}
+	if dup, ok := specs.Meta.FirstDuplicate(); ok {
+		return duplicateAccountMetaErr(dup)
+	}
 	for _, testCase := range specs.TestCases {
 		if dup, ok := testCase.Balances.FirstDuplicate(); ok {
 			return duplicateBalanceErr(dup)
+		}
+		if dup, ok := testCase.Meta.FirstDuplicate(); ok {
+			return duplicateAccountMetaErr(dup)
 		}
 	}
 	return nil
@@ -292,7 +378,18 @@ func duplicateBalanceErr(dup interpreter.BalanceRow) error {
 	if dup.Color != "" {
 		key += fmt.Sprintf(" color=%q", dup.Color)
 	}
+	if dup.Scope != "" {
+		key += fmt.Sprintf(" scope=%q", dup.Scope)
+	}
 	return fmt.Errorf("balances must not contain duplicate entries: duplicate entry for %s", key)
+}
+
+func duplicateAccountMetaErr(dup interpreter.AccountMetadataRow) error {
+	key := fmt.Sprintf("account=%q key=%q", dup.Account, dup.Key)
+	if dup.Scope != "" {
+		key += fmt.Sprintf(" scope=%q", dup.Scope)
+	}
+	return fmt.Errorf("metadata must not contain duplicate entries: duplicate entry for %s", key)
 }
 
 // Merge two balance inputs, deduping by (account, asset, color).
@@ -303,7 +400,7 @@ func mergeBalances(outer interpreter.Balances, inner interpreter.Balances) inter
 
 	addAll := func(items interpreter.Balances) {
 		for _, item := range items {
-			key := item.Account + "\x00" + item.Asset + "\x00" + item.Color
+			key := item.Account + "\x00" + item.Asset + "\x00" + item.Color + "\x00" + item.Scope
 			if i, ok := indexByKey[key]; ok {
 				merged[i] = item
 			} else {
@@ -325,35 +422,43 @@ type AssertionMismatch[T any] struct {
 }
 
 type Movement struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Asset       string   `json:"asset"`
-	Amount      *big.Int `json:"amount"`
-	Color       string   `json:"color,omitempty"`
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Asset            string   `json:"asset"`
+	Amount           *big.Int `json:"amount"`
+	Color            string   `json:"color,omitempty"`
 }
 
 type Movements = []Movement
 
 // Compare movements as a set: order does not matter.
-// Each (source, destination, asset, color) tuple is unique within a Movements
-// list, so we match on that tuple and compare amounts.
+// Each (source, sourceScope, destination, destinationScope, asset, color) tuple
+// is unique within a Movements list, so we match on that tuple and compare amounts.
 func compareMovements(expected Movements, got Movements) bool {
 	if len(expected) != len(got) {
 		return false
 	}
 
+	// multiset comparison, respecting multiplicity (so [x, x] != [x, y]): the
+	// amount is part of the key, so a row matches only an identical row.
 	key := func(m Movement) string {
-		return m.Source + "\x00" + m.Destination + "\x00" + m.Asset + "\x00" + m.Color
+		amount := "0"
+		if m.Amount != nil {
+			amount = m.Amount.String()
+		}
+		return m.Source + "\x00" + m.SourceScope + "\x00" + m.Destination + "\x00" + m.DestinationScope + "\x00" + m.Asset + "\x00" + m.Color + "\x00" + amount
 	}
 
-	byKey := make(map[string]*big.Int, len(got))
-	for _, m := range got {
-		byKey[key(m)] = m.Amount
-	}
-
+	counts := make(map[string]int, len(expected))
 	for _, m := range expected {
-		amount, ok := byKey[key(m)]
-		if !ok || m.Amount.Cmp(amount) != 0 {
+		counts[key(m)]++
+	}
+	for _, m := range got {
+		k := key(m)
+		counts[k]--
+		if counts[k] < 0 {
 			return false
 		}
 	}
@@ -368,7 +473,9 @@ func getMovements(postings []interpreter.Posting) Movements {
 		for i := range movements {
 			m := &movements[i]
 			if m.Source == posting.Source &&
+				m.SourceScope == posting.SourceScope &&
 				m.Destination == posting.Destination &&
+				m.DestinationScope == posting.DestinationScope &&
 				m.Asset == posting.Asset &&
 				m.Color == posting.Color {
 				m.Amount = new(big.Int).Add(m.Amount, posting.Amount)
@@ -379,11 +486,13 @@ func getMovements(postings []interpreter.Posting) Movements {
 
 		if !found {
 			movements = append(movements, Movement{
-				Source:      posting.Source,
-				Destination: posting.Destination,
-				Asset:       posting.Asset,
-				Color:       posting.Color,
-				Amount:      new(big.Int).Set(posting.Amount),
+				Source:           posting.Source,
+				SourceScope:      posting.SourceScope,
+				Destination:      posting.Destination,
+				DestinationScope: posting.DestinationScope,
+				Asset:            posting.Asset,
+				Color:            posting.Color,
+				Amount:           new(big.Int).Set(posting.Amount),
 			})
 		}
 	}
@@ -392,18 +501,19 @@ func getMovements(postings []interpreter.Posting) Movements {
 }
 
 func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
-	// Working set keyed by account for O(1)-ish lookups.
-	balances := map[string][]interpreter.AccountBalance{}
+	// Working set keyed by (account, scope) for O(1)-ish lookups.
+	balances := map[interpreter.AccountAddress][]interpreter.AccountBalance{}
 
-	getOrCreate := func(account, asset, color string) *big.Int {
-		entries := balances[account]
+	getOrCreate := func(account, asset, scope, color string) *big.Int {
+		key := interpreter.AccountAddress{Name: account, Scope: scope}
+		entries := balances[key]
 		for i := range entries {
 			if entries[i].Asset == asset && entries[i].Color == color {
 				return entries[i].Amount
 			}
 		}
 		amount := new(big.Int)
-		balances[account] = append(entries, interpreter.AccountBalance{
+		balances[key] = append(entries, interpreter.AccountBalance{
 			Asset:  asset,
 			Color:  color,
 			Amount: amount,
@@ -414,27 +524,32 @@ func getBalances(postings []interpreter.Posting, initialBalances interpreter.Bal
 	// Seed from the initial balances. CLONE each amount (Set, not pointer copy)
 	// so the Sub/Add below never mutate the caller's *big.Int values.
 	for _, row := range initialBalances {
-		dst := getOrCreate(row.Account, row.Asset, row.Color)
+		dst := getOrCreate(row.Account, row.Asset, row.Scope, row.Color)
 		if row.Amount != nil {
 			dst.Set(row.Amount)
 		}
 	}
 
 	for _, posting := range postings {
-		sourceBalance := getOrCreate(posting.Source, posting.Asset, posting.Color)
+		sourceBalance := getOrCreate(posting.Source, posting.Asset, posting.SourceScope, posting.Color)
 		sourceBalance.Sub(sourceBalance, posting.Amount)
 
-		destinationBalance := getOrCreate(posting.Destination, posting.Asset, posting.Color)
+		destinationBalance := getOrCreate(posting.Destination, posting.Asset, posting.DestinationScope, posting.Color)
 		destinationBalance.Add(destinationBalance, posting.Amount)
 	}
 
 	// Flatten back to []BalanceRow, sorted for deterministic output.
 	out := make(interpreter.Balances, 0)
-	accounts := make([]string, 0, len(balances))
+	accounts := make([]interpreter.AccountAddress, 0, len(balances))
 	for account := range balances {
 		accounts = append(accounts, account)
 	}
-	sort.Strings(accounts)
+	sort.Slice(accounts, func(i, j int) bool {
+		if accounts[i].Name != accounts[j].Name {
+			return accounts[i].Name < accounts[j].Name
+		}
+		return accounts[i].Scope < accounts[j].Scope
+	})
 	for _, account := range accounts {
 		entries := balances[account]
 		sort.Slice(entries, func(i, j int) bool {
@@ -445,8 +560,9 @@ func getBalances(postings []interpreter.Posting, initialBalances interpreter.Bal
 		})
 		for _, e := range entries {
 			out = append(out, interpreter.BalanceRow{
-				Account: account,
+				Account: account.Name,
 				Asset:   e.Asset,
+				Scope:   account.Scope,
 				Color:   e.Color,
 				Amount:  e.Amount,
 			})

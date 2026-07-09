@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "balances": [
+    { "account": "a", "asset": "COIN", "amount": 100, "scope": "s" },
+    { "account": "a", "asset": "COIN", "amount": 999 }
+  ],
+  "testCases": [
+    {
+      "it": "save protects 30 on the scoped balance; send-all then takes the remaining 70 (unscoped 999 untouched)",
+      "expect.postings": [
+        {
+          "source": "a",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "COIN",
+          "amount": 70
+        }
+      ]
+    }
+  ]
+}

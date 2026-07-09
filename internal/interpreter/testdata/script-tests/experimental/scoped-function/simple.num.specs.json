@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "balances": [
+    {
+      "account": "src",
+      "asset": "USD",
+      "amount": 999,
+      "scope": "x"
+    }
+  ],
+  "featureFlags": [
+    "experimental-mid-script-function-call",
+    "experimental-scoped-function"
+  ],
+  "testCases": [
+    {
+      "it": "scopes the accounts",
+      "expect.postings": [
+        {
+          "source": "src",
+          "sourceScope": "x",
+          "destination": "dest",
+          "destinationScope": "y",
+          "amount": 10,
+          "asset": "USD"
+        }
+      ],
+      "expect.movements": [
+        {
+          "source": "src",
+          "sourceScope": "x",
+          "destination": "dest",
+          "destinationScope": "y",
+          "amount": 10,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

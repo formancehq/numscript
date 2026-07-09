@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
 func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError {
@@ -14,7 +13,18 @@ func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError 
 		return err
 	}
 
+	if err := rejectScopedAccountMeta(meta, r); err != nil {
+		return err
+	}
+
 	st.TxMeta[string(key)] = meta
+	return nil
+}
+
+func rejectScopedAccountMeta(value Value, r parser.Range) InterpreterError {
+	if account, ok := value.(AccountAddress); ok && account.Scope != "" {
+		return CannotStoreScopedAccountInMeta{Range: r, Account: account.Name, Scope: account.Scope}
+	}
 	return nil
 }
 
@@ -28,11 +38,11 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 		return err
 	}
 
-	accountMeta := utils.MapGetOrPutDefault(st.SetAccountsMeta, string(account), func() AccountMetadata {
-		return AccountMetadata{}
-	})
+	if err := rejectScopedAccountMeta(meta, r); err != nil {
+		return err
+	}
 
-	accountMeta[string(key)] = meta.String()
+	st.SetAccountsMeta.Set(account.Name, account.Scope, string(key), meta)
 
 	return nil
 }

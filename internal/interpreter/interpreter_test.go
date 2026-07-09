@@ -264,9 +264,7 @@ func TestBadAssetInMeta(t *testing.T) {
 	)
 	`)
 	tc.meta = interpreter.AccountsMetadata{
-		"acc": interpreter.AccountMetadata{
-			"my-asset": "Aa",
-		},
+		{Account: "acc", Key: "my-asset", Value: "Aa"},
 	}
 
 	tc.expected = CaseResult{
@@ -276,6 +274,127 @@ func TestBadAssetInMeta(t *testing.T) {
 		},
 	}
 	test(t, tc)
+}
+
+// runScopedSend runs a scoped send once, with the scope passed in as a string
+// variable, and returns the (possibly nil) error.
+func runScopedSend(t *testing.T, scope string) interpreter.InterpreterError {
+	t.Helper()
+	parsed := parser.Parse(`
+		vars { string $scope }
+		send [COIN 1] (
+			source = scoped(@a, $scope) allowing unbounded overdraft
+			destination = @dest
+		)
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		map[string]string{"scope": scope},
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+	return err
+}
+
+func TestScopedRejectsInvalidScope(t *testing.T) {
+	// scopes must match ^[a-z0-9_]*$
+	invalid := []string{"UPPER", "Mixed", "with-dash", "with:colon", "with space", "with/slash", "with!bang", "with.dot"}
+	for _, scope := range invalid {
+		t.Run(scope, func(t *testing.T) {
+			require.Equal(t, interpreter.InvalidScope{Scope: scope}, runScopedSend(t, scope))
+		})
+	}
+}
+
+func TestScopedAcceptsValidScope(t *testing.T) {
+	// lowercase, digits, underscores — and the empty string (means "no scope")
+	valid := []string{"reserve", "x", "a1", "with_underscore", "123", ""}
+	for _, scope := range valid {
+		t.Run("scope="+scope, func(t *testing.T) {
+			require.Nil(t, runScopedSend(t, scope))
+		})
+	}
+}
+
+func TestCannotInterpolateScopedAccount(t *testing.T) {
+	parsed := parser.Parse(`
+		vars {
+			account $scoped = scoped(@a, "s")
+		}
+		send [COIN 1] (
+			source = @foo:$scoped allowing unbounded overdraft
+			destination = @dest
+		)
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:           {},
+			flags.ExperimentalAccountInterpolationFlag: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotCastScopedAccountToString
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "a", scopedErr.Account)
+	require.Equal(t, "s", scopedErr.Scope)
+}
+
+func TestCannotStoreScopedAccountInAccountMeta(t *testing.T) {
+	parsed := parser.Parse(`
+		set_account_meta(@acc, "beneficiary", scoped(@clients, "premium"))
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotStoreScopedAccountInMeta
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "clients", scopedErr.Account)
+	require.Equal(t, "premium", scopedErr.Scope)
+}
+
+func TestCannotStoreScopedAccountInTxMeta(t *testing.T) {
+	parsed := parser.Parse(`
+		set_tx_meta("beneficiary", scoped(@clients, "premium"))
+	`)
+	require.Empty(t, parsed.Errors)
+
+	_, err := interpreter.RunProgram(
+		context.Background(),
+		parsed.Value,
+		nil,
+		interpreter.StaticStore{},
+		map[string]struct{}{
+			flags.ExperimentalScopedFunction:        {},
+			flags.ExperimentalMidScriptFunctionCall: {},
+		},
+	)
+
+	var scopedErr interpreter.CannotStoreScopedAccountInMeta
+	require.ErrorAs(t, err, &scopedErr)
+	require.Equal(t, "clients", scopedErr.Account)
+	require.Equal(t, "premium", scopedErr.Scope)
 }
 
 func TestInvalidAllotInSendAll(t *testing.T) {
@@ -526,7 +645,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: interpreter.TypeError{
 				Expected: "monetary",
-				Value:    interpreter.AccountAddress("bad:type"),
+				Value:    interpreter.AccountAddress{Name: "bad:type"},
 			},
 		}
 		test(t, tc)
@@ -666,7 +785,7 @@ func TestErrors(t *testing.T) {
 		tc.expected = CaseResult{
 			Error: interpreter.TypeError{
 				Expected: "string",
-				Value:    interpreter.AccountAddress("key_wrong_type"),
+				Value:    interpreter.AccountAddress{Name: "key_wrong_type"},
 			},
 		}
 		test(t, tc)
@@ -725,13 +844,13 @@ func TestTrackBalancesTricky(t *testing.T) {
 	`)
 	tc.expected = CaseResult{
 		Postings: []interpreter.Posting{
-			interpreter.Posting{
+			{
 				Source:      "world",
 				Destination: "src",
 				Amount:      big.NewInt(10),
 				Asset:       "GEM",
 			},
-			interpreter.Posting{
+			{
 				Source:      "src",
 				Destination: "dest",
 				Amount:      big.NewInt(15),
@@ -792,7 +911,7 @@ func TestSaveFromAccount(t *testing.T) {
 
 	t.Run("negative amount", func(t *testing.T) {
 		script := `
-	
+
 			save [USD -100] from @A`
 		tc := NewTestCase()
 		tc.compile(t, script)
@@ -977,9 +1096,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 
 	tc := NewTestCase()
 	tc.meta = interpreter.AccountsMetadata{
-		"acc": {
-			"k": "42",
-		},
+		{Account: "acc", Key: "k", Value: "42"},
 	}
 	tc.compile(t, script)
 

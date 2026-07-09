@@ -1,0 +1,13 @@
+
+[TestPrettyPrintAccountsMetadata/without_scope_(no_Scope_column) - 1]
+| [36mAccount[0m | [36mName[0m | [36mValue   [0m |
+| alice   | kyc  | verified |
+| bob     | tier | gold     |
+---
+
+[TestPrettyPrintAccountsMetadata/with_scope_(Scope_column_shown) - 1]
+| [36mAccount[0m | [36mScope[0m | [36mName[0m | [36mValue   [0m |
+| alice   | eu    | kyc  | pending  |
+| alice   |       | kyc  | verified |
+| bob     |       | tier | gold     |
+---

@@ -26,3 +26,53 @@ func TestHandleEvalToolRejectsParseErrors(t *testing.T) {
 	require.True(t, ok)
 	require.Contains(t, text.Text, "mismatched input")
 }
+
+func TestHandleEvalToolRejectsDuplicateBalancesWithScope(t *testing.T) {
+	result, err := handleEvalTool(context.Background(), mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]any{
+				"script": `
+		send [USD/2 1] (
+			source = @world
+			destination = @a
+		)
+		`,
+				"balances": []any{
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": 1, "scope": "x"},
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": 2, "scope": "x"},
+				},
+				"vars": map[string]any{},
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	require.True(t, result.IsError)
+	text, ok := result.Content[0].(mcp.TextContent)
+	require.True(t, ok)
+	require.Contains(t, text.Text, "must not contain duplicate entries")
+	require.Contains(t, text.Text, `scope="x"`)
+}
+
+func TestHandleEvalToolAllowsSameBalanceKeyDifferentScope(t *testing.T) {
+	result, err := handleEvalTool(context.Background(), mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]any{
+				"script": `
+				send [USD/2 1] (
+					source = @world
+					destination = @a
+				)
+				`,
+				"balances": []any{
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": 1},
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": 2, "scope": "x"},
+				},
+				"vars": map[string]any{},
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+}

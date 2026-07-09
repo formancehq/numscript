@@ -4,50 +4,42 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-type AccountMetadata = map[string]string
-type AccountsMetadata map[string]AccountMetadata
-
-func (m AccountsMetadata) fetchAccountMetadata(account string) AccountMetadata {
-	return utils.MapGetOrPutDefault(m, account, func() AccountMetadata {
-		return AccountMetadata{}
-	})
+type AccountMetadataRow struct {
+	Account string `json:"account"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Scope   string `json:"scope,omitempty"`
 }
 
-func (m AccountsMetadata) DeepClone() AccountsMetadata {
-	cloned := make(AccountsMetadata)
-	for account, accountBalances := range m {
-		for asset, metadataValue := range accountBalances {
-			clonedAccountBalances := cloned.fetchAccountMetadata(account)
-			utils.MapGetOrPutDefault(clonedAccountBalances, asset, func() string {
-				return metadataValue
-			})
-		}
-	}
-	return cloned
-}
+// AccountsMetadata is the external, serialized representation of account
+// metadata. The runtime works with the in-memory InternalAccountsMetadata and
+// converts to this at the boundaries (store queries, execution result).
+type AccountsMetadata []AccountMetadataRow
 
-func (m AccountsMetadata) Merge(update AccountsMetadata) {
-	for acc, accBalances := range update {
-		cachedAcc := utils.MapGetOrPutDefault(m, acc, func() AccountMetadata {
-			return AccountMetadata{}
-		})
-
-		for curr, amt := range accBalances {
-			cachedAcc[curr] = amt
+// FirstDuplicate returns the first row whose (account, key, scope) key already
+// appeared earlier in the list, if any. That triple is the identity of a
+// metadata entry and the value is its content, so a repeated key is an
+// ambiguous, malformed input.
+func (rows AccountsMetadata) FirstDuplicate() (AccountMetadataRow, bool) {
+	seen := make(map[[3]string]struct{}, len(rows))
+	for _, row := range rows {
+		key := [3]string{row.Account, row.Key, row.Scope}
+		if _, ok := seen[key]; ok {
+			return row, true
 		}
+		seen[key] = struct{}{}
 	}
+	return AccountMetadataRow{}, false
 }
 
 func (m AccountsMetadata) PrettyPrint() string {
-	header := []string{"Account", "Name", "Value"}
+	// the Scope column is dropped automatically when no entry has a scope
+	header := []string{"Account", "Scope", "Name", "Value"}
 
 	var rows [][]string
-	for account, accMetadata := range m {
-		for name, value := range accMetadata {
-			row := []string{account, name, value}
-			rows = append(rows, row)
-		}
+	for _, row := range m {
+		rows = append(rows, []string{row.Account, row.Scope, row.Key, row.Value})
 	}
 
-	return utils.CsvPretty(header, rows, true)
+	return utils.CsvPrettyOmitEmptyCols(header, rows, true)
 }

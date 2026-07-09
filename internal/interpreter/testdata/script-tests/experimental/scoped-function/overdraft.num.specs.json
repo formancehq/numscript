@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+  "featureFlags": [
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "testCases": [
+    {
+      "it": "a scoped source can overdraft with no balance",
+      "expect.postings": [
+        {
+          "source": "empty",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ]
+    }
+  ]
+}
