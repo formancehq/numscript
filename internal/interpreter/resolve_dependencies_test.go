@@ -726,6 +726,17 @@ func TestResolveSetAccountMetaIsMetaWrite(t *testing.T) {
 	require.Empty(t, deps.MetaReads)
 }
 
+func TestResolveSetTxMetaIsTxMetaWrite(t *testing.T) {
+	deps := resolve(t, `
+		set_tx_meta("priority", "high")
+	`, nil, interpreter.StaticStore{})
+
+	require.Equal(t, map[string]struct{}{
+		"priority": {},
+	}, deps.TxMetaWrites)
+	require.Empty(t, deps.MetaWrites)
+}
+
 func TestResolveScalingIsNotSupported(t *testing.T) {
 	parsed := parser.Parse(`
 		send [USD 10] (

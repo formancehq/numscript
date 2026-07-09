@@ -29,6 +29,7 @@ type ResolvedDependencies struct {
 	AccountsWrites map[AccountDependency]struct{}
 	MetaReads      map[MetaDependency]struct{}
 	MetaWrites     map[MetaDependency]struct{}
+	TxMetaWrites   map[string]struct{}
 }
 
 // recordingStore wraps a Store and records every balance/metadata it is queried
@@ -72,6 +73,7 @@ func ResolveDependencies(ctx context.Context, store Store, vars map[string]strin
 		AccountsWrites: map[AccountDependency]struct{}{},
 		MetaReads:      map[MetaDependency]struct{}{},
 		MetaWrites:     map[MetaDependency]struct{}{},
+		TxMetaWrites:   map[string]struct{}{},
 	}
 	recording := &recordingStore{inner: store, reads: deps.AccountsReads, metaReads: deps.MetaReads}
 
@@ -168,6 +170,16 @@ func (st *resolveDependenciesState) resolveFnCallStatement(fnCall *parser.FnCall
 			return err
 		}
 		addMetaDep(st.deps.MetaWrites, account, string(key))
+		return nil
+
+	case analysis.FnSetTxMeta:
+		p := NewArgsParser(args)
+		key := parseArg(p, fnCall.Range, expectString)
+		_ = parseArg(p, fnCall.Range, expectAnything)
+		if err := p.parse(); err != nil {
+			return err
+		}
+		st.deps.TxMetaWrites[string(key)] = struct{}{}
 		return nil
 
 	default:
