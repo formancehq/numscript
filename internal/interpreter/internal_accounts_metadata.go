@@ -28,3 +28,10 @@ func (m InternalAccountsMetadata) Get(account, scope, key string) (string, bool)
 	value, ok := m[metadataKey{Account: account, Scope: scope, Key: key}]
 	return value, ok
 }
+
+// Merge adds the given rows into the cache, keeping already-cached entries.
+func (m InternalAccountsMetadata) Merge(rows AccountsMetadata) {
+	for _, row := range rows {
+		m[metadataKey{Account: row.Account, Scope: row.Scope, Key: row.Key}] = row.Value
+	}
+}

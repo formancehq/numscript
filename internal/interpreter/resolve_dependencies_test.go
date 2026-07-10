@@ -136,6 +136,13 @@ func TestResolveDependenciesCoversRuntime(t *testing.T) {
 				)
 			`,
 		},
+		{
+			name: "save",
+			src: `
+				save [USD 10] from @a
+			`,
+			balances: interpreter.Balances{{Account: "a", Asset: "USD", Amount: big.NewInt(100)}},
+		},
 	}
 
 	for _, tc := range testCases {
