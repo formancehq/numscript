@@ -161,7 +161,7 @@ func makeSpecsFile(
 	}
 
 	specs := specs_format.Specs{
-		Schema:       "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
+		Schema:       "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
 		Balances:     store.StaticStore.Balances,
 		Vars:         vars,
 		FeatureFlags: featureFlags_,

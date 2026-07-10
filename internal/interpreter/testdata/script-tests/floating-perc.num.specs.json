@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../specs.schema.json",
+  "$schema": "../../../../v1.specs.schema.json",
   "testCases": [
     {
       "it": "should handle the floating syntax",
