@@ -237,6 +237,18 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 
 			}
 
+		case parser.InfixOperatorMinus:
+			switch st.exprTypes[expr.Left] {
+			case typecheck.TypeNumber:
+				return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+					return binaryOp{op: opSubInt{}, left: leftReg, right: rightReg, dest: dest}
+				})
+
+			default:
+				panic("TODO compileExpr - for non-int")
+
+			}
+
 		default:
 			panic("TODO compileExpr binary op " + string(expr.Operator))
 		}

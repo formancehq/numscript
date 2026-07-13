@@ -68,6 +68,32 @@ func TestIntAddition(t *testing.T) {
 `))
 }
 
+func TestIntSubtraction(t *testing.T) {
+	out := getCompiledOutput(t, `
+		send [USD/2 16 - 6] (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(16)
+  $r2 <- load_const(6)
+  $r3 <- sub_int($r1, $r2)
+  $r4 <- mk_monetary($r0, $r3)
+  $r5 <- get_asset($r4)
+  set_current_asset($r5)
+  $r6 <- get_amount($r4)
+  $r7 <- load_const("src")
+  $r8 <- load_const(0)
+  $r9 <- pull_account(account: $r7, cap: $r6, overdraft: $r8)
+  check_enough_funds($r9, $r6)
+  $r10 <- load_const("dest")
+  send_to_account(account: $r10)
+`))
+}
+
 func TestInorder(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (
