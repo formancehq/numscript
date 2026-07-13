@@ -63,6 +63,32 @@ func (b *regPool) index(r reg) (byte, error) {
 	return idx, nil
 }
 
+// reserveContiguous reserves n consecutive slots (scratch, not bound to any reg)
+// and returns the first index. Used for the contiguous arrays Op_MkAllotment
+// requires (portionsRegs[B:B+C]).
+func (b *regPool) reserveContiguous(n int) (byte, error) {
+	if b.next+n > maxReg {
+		return 0, fmt.Errorf("register bank overflow: more than %d registers in one bank (register allocation not implemented yet)", maxReg)
+	}
+	start := byte(b.next)
+	b.next += n
+	return start, nil
+}
+
+// bindContiguous reserves len(regs) consecutive slots and binds each reg to one,
+// so later references to those regs resolve to the contiguous block. Used for
+// Op_MkAllotment's output array (intsRegs[A:A+C]), which the following sends read.
+func (b *regPool) bindContiguous(regs []reg) (byte, error) {
+	start, err := b.reserveContiguous(len(regs))
+	if err != nil {
+		return 0, err
+	}
+	for i, r := range regs {
+		b.indexByReg[r] = start + byte(i)
+	}
+	return start, nil
+}
+
 type patch struct {
 	label          label
 	index          int
@@ -336,6 +362,19 @@ func (i checkEnoughFunds) assemble(a *assembler) error {
 	return nil
 }
 
+func (i assertLeftover) assemble(a *assembler) error {
+	portion, err := a.portionReg(i.portion)
+	if err != nil {
+		return err
+	}
+	var exact byte
+	if i.exact {
+		exact = 1
+	}
+	a.emit(vm.Op_AssertLeftover, portion, exact, maxReg)
+	return nil
+}
+
 func (i setCurrentAsset) assemble(a *assembler) error {
 	assetReg, err := a.strReg(i.asset)
 	if err != nil {
@@ -430,7 +469,40 @@ func (i jmpIfZero) assemble(a *assembler) error {
 	return nil
 }
 
-func (i makeAllotment) assemble(a *assembler) error { panic("TODO assemble makeAllotment") }
+func (i makeAllotment) assemble(a *assembler) error {
+	n := len(i.portions) // == len(i.dest)
+
+	amt, err := a.intReg(i.amount)
+	if err != nil {
+		return err
+	}
+
+	portionStart, err := a.portions.reserveContiguous(n)
+	if err != nil {
+		return err
+	}
+	for j, p := range i.portions {
+		src, err := a.portions.index(p)
+		if err != nil {
+			return err
+		}
+		a.emit(vm.Op_PortionCopy, portionStart+byte(j), src, maxReg)
+	}
+
+	destStart, err := a.ints.bindContiguous(i.dest)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_MkAllotment, destStart, portionStart, byte(n))
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      amt,
+		B:      maxReg,
+		C:      maxReg,
+	})
+	return nil
+}
 func (i fetchVariable) assemble(a *assembler) error { panic("TODO assemble fetchVariable") }
 
 func (i labelMarker) assemble(a *assembler) error {

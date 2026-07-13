@@ -55,6 +55,65 @@ func (st *state) pushInstructionWithDestErr(getInstr func(dest reg) vInstr) (reg
 	return st.pushInstructionWithDest(getInstr), nil
 }
 
+func (st *state) compileAllot(amount reg, allotments []parser.AllotmentValue) ([]reg, CompilerError) {
+	n := len(allotments)
+	portions := make([]reg, n)
+	remainingIdx := -1
+	for i, al := range allotments {
+		switch al := al.(type) {
+		case *parser.ValueExprAllotment:
+			p, err := st.compileExpr(al.Value)
+			if err != nil {
+				return nil, err
+			}
+			portions[i] = p
+		case *parser.RemainingAllotment:
+			if remainingIdx != -1 {
+				return nil, DuplicateRemaining{Range: al.Range}
+			}
+			remainingIdx = i
+		default:
+			utils.NonExhaustiveMatchPanic[any](al)
+		}
+	}
+
+	leftover := st.compilePortionOne()
+	for i := range allotments {
+		if i == remainingIdx {
+			continue
+		}
+		prev, pi := leftover, portions[i]
+		leftover = st.pushInstructionWithDest(func(dest reg) vInstr {
+			return binaryOp{op: opSubPortion{}, left: prev, right: pi, dest: dest}
+		})
+	}
+
+	st.pushInstruction(assertLeftover{portion: leftover, exact: remainingIdx == -1})
+	if remainingIdx != -1 {
+		portions[remainingIdx] = leftover
+	}
+
+	dest := make([]reg, n)
+	for i := range dest {
+		dest[i] = st.getFreshReg()
+	}
+	st.pushInstruction(makeAllotment{
+		dest:     dest,
+		amount:   amount,
+		portions: portions,
+	})
+	return dest, nil
+}
+
+func (st *state) compilePortionOne() reg {
+	one := st.pushInstructionWithDest(func(dest reg) vInstr {
+		return loadInt{value: *big.NewInt(1), dest: dest}
+	})
+	return st.pushInstructionWithDest(func(dest reg) vInstr {
+		return binaryOp{op: opMakePortion{}, left: one, right: one, dest: dest}
+	})
+}
+
 func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
@@ -128,10 +187,34 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		panic("TODO compileExpr")
 
 	case *parser.PercentageLiteral:
-		panic("TODO compileExpr")
+		// e.g. 50% -> portion 50/100; mk_portion reduces via SetFrac
+		ratio := expr.ToRatio()
+		numReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return loadInt{value: *ratio.Num(), dest: dest}
+		})
+		denReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return loadInt{value: *ratio.Denom(), dest: dest}
+		})
+		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+			return binaryOp{op: opMakePortion{}, left: numReg, right: denReg, dest: dest}
+		})
 
 	case *parser.BinaryInfix:
-		panic("TODO compileExpr")
+		// `n / m` builds a portion (the only infix used in portion position)
+		if expr.Operator != parser.InfixOperatorDiv {
+			panic("TODO compileExpr binary op " + string(expr.Operator))
+		}
+		numReg, err := st.compileExpr(expr.Left)
+		if err != nil {
+			return 0, err
+		}
+		denReg, err := st.compileExpr(expr.Right)
+		if err != nil {
+			return 0, err
+		}
+		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+			return binaryOp{op: opMakePortion{}, left: numReg, right: denReg, dest: dest}
+		})
 
 	case *parser.Prefix:
 		panic("TODO compileExpr")
@@ -299,8 +382,27 @@ func (st *state) compileSource(
 
 	case *parser.SourceOneof:
 		panic("TODO impl source")
+
 	case *parser.SourceAllotment:
-		panic("TODO impl source")
+		// an allotment source splits the cap among sub-sources, so it needs one
+		if capReg == nil {
+			return 0, InvalidUncappedSource{Range: src.GetRange()}
+		}
+		allotments := make([]parser.AllotmentValue, len(src.Items))
+		for i, item := range src.Items {
+			allotments[i] = item.Allotment
+		}
+		shares, err := st.compileAllot(*capReg, allotments)
+		if err != nil {
+			return 0, err
+		}
+		// pull exactly its share from each sub-source (tryTakingExact)
+		for i, item := range src.Items {
+			if _, err := st.compileSourceWithRequiredAmount(shares[i], item.From); err != nil {
+				return 0, err
+			}
+		}
+		return *capReg, nil
 
 	case *parser.SourceWithScaling:
 		panic("TODO impl source")
@@ -332,7 +434,22 @@ func (st *state) compileDestination(
 ) CompilerError {
 	switch dest := dest.(type) {
 	case *parser.DestinationAllotment:
-		panic("TODO unimplemented")
+		allotments := make([]parser.AllotmentValue, len(dest.Items))
+		for i, item := range dest.Items {
+			allotments[i] = item.Allotment
+		}
+		// split the amount routed to this destination across the portions
+		shares, err := st.compileAllot(currentCap, allotments)
+		if err != nil {
+			return err
+		}
+		// send each computed share to its target (capped by that exact amount)
+		for i, item := range dest.Items {
+			if err := st.compileKeptOrDestination(item.To, pulledAmtReg, shares[i]); err != nil {
+				return err
+			}
+		}
+		return nil
 
 	case *parser.DestinationOneof:
 		panic("TODO unimplemented")
@@ -479,7 +596,9 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 func compileProgramToVirtual(program parser.Program) (compiledProgramVirtual, CompilerError) {
 	st := state{}
 	for _, stmt := range program.Statements {
-		st.compileStatements(stmt)
+		if err := st.compileStatements(stmt); err != nil {
+			return compiledProgramVirtual{}, err
+		}
 	}
 
 	return compiledProgramVirtual{

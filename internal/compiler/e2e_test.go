@@ -238,6 +238,234 @@ func TestE2E_DestinationKept(t *testing.T) {
 	requirePostingsEqual(t, want, postings)
 }
 
+// TestE2E_DestinationAllotment splits the pulled amount by portions. 100 from
+// @world with { 1/2 to @a; remaining to @b } => a=50, b=50.
+func TestE2E_DestinationAllotment(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/2 to @a
+				remaining to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(50)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(50)},
+	}, postings)
+}
+
+// TestE2E_DestinationAllotmentThirds exercises the floor-then-distribute-leftover
+// rounding: 100 by thirds => 34, 33, 33 (the leftover unit goes to the earliest).
+func TestE2E_DestinationAllotmentThirds(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/3 to @a
+				1/3 to @b
+				remaining to @c
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(34)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(33)},
+		{Source: "world", Destination: "c", Asset: "USD/2", Amount: big.NewInt(33)},
+	}, postings)
+}
+
+// TestE2E_SourceAllotment splits the requested amount across sub-sources, pulling
+// each exactly. 100 with { 1/4 from @s1; remaining from @s2 } => 25 from s1, 75
+// from s2.
+func TestE2E_SourceAllotment(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = {
+				1/4 from @s1
+				remaining from @s2
+			}
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+		{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(25)},
+		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(75)},
+	}, postings)
+}
+
+// TestE2E_SourceAllotmentThirds checks the rounding split on the source side too:
+// 100 by thirds => 34, 33, 33.
+func TestE2E_SourceAllotmentThirds(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = {
+				1/3 from @a
+				1/3 from @b
+				remaining from @c
+			}
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(34)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(33)},
+		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(33)},
+	}, postings)
+}
+
+// TestE2E_SourceAllotmentInsufficient: a sub-source must provide its exact share,
+// else MissingFunds. s1 only has 10 but its 1/2 share of 100 is 50.
+func TestE2E_SourceAllotmentInsufficient(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = {
+				1/2 from @s1
+				remaining from @s2
+			}
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(10),
+		{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}}
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, store)
+	require.IsType(t, vm.MissingFundsError{}, execErr)
+}
+
+// TestE2E_AllotmentOverSum: portions summing to > 1 must error (leftover < 0).
+func TestE2E_AllotmentOverSum(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				2/3 to @a
+				2/3 to @b
+			}
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
+	allotErr := execErr.(vm.InvalidAllotmentSum)
+	require.Equal(t, "4/3", allotErr.ActualSum.String())
+	require.EqualError(t, allotErr, "invalid allotment: portions must sum to 1, got 4/3")
+}
+
+// TestE2E_AllotmentUnderSum: without a `remaining` clause the portions must sum
+// to exactly 1, so 1/3 + 1/3 = 2/3 must error.
+func TestE2E_AllotmentUnderSum(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/3 to @a
+				1/3 to @b
+			}
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
+}
+
+// TestE2E_AllotmentExactNoRemaining: a no-remaining allotment summing to exactly
+// 1 is valid.
+func TestE2E_AllotmentExactNoRemaining(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/4 to @a
+				3/4 to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(25)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(75)},
+	}, postings)
+}
+
+// TestE2E_AllotmentRemainingOnly: `{ remaining to @dest }` is 100% (leftover = 1),
+// which must remain valid (a `< 1` check would wrongly reject it).
+func TestE2E_AllotmentRemainingOnly(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				remaining to @dest
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, postings)
+}
+
+func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {
+	parsed := parser.Parse(`
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				remaining to @a
+				remaining to @b
+			}
+		)
+	`)
+	require.Empty(t, parsed.Errors)
+	_, cErr := compileProgramToVirtual(parsed.Value)
+	require.IsType(t, DuplicateRemaining{}, cErr)
+}
+
+func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
+	t.Helper()
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	machine := vm.NewVm(program)
+	postings, execErr := vm.Exec(machine, nil, store)
+	require.Nil(t, execErr)
+	return postings
+}
+
 func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {
 	t.Helper()
 	require.Len(t, got, len(want))

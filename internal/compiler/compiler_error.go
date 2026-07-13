@@ -22,14 +22,20 @@ type (
 	InvalidUncappedSource struct {
 		parser.Range
 	}
+
+	DuplicateRemaining struct {
+		parser.Range
+	}
 )
 
 func (UnboundVar) compileError()            {}
 func (TypeMismatch) compileError()          {}
 func (InvalidUncappedSource) compileError() {}
+func (DuplicateRemaining) compileError()    {}
 
 var (
 	_ CompilerError = (*UnboundVar)(nil)
 	_ CompilerError = (*TypeMismatch)(nil)
 	_ CompilerError = (*InvalidUncappedSource)(nil)
+	_ CompilerError = (*DuplicateRemaining)(nil)
 )
