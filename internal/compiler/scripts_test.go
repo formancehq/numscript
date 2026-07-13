@@ -18,10 +18,52 @@ import (
 
 const scriptsFolder = "../interpreter/testdata/script-tests"
 
-// scriptsBlacklist lists spec files the compiler+VM can't run yet (unimplemented
-// core features: variables, save, tx/account metadata, ...). Feature-flag specs
-// are skipped separately. Delete entries as features land, until it's empty.
+// scriptsBlacklist lists spec files the compiler+VM can't run yet: unimplemented
+// core features (variables, metadata, ...) and everything under a feature flag
+// (all in experimental/). Delete entries as features land, until it's empty.
 var scriptsBlacklist = []string{
+	// feature-flagged (experimental) — not core numscript
+	"experimental/account-interpolation/account-interp.num",
+	"experimental/asset-colors/color-inorder-send-all.num",
+	"experimental/asset-colors/color-inorder.num",
+	"experimental/asset-colors/color-restrict-balance-when-missing-funds.num",
+	"experimental/asset-colors/color-restrict-balance.num",
+	"experimental/asset-colors/color-restriction-in-send-all.num",
+	"experimental/asset-colors/color-send-overdrat.num",
+	"experimental/asset-colors/color-send.num",
+	"experimental/asset-colors/color-with-asset-precision.num",
+	"experimental/asset-colors/empty-color.num",
+	"experimental/asset-colors/no-double-spending-in-colored-send-all.num",
+	"experimental/asset-colors/no-double-spending-in-colored-send.num",
+	"experimental/asset-scaling/no-solution.num",
+	"experimental/asset-scaling/scaling-all-allotment.num",
+	"experimental/asset-scaling/scaling-allotment.num",
+	"experimental/asset-scaling/scaling-kept.num",
+	"experimental/asset-scaling/scaling-send-all.num",
+	"experimental/asset-scaling/scaling-with-oneof.num",
+	"experimental/asset-scaling/scaling.num",
+	"experimental/asset-scaling/update-swap-account-balance.num",
+	"experimental/get-amount-function/get-amount-function.num",
+	"experimental/get-asset-function/get-asset-function.num",
+	"experimental/mid-script-function-call/expr-in-var-origin.num",
+	"experimental/mid-script-function-call/midscript-balance-after-decrease.num",
+	"experimental/mid-script-function-call/midscript-balance.num",
+	"experimental/oneof/oneof-all-failing.num",
+	"experimental/oneof/oneof-destination-first-clause.num",
+	"experimental/oneof/oneof-destination-remaining-clause.num",
+	"experimental/oneof/oneof-destination-second-clause.num",
+	"experimental/oneof/oneof-in-send-all.num",
+	"experimental/oneof/oneof-in-source-send-first-branch.num",
+	"experimental/oneof/oneof-in-source.num",
+	"experimental/oneof/oneof-singleton.num",
+	"experimental/oneof/update-balances-with-oneof.num",
+	"experimental/overdraft-function/overdraft-function-use-case-remove-debt.num",
+	"experimental/overdraft-function/overdraft-function-when-negative.num",
+	"experimental/overdraft-function/overdraft-function-when-positive.num",
+	"experimental/overdraft-function/overdraft-function-when-zero.num",
+	"experimental/overdraft-function/reach-zero.num",
+
+	// unimplemented core features
 	"add-monetaries-same-currency.num",
 	"add-numbers.num",
 	"allocate-dont-take-too-much.num",
@@ -92,15 +134,12 @@ func TestCompilerScripts(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Run(rel, func(t *testing.T) {
-			var specs specs_format.Specs
-			require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
-
-			if len(specs.FeatureFlags) != 0 {
-				t.Skip("feature-flag spec (core numscript only)")
-			}
 			if slices.Contains(scriptsBlacklist, rel) {
 				t.Skip("blacklisted: not supported yet")
 			}
+
+			var specs specs_format.Specs
+			require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
 
 			defer func() {
 				if r := recover(); r != nil {
