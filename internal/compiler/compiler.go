@@ -27,6 +27,7 @@ type state struct {
 	nextReg      int
 	nextLabelId  int
 	instructions []vInstr
+	vars         map[string]reg
 }
 
 func (st *state) getFreshReg() reg {
@@ -198,7 +199,11 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		panic("TODO compileExpr interp of many segments")
 
 	case *parser.Variable:
-		panic("TODO compileExpr")
+		r, ok := st.vars[expr.Name]
+		if !ok {
+			return 0, UnboundVar{Range: expr.Range, Var: expr.Name}
+		}
+		return r, nil
 
 	case *parser.PercentageLiteral:
 		// e.g. 50% -> portion 50/100; mk_portion reduces via SetFrac
@@ -633,7 +638,16 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 }
 
 func compileProgramToVirtual(program parser.Program) (compiledProgramVirtual, CompilerError) {
-	st := state{}
+	st := state{vars: map[string]reg{}}
+
+	if program.Vars != nil {
+		for _, decl := range program.Vars.Declarations {
+			if err := st.compileVarDeclaration(decl); err != nil {
+				return compiledProgramVirtual{}, err
+			}
+		}
+	}
+
 	for _, stmt := range program.Statements {
 		if err := st.compileStatements(stmt); err != nil {
 			return compiledProgramVirtual{}, err
@@ -643,4 +657,16 @@ func compileProgramToVirtual(program parser.Program) (compiledProgramVirtual, Co
 	return compiledProgramVirtual{
 		instructions: st.instructions,
 	}, nil
+}
+
+func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError {
+	if decl.Origin == nil {
+		panic("TODO external vars")
+	}
+	r, err := st.compileExpr(*decl.Origin)
+	if err != nil {
+		return err
+	}
+	st.vars[decl.Name.Name] = r
+	return nil
 }

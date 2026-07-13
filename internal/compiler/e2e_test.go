@@ -563,6 +563,19 @@ func TestE2E_Save(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_InternalVar(t *testing.T) {
+	src := `
+		vars { account $acc = @src }
+		send [USD/2 10] (source = $acc destination = @dest)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

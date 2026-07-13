@@ -1,0 +1,8 @@
+vars {
+  account $acc = @src
+}
+
+send [GEM 10] (
+  source = $acc
+  destination = @dest
+)
