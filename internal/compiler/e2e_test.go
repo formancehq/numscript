@@ -591,6 +591,39 @@ func TestE2E_GetAmount(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_GetAsset(t *testing.T) {
+	src := `
+		vars {
+			monetary $m = [USD/2 42]
+			asset $a = get_asset($m)
+		}
+		send [$a 10] (
+			source = @src
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+
+	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	require.Nil(t, execErr)
+
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)

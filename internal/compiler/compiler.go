@@ -291,6 +291,15 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				return unaryOp{op: opGetAmount{}, arg: argReg, dest: dest}
 			})
 
+		case builtins.GetAsset:
+			argReg, err := st.compileExpr(expr.Args[0])
+			if err != nil {
+				return 0, err
+			}
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return unaryOp{op: opGetAsset{}, arg: argReg, dest: dest}
+			})
+
 		default:
 			panic("TODO compileExpr fn call " + expr.Caller.Name)
 		}
