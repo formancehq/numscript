@@ -98,4 +98,5 @@ const (
 	Op_SubPortion
 	Op_MkPortion
 	Op_MkMonetary
+	Op_Balance // reads the account balance from the run-state
 )

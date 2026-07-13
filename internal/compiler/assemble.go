@@ -477,6 +477,25 @@ func (i assertSameAsset) assemble(a *assembler) error {
 	return nil
 }
 
+func (i fetchBalance) assemble(a *assembler) error {
+	dest, err := a.monetaryReg(i.dest)
+	if err != nil {
+		return err
+	}
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+	asset, err := a.strReg(i.asset)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_Balance, dest, account, asset)
+
+	return nil
+}
+
 func (i jmpIfZero) assemble(a *assembler) error {
 	cond, err := a.intReg(i.cond)
 	if err != nil {

@@ -235,6 +235,14 @@ func Exec[S Store](
 			dest.asset = asset
 			dest.amount.Set(amt)
 
+		case Op_Balance:
+			account := vm.stringsRegs[instr.B]
+			asset := vm.stringsRegs[instr.C]
+
+			dest := &vm.monetariesRegs[instr.A]
+			dest.asset = asset
+			dest.amount.Set(runstate.GetAccountBalance(account, asset, ""))
+
 		// --- Unary ops
 		case Op_IntCopy:
 			arg := &vm.intsRegs[instr.B]

@@ -664,6 +664,25 @@ func TestE2E_PrefixMinusMonetary(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_Balance(t *testing.T) {
+	// $bal = balance(@src, USD/2) reads @src's balance (100), then sends it all
+	src := `
+		vars {
+			monetary $bal = balance(@src, USD/2)
+		}
+		send $bal (
+			source = @src
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, postings)
+}
+
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)

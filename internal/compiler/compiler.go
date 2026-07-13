@@ -332,6 +332,19 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				return unaryOp{op: opGetAsset{}, arg: argReg, dest: dest}
 			})
 
+		case builtins.Balance:
+			accountReg, err := st.compileExpr(expr.Args[0])
+			if err != nil {
+				return 0, err
+			}
+			assetReg, err := st.compileExpr(expr.Args[1])
+			if err != nil {
+				return 0, err
+			}
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
+			})
+
 		default:
 			panic("TODO compileExpr fn call " + expr.Caller.Name)
 		}

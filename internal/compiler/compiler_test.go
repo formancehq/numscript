@@ -227,6 +227,33 @@ func TestPrefixMinusMonetary(t *testing.T) {
 `))
 }
 
+func TestBalance(t *testing.T) {
+	out := getCompiledOutput(t, `
+		vars {
+			monetary $bal = balance(@src, USD/2)
+		}
+		send $bal (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("src")
+  $r1 <- load_const("USD/2")
+  $r2 <- balance($r0, $r1)
+  $r3 <- get_asset($r2)
+  set_current_asset($r3)
+  $r4 <- get_amount($r2)
+  $r5 <- load_const("src")
+  $r6 <- load_const(0)
+  $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 <- load_const("dest")
+  send_to_account(account: $r8)
+`))
+}
+
 func TestInorder(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (

@@ -62,7 +62,11 @@ type (
 	}
 	setCurrentAsset struct{ asset reg }       // str
 	assertSameAsset struct{ left, right reg } // str, str
-	fetchVariable   struct {
+	fetchBalance    struct {
+		dest           reg // monetary
+		account, asset reg // str, str
+	} // reads the run-state (impure)
+	fetchVariable struct {
 		dest  reg
 		index uint32
 	}
@@ -124,6 +128,9 @@ func (i setCurrentAsset) sources() []reg { return []reg{i.asset} }
 
 func (i assertSameAsset) dests() []reg   { return nil }
 func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }
+
+func (i fetchBalance) dests() []reg   { return []reg{i.dest} }
+func (i fetchBalance) sources() []reg { return []reg{i.account, i.asset} }
 
 func (i fetchVariable) dests() []reg   { return []reg{i.dest} }
 func (i fetchVariable) sources() []reg { return nil }
