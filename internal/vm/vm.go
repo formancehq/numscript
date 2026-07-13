@@ -217,6 +217,9 @@ func Exec[S Store](
 			right := &vm.intsRegs[instr.C]
 			vm.intsRegs[instr.A].Sub(left, right)
 
+		case Op_AddString:
+			vm.stringsRegs[instr.A] = vm.stringsRegs[instr.B] + vm.stringsRegs[instr.C]
+
 		case Op_SubPortion:
 			left := &vm.portionsRegs[instr.B]
 			right := &vm.portionsRegs[instr.C]

@@ -11,6 +11,7 @@ func (l label) String() string { return fmt.Sprintf("#%s", string(l)) }
 func (opMinInt) String() string       { return "min_int" }
 func (opAddInt) String() string       { return "add_int" }
 func (opSubInt) String() string       { return "sub_int" }
+func (opAddString) String() string    { return "add_string" }
 func (opSubPortion) String() string   { return "sub_portion" }
 func (opMakePortion) String() string  { return "mk_portion" }
 func (opMakeMonetary) String() string { return "mk_monetary" }

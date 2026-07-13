@@ -18,6 +18,7 @@ type (
 	opMinInt       struct{}
 	opAddInt       struct{}
 	opSubInt       struct{}
+	opAddString    struct{}
 	opSubPortion   struct{}
 	opMakePortion  struct{}
 	opMakeMonetary struct{}

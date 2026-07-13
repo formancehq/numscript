@@ -279,6 +279,14 @@ func (opSubInt) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
+func (opAddString) sig() binaryOpSig {
+	return binaryOpSig{
+		opcode: vm.Op_AddString,
+		dest:   (*assembler).strReg,
+		left:   (*assembler).strReg,
+		right:  (*assembler).strReg,
+	}
+}
 func (opSubPortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_SubPortion,

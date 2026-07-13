@@ -95,6 +95,7 @@ const (
 	Op_MinInt
 	Op_AddInt
 	Op_SubInt
+	Op_AddString
 	Op_SubPortion
 	Op_MkPortion
 	Op_MkMonetary
