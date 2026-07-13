@@ -21,6 +21,7 @@ func (opPortionCopy) String() string { return "portion_copy" }
 func (opGetAsset) String() string    { return "get_asset" }
 func (opGetAmount) String() string   { return "get_amount" }
 func (opNegInt) String() string      { return "neg_int" }
+func (opIntToString) String() string { return "int_to_string" }
 
 func (i pullAccount) String() string {
 	opts := joinOpts(

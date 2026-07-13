@@ -231,6 +231,13 @@ func (opNegInt) sig() unaryOpSig {
 		arg:    (*assembler).intReg,
 	}
 }
+func (opIntToString) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_IntToString,
+		dest:   (*assembler).strReg,
+		arg:    (*assembler).intReg,
+	}
+}
 
 func (i unaryOp) assemble(a *assembler) error {
 	sig := i.op.sig()

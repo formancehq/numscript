@@ -35,6 +35,7 @@ type (
 	opGetAsset    struct{}
 	opGetAmount   struct{}
 	opNegInt      struct{}
+	opIntToString struct{}
 )
 
 type (

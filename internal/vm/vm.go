@@ -267,6 +267,9 @@ func Exec[S Store](
 			arg := &vm.intsRegs[instr.B]
 			vm.intsRegs[instr.A].Neg(arg)
 
+		case Op_IntToString:
+			vm.stringsRegs[instr.A] = vm.intsRegs[instr.B].String()
+
 		default:
 			panic("Invalid operation")
 		}
