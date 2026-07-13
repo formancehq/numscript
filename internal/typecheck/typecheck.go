@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -114,29 +115,19 @@ type Error struct {
 
 // --- builtin function signatures
 
-const (
-	fnSetTxMeta      = "set_tx_meta"
-	fnSetAccountMeta = "set_account_meta"
-	fnMeta           = "meta"
-	fnBalance        = "balance"
-	fnOverdraft      = "overdraft"
-	fnGetAsset       = "get_asset"
-	fnGetAmount      = "get_amount"
-)
-
 type fnSig struct {
 	params []Type
 	ret    Type // "" for statement functions (no return)
 }
 
-var builtins = map[string]fnSig{
-	fnSetTxMeta:      {params: []Type{TypeString, TypeAny}},
-	fnSetAccountMeta: {params: []Type{TypeAccount, TypeString, TypeAny}},
-	fnMeta:           {params: []Type{TypeAccount, TypeString}, ret: TypeAny},
-	fnBalance:        {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
-	fnOverdraft:      {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
-	fnGetAsset:       {params: []Type{TypeMonetary}, ret: TypeAsset},
-	fnGetAmount:      {params: []Type{TypeMonetary}, ret: TypeNumber},
+var builtinSigs = map[string]fnSig{
+	builtins.SetTxMeta:      {params: []Type{TypeString, TypeAny}},
+	builtins.SetAccountMeta: {params: []Type{TypeAccount, TypeString, TypeAny}},
+	builtins.Meta:           {params: []Type{TypeAccount, TypeString}, ret: TypeAny},
+	builtins.Balance:        {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
+	builtins.Overdraft:      {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
+	builtins.GetAsset:       {params: []Type{TypeMonetary}, ret: TypeAsset},
+	builtins.GetAmount:      {params: []Type{TypeMonetary}, ret: TypeNumber},
 }
 
 // --- Result / entrypoint
@@ -409,7 +400,7 @@ func (c *checker) checkHasOneOfTypes(expr parser.ValueExpr, allowed []Type) Type
 
 func (c *checker) checkFnCall(fnCall *parser.FnCall) Type {
 	ret := TypeAny
-	if sig, ok := builtins[fnCall.Caller.Name]; ok {
+	if sig, ok := builtinSigs[fnCall.Caller.Name]; ok {
 		ret = sig.ret
 		if ret == "" {
 			ret = TypeAny
@@ -427,7 +418,7 @@ func (c *checker) checkFnCallArity(fnCall *parser.FnCall) {
 		}
 	}
 
-	sig, resolved := builtins[fnCall.Caller.Name]
+	sig, resolved := builtinSigs[fnCall.Caller.Name]
 	if !resolved {
 		for _, arg := range validArgs {
 			c.checkExpr(arg, TypeAny)

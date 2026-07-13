@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"slices"
 
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
@@ -54,34 +55,26 @@ func (StatementFnCallResolution) fnCallResolution() {}
 func (r VarOriginFnCallResolution) GetParams() []string { return r.Params }
 func (r StatementFnCallResolution) GetParams() []string { return r.Params }
 
-const FnSetTxMeta = "set_tx_meta"
-const FnSetAccountMeta = "set_account_meta"
-const FnVarOriginMeta = "meta"
-const FnVarOriginBalance = "balance"
-const FnVarOriginOverdraft = "overdraft"
-const FnVarOriginGetAsset = "get_asset"
-const FnVarOriginGetAmount = "get_amount"
-
 var Builtins = map[string]FnCallResolution{
-	FnSetTxMeta: StatementFnCallResolution{
+	builtins.SetTxMeta: StatementFnCallResolution{
 		Params: []string{TypeString, TypeAny},
 		Docs:   "set transaction metadata",
 	},
-	FnSetAccountMeta: StatementFnCallResolution{
+	builtins.SetAccountMeta: StatementFnCallResolution{
 		Params: []string{TypeAccount, TypeString, TypeAny},
 		Docs:   "set account metadata",
 	},
-	FnVarOriginMeta: VarOriginFnCallResolution{
+	builtins.Meta: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeString},
 		Return: TypeAny,
 		Docs:   "fetch account metadata",
 	},
-	FnVarOriginBalance: VarOriginFnCallResolution{
+	builtins.Balance: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "fetch account balance",
 	},
-	FnVarOriginOverdraft: VarOriginFnCallResolution{
+	builtins.Overdraft: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "get absolute amount of the overdraft of an account. Returns zero if balance is not negative",
@@ -92,7 +85,7 @@ var Builtins = map[string]FnCallResolution{
 			},
 		},
 	},
-	FnVarOriginGetAsset: VarOriginFnCallResolution{
+	builtins.GetAsset: VarOriginFnCallResolution{
 		Params: []string{TypeMonetary},
 		Return: TypeAsset,
 		Docs:   "get the asset of the given monetary",
@@ -103,7 +96,7 @@ var Builtins = map[string]FnCallResolution{
 			},
 		},
 	},
-	FnVarOriginGetAmount: VarOriginFnCallResolution{
+	builtins.GetAmount: VarOriginFnCallResolution{
 		Params: []string{TypeMonetary},
 		Return: TypeNumber,
 		Docs:   "get the amount of the given monetary",
@@ -393,14 +386,14 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 		}
 
 		switch fnCall.Caller.Name {
-		case FnVarOriginBalance, FnVarOriginOverdraft:
+		case builtins.Balance, builtins.Overdraft:
 			if len(validArgs) > 1 {
 				// we run unify(<expr>, <asset>) in:
 				// <expr> := balance(@acc, <asset>)
 				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[1]))
 			}
 
-		case FnVarOriginGetAsset:
+		case builtins.GetAsset:
 			if len(validArgs) > 0 {
 				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[0]))
 			}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/runtime"
@@ -102,7 +103,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
 	// Special case for top-level meta() call
-	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == analysis.FnVarOriginMeta {
+	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == builtins.Meta {
 		return s.handleFnCall(&type_, *fnCall)
 	}
 
@@ -123,7 +124,7 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 	}
 
 	switch fnCall.Caller.Name {
-	case analysis.FnVarOriginMeta:
+	case builtins.Meta:
 		if type_ == nil {
 			return nil, InvalidNestedMeta{}
 		}
@@ -134,23 +135,23 @@ func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value,
 		}
 		return parseVar(*type_, rawValue, fnCall.Range)
 
-	case analysis.FnVarOriginBalance:
+	case builtins.Balance:
 		monetary, err := balance(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
 		return monetary, nil
 
-	case analysis.FnVarOriginOverdraft:
+	case builtins.Overdraft:
 		monetary, err := overdraft(s, fnCall.Range, args)
 		if err != nil {
 			return nil, err
 		}
 		return monetary, nil
 
-	case analysis.FnVarOriginGetAsset:
+	case builtins.GetAsset:
 		return getAsset(s, fnCall.Range, args)
-	case analysis.FnVarOriginGetAmount:
+	case builtins.GetAmount:
 		return getAmount(s, fnCall.Range, args)
 
 	default:
@@ -363,9 +364,9 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 		}
 
 		switch statement.Caller.Name {
-		case analysis.FnSetTxMeta:
+		case builtins.SetTxMeta:
 			return setTxMeta(st, statement.Caller.Range, args)
-		case analysis.FnSetAccountMeta:
+		case builtins.SetAccountMeta:
 			return setAccountMeta(st, statement.Caller.Range, args)
 		default:
 			return UnboundFunctionErr{Name: statement.Caller.Name}

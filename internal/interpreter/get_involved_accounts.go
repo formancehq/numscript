@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -163,10 +163,10 @@ func GetInvolvedAccounts(vars VariablesMap, program parser.Program) ([]InvolvedA
 
 		case *parser.FnCall:
 			switch stmt.Caller.Name {
-			case analysis.FnSetTxMeta:
+			case builtins.SetTxMeta:
 				// we can safely ignore this
 
-			case analysis.FnSetAccountMeta:
+			case builtins.SetAccountMeta:
 				if len(stmt.Args) != 3 {
 					return nil, nil, BadArityErr{Range: stmt.Range, ExpectedArity: 3, GivenArguments: len(stmt.Args)}
 				}
@@ -341,7 +341,7 @@ func (st *involvedAccountsAnalysisState) evalVar(expr parser.ValueExpr, typ stri
 	switch expr := expr.(type) {
 	case *parser.FnCall:
 		switch expr.Caller.Name {
-		case analysis.FnVarOriginMeta:
+		case builtins.Meta:
 			if len(expr.Args) != 2 {
 				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
@@ -457,10 +457,10 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 
 	case *parser.FnCall:
 		switch expr.Caller.Name {
-		case analysis.FnVarOriginMeta:
+		case builtins.Meta:
 			return nil, InvalidNestedMeta{Range: expr.Range}
 
-		case analysis.FnVarOriginOverdraft:
+		case builtins.Overdraft:
 			if len(expr.Args) != 2 {
 				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
@@ -481,7 +481,7 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 				Asset:   asset,
 			}, nil
 
-		case analysis.FnVarOriginBalance:
+		case builtins.Balance:
 			if len(expr.Args) != 2 {
 				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 2, GivenArguments: len(expr.Args)}
 			}
@@ -502,7 +502,7 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 				Asset:   asset,
 			}, nil
 
-		case analysis.FnVarOriginGetAmount:
+		case builtins.GetAmount:
 			if len(expr.Args) != 1 {
 				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 1, GivenArguments: len(expr.Args)}
 			}
@@ -512,7 +512,7 @@ func (st *involvedAccountsAnalysisState) evalExpr(expr parser.ValueExpr) (Involv
 			}
 			return foldedGetAmount(monetary), nil
 
-		case analysis.FnVarOriginGetAsset:
+		case builtins.GetAsset:
 			if len(expr.Args) != 1 {
 				return nil, BadArityErr{Range: expr.Range, ExpectedArity: 1, GivenArguments: len(expr.Args)}
 			}
