@@ -262,14 +262,14 @@ func (st *state) compileSource(
 		})
 
 	case *parser.SourceOverdraft:
-		if capReg == nil {
+		if src.Color != nil {
+			panic("TODO impl color")
+		}
+
+		if src.Bounded == nil && capReg == nil {
 			return 0, InvalidUncappedSource{
 				Range: src.GetRange(),
 			}
-		}
-
-		if src.Color != nil {
-			panic("TODO impl color")
 		}
 
 		accReg, err := st.compileExpr(src.Address)

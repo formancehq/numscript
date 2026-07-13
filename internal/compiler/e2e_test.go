@@ -488,6 +488,31 @@ func TestE2E_NestedDestination(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_SendAll(t *testing.T) {
+	src := `send [USD/2 *] (source = @a destination = @dest)`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(30),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(30)},
+	}, postings)
+}
+
+func TestE2E_UncappedBoundedOverdraft(t *testing.T) {
+	src := `
+		send [USD/2 *] (
+			source = @a allowing overdraft up to [USD/2 5]
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(40),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(45)},
+	}, postings)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

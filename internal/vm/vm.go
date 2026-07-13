@@ -80,24 +80,20 @@ func Exec[S Store](
 				overdraft = &vm.intsRegs[instrExt.A]
 			}
 
-			if overdraft == nil && cap == nil {
-				return nil, InvalidUncappedSource{
-					Account: account,
-				}
-			}
-
 			var color string
 			if instrExt.B != nilReg {
 				color = vm.stringsRegs[instrExt.B]
 			}
 
-			runstate.Pull(
-				&vm.intsRegs[instr.A],
-				account,
-				cap,
-				overdraft,
-				color,
-			)
+			out := &vm.intsRegs[instr.A]
+			switch {
+			case cap != nil:
+				runstate.Pull(out, account, cap, overdraft, color)
+			case overdraft != nil:
+				runstate.PullUncapped(out, account, overdraft, color)
+			default:
+				return nil, InvalidUncappedSource{Account: account}
+			}
 
 		case Op_SendToAccount:
 			var dest *string
