@@ -181,15 +181,27 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
-				panic("TODO interp var")
+				switch st.exprTypes[part] {
+				case typecheck.TypeAccount, typecheck.TypeString:
+					r, err := st.compileExpr(part)
+					if err != nil {
+						return 0, err
+					}
+					parts = append(parts, r)
+				default:
+					panic("TODO interp var of type " + st.exprTypes[part])
+				}
 			}
 		}
 
-		if len(parts) == 1 {
-			return parts[0], nil
+		acc := parts[0]
+		for _, part := range parts[1:] {
+			left, right := acc, part
+			acc = st.pushInstructionWithDest(func(dest reg) vInstr {
+				return binaryOp{op: opAddString{}, left: left, right: right, dest: dest}
+			})
 		}
-
-		panic("TODO compileExpr interp of many segments")
+		return acc, nil
 
 	case *parser.Variable:
 		r, ok := st.vars[expr.Name]
