@@ -167,6 +167,42 @@ func TestE2E_InsufficientFunds(t *testing.T) {
 	require.IsType(t, vm.MissingFundsError{}, execErr)
 }
 
+// TestE2E_DestinationInorder exercises a destination-inorder split end-to-end:
+// 100 pulled from @world is distributed as `max [USD/2 30] to @x; remaining to
+// @y`, so @x must get 30 and @y the remaining 70.
+func TestE2E_DestinationInorder(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				max [USD/2 30] to @x
+				remaining to @y
+			}
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
+
+	machine := vm.NewVm(program)
+	postings, execErr := vm.Exec(machine, nil, store)
+	require.Nil(t, execErr)
+
+	want := []runtime.Posting{
+		{Source: "world", Destination: "x", Asset: "USD/2", Amount: big.NewInt(30)},
+		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
+	}
+	requirePostingsEqual(t, want, postings)
+}
+
 func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {
 	t.Helper()
 	require.Len(t, got, len(want))

@@ -134,3 +134,36 @@ func TestInorderWithCap(t *testing.T) {
   send_to_account($r21)
 `))
 }
+
+func TestDestInorder(t *testing.T) {
+	out := getCompiledOutput(t, `
+		send [USD/2 10] (
+			source = @world
+			destination = {
+        max [USD/2 4] to @d1
+        remaining to @d2
+      }
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(10)
+  $r2 <- mk_monetary($r0, $r1)
+  $r3 <- get_asset($r2)
+  set_current_asset($r3)
+  $r4 <- get_amount($r2)
+  $r5 <- load_const("world")
+  $r6 <- load_const(0)
+  $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 <- load_const("USD/2")
+  $r9 <- load_const(4)
+  $r10 <- mk_monetary($r8, $r9)
+  $r11 <- get_amount($r10)
+  $r12 <- load_const("d1")
+  send_to_account($r12, cap: $r11)
+  $r13 <- load_const("d2")
+  send_to_account($r13)
+`))
+}

@@ -331,6 +331,12 @@ func (st *state) compileDestination(
 	dest parser.Destination,
 ) CompilerError {
 	switch dest := dest.(type) {
+	case *parser.DestinationAllotment:
+		panic("TODO unimplemented")
+
+	case *parser.DestinationOneof:
+		panic("TODO unimplemented")
+
 	case *parser.DestinationAccount:
 		accReg, err := st.compileExpr(dest.ValueExpr)
 		if err != nil {
@@ -339,7 +345,7 @@ func (st *state) compileDestination(
 
 		var cap *reg
 		if pulledAmtReg != currentCap {
-			cap = &pulledAmtReg
+			cap = &currentCap
 		}
 		st.pushInstruction(sendToAccount{
 			account: &accReg,
@@ -347,8 +353,23 @@ func (st *state) compileDestination(
 		})
 
 	case *parser.DestinationInorder:
-	case *parser.DestinationOneof:
-	case *parser.DestinationAllotment:
+		for _, clause := range dest.Clauses {
+			innerCapReg, err := st.compileExpr(clause.Cap)
+			if err != nil {
+				return err
+			}
+
+			innerCapAmtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: innerCapReg, dest: dest}
+			})
+
+			err = st.compileKeptOrDestination(clause.To, pulledAmtReg, innerCapAmtReg)
+			if err != nil {
+				return err
+			}
+		}
+
+		return st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, pulledAmtReg)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](dest)
@@ -357,10 +378,18 @@ func (st *state) compileDestination(
 	return nil
 }
 
-func (st *state) compileKeptOrDestination(keptOrDest parser.KeptOrDestination) CompilerError {
+func (st *state) compileKeptOrDestination(
+	keptOrDest parser.KeptOrDestination,
+	pulledAmtReg reg,
+	currentCap reg,
+) CompilerError {
 	switch keptOrDest := keptOrDest.(type) {
-	case *parser.DestinationKept:
 	case *parser.DestinationTo:
+		return st.compileDestination(pulledAmtReg, currentCap, keptOrDest.Destination)
+
+	case *parser.DestinationKept:
+		panic("TODO impl kept")
+
 	default:
 		utils.NonExhaustiveMatchPanic[any](keptOrDest)
 	}
