@@ -132,6 +132,37 @@ func TestMonetaryAddition(t *testing.T) {
 `))
 }
 
+func TestGetAmount(t *testing.T) {
+	out := getCompiledOutput(t, `
+		vars {
+			monetary $m = [USD/2 42]
+			number $n = get_amount($m)
+		}
+		send [USD/2 $n] (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(42)
+  $r2 <- mk_monetary($r0, $r1)
+  $r3 <- get_amount($r2)
+  $r4 <- load_const("USD/2")
+  $r5 <- mk_monetary($r4, $r3)
+  $r6 <- get_asset($r5)
+  set_current_asset($r6)
+  $r7 <- get_amount($r5)
+  $r8 <- load_const("src")
+  $r9 <- load_const(0)
+  $r10 <- pull_account(account: $r8, cap: $r7, overdraft: $r9)
+  check_enough_funds($r10, $r7)
+  $r11 <- load_const("dest")
+  send_to_account(account: $r11)
+`))
+}
+
 func TestInorder(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (

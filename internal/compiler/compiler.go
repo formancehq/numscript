@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
@@ -280,7 +281,19 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		panic("TODO compileExpr")
 
 	case *parser.FnCall:
-		panic("TODO compileExpr")
+		switch expr.Caller.Name {
+		case builtins.GetAmount:
+			argReg, err := st.compileExpr(expr.Args[0])
+			if err != nil {
+				return 0, err
+			}
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: argReg, dest: dest}
+			})
+
+		default:
+			panic("TODO compileExpr fn call " + expr.Caller.Name)
+		}
 
 	default:
 		return utils.NonExhaustiveMatchPanic[reg](expr), nil

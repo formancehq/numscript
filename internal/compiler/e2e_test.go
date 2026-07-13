@@ -558,6 +558,39 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	require.IsType(t, vm.AssetMismatchError{}, execErr)
 }
 
+func TestE2E_GetAmount(t *testing.T) {
+	src := `
+		vars {
+			monetary $m = [USD/2 42]
+			number $n = get_amount($m)
+		}
+		send [USD/2 $n] (
+			source = @src
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+
+	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	require.Nil(t, execErr)
+
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
+	}, postings)
+}
+
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)
