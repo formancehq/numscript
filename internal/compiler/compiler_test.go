@@ -327,6 +327,38 @@ func TestAccountInterpolation(t *testing.T) {
 `))
 }
 
+func TestAccountInterpolationInt(t *testing.T) {
+	out := getCompiledOutput(t, `
+		vars {
+			number $n = 42
+		}
+		send [USD/2 10] (
+			source = @world
+			destination = @account:$n
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const(42)
+  $r1 <- load_const("USD/2")
+  $r2 <- load_const(10)
+  $r3 <- mk_monetary($r1, $r2)
+  $r4 <- get_asset($r3)
+  set_current_asset($r4)
+  $r5 <- get_amount($r3)
+  $r6 <- load_const("world")
+  $r7 <- load_const(0)
+  $r8 <- pull_account(account: $r6, cap: $r5, overdraft: $r7)
+  check_enough_funds($r8, $r5)
+  $r9 <- load_const("account")
+  $r10 <- load_const(":")
+  $r11 <- int_to_string($r0)
+  $r12 <- add_string($r9, $r10)
+  $r13 <- add_string($r12, $r11)
+  send_to_account(account: $r13)
+`))
+}
+
 func TestInorder(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (

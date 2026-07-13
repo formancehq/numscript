@@ -181,13 +181,17 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
+				r, err := st.compileExpr(part)
+				if err != nil {
+					return 0, err
+				}
 				switch st.exprTypes[part] {
 				case typecheck.TypeAccount, typecheck.TypeString:
-					r, err := st.compileExpr(part)
-					if err != nil {
-						return 0, err
-					}
 					parts = append(parts, r)
+				case typecheck.TypeNumber:
+					parts = append(parts, st.pushInstructionWithDest(func(dest reg) vInstr {
+						return unaryOp{op: opIntToString{}, arg: r, dest: dest}
+					}))
 				default:
 					panic("TODO interp var of type " + st.exprTypes[part])
 				}

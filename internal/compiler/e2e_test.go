@@ -742,6 +742,23 @@ func TestE2E_AccountInterpolation(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_AccountInterpolationInt(t *testing.T) {
+	// destination = @account:<$n>, with $n = 42
+	src := `
+		vars {
+			number $n = 42
+		}
+		send [USD/2 10] (
+			source = @world
+			destination = @account:$n
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "account:42", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)
