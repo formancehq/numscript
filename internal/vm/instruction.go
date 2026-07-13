@@ -53,6 +53,10 @@ const (
 	// is non-zero (portions not summing to exactly 1)
 	Op_AssertLeftover
 
+	// save: reduce balance of account A for asset B by amount C (C == nilReg =>
+	// save all), floored at 0
+	Op_Save
+
 	// --- PullAccount (cap? × overdraft) ---
 
 	// The most general form:

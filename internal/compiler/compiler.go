@@ -593,7 +593,37 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 		return nil
 
 	case *parser.SaveStatement:
-		panic("TODO save")
+		var assetReg reg
+		var amountReg *reg
+		switch sv := stmt.SentValue.(type) {
+		case *parser.SentValueLiteral:
+			monReg, err := st.compileExpr(sv.Monetary)
+			if err != nil {
+				return err
+			}
+			assetReg = st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAsset{}, arg: monReg, dest: dest}
+			})
+			amt := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
+			})
+			amountReg = &amt
+		case *parser.SentValueAll:
+			r, err := st.compileExpr(sv.Asset)
+			if err != nil {
+				return err
+			}
+			assetReg = r
+		default:
+			utils.NonExhaustiveMatchPanic[any](stmt.SentValue)
+		}
+
+		accReg, err := st.compileExpr(stmt.Account)
+		if err != nil {
+			return err
+		}
+		st.pushInstruction(save{account: accReg, asset: assetReg, amount: amountReg})
+		return nil
 	case *parser.FnCall:
 		panic("TODO fn call")
 

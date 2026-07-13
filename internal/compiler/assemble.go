@@ -362,6 +362,23 @@ func (i checkEnoughFunds) assemble(a *assembler) error {
 	return nil
 }
 
+func (i save) assemble(a *assembler) error {
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+	asset, err := a.strReg(i.asset)
+	if err != nil {
+		return err
+	}
+	amount, err := a.optionalReg((*assembler).intReg, i.amount)
+	if err != nil {
+		return err
+	}
+	a.emit(vm.Op_Save, account, asset, amount)
+	return nil
+}
+
 func (i assertLeftover) assemble(a *assembler) error {
 	portion, err := a.portionReg(i.portion)
 	if err != nil {

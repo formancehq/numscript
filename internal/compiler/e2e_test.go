@@ -549,6 +549,20 @@ func TestE2E_OverdraftAssetMismatch(t *testing.T) {
 	require.IsType(t, vm.AssetMismatchError{}, execErr)
 }
 
+func TestE2E_Save(t *testing.T) {
+	// save 30 of @a's 100, so the send-all only takes the remaining 70
+	src := `
+		save [USD/2 30] from @a
+		send [USD/2 *] (source = @a destination = @dest)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(70)},
+	}, postings)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

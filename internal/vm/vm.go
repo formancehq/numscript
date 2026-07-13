@@ -144,6 +144,15 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_Save:
+			account := vm.stringsRegs[instr.A]
+			asset := vm.stringsRegs[instr.B]
+			var amount *big.Int
+			if instr.C != nilReg {
+				amount = &vm.intsRegs[instr.C]
+			}
+			runstate.Save(account, asset, "", amount)
+
 		case Op_AssertLeftover:
 			leftover := &vm.portionsRegs[instr.A]
 			sign := leftover.Sign()

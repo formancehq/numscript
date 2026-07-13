@@ -44,6 +44,11 @@ type (
 	sendToAccount struct {
 		account, cap *reg // str, int
 	}
+	save struct {
+		account reg  // str
+		asset   reg  // str
+		amount  *reg // int; nil = save all
+	}
 	makeAllotment struct {
 		dest     []reg // int, len N
 		amount   reg   // int
@@ -100,6 +105,15 @@ func (i makeAllotment) sources() []reg { return append(append([]reg{}, i.portion
 
 func (i checkEnoughFunds) dests() []reg   { return nil }
 func (i checkEnoughFunds) sources() []reg { return []reg{i.got, i.needed} }
+
+func (i save) dests() []reg { return nil }
+func (i save) sources() []reg {
+	regs := []reg{i.account, i.asset}
+	if i.amount != nil {
+		regs = append(regs, *i.amount)
+	}
+	return regs
+}
 
 func (i assertLeftover) dests() []reg   { return nil }
 func (i assertLeftover) sources() []reg { return []reg{i.portion} }
