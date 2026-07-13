@@ -42,7 +42,7 @@ type Store interface {
 
 func Exec[S Store](
 	vm *Vm,
-	vars any,
+	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
 ) ([]runtime.Posting, ExecutionError) {
 	if vm.runstate == nil {
@@ -176,10 +176,11 @@ func Exec[S Store](
 			}
 
 			// --- Vars
-		case Op_FetchVariable:
-			// TODO we need to check if we'll use FetchVarNumber, FetchVarString, ..
-			// or if we have a vars table that has this info
-			panic("TODO fetch vars")
+		case Op_LoadVarInt:
+			vm.intsRegs[instr.A].Set(&vars.IntsPool[instr.GetBC()])
+
+		case Op_LoadVarStr:
+			vm.stringsRegs[instr.A] = vars.StringsPool[instr.GetBC()]
 
 		// --- Jumps
 		case Op_JmpIfZero:

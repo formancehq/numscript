@@ -38,9 +38,11 @@ const (
 
 	Op_AssertSameAsset
 
-	// --- variables / constants ---
-	Op_FetchVariable
+	// --- variables ---
+	Op_LoadVarInt // b_c = int-var index
+	Op_LoadVarStr // b_c = string-var index
 
+	// --- constants ---
 	// may split into one opcode per expr_typ later
 	Op_LoadInt // LoadConst (`Int)    -> b_c = const-pool index
 	Op_LoadStr // LoadConst (`String) -> b_c = const-pool index
