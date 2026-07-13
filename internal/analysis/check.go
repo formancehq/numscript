@@ -3,10 +3,10 @@ package analysis
 import (
 	"math/big"
 	"slices"
-	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -230,6 +230,10 @@ func newCheckResult(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) check() {
+	for _, e := range typecheck.Check(res.Program).Errors {
+		res.pushDiagnostic(e.Range, e.Kind)
+	}
+
 	for _, flag := range res.Program.Flags {
 		validFlag := slices.Contains(flags.AllFlags, flag.String)
 		if !validFlag {
@@ -242,10 +246,6 @@ func (res *CheckResult) check() {
 
 	if res.Program.Vars != nil {
 		for _, varDecl := range res.Program.Vars.Declarations {
-			if varDecl.Type != nil {
-				res.checkVarType(*varDecl.Type)
-			}
-
 			if varDecl.Name != nil {
 				res.checkDuplicateVars(*varDecl.Name, varDecl)
 			}
@@ -381,33 +381,6 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 
 	if resolved {
 		sig := resolution.GetParams()
-		actualArgs := len(validArgs)
-		expectedArgs := len(sig)
-
-		if actualArgs < expectedArgs {
-			// Too few args
-			res.pushDiagnostic(fnCall.Range, BadArity{
-				Expected: expectedArgs,
-				Actual:   actualArgs,
-			})
-		} else if actualArgs > expectedArgs {
-			// Too many args
-			firstIllegalArg := validArgs[expectedArgs]
-			lastIllegalArg := validArgs[len(validArgs)-1]
-
-			if lastIllegalArg != nil {
-				rng := parser.Range{
-					Start: firstIllegalArg.GetRange().Start,
-					End:   lastIllegalArg.GetRange().End,
-				}
-
-				res.pushDiagnostic(rng, BadArity{
-					Expected: expectedArgs,
-					Actual:   actualArgs,
-				})
-			}
-
-		}
 
 		for index, arg := range validArgs {
 			lastElemIndex := len(sig) - 1
@@ -437,9 +410,14 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			res.checkExpression(arg, TypeAny)
 		}
 
-		res.pushDiagnostic(fnCall.Caller.Range, UnknownFunction{
-			Name: fnCall.Caller.Name,
-		})
+		// A known builtin used in the wrong context. Truly-unknown names are
+		// reported by typecheck instead (disjoint: those aren't in Builtins).
+		if builtin, isBuiltin := Builtins[fnCall.Caller.Name]; isBuiltin {
+			res.pushDiagnostic(fnCall.Caller.Range, UnknownFunction{
+				Name:         fnCall.Caller.Name,
+				WrongContext: builtin.ContextName(),
+			})
+		}
 	}
 }
 
@@ -447,17 +425,8 @@ func isTypeAllowed(typeName string) bool {
 	return slices.Contains(AllowedTypes, typeName)
 }
 
-func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
-	if !isTypeAllowed(typeDecl.Name) {
-		res.pushDiagnostic(typeDecl.Range, InvalidType{Name: typeDecl.Name})
-	}
-}
-
 func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
-	// check there aren't duplicate variables
-	if _, ok := res.DeclaredVars[variableName.Name]; ok {
-		res.pushDiagnostic(variableName.Range, DuplicateVariable{Name: variableName.Name})
-	} else {
+	if _, ok := res.DeclaredVars[variableName.Name]; !ok {
 		res.DeclaredVars[variableName.Name] = decl
 		res.unusedVars[variableName.Name] = variableName.Range
 	}
@@ -481,19 +450,19 @@ func (res *CheckResult) checkFnCall(fnCall *parser.FnCall) string {
 	return returnType
 }
 
+// checkExpression drives the analysis-only side effects (asset unification, var
+// resolution, version gating) for an expression. Type checking itself is done by
+// internal/typecheck; requiredType is kept only to match the traversal shape.
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
-	actualType := res.checkTypeOf(lit, requiredType)
-	res.assertHasType(lit, requiredType, actualType)
+	res.checkTypeOf(lit, requiredType)
 }
 
-func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
+func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, _ string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.DeclaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
 			res.unifyNodeWith(lit, res.GetVarDeclType(varDeclaration))
-		} else {
-			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
 		delete(res.unusedVars, lit.Name)
 
@@ -584,10 +553,6 @@ func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []st
 		return leftType
 	}
 
-	res.pushDiagnostic(bin.Left.GetRange(), TypeMismatch{
-		Expected: strings.Join(allowed, "|"),
-		Got:      leftType,
-	})
 	return TypeAny
 }
 
@@ -598,22 +563,7 @@ func (res *CheckResult) checkHasOneOfTypes(expr parser.ValueExpr, allowed []stri
 		return exprType
 	}
 
-	res.pushDiagnostic(expr.GetRange(), TypeMismatch{
-		Expected: strings.Join(allowed, "|"),
-		Got:      exprType,
-	})
 	return TypeAny
-}
-
-func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string, actualType string) {
-	if requiredType == TypeAny || actualType == TypeAny || requiredType == actualType {
-		return
-	}
-
-	res.pushDiagnostic(lit.GetRange(), TypeMismatch{
-		Expected: requiredType,
-		Got:      actualType,
-	})
 }
 
 func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {

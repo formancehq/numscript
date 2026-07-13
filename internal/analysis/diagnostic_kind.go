@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/ansi"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -70,52 +71,17 @@ func (Parsing) Severity() Severity {
 	return ErrorSeverity
 }
 
-type InvalidType struct {
-	Name string
-}
-
-// TODO evaluate suggestion using Levenshtein distance
-func (e InvalidType) Message() string {
-	allowedTypeList := ""
-	for index, t := range AllowedTypes {
-		if index != 0 {
-			allowedTypeList += ", "
-		}
-		allowedTypeList += t
-	}
-
-	return fmt.Sprintf("'%s' is not a valid type. Allowed types are: %s", e.Name, allowedTypeList)
-}
-
-func (InvalidType) Severity() Severity {
-	return ErrorSeverity
-}
-
-type DuplicateVariable struct {
-	Name string
-}
-
-func (e DuplicateVariable) Message() string {
-	return fmt.Sprintf("A variable with the name '$%s' was already declared", e.Name)
-}
-
-func (DuplicateVariable) Severity() Severity {
-	return ErrorSeverity
-}
-
-type UnboundVariable struct {
-	Name string
-	Type string
-}
-
-// TODO evaluate suggestion using Levenshtein distance
-func (e UnboundVariable) Message() string {
-	return fmt.Sprintf("The variable '$%s' was not declared", e.Name)
-}
-
-func (UnboundVariable) Severity() Severity {
-	return ErrorSeverity
-}
+// The following kinds are produced by the shared type checker (internal/typecheck)
+// and aliased here so they satisfy DiagnosticKind and existing consumers keep
+// referring to analysis.<Kind>.
+type (
+	InvalidType       = typecheck.InvalidType
+	DuplicateVariable = typecheck.DuplicateVariable
+	UnboundVariable   = typecheck.UnboundVariable
+	TypeMismatch      = typecheck.TypeMismatch
+	UnknownFunction   = typecheck.UnknownFunction
+	BadArity          = typecheck.BadArity
+)
 
 type UnusedVar struct {
 	Name string
@@ -127,19 +93,6 @@ func (e UnusedVar) Message() string {
 
 func (UnusedVar) Severity() Severity {
 	return WarningSeverity
-}
-
-type TypeMismatch struct {
-	Expected string
-	Got      string
-}
-
-func (e TypeMismatch) Message() string {
-	return fmt.Sprintf("Type mismatch (expected '%s', got '%s' instead)", e.Expected, e.Got)
-}
-
-func (TypeMismatch) Severity() Severity {
-	return ErrorSeverity
 }
 
 type AssetMismatch struct {
@@ -217,36 +170,6 @@ func (e RedundantRemaining) Message() string {
 }
 func (RedundantRemaining) Severity() Severity {
 	return WarningSeverity
-}
-
-type UnknownFunction struct {
-	Name string
-}
-
-func (e UnknownFunction) Message() string {
-	res, exists := Builtins[e.Name]
-	if exists {
-		return fmt.Sprintf("You cannot use this function here (try to use it in a %s context)", res.ContextName())
-	}
-	// TODO suggest alternatives using Levenshtein distance
-	return fmt.Sprintf("The function '%s' does not exist", e.Name)
-}
-
-func (UnknownFunction) Severity() Severity {
-	return ErrorSeverity
-}
-
-type BadArity struct {
-	Expected int
-	Actual   int
-}
-
-func (e BadArity) Message() string {
-	return fmt.Sprintf("Wrong number of arguments (expected %d, got %d instead)", e.Expected, e.Actual)
-}
-
-func (BadArity) Severity() Severity {
-	return ErrorSeverity
 }
 
 type InvalidWorldOverdraft struct{}
