@@ -388,7 +388,15 @@ func (st *state) compileKeptOrDestination(
 		return st.compileDestination(pulledAmtReg, currentCap, keptOrDest.Destination)
 
 	case *parser.DestinationKept:
-		panic("TODO impl kept")
+		var cap *reg
+		if pulledAmtReg != currentCap {
+			cap = &currentCap
+		}
+		st.pushInstruction(sendToAccount{
+			account: nil,
+			cap:     cap,
+		})
+		return nil
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](keptOrDest)

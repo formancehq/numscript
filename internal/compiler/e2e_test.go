@@ -203,6 +203,41 @@ func TestE2E_DestinationInorder(t *testing.T) {
 	requirePostingsEqual(t, want, postings)
 }
 
+// TestE2E_DestinationKept exercises a `kept` clause: of 100 pulled from @world,
+// 30 is kept (refunded, no posting) and the remaining 70 goes to @y.
+func TestE2E_DestinationKept(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				max [USD/2 30] kept
+				remaining to @y
+			}
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
+
+	machine := vm.NewVm(program)
+	postings, execErr := vm.Exec(machine, nil, store)
+	require.Nil(t, execErr)
+
+	// only the remaining 70 is posted; the kept 30 produces no posting
+	want := []runtime.Posting{
+		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
+	}
+	requirePostingsEqual(t, want, postings)
+}
+
 func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {
 	t.Helper()
 	require.Len(t, got, len(want))
