@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -435,6 +436,51 @@ func TestE2E_AllotmentRemainingOnly(t *testing.T) {
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, postings)
+}
+
+func TestE2E_IntAddition(t *testing.T) {
+	src := `
+		send [USD/2 4 + 6] (
+			source = @src
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+
+	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	require.Nil(t, execErr)
+
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
+func TestE2E_RejectsUnboundVariable(t *testing.T) {
+	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
+	require.Empty(t, parsed.Errors)
+	_, cErr := compileProgramToVirtual(parsed.Value)
+	require.IsType(t, TypeError{}, cErr)
+	require.IsType(t, typecheck.UnboundVariable{}, cErr.(TypeError).Kind)
+}
+
+func TestE2E_RejectsTypeMismatch(t *testing.T) {
+	parsed := parser.Parse(`vars { string $s } send [C 10] (source = $s destination = @d)`)
+	require.Empty(t, parsed.Errors)
+	_, cErr := compileProgramToVirtual(parsed.Value)
+	require.IsType(t, TypeError{}, cErr)
+	require.IsType(t, typecheck.TypeMismatch{}, cErr.(TypeError).Kind)
 }
 
 func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {

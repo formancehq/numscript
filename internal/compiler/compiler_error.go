@@ -1,6 +1,9 @@
 package compiler
 
-import "github.com/formancehq/numscript/internal/parser"
+import (
+	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
+)
 
 type (
 	CompilerError interface {
@@ -13,10 +16,9 @@ type (
 		Var string
 	}
 
-	TypeMismatch struct {
+	TypeError struct {
 		parser.Range
-		Expected string
-		Got      string
+		Kind typecheck.ErrorKind
 	}
 
 	InvalidUncappedSource struct {
@@ -29,13 +31,15 @@ type (
 )
 
 func (UnboundVar) compileError()            {}
-func (TypeMismatch) compileError()          {}
+func (TypeError) compileError()             {}
 func (InvalidUncappedSource) compileError() {}
 func (DuplicateRemaining) compileError()    {}
 
+func (e TypeError) Error() string { return e.Kind.Message() }
+
 var (
 	_ CompilerError = (*UnboundVar)(nil)
-	_ CompilerError = (*TypeMismatch)(nil)
+	_ CompilerError = (*TypeError)(nil)
 	_ CompilerError = (*InvalidUncappedSource)(nil)
 	_ CompilerError = (*DuplicateRemaining)(nil)
 )

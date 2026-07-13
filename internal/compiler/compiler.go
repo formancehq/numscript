@@ -5,18 +5,8 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
-)
-
-type type_ string
-
-const (
-	typeNumber   type_ = "number"
-	typeString   type_ = "string"
-	typeAsset    type_ = "asset"
-	typeMonetary type_ = "monetary"
-	typeAccount  type_ = "account"
-	typePortion  type_ = "portion"
 )
 
 type compiledProgramVirtual struct {
@@ -28,6 +18,7 @@ type state struct {
 	nextLabelId  int
 	instructions []vInstr
 	vars         map[string]reg
+	exprTypes    map[parser.ValueExpr]typecheck.Type
 }
 
 func (st *state) getFreshReg() reg {
@@ -219,21 +210,36 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		})
 
 	case *parser.BinaryInfix:
-		// `n / m` builds a portion (the only infix used in portion position)
-		if expr.Operator != parser.InfixOperatorDiv {
+		leftReg, err := st.compileExpr(expr.Left)
+		if err != nil {
+			return 0, err
+		}
+		rightReg, err := st.compileExpr(expr.Right)
+		if err != nil {
+			return 0, err
+		}
+
+		switch expr.Operator {
+		case parser.InfixOperatorDiv:
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return binaryOp{op: opMakePortion{}, left: leftReg, right: rightReg, dest: dest}
+			})
+
+		case parser.InfixOperatorPlus:
+			switch st.exprTypes[expr.Left] {
+			case typecheck.TypeNumber:
+				return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+					return binaryOp{op: opAddInt{}, left: leftReg, right: rightReg, dest: dest}
+				})
+
+			default:
+				panic("TODO compileExpr + for non-int")
+
+			}
+
+		default:
 			panic("TODO compileExpr binary op " + string(expr.Operator))
 		}
-		numReg, err := st.compileExpr(expr.Left)
-		if err != nil {
-			return 0, err
-		}
-		denReg, err := st.compileExpr(expr.Right)
-		if err != nil {
-			return 0, err
-		}
-		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
-			return binaryOp{op: opMakePortion{}, left: numReg, right: denReg, dest: dest}
-		})
 
 	case *parser.Prefix:
 		panic("TODO compileExpr")
@@ -638,7 +644,12 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 }
 
 func compileProgramToVirtual(program parser.Program) (compiledProgramVirtual, CompilerError) {
-	st := state{vars: map[string]reg{}}
+	tc := typecheck.Check(program)
+	if len(tc.Errors) > 0 {
+		return compiledProgramVirtual{}, TypeError{Range: tc.Errors[0].Range, Kind: tc.Errors[0].Kind}
+	}
+
+	st := state{vars: map[string]reg{}, exprTypes: tc.ExprTypes}
 
 	if program.Vars != nil {
 		for _, decl := range program.Vars.Declarations {
