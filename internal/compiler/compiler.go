@@ -192,6 +192,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 					parts = append(parts, st.pushInstructionWithDest(func(dest reg) vInstr {
 						return unaryOp{op: opIntToString{}, arg: r, dest: dest}
 					}))
+					// TODO check account name is correct
 				default:
 					panic("TODO interp var of type " + st.exprTypes[part])
 				}
