@@ -466,6 +466,21 @@ func (i checkEqCurrentAsset) assemble(a *assembler) error {
 	return nil
 }
 
+func (i assertSameAsset) assemble(a *assembler) error {
+	left, err := a.strReg(i.left)
+	if err != nil {
+		return err
+	}
+	right, err := a.strReg(i.right)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertSameAsset, left, right, maxReg)
+
+	return nil
+}
+
 func (i jmpIfZero) assemble(a *assembler) error {
 	cond, err := a.intReg(i.cond)
 	if err != nil {

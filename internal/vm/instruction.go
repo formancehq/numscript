@@ -38,6 +38,8 @@ const (
 
 	Op_CheckEqCurrentAsset
 
+	Op_AssertSameAsset
+
 	// --- variables / constants ---
 	Op_FetchVariable
 

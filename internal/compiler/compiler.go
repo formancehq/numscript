@@ -232,8 +232,30 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 					return binaryOp{op: opAddInt{}, left: leftReg, right: rightReg, dest: dest}
 				})
 
+			case typecheck.TypeMonetary:
+				lAsset := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAsset{}, arg: leftReg, dest: dest}
+				})
+				rAsset := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAsset{}, arg: rightReg, dest: dest}
+				})
+				st.pushInstruction(assertSameAsset{left: lAsset, right: rAsset})
+
+				lAmt := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAmount{}, arg: leftReg, dest: dest}
+				})
+				rAmt := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAmount{}, arg: rightReg, dest: dest}
+				})
+				sum := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return binaryOp{op: opAddInt{}, left: lAmt, right: rAmt, dest: dest}
+				})
+				return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+					return binaryOp{op: opMakeMonetary{}, left: lAsset, right: sum, dest: dest}
+				})
+
 			default:
-				panic("TODO compileExpr + for non-int")
+				panic("TODO compileExpr + for unexpected type")
 
 			}
 

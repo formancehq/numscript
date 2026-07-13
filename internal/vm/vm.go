@@ -174,6 +174,16 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_AssertSameAsset:
+			left := vm.stringsRegs[instr.A]
+			right := vm.stringsRegs[instr.B]
+			if left != right {
+				return nil, AssetMismatchError{
+					Expected: left,
+					Got:      right,
+				}
+			}
+
 			// --- Vars
 		case Op_FetchVariable:
 			// TODO we need to check if we'll use FetchVarNumber, FetchVarString, ..

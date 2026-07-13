@@ -68,6 +68,10 @@ func (i checkEqCurrentAsset) String() string {
 	return fmt.Sprintf("check_eq_current_asset(%s)", i.got)
 }
 
+func (i assertSameAsset) String() string {
+	return fmt.Sprintf("assert_same_asset(%s, %s)", i.left, i.right)
+}
+
 func (i fetchVariable) String() string {
 	return fmt.Sprintf("%s <- fetch_var(%d)", i.dest, i.index)
 }
