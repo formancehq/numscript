@@ -529,6 +529,48 @@ func TestE2E_MonetaryAddition(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_MonetarySubtraction(t *testing.T) {
+	src := `
+		vars {
+			monetary $a = [USD/2 30]
+			monetary $b = [USD/2 20]
+		}
+		send $a - $b (
+			source = @src
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
+func TestE2E_MonetarySubtractionAssetMismatch(t *testing.T) {
+	src := `
+		vars {
+			monetary $a = [USD/2 30]
+			monetary $b = [EUR/2 20]
+		}
+		send $a - $b (
+			source = @src
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	_, execErr := vm.Exec(vm.NewVm(program), nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	require.IsType(t, vm.AssetMismatchError{}, execErr)
+}
+
 func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	src := `
 		vars {
