@@ -279,10 +279,14 @@ func (st *state) compileSource(
 
 		var overdraftReg *reg
 		if src.Bounded != nil {
-			*overdraftReg, err = st.compileExpr(*src.Bounded)
+			monReg, err := st.compileExpr(*src.Bounded)
 			if err != nil {
 				return 0, err
 			}
+			amtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
+			})
+			overdraftReg = &amtReg
 		}
 
 		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
@@ -470,23 +474,27 @@ func (st *state) compileDestination(
 		})
 
 	case *parser.DestinationInorder:
+		remaining := st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{op: opIntCopy{}, arg: currentCap, dest: dest}
+		})
 		for _, clause := range dest.Clauses {
-			innerCapReg, err := st.compileExpr(clause.Cap)
+			capMonReg, err := st.compileExpr(clause.Cap)
 			if err != nil {
 				return err
 			}
-
-			innerCapAmtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-				return unaryOp{op: opGetAmount{}, arg: innerCapReg, dest: dest}
+			capAmtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: capMonReg, dest: dest}
 			})
-
-			err = st.compileKeptOrDestination(clause.To, pulledAmtReg, innerCapAmtReg)
-			if err != nil {
+			amtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return binaryOp{op: opMinInt{}, left: remaining, right: capAmtReg, dest: dest}
+			})
+			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
 			}
+			st.pushInstruction(binaryOp{op: opSubInt{}, dest: remaining, left: remaining, right: amtReg})
 		}
 
-		return st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, pulledAmtReg)
+		return st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, remaining)
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](dest)

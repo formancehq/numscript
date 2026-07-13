@@ -452,6 +452,42 @@ func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {
 	require.IsType(t, DuplicateRemaining{}, cErr)
 }
 
+func TestE2E_BoundedOverdraft(t *testing.T) {
+	src := `
+		send [USD/2 42] (
+			source = @a allowing overdraft up to [USD/2 5]
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(40),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
+	}, postings)
+}
+
+func TestE2E_NestedDestination(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/2 to {
+					max [USD/2 10] to @x
+					remaining to @a
+				}
+				remaining to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "x", Asset: "USD/2", Amount: big.NewInt(10)},
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(40)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(50)},
+	}, postings)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)
