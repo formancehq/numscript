@@ -513,6 +513,42 @@ func TestE2E_UncappedBoundedOverdraft(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_CapAssetMismatch(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = max [EUR/2 5] from @a
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.IsType(t, vm.AssetMismatchError{}, execErr)
+}
+
+func TestE2E_OverdraftAssetMismatch(t *testing.T) {
+	src := `
+		send [USD/2 42] (
+			source = @a allowing overdraft up to [EUR/2 5]
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	require.Nil(t, cErr)
+	program, aErr := Assemble(compiled.instructions)
+	require.NoError(t, aErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.IsType(t, vm.AssetMismatchError{}, execErr)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

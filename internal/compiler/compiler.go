@@ -105,6 +105,20 @@ func (st *state) compileAllot(amount reg, allotments []parser.AllotmentValue) ([
 	return dest, nil
 }
 
+func (st *state) compileCapAmount(monExpr parser.ValueExpr) (reg, CompilerError) {
+	monReg, err := st.compileExpr(monExpr)
+	if err != nil {
+		return 0, err
+	}
+	assetReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+		return unaryOp{op: opGetAsset{}, arg: monReg, dest: dest}
+	})
+	st.pushInstruction(checkEqCurrentAsset{got: assetReg})
+	return st.pushInstructionWithDest(func(dest reg) vInstr {
+		return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
+	}), nil
+}
+
 func (st *state) compilePortionOne() reg {
 	one := st.pushInstructionWithDest(func(dest reg) vInstr {
 		return loadInt{value: *big.NewInt(1), dest: dest}
@@ -279,13 +293,10 @@ func (st *state) compileSource(
 
 		var overdraftReg *reg
 		if src.Bounded != nil {
-			monReg, err := st.compileExpr(*src.Bounded)
+			amtReg, err := st.compileCapAmount(*src.Bounded)
 			if err != nil {
 				return 0, err
 			}
-			amtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-				return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
-			})
 			overdraftReg = &amtReg
 		}
 
@@ -300,17 +311,10 @@ func (st *state) compileSource(
 		})
 
 	case *parser.SourceCapped:
-		clauseCapMonetaryReg, err := st.compileExpr(src.Cap)
+		clauseCapIntReg, err := st.compileCapAmount(src.Cap)
 		if err != nil {
 			return 0, err
 		}
-		clauseCapIntReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-			return unaryOp{
-				op:   opGetAmount{},
-				arg:  clauseCapMonetaryReg,
-				dest: dest,
-			}
-		})
 
 		var innerCapReg reg
 		if capReg == nil {
@@ -478,13 +482,10 @@ func (st *state) compileDestination(
 			return unaryOp{op: opIntCopy{}, arg: currentCap, dest: dest}
 		})
 		for _, clause := range dest.Clauses {
-			capMonReg, err := st.compileExpr(clause.Cap)
+			capAmtReg, err := st.compileCapAmount(clause.Cap)
 			if err != nil {
 				return err
 			}
-			capAmtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-				return unaryOp{op: opGetAmount{}, arg: capMonReg, dest: dest}
-			})
 			amtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 				return binaryOp{op: opMinInt{}, left: remaining, right: capAmtReg, dest: dest}
 			})
