@@ -148,6 +148,14 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_AssertLeftover:
+			leftover := &vm.portionsRegs[instr.A]
+			sign := leftover.Sign()
+			if sign < 0 || (instr.B == 1 && sign != 0) {
+				sum := new(big.Rat).Sub(big.NewRat(1, 1), leftover)
+				return nil, InvalidAllotmentSum{ActualSum: *sum}
+			}
+
 		case Op_SetCurrentAsset:
 			currentAsset = vm.stringsRegs[instr.A]
 			runstate.SetCurrentAsset(currentAsset)

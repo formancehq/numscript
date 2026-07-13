@@ -46,6 +46,13 @@ func (i checkEnoughFunds) String() string {
 	return fmt.Sprintf("check_enough_funds(%s, %s)", i.got, i.needed)
 }
 
+func (i assertLeftover) String() string {
+	if i.exact {
+		return fmt.Sprintf("assert_leftover(%s, exact: true)", i.portion)
+	}
+	return fmt.Sprintf("assert_leftover(%s)", i.portion)
+}
+
 func (i setCurrentAsset) String() string {
 	return fmt.Sprintf("set_current_asset(%s)", i.asset)
 }

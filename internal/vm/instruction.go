@@ -48,6 +48,11 @@ const (
 	// --- funds ---
 	Op_CheckEnoughFunds
 
+	// checks the allotment leftover portion in reg A: errors if it is negative
+	// (portions summing to > 1), and — when B == 1 (no `remaining` clause) — if it
+	// is non-zero (portions not summing to exactly 1)
+	Op_AssertLeftover
+
 	// --- PullAccount (cap? × overdraft) ---
 
 	// The most general form:

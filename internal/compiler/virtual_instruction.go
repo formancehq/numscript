@@ -49,9 +49,13 @@ type (
 		amount   reg   // int
 		portions []reg // portion, len N
 	}
-	checkEnoughFunds    struct{ got, needed reg } // int
-	setCurrentAsset     struct{ asset reg }       // str
-	checkEqCurrentAsset struct{ got reg }         // str
+	checkEnoughFunds struct{ got, needed reg } // int
+	assertLeftover   struct {
+		portion reg  // the allotment leftover (1 - sum of the given portions)
+		exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
+	}
+	setCurrentAsset     struct{ asset reg } // str
+	checkEqCurrentAsset struct{ got reg }   // str
 	fetchVariable       struct {
 		dest  reg
 		index uint32
@@ -96,6 +100,9 @@ func (i makeAllotment) sources() []reg { return append(append([]reg{}, i.portion
 
 func (i checkEnoughFunds) dests() []reg   { return nil }
 func (i checkEnoughFunds) sources() []reg { return []reg{i.got, i.needed} }
+
+func (i assertLeftover) dests() []reg   { return nil }
+func (i assertLeftover) sources() []reg { return []reg{i.portion} }
 
 func (i setCurrentAsset) dests() []reg   { return nil }
 func (i setCurrentAsset) sources() []reg { return []reg{i.asset} }
