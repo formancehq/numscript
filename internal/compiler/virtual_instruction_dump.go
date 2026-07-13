@@ -34,15 +34,8 @@ func (i pullAccount) String() string {
 }
 
 func (i sendToAccount) String() string {
-	opts := joinOpts(optLabel("cap", i.cap))
-	if i.account == nil {
-		return fmt.Sprintf("kept(%s)", opts)
-	}
-	s := fmt.Sprintf("send_to_account(%s", *i.account)
-	if opts != "" {
-		s += ", " + opts
-	}
-	return s + ")"
+	opts := joinOpts(optLabel("account", i.account), optLabel("cap", i.cap))
+	return fmt.Sprintf("send_to_account(%s)", opts)
 }
 
 func (i makeAllotment) String() string {

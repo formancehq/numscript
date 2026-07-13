@@ -38,7 +38,7 @@ func TestSimpleProgram(t *testing.T) {
   $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
   check_enough_funds($r7, $r4)
   $r8 <- load_const("dest")
-  send_to_account($r8)
+  send_to_account(account: $r8)
 `))
 }
 
@@ -82,7 +82,7 @@ func TestInorder(t *testing.T) {
 #inorder_end_0
   check_enough_funds($r5, $r4)
   $r16 <- load_const("dest")
-  send_to_account($r16)
+  send_to_account(account: $r16)
 `))
 }
 
@@ -131,7 +131,7 @@ func TestInorderWithCap(t *testing.T) {
 #inorder_end_0
   check_enough_funds($r5, $r4)
   $r21 <- load_const("dest")
-  send_to_account($r21)
+  send_to_account(account: $r21)
 `))
 }
 
@@ -162,8 +162,8 @@ func TestDestInorder(t *testing.T) {
   $r10 <- mk_monetary($r8, $r9)
   $r11 <- get_amount($r10)
   $r12 <- load_const("d1")
-  send_to_account($r12, cap: $r11)
+  send_to_account(account: $r12, cap: $r11)
   $r13 <- load_const("d2")
-  send_to_account($r13)
+  send_to_account(account: $r13)
 `))
 }
