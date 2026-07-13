@@ -125,7 +125,6 @@ func TestInorderSend(t *testing.T) {
 		t.Fatalf("Exec returned error: %v", err)
 	}
 
-
 	want := []runtime.Posting{
 		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
