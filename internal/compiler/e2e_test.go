@@ -624,6 +624,46 @@ func TestE2E_GetAsset(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_PrefixMinusNumber(t *testing.T) {
+	// $neg = -10 (prefix on literal), $pos = -$neg = 10 (prefix on var)
+	src := `
+		vars {
+			number $neg = -10
+			number $pos = -$neg
+		}
+		send [USD/2 $pos] (
+			source = @src
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
+func TestE2E_PrefixMinusMonetary(t *testing.T) {
+	// $neg_mon = [USD/2 -10], -$neg_mon = [USD/2 10]
+	src := `
+		vars {
+			monetary $neg_mon = [USD/2 -10]
+			monetary $pos_mon = -$neg_mon
+		}
+		send $pos_mon (
+			source = @src
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, postings)
+}
+
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)

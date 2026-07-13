@@ -224,6 +224,13 @@ func (opGetAmount) sig() unaryOpSig {
 		arg:    (*assembler).monetaryReg,
 	}
 }
+func (opNegInt) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_NegInt,
+		dest:   (*assembler).intReg,
+		arg:    (*assembler).intReg,
+	}
+}
 
 func (i unaryOp) assemble(a *assembler) error {
 	sig := i.op.sig()

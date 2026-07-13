@@ -194,6 +194,39 @@ func TestGetAsset(t *testing.T) {
 `))
 }
 
+func TestPrefixMinusMonetary(t *testing.T) {
+	out := getCompiledOutput(t, `
+		vars {
+			monetary $neg_mon = [USD/2 -10]
+			monetary $pos_mon = -$neg_mon
+		}
+		send $pos_mon (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(10)
+  $r2 <- neg_int($r1)
+  $r3 <- mk_monetary($r0, $r2)
+  $r4 <- get_amount($r3)
+  $r5 <- neg_int($r4)
+  $r6 <- get_asset($r3)
+  $r7 <- mk_monetary($r6, $r5)
+  $r8 <- get_asset($r7)
+  set_current_asset($r8)
+  $r9 <- get_amount($r7)
+  $r10 <- load_const("src")
+  $r11 <- load_const(0)
+  $r12 <- pull_account(account: $r10, cap: $r9, overdraft: $r11)
+  check_enough_funds($r12, $r9)
+  $r13 <- load_const("dest")
+  send_to_account(account: $r13)
+`))
+}
+
 func TestInorder(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (

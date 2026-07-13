@@ -252,6 +252,10 @@ func Exec[S Store](
 			arg := &vm.monetariesRegs[instr.B]
 			vm.intsRegs[instr.A].Set(&arg.amount)
 
+		case Op_NegInt:
+			arg := &vm.intsRegs[instr.B]
+			vm.intsRegs[instr.A].Neg(arg)
+
 		default:
 			panic("Invalid operation")
 		}

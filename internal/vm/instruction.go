@@ -89,6 +89,7 @@ const (
 	Op_GetAsset
 	Op_IntCopy
 	Op_PortionCopy
+	Op_NegInt
 
 	// --- BinaryOp ---
 	Op_MinInt

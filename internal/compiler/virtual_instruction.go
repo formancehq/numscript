@@ -33,6 +33,7 @@ type (
 	opPortionCopy struct{}
 	opGetAsset    struct{}
 	opGetAmount   struct{}
+	opNegInt      struct{}
 )
 
 type (

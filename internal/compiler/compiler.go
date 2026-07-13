@@ -278,7 +278,39 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		}
 
 	case *parser.Prefix:
-		panic("TODO compileExpr")
+		switch expr.Operator {
+		case parser.PrefixOperatorMinus:
+			argReg, err := st.compileExpr(expr.Expr)
+			if err != nil {
+				return 0, err
+			}
+			switch st.exprTypes[expr.Expr] {
+			case typecheck.TypeNumber:
+				return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+					return unaryOp{op: opNegInt{}, arg: argReg, dest: dest}
+				})
+
+			case typecheck.TypeMonetary:
+				amt := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAmount{}, arg: argReg, dest: dest}
+				})
+				negAmt := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opNegInt{}, arg: amt, dest: dest}
+				})
+				asset := st.pushInstructionWithDest(func(dest reg) vInstr {
+					return unaryOp{op: opGetAsset{}, arg: argReg, dest: dest}
+				})
+				return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+					return binaryOp{op: opMakeMonetary{}, left: asset, right: negAmt, dest: dest}
+				})
+
+			default:
+				panic("TODO compileExpr prefix - for unexpected type")
+			}
+
+		default:
+			panic("TODO compileExpr prefix op " + string(expr.Operator))
+		}
 
 	case *parser.FnCall:
 		switch expr.Caller.Name {
