@@ -59,10 +59,9 @@ type (
 		portion reg  // the allotment leftover (1 - sum of the given portions)
 		exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
 	}
-	setCurrentAsset     struct{ asset reg }       // str
-	checkEqCurrentAsset struct{ got reg }         // str
-	assertSameAsset     struct{ left, right reg } // str, str
-	fetchVariable       struct {
+	setCurrentAsset struct{ asset reg }       // str
+	assertSameAsset struct{ left, right reg } // str, str
+	fetchVariable   struct {
 		dest  reg
 		index uint32
 	}
@@ -121,9 +120,6 @@ func (i assertLeftover) sources() []reg { return []reg{i.portion} }
 
 func (i setCurrentAsset) dests() []reg   { return nil }
 func (i setCurrentAsset) sources() []reg { return []reg{i.asset} }
-
-func (i checkEqCurrentAsset) dests() []reg   { return nil }
-func (i checkEqCurrentAsset) sources() []reg { return []reg{i.got} }
 
 func (i assertSameAsset) dests() []reg   { return nil }
 func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }

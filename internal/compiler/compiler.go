@@ -14,11 +14,12 @@ type compiledProgramVirtual struct {
 }
 
 type state struct {
-	nextReg      int
-	nextLabelId  int
-	instructions []vInstr
-	vars         map[string]reg
-	exprTypes    map[parser.ValueExpr]typecheck.Type
+	nextReg         int
+	nextLabelId     int
+	instructions    []vInstr
+	vars            map[string]reg
+	exprTypes       map[parser.ValueExpr]typecheck.Type
+	currentAssetReg reg
 }
 
 func (st *state) getFreshReg() reg {
@@ -105,7 +106,7 @@ func (st *state) compileCapAmount(monExpr parser.ValueExpr) (reg, CompilerError)
 	assetReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 		return unaryOp{op: opGetAsset{}, arg: monReg, dest: dest}
 	})
-	st.pushInstruction(checkEqCurrentAsset{got: assetReg})
+	st.pushInstruction(assertSameAsset{left: assetReg, right: st.currentAssetReg})
 	return st.pushInstructionWithDest(func(dest reg) vInstr {
 		return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
 	}), nil
@@ -596,6 +597,7 @@ func (st *state) compileSentValue(
 		st.pushInstruction(setCurrentAsset{
 			asset: assetReg,
 		})
+		st.currentAssetReg = assetReg
 		capReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 			return unaryOp{
 				op:   opGetAmount{},
@@ -614,6 +616,7 @@ func (st *state) compileSentValue(
 		st.pushInstruction(setCurrentAsset{
 			asset: assetReg,
 		})
+		st.currentAssetReg = assetReg
 		return st.compileSource(nil, source)
 
 	default:

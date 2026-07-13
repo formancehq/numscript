@@ -36,8 +36,6 @@ const (
 	// --- misc / state ---
 	Op_SetCurrentAsset Opcode = iota
 
-	Op_CheckEqCurrentAsset
-
 	Op_AssertSameAsset
 
 	// --- variables / constants ---

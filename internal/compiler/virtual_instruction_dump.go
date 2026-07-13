@@ -64,10 +64,6 @@ func (i setCurrentAsset) String() string {
 	return fmt.Sprintf("set_current_asset(%s)", i.asset)
 }
 
-func (i checkEqCurrentAsset) String() string {
-	return fmt.Sprintf("check_eq_current_asset(%s)", i.got)
-}
-
 func (i assertSameAsset) String() string {
 	return fmt.Sprintf("assert_same_asset(%s, %s)", i.left, i.right)
 }

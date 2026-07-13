@@ -455,17 +455,6 @@ func (i sendToAccount) assemble(a *assembler) error {
 	return nil
 }
 
-func (i checkEqCurrentAsset) assemble(a *assembler) error {
-	asset, err := a.strReg(i.got)
-	if err != nil {
-		return err
-	}
-
-	a.emit(vm.Op_CheckEqCurrentAsset, asset, maxReg, maxReg)
-
-	return nil
-}
-
 func (i assertSameAsset) assemble(a *assembler) error {
 	left, err := a.strReg(i.left)
 	if err != nil {

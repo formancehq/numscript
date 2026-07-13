@@ -165,15 +165,6 @@ func Exec[S Store](
 			currentAsset = vm.stringsRegs[instr.A]
 			runstate.SetCurrentAsset(currentAsset)
 
-		case Op_CheckEqCurrentAsset:
-			got := vm.stringsRegs[instr.A]
-			if got != currentAsset {
-				return nil, AssetMismatchError{
-					Got:      got,
-					Expected: currentAsset,
-				}
-			}
-
 		case Op_AssertSameAsset:
 			left := vm.stringsRegs[instr.A]
 			right := vm.stringsRegs[instr.B]
