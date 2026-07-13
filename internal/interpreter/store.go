@@ -82,9 +82,20 @@ func (s StaticStore) GetBalances(_ context.Context, q BalanceQuery) (Balances, e
 	return output, nil
 }
 
-func (s StaticStore) GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error) {
-	if s.Meta == nil {
-		s.Meta = AccountsMetadata{}
+func (s StaticStore) GetAccountsMetadata(_ context.Context, q MetadataQuery) (AccountsMetadata, error) {
+	// mirror GetBalances: return only the queried (account, scope, key) rows,
+	// never the whole store. Callers cache what they query, so over-fetching
+	// here would cache keys that were never asked for.
+	var output AccountsMetadata
+	for _, item := range q {
+		for _, key := range item.Keys {
+			for _, row := range s.Meta {
+				if row.Account == item.Account && row.Scope == item.Scope && row.Key == key {
+					output = append(output, row)
+					break
+				}
+			}
+		}
 	}
-	return s.Meta, nil
+	return output, nil
 }

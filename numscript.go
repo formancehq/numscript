@@ -78,7 +78,13 @@ type (
 
 	InterpreterError = interpreter.InterpreterError
 	MissingFundsErr  = interpreter.MissingFundsErr
+
+	ResolvedDependencies = interpreter.ResolvedDependencies
+	AccountDependency    = interpreter.AccountDependency
+	MetaDependency       = interpreter.MetaDependency
 )
+
+var ErrScalingNotSupported = interpreter.ErrScalingNotSupported
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
 	return p.RunWithFeatureFlags(ctx, vars, store, nil)
@@ -103,6 +109,17 @@ func (p ParseResult) RunWithFeatureFlags(
 		return ExecutionResult{}, err
 	}
 	return *res, nil
+}
+
+// ResolveDependencies statically determines which accounts and metadata the
+// script reads and writes, resolving account/asset/key expressions against the
+// given vars and store.
+func (p ParseResult) ResolveDependencies(ctx context.Context, vars VariablesMap, store Store) (ResolvedDependencies, error) {
+	if len(p.parseResult.Errors) != 0 {
+		return ResolvedDependencies{}, p.parseResult.Errors[0]
+	}
+
+	return interpreter.ResolveDependencies(ctx, store, vars, p.parseResult.Value)
 }
 
 func (p ParseResult) GetSource() string {

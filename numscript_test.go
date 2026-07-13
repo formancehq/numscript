@@ -557,3 +557,23 @@ func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) 
 func (*ErrorStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	return nil, errors.New("Error while fetching metadata")
 }
+
+func TestResolveDependenciesPublicAPI(t *testing.T) {
+	parsed := numscript.Parse(`
+		send [USD 10] (
+			source = @alice
+			destination = @bob
+		)
+	`)
+
+	deps, err := parsed.ResolveDependencies(context.Background(), nil, numscript.StaticStore{})
+	require.NoError(t, err)
+
+	require.Equal(t, map[numscript.AccountDependency]struct{}{
+		{Account: "alice", Asset: "USD"}: {},
+	}, deps.AccountsReads)
+	require.Equal(t, map[numscript.AccountDependency]struct{}{
+		{Account: "alice", Asset: "USD"}: {},
+		{Account: "bob", Asset: "USD"}:   {},
+	}, deps.AccountsWrites)
+}
