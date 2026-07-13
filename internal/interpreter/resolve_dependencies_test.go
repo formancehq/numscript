@@ -775,3 +775,26 @@ func TestResolveSaveIsRead(t *testing.T) {
 	}, deps.AccountsReads)
 	require.Empty(t, deps.AccountsWrites)
 }
+
+func TestResolveMultipleMetaKeysAreAllReads(t *testing.T) {
+	deps := resolve(t, `
+		vars {
+			account $x = meta(@config, "recipient")
+			account $y = meta(@config, "fallback")
+		}
+		send [USD 10] (
+			source = $x allowing unbounded overdraft
+			destination = $y
+		)
+	`, nil, interpreter.StaticStore{
+		Meta: interpreter.AccountsMetadata{
+			{Account: "config", Key: "recipient", Value: "alice"},
+			{Account: "config", Key: "fallback", Value: "bob"},
+		},
+	})
+
+	require.Equal(t, map[interpreter.MetaDependency]struct{}{
+		{Account: "config", Key: "recipient"}: {},
+		{Account: "config", Key: "fallback"}:  {},
+	}, deps.MetaReads)
+}

@@ -1,37 +1,43 @@
 package interpreter
 
-// metadataKey identifies a single account-metadata entry in the in-memory cache.
+// metadataKey identifies a single account-metadata entry. Used as the key of
+// the write-side internalSetAccountsMeta.
 type metadataKey struct {
 	Account string
 	Scope   string
 	Key     string
 }
 
-// InternalAccountsMetadata is the read-side in-memory cache of the (opaque,
-// string-valued) input account metadata. Whereas the external representation
-// (interpreter.AccountsMetadata) is the user-facing serialized contract, this
-// one is used internally by the runtime and may change over time. The set/output
-// side is handled separately by internalSetAccountsMeta (typed values).
-type InternalAccountsMetadata map[metadataKey]string
+// An internal representation of the account metadata. Used to cache metadata we get from external store.
+// Whereas the external representation (interpreter.AccountsMetadata) is user-facing and a stable contract,
+// this one is used internally by the runtime, and could change over time, for example to add more indexes for faster lookups.
+// It mirrors InternalBalances: keyed by the (account, scope) pair, holding that account's (key -> value) entries.
+type InternalAccountsMetadata map[AccountAddress]map[string]string
 
-// FromAccountsMetadataRows builds the read cache from the external rows.
-func FromAccountsMetadataRows(rows AccountsMetadata) InternalAccountsMetadata {
-	out := make(InternalAccountsMetadata, len(rows))
-	for _, row := range rows {
-		out[metadataKey{Account: row.Account, Scope: row.Scope, Key: row.Key}] = row.Value
-	}
-	return out
-}
-
-// Get returns the value for a given (account, scope, key), if present.
-func (m InternalAccountsMetadata) Get(account, scope, key string) (string, bool) {
-	value, ok := m[metadataKey{Account: account, Scope: scope, Key: key}]
+// Get the (account, key) metadata value from the cache.
+func (m InternalAccountsMetadata) Get(account AccountAddress, key string) (string, bool) {
+	value, ok := m[account][key]
 	return value, ok
 }
 
-// Merge adds the given rows into the cache, keeping already-cached entries.
+func (m InternalAccountsMetadata) has(account AccountAddress, key string) bool {
+	_, ok := m[account][key]
+	return ok
+}
+
+// Set assigns value to the (account, key) metadata entry.
+func (m InternalAccountsMetadata) Set(account AccountAddress, key string, value string) {
+	entries := m[account]
+	if entries == nil {
+		entries = map[string]string{}
+		m[account] = entries
+	}
+	entries[key] = value
+}
+
+// Merge the queried metadata rows into the cache.
 func (m InternalAccountsMetadata) Merge(rows AccountsMetadata) {
 	for _, row := range rows {
-		m[metadataKey{Account: row.Account, Scope: row.Scope, Key: row.Key}] = row.Value
+		m.Set(AccountAddress{Name: row.Account, Scope: row.Scope}, row.Key, row.Value)
 	}
 }

@@ -60,19 +60,17 @@ func (env *evalEnv) getBalance(account AccountAddress, asset Asset) (*big.Int, I
 }
 
 func (env *evalEnv) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
-	if value, ok := env.CachedAccountsMeta.Get(account.Name, account.Scope, key); ok {
-		return value, true, nil
+	if !env.CachedAccountsMeta.has(account, key) {
+		rows, err := env.Store.GetAccountsMetadata(env.ctx, MetadataQuery{
+			{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
+		})
+		if err != nil {
+			return "", false, QueryMetadataError{WrappedError: err}
+		}
+		env.CachedAccountsMeta.Merge(rows)
 	}
 
-	rows, err := env.Store.GetAccountsMetadata(env.ctx, MetadataQuery{
-		{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
-	})
-	if err != nil {
-		return "", false, QueryMetadataError{WrappedError: err}
-	}
-	env.CachedAccountsMeta.Merge(rows)
-
-	value, ok := env.CachedAccountsMeta.Get(account.Name, account.Scope, key)
+	value, ok := env.CachedAccountsMeta.Get(account, key)
 	return value, ok, nil
 }
 
