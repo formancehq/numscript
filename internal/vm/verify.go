@@ -44,6 +44,13 @@ type programInfo struct {
 	varStrsLen int
 }
 
+// Verify statically checks that a program is safe to execute: a nil result
+// guarantees the execution loop cannot read out of bounds or crash on it.
+func Verify(p Program) error {
+	_, err := verify(p)
+	return err
+}
+
 func instrWords(op byte) int {
 	switch Opcode(op) {
 	case Op_PullAccount, Op_MkAllotment:
