@@ -9,7 +9,12 @@ const (
 	bankStr
 	bankPortion
 	bankMonetary
+	// bankCurrentAsset is a pseudo-bank with a single slot, tracking whether the
+	// current asset has been set. It is never allocated as a register.
+	bankCurrentAsset
 )
+
+var currentAssetRef = regRef{bankCurrentAsset, 0}
 
 type regRef struct {
 	bank  regBank
@@ -141,7 +146,65 @@ func verify(p Program) (programInfo, error) {
 		}
 	}
 
+	// definite assignment: a register (or the current asset) may only be read if
+	// it was written on every path reaching that instruction. Jumps are forward
+	// (checked above), so every predecessor is earlier and one ordered pass over
+	// the intersection of predecessors' written-sets suffices.
+	at2idx := make(map[int]int, len(steps))
+	for k, st := range steps {
+		at2idx[st.at] = k
+	}
+	preds := make([][]int, len(steps))
+	for k, st := range steps {
+		if j, ok := at2idx[st.at+instrWords(instrs[st.at].Opcode)]; ok {
+			preds[j] = append(preds[j], k)
+		}
+		if st.d.jumpTarget >= 0 {
+			if j, ok := at2idx[st.d.jumpTarget]; ok {
+				preds[j] = append(preds[j], k)
+			}
+		}
+	}
+	assignedOut := make([]map[regRef]bool, len(steps))
+	for k, st := range steps {
+		in := intersectAssigned(assignedOut, preds[k])
+		for _, r := range st.d.reads {
+			if !in[r] {
+				return programInfo{}, fmt.Errorf("at instruction %d: %s read before being assigned on all paths", st.at, describeRef(r))
+			}
+		}
+		for _, r := range st.d.writes {
+			in[r] = true
+		}
+		assignedOut[k] = in
+	}
+
 	return info, nil
+}
+
+func intersectAssigned(out []map[regRef]bool, preds []int) map[regRef]bool {
+	res := map[regRef]bool{}
+	if len(preds) == 0 {
+		return res
+	}
+	for r := range out[preds[0]] {
+		res[r] = true
+	}
+	for _, p := range preds[1:] {
+		for r := range res {
+			if !out[p][r] {
+				delete(res, r)
+			}
+		}
+	}
+	return res
+}
+
+func describeRef(r regRef) string {
+	if r.bank == bankCurrentAsset {
+		return "current asset"
+	}
+	return fmt.Sprintf("register (bank %d, index %d)", r.bank, r.index)
 }
 
 func decodeInstr(instr, ext Instruction) (decoded, error) {
@@ -160,11 +223,13 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		readOpt(bankInt, instr.C)
 		readOpt(bankInt, ext.A)
 		readOpt(bankStr, ext.B)
+		d.reads = append(d.reads, currentAssetRef)
 		write(bankInt, instr.A)
 	case Op_SendToAccount:
 		readOpt(bankStr, instr.A)
 		readOpt(bankInt, instr.B)
 		readOpt(bankStr, instr.C)
+		d.reads = append(d.reads, currentAssetRef)
 	case Op_MkAllotment:
 		for j := int(instr.A); j < int(instr.A)+int(instr.C); j++ {
 			d.writes = append(d.writes, regRef{bankInt, j})
@@ -184,6 +249,7 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankPortion, instr.A)
 	case Op_SetCurrentAsset:
 		read(bankStr, instr.A)
+		d.writes = append(d.writes, currentAssetRef)
 	case Op_AssertSameAsset:
 		read(bankStr, instr.A)
 		read(bankStr, instr.B)

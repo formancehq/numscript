@@ -49,6 +49,25 @@ func TestVerify_MissingVars(t *testing.T) {
 	}
 }
 
+func TestVerify_ReadNotAssignedOnAllPaths(t *testing.T) {
+	// r1 is written only on the fall-through path; the jump skips to instr 3
+	// which reads it, so it is not assigned on every path.
+	mustReject(t, Program{Instructions: []Instruction{
+		bc(Op_LoadInt, 0, 0),         // 0: r0 = 0
+		bc(Op_JmpIfZero, 0, 3),       // 1: if r0==0 skip to 3
+		bc(Op_LoadInt, 1, 0),         // 2: r1 = 0 (skipped when jumping)
+		abc(Op_NegInt, 2, 1, nilReg), // 3: r2 = -r1  (r1 maybe unassigned)
+	}, IntsPool: []big.Int{*big.NewInt(0)}})
+}
+
+func TestVerify_CurrentAssetNotSet(t *testing.T) {
+	// a send before any set_current_asset
+	mustReject(t, Program{Instructions: []Instruction{
+		bc(Op_LoadStr, 0, 0), // r0 = "dest"
+		abc(Op_SendToAccount, 0, nilReg, nilReg),
+	}, StringsPool: []string{"dest"}})
+}
+
 func TestVerify_SizesBanksToNeed(t *testing.T) {
 	// a program using int reg 5 must get an int bank of at least 6
 	p := Program{Instructions: []Instruction{bc(Op_LoadInt, 5, 0)}, IntsPool: []big.Int{*big.NewInt(1)}}
