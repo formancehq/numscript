@@ -45,6 +45,25 @@ func TestE2E_ExternalVars(t *testing.T) {
 	requirePostingsEqual(t, want, res.Postings)
 }
 
+func TestE2E_InvalidInterpolatedAccount(t *testing.T) {
+	src := `
+		vars { string $status }
+		set_tx_meta("k", @user:$status)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	enc, program, err := compiler.Compile(parsed.Value)
+	require.NoError(t, err)
+
+	vars, err := enc.Encode(map[string]string{"status": "!invalid acc.."})
+	require.NoError(t, err)
+
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.Equal(t, vm.InvalidAccountName{Name: "user:!invalid acc.."}, execErr)
+}
+
 func compileEncoder(t *testing.T, src string) compiler.VarsEncoder {
 	t.Helper()
 	parsed := parser.Parse(src)

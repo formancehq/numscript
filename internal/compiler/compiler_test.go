@@ -323,6 +323,7 @@ func TestAccountInterpolation(t *testing.T) {
   $r14 <- add_string($r13, $r0)
   $r15 <- add_string($r14, $r11)
   $r16 <- add_string($r15, $r12)
+  assert_valid_account($r16)
   send_to_account(account: $r16)
 `))
 }
@@ -355,6 +356,7 @@ func TestAccountInterpolationInt(t *testing.T) {
   $r11 <- int_to_string($r0)
   $r12 <- add_string($r9, $r10)
   $r13 <- add_string($r12, $r11)
+  assert_valid_account($r13)
   send_to_account(account: $r13)
 `))
 }

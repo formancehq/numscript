@@ -192,6 +192,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 
 	case *parser.AccountInterpLiteral:
 		var parts []reg
+		hasVar := false
 		for _, part := range expr.Parts {
 			switch part := part.(type) {
 			case parser.AccountTextPart:
@@ -203,6 +204,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
+				hasVar = true
 				r, err := st.compileExpr(part)
 				if err != nil {
 					return 0, err
@@ -226,6 +228,11 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			acc = st.pushInstructionWithDest(func(dest reg) vInstr {
 				return binaryOp{op: opAddString{}, left: left, right: right, dest: dest}
 			})
+		}
+		// an interpolated var can inject chars that make the name ill-formed;
+		// all-text literals are valid by construction, so skip the check
+		if hasVar {
+			st.pushInstruction(assertValidAccount{account: acc})
 		}
 		return acc, nil
 

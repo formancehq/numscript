@@ -506,6 +506,17 @@ func (i assertSameAsset) assemble(a *assembler) error {
 	return nil
 }
 
+func (i assertValidAccount) assemble(a *assembler) error {
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertValidAccount, account, maxReg, maxReg)
+
+	return nil
+}
+
 func (i setTxMeta) assemble(a *assembler) error {
 	key, err := a.strReg(i.key)
 	if err != nil {

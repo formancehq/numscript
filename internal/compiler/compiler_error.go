@@ -35,10 +35,8 @@ type (
 		parser.Range
 	}
 
-	// CannotCastToString is reported when an account-interpolation part has a
-	// type that has no string representation (monetary, asset, portion). Mirrors
-	// the interpreter's runtime error of the same name; the compiler catches it
-	// statically since the part's type is known at compile time.
+	// CannotCastToString is reported for an interpolation part whose type has no
+	// string form (monetary, asset, portion).
 	CannotCastToString struct {
 		parser.Range
 		Type typecheck.Type

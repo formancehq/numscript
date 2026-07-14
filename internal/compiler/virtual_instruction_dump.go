@@ -73,6 +73,10 @@ func (i assertSameAsset) String() string {
 	return fmt.Sprintf("assert_same_asset(%s, %s)", i.left, i.right)
 }
 
+func (i assertValidAccount) String() string {
+	return fmt.Sprintf("assert_valid_account(%s)", i.account)
+}
+
 func (i setTxMeta) String() string {
 	return fmt.Sprintf("set_tx_meta(%s, %s)", i.key, i.value)
 }
