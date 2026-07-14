@@ -19,6 +19,10 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
 	}
 
+	if err := typecheckInstructions(compiled.instructions); err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
 	prog, err := assembleProgram(compiled.instructions)
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
