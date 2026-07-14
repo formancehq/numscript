@@ -52,6 +52,8 @@ func Exec[S Store](
 	}
 	runstate := vm.runstate
 
+	var txMeta map[string]string
+
 	instrs := vm.program.Instructions
 	instructionsLen := len(instrs)
 
@@ -175,6 +177,12 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_SetTxMeta:
+			if txMeta == nil {
+				txMeta = map[string]string{}
+			}
+			txMeta[vm.stringsRegs[instr.A]] = vm.stringsRegs[instr.B]
+
 			// --- Vars
 		case Op_LoadVarInt:
 			vm.intsRegs[instr.A].Set(&vars.IntsPool[instr.GetBC()])
@@ -278,5 +286,6 @@ func Exec[S Store](
 
 	return runtime.ExecutionResult{
 		Postings: runstate.GetPostings(),
+		Metadata: txMeta,
 	}, nil
 }

@@ -492,6 +492,21 @@ func (i assertSameAsset) assemble(a *assembler) error {
 	return nil
 }
 
+func (i setTxMeta) assemble(a *assembler) error {
+	key, err := a.strReg(i.key)
+	if err != nil {
+		return err
+	}
+	value, err := a.strReg(i.value)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_SetTxMeta, key, value, maxReg)
+
+	return nil
+}
+
 func (i fetchBalance) assemble(a *assembler) error {
 	dest, err := a.monetaryReg(i.dest)
 	if err != nil {
