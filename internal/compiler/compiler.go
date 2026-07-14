@@ -28,6 +28,11 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 		return VarsEncoder{}, vm.Program{}, err
 	}
 
+	// the compiler must never emit code the VM would reject
+	if err := vm.Verify(prog); err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
 	return compiled.varsEncoder, prog, nil
 }
 
