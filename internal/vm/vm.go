@@ -53,6 +53,7 @@ func Exec[S Store](
 	runstate := vm.runstate
 
 	var txMeta map[string]string
+	var accountsMeta runtime.AccountsMetadata
 
 	instrs := vm.program.Instructions
 	instructionsLen := len(instrs)
@@ -183,6 +184,18 @@ func Exec[S Store](
 			}
 			txMeta[vm.stringsRegs[instr.A]] = vm.stringsRegs[instr.B]
 
+		case Op_SetAccountMeta:
+			if accountsMeta == nil {
+				accountsMeta = runtime.AccountsMetadata{}
+			}
+			account := vm.stringsRegs[instr.A]
+			accMeta := accountsMeta[account]
+			if accMeta == nil {
+				accMeta = runtime.AccountMetadata{}
+				accountsMeta[account] = accMeta
+			}
+			accMeta[vm.stringsRegs[instr.B]] = vm.stringsRegs[instr.C]
+
 			// --- Vars
 		case Op_LoadVarInt:
 			vm.intsRegs[instr.A].Set(&vars.IntsPool[instr.GetBC()])
@@ -292,7 +305,8 @@ func Exec[S Store](
 	}
 
 	return runtime.ExecutionResult{
-		Postings: runstate.GetPostings(),
-		Metadata: txMeta,
+		Postings:         runstate.GetPostings(),
+		Metadata:         txMeta,
+		AccountsMetadata: accountsMeta,
 	}, nil
 }
