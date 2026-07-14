@@ -67,11 +67,9 @@ var scriptsBlacklist = []string{
 	"metadata.num",
 	"overdraft-when-negative-balance-in-send-all.num",
 	"overdraft-when-negative-ovedraft-in-send-all.num",
-	"override-account-meta.num",
 	"send-all-destinatio-allot-complex.num",
 	"send-all-multi.num",
 	"send-allt-max-in-src.num",
-	"set-account-meta.num",
 }
 
 func TestCompilerScripts(t *testing.T) {
@@ -112,10 +110,6 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		if tc.Skip {
 			continue
 		}
-		if tc.ExpectAccountsMeta != nil {
-			t.Fatalf("case %q: account metadata assertions not supported by the VM", tc.It)
-		}
-
 		caseVars := map[string]string{}
 		maps.Copy(caseVars, specs.Vars)
 		maps.Copy(caseVars, tc.Vars)
@@ -137,6 +131,9 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		}
 		if tc.ExpectTxMeta != nil {
 			require.Equal(t, tc.ExpectTxMeta, res.Metadata, "case %q: tx metadata", tc.It)
+		}
+		if tc.ExpectAccountsMeta != nil {
+			require.Equal(t, tc.ExpectAccountsMeta, res.AccountsMetadata, "case %q: account metadata", tc.It)
 		}
 	}
 }

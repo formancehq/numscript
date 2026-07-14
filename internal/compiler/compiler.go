@@ -814,6 +814,22 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			st.pushInstruction(setTxMeta{key: key, value: value})
 			return nil
 
+		case builtins.SetAccountMeta:
+			account, err := st.compileExpr(stmt.Args[0])
+			if err != nil {
+				return err
+			}
+			key, err := st.compileExpr(stmt.Args[1])
+			if err != nil {
+				return err
+			}
+			value, err := st.compileMetaValue(stmt.Args[2])
+			if err != nil {
+				return err
+			}
+			st.pushInstruction(setAccountMeta{account: account, key: key, value: value})
+			return nil
+
 		default:
 			panic("TODO fn call statement: " + stmt.Caller.Name)
 		}

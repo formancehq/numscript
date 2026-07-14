@@ -521,6 +521,25 @@ func (i setTxMeta) assemble(a *assembler) error {
 	return nil
 }
 
+func (i setAccountMeta) assemble(a *assembler) error {
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+	key, err := a.strReg(i.key)
+	if err != nil {
+		return err
+	}
+	value, err := a.strReg(i.value)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_SetAccountMeta, account, key, value)
+
+	return nil
+}
+
 func (i fetchBalance) assemble(a *assembler) error {
 	dest, err := a.monetaryReg(i.dest)
 	if err != nil {

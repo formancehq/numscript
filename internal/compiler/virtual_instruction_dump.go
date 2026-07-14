@@ -77,6 +77,10 @@ func (i setTxMeta) String() string {
 	return fmt.Sprintf("set_tx_meta(%s, %s)", i.key, i.value)
 }
 
+func (i setAccountMeta) String() string {
+	return fmt.Sprintf("set_account_meta(%s, %s, %s)", i.account, i.key, i.value)
+}
+
 func (i fetchBalance) String() string {
 	return fmt.Sprintf("%s <- balance(%s, %s)", i.dest, i.account, i.asset)
 }

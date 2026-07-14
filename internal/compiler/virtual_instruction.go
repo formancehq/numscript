@@ -74,9 +74,10 @@ type (
 		portion reg  // the allotment leftover (1 - sum of the given portions)
 		exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
 	}
-	setCurrentAsset struct{ asset reg }       // str
-	assertSameAsset struct{ left, right reg } // str, str
-	setTxMeta       struct{ key, value reg }  // str, str
+	setCurrentAsset struct{ asset reg }               // str
+	assertSameAsset struct{ left, right reg }         // str, str
+	setTxMeta       struct{ key, value reg }          // str, str
+	setAccountMeta  struct{ account, key, value reg } // str, str, str
 	fetchBalance    struct {
 		dest           reg // monetary
 		account, asset reg // str, str
@@ -147,6 +148,9 @@ func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }
 
 func (i setTxMeta) dests() []reg   { return nil }
 func (i setTxMeta) sources() []reg { return []reg{i.key, i.value} }
+
+func (i setAccountMeta) dests() []reg   { return nil }
+func (i setAccountMeta) sources() []reg { return []reg{i.account, i.key, i.value} }
 
 func (i fetchBalance) dests() []reg   { return []reg{i.dest} }
 func (i fetchBalance) sources() []reg { return []reg{i.account, i.asset} }
