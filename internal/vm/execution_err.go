@@ -48,7 +48,15 @@ type (
 		Account string
 		Amount  big.Int
 	}
+
+	DivideByZeroError struct {
+		Numerator big.Int
+	}
 )
+
+func (e DivideByZeroError) Error() string {
+	return fmt.Sprintf("cannot divide by zero (in %s/0)", e.Numerator.String())
+}
 
 func (e InvalidAccountName) Error() string {
 	return fmt.Sprintf("invalid account name: %q", e.Name)
@@ -78,6 +86,7 @@ func (MetadataNotFoundError) execErr() {}
 func (BadMetaValueError) execErr()     {}
 func (InvalidAccountName) execErr()    {}
 func (NegativeBalanceError) execErr()  {}
+func (DivideByZeroError) execErr()     {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -88,4 +97,5 @@ var (
 	_ ExecutionError = (*BadMetaValueError)(nil)
 	_ ExecutionError = (*InvalidAccountName)(nil)
 	_ ExecutionError = (*NegativeBalanceError)(nil)
+	_ ExecutionError = (*DivideByZeroError)(nil)
 )

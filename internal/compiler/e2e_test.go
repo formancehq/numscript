@@ -918,6 +918,25 @@ func TestE2E_BalanceNegativeErrors(t *testing.T) {
 	require.IsType(t, vm.NegativeBalanceError{}, execErr)
 }
 
+func TestE2E_DivideByZero(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/0 to @a
+				remaining kept
+			}
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value)
+	require.Nil(t, cErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	require.IsType(t, vm.DivideByZeroError{}, execErr)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

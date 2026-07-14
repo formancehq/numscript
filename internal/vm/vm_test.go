@@ -175,6 +175,21 @@ func TestAssertNonNegativeBalance(t *testing.T) {
 	}
 }
 
+func TestMkPortionDivideByZero(t *testing.T) {
+	prog := Program{
+		Instructions: []Instruction{
+			bc(Op_LoadInt, 0, 0),
+			bc(Op_LoadInt, 1, 1),
+			abc(Op_MkPortion, 0, 0, 1),
+		},
+		IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(0)},
+	}
+	_, err := Exec(NewVm(prog), nil, mockStore{})
+	if _, ok := err.(DivideByZeroError); !ok {
+		t.Fatalf("expected DivideByZeroError, got %v", err)
+	}
+}
+
 func TestAssertValidAccount(t *testing.T) {
 	_, err := Exec(NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
 	if err != nil {

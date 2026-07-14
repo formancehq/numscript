@@ -320,6 +320,9 @@ func Exec[S Store](
 		case Op_MkPortion:
 			num := &vm.intsRegs[instr.B]
 			den := &vm.intsRegs[instr.C]
+			if den.Sign() == 0 {
+				return runtime.ExecutionResult{}, DivideByZeroError{Numerator: *num}
+			}
 			vm.portionsRegs[instr.A].SetFrac(num, den)
 
 		case Op_MkMonetary:
