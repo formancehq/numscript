@@ -71,6 +71,10 @@ func (i assertSameAsset) String() string {
 	return fmt.Sprintf("assert_same_asset(%s, %s)", i.left, i.right)
 }
 
+func (i setTxMeta) String() string {
+	return fmt.Sprintf("set_tx_meta(%s, %s)", i.key, i.value)
+}
+
 func (i fetchBalance) String() string {
 	return fmt.Sprintf("%s <- balance(%s, %s)", i.dest, i.account, i.asset)
 }

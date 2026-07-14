@@ -63,7 +63,6 @@ var scriptsBlacklist = []string{
 	"experimental/overdraft-function/reach-zero.num",
 
 	// unimplemented core features
-	"add-numbers.num",
 	"feature-flag-syntax.num",
 	"metadata.num",
 	"overdraft-when-negative-balance-in-send-all.num",
@@ -75,9 +74,7 @@ var scriptsBlacklist = []string{
 	"set-account-meta.num",
 	"set-tx-meta.num",
 	"sub-monetaries.num",
-	"sub-numbers.num",
 	"variables-json.num",
-	"variables.num",
 }
 
 func TestCompilerScripts(t *testing.T) {
@@ -118,8 +115,8 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		if tc.Skip {
 			continue
 		}
-		if tc.ExpectTxMeta != nil || tc.ExpectAccountsMeta != nil {
-			t.Fatalf("case %q: metadata assertions not supported by the VM", tc.It)
+		if tc.ExpectAccountsMeta != nil {
+			t.Fatalf("case %q: account metadata assertions not supported by the VM", tc.It)
 		}
 
 		caseVars := map[string]string{}
@@ -140,6 +137,9 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 
 		if tc.ExpectPostings != nil {
 			requirePostingsEqual(t, tc.ExpectPostings, res.Postings)
+		}
+		if tc.ExpectTxMeta != nil {
+			require.Equal(t, tc.ExpectTxMeta, res.Metadata, "case %q: tx metadata", tc.It)
 		}
 	}
 }

@@ -38,6 +38,10 @@ const (
 
 	Op_AssertSameAsset
 
+	// --- metadata ---
+	// A = key (str reg), B = value (str reg)
+	Op_SetTxMeta
+
 	// --- variables ---
 	Op_LoadVarInt // b_c = int-var index
 	Op_LoadVarStr // b_c = string-var index

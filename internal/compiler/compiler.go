@@ -801,10 +801,46 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 		st.pushInstruction(save{account: accReg, asset: assetReg, amount: amountReg})
 		return nil
 	case *parser.FnCall:
-		panic("TODO fn call")
+		switch stmt.Caller.Name {
+		case builtins.SetTxMeta:
+			key, err := st.compileExpr(stmt.Args[0])
+			if err != nil {
+				return err
+			}
+			value, err := st.compileMetaValue(stmt.Args[1])
+			if err != nil {
+				return err
+			}
+			st.pushInstruction(setTxMeta{key: key, value: value})
+			return nil
+
+		default:
+			panic("TODO fn call statement: " + stmt.Caller.Name)
+		}
 
 	default:
 		return utils.NonExhaustiveMatchPanic[CompilerError](stmt)
+	}
+}
+
+// compileMetaValue compiles a value into a string register (metadata is stored
+// stringified). Strings/accounts/assets already live in string registers;
+// numbers go through int_to_string.
+func (st *state) compileMetaValue(expr parser.ValueExpr) (reg, CompilerError) {
+	r, err := st.compileExpr(expr)
+	if err != nil {
+		return 0, err
+	}
+
+	switch st.exprTypes[expr] {
+	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
+		return r, nil
+	case typecheck.TypeNumber:
+		return st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{op: opIntToString{}, arg: r, dest: dest}
+		}), nil
+	default:
+		panic("TODO meta value of type " + st.exprTypes[expr])
 	}
 }
 

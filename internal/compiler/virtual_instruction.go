@@ -74,6 +74,7 @@ type (
 	}
 	setCurrentAsset struct{ asset reg }       // str
 	assertSameAsset struct{ left, right reg } // str, str
+	setTxMeta       struct{ key, value reg }  // str, str
 	fetchBalance    struct {
 		dest           reg // monetary
 		account, asset reg // str, str
@@ -141,6 +142,9 @@ func (i setCurrentAsset) sources() []reg { return []reg{i.asset} }
 
 func (i assertSameAsset) dests() []reg   { return nil }
 func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }
+
+func (i setTxMeta) dests() []reg   { return nil }
+func (i setTxMeta) sources() []reg { return []reg{i.key, i.value} }
 
 func (i fetchBalance) dests() []reg   { return []reg{i.dest} }
 func (i fetchBalance) sources() []reg { return []reg{i.account, i.asset} }
