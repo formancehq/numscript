@@ -236,8 +236,11 @@ func (s *RunState) Pull(out *big.Int, src string, cap *big.Int, overdraft *big.I
 }
 
 // PullUncapped mirrors the OCaml `pull_uncapped`: makes available
-// max(0, balance + overdraftBound) of src's (currentAsset, color) balance,
-// queuing it only when positive, and writes the available amount into out.
+// max(0, balance + max(0, overdraftBound)) of src's (currentAsset, color)
+// balance, queuing it only when positive, and writes the available amount into
+// out. As in Pull, a negative overdraftBound is clamped to 0 (a nonsensical
+// negative bound never eats into the positive balance); pass big.NewInt(0) for
+// the "balance only" default.
 //
 // Like Pull, the result is written into the caller-provided out (no return
 // allocation; out may be any addressable *big.Int). overdraftBound is not
@@ -247,8 +250,11 @@ func (s *RunState) Pull(out *big.Int, src string, cap *big.Int, overdraft *big.I
 func (s *RunState) PullUncapped(out *big.Int, src string, overdraftBound *big.Int, color string) {
 	currentBal := s.cachedBalance(src, s.currentAsset, color)
 
-	// available = max(0, currentBal + overdraftBound)
-	out.Add(currentBal, overdraftBound)
+	// available = max(0, currentBal + max(0, overdraftBound))
+	out.Set(currentBal)
+	if overdraftBound.Sign() > 0 {
+		out.Add(out, overdraftBound)
+	}
 	if out.Sign() < 0 {
 		out.SetInt64(0)
 	}

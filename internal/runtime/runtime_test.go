@@ -311,11 +311,19 @@ func TestPullUncapped_ZeroNotQueuedNorDebited(t *testing.T) {
 	wantPostings(t, rs, []runtime.Posting{})
 }
 
-func TestPullUncapped_NegativeEffectiveNotQueued(t *testing.T) {
+func TestPullUncapped_NegativeOverdraftBoundClamped(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: 10})
-	got := pullUncapped(rs, "A", big.NewInt(-50), "") // max(0, 10-50) = 0
+	// bound clamped to 0 -> effective = max(0, 10+0) = 10
+	got := pullUncapped(rs, "A", big.NewInt(-50), "")
+	wantReturn(t, "PullUncapped", got, 10)
+	wantBalance(t, rs, "A", 0)
+}
+
+func TestPullUncapped_NegativeEffectiveNotQueued(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", usd, ""}: -5})
+	got := pullUncapped(rs, "A", big.NewInt(0), "") // max(0, -5+0) = 0
 	wantReturn(t, "PullUncapped", got, 0)
-	wantBalance(t, rs, "A", 10)
+	wantBalance(t, rs, "A", -5)
 	rs.SendUncapped(strptr("X"), nil)
 	wantPostings(t, rs, []runtime.Posting{})
 }
