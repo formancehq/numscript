@@ -53,6 +53,12 @@ type Posting struct {
 	Color       string   `json:"color,omitempty"`
 }
 
+type ExecutionResult struct {
+	Postings         []Posting         `json:"postings"`
+	Metadata         map[string]string `json:"txMeta"`
+	AccountsMetadata AccountsMetadata  `json:"accountsMeta"`
+}
+
 // PairKey identifies a balance slot. Exported so a Store mock/adapter can build
 // the same keys. Despite the name it is an (account, asset, color) triple.
 type PairKey struct {
@@ -482,4 +488,3 @@ func (s *RunState) compactAt(i int) {
 func (s *RunState) removeAt(i int) {
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
 }
-

@@ -175,14 +175,10 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			}
 
 			if testCase.ExpectTxMeta != nil {
-				metadata := map[string]string{}
-				for k, v := range result.Metadata {
-					metadata[k] = v.String()
-				}
 				failedAssertions = runAssertion[any](failedAssertions,
 					"expect.txMetadata",
 					testCase.ExpectTxMeta,
-					metadata,
+					result.Metadata,
 					reflect.DeepEqual,
 				)
 			}

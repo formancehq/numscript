@@ -31,20 +31,14 @@ type InterpreterError interface {
 	parser.Ranged
 }
 
-type Metadata = map[string]Value
+type Metadata = map[string]string
 
 // Posting is an alias for runtime.Posting, which owns the definition (and the
 // json serialization contract). Kept as an alias so the public name
 // interpreter.Posting / numscript.Posting is preserved.
 type Posting = runtime.Posting
 
-type ExecutionResult struct {
-	Postings []Posting `json:"postings"`
-
-	Metadata Metadata `json:"txMeta"`
-
-	AccountsMetadata AccountsMetadata `json:"accountsMeta"`
-}
+type ExecutionResult = runtime.ExecutionResult
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
 	parts := strings.Split(source, " ")
@@ -229,7 +223,7 @@ func RunProgram(
 
 	st := programState{
 		ParsedVars:         make(map[string]Value),
-		TxMeta:             make(map[string]Value),
+		TxMeta:             make(map[string]string),
 		CachedAccountsMeta: AccountsMetadata{},
 		SetAccountsMeta:    AccountsMetadata{},
 		Store:              store,
@@ -312,7 +306,7 @@ type programState struct {
 	CurrentAsset Asset
 
 	ParsedVars map[string]Value
-	TxMeta     map[string]Value
+	TxMeta     map[string]string
 
 	// rs owns the funds state: balances (write-through cache over the batched
 	// Store fetch, seeded via Prewarm), the FIFO funding-source queue, and the
@@ -1092,10 +1086,5 @@ func PrettyPrintPostings(postings []Posting) string {
 }
 
 func PrettyPrintMeta(meta Metadata) string {
-	m := map[string]string{}
-	for k, v := range meta {
-		m[k] = v.String()
-	}
-
-	return utils.CsvPrettyMap("Name", "Value", m)
+	return utils.CsvPrettyMap("Name", "Value", meta)
 }

@@ -14,7 +14,7 @@ func setTxMeta(st *programState, r parser.Range, args []Value) InterpreterError 
 		return err
 	}
 
-	st.TxMeta[string(key)] = meta
+	st.TxMeta[string(key)] = meta.String()
 	return nil
 }
 
