@@ -43,6 +43,19 @@ func TestE2E_RejectsMetaOutsideVarOrigin(t *testing.T) {
 	require.IsType(t, InvalidMetaPosition{}, cErr)
 }
 
+func TestE2E_RejectsNonCastableInterpVar(t *testing.T) {
+	// a monetary var has no string form: interpolating it must be a compile
+	// error (matching the interpreter's runtime CannotCastToString), not a panic.
+	parsed := parser.Parse(`
+		vars { monetary $m }
+		set_tx_meta("k", @acc:$m)
+	`)
+	require.Empty(t, parsed.Errors)
+	_, cErr := compileProgramToVirtual(parsed.Value)
+	require.IsType(t, CannotCastToString{}, cErr)
+	require.Equal(t, typecheck.TypeMonetary, cErr.(CannotCastToString).Type)
+}
+
 func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {
 	parsed := parser.Parse(`
 		send [USD/2 100] (

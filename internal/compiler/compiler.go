@@ -207,16 +207,15 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				if err != nil {
 					return 0, err
 				}
-				switch st.exprTypes[part] {
+				switch t := st.exprTypes[part]; t {
 				case typecheck.TypeAccount, typecheck.TypeString:
 					parts = append(parts, r)
 				case typecheck.TypeNumber:
 					parts = append(parts, st.pushInstructionWithDest(func(dest reg) vInstr {
 						return unaryOp{op: opIntToString{}, arg: r, dest: dest}
 					}))
-					// TODO check account name is correct
 				default:
-					panic("TODO interp var of type " + st.exprTypes[part])
+					return 0, CannotCastToString{Range: part.GetRange(), Type: t}
 				}
 			}
 		}
