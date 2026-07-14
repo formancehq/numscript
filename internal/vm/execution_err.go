@@ -68,6 +68,12 @@ type (
 	StoreError struct {
 		Wrapped error
 	}
+
+	// MalformedProgramError is returned when the pre-execution verifier rejects a
+	// program (out-of-range operand, truncated instruction, bad jump, ...).
+	MalformedProgramError struct {
+		Reason string
+	}
 )
 
 func (e MissingFundsError) Error() string {
@@ -84,6 +90,10 @@ func (e InvalidUncappedSource) Error() string {
 
 func (e InternalError) Error() string {
 	return fmt.Sprintf("internal error: unknown opcode %d", e.Opcode)
+}
+
+func (e MalformedProgramError) Error() string {
+	return "malformed program: " + e.Reason
 }
 
 func (e DivideByZeroError) Error() string {
@@ -124,6 +134,7 @@ func (NegativeBalanceError) execErr()  {}
 func (DivideByZeroError) execErr()     {}
 func (InternalError) execErr()         {}
 func (StoreError) execErr()            {}
+func (MalformedProgramError) execErr() {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -137,4 +148,5 @@ var (
 	_ ExecutionError = (*DivideByZeroError)(nil)
 	_ ExecutionError = (*InternalError)(nil)
 	_ ExecutionError = (*StoreError)(nil)
+	_ ExecutionError = (*MalformedProgramError)(nil)
 )

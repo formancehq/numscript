@@ -181,6 +181,10 @@ func TestUnknownOpcode(t *testing.T) {
 	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	if _, ok := err.(InternalError); !ok {
 		t.Fatalf("expected InternalError, got %v", err)
+		_, err := Exec(NewVm(prog), nil, mockStore{})
+		if _, ok := err.(MalformedProgramError); !ok {
+			t.Fatalf("expected MalformedProgramError, got %v", err)
+		}
 	}
 }
 
