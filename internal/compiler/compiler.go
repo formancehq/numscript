@@ -8,7 +8,18 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
+	"github.com/formancehq/numscript/internal/vm"
 )
+
+// Compile lowers a parsed program to a vm.Program.
+func Compile(program parser.Program) (vm.Program, error) {
+	compiled, cErr := compileProgramToVirtual(program)
+	if cErr != nil {
+		return vm.Program{}, fmt.Errorf("%v", cErr)
+	}
+
+	return assembleProgram(compiled.instructions)
+}
 
 type compiledProgramVirtual struct {
 	instructions []vInstr

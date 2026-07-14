@@ -1,15 +1,28 @@
-package compiler
+package compiler_test
 
 import (
 	"context"
 	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 )
+
+// benchStore is a minimal vm.Store for the benchmarks.
+type benchStore struct {
+	balances map[runtime.PairKey]*big.Int
+}
+
+func (s benchStore) GetBalance(account, asset, color string) *big.Int {
+	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+		return v
+	}
+	return new(big.Int)
+}
 
 // Both benchmarks run the SAME program with the same starting balance; only the
 // per-iteration RUN is measured (parse/compile/assemble happen once, up front).
@@ -48,7 +61,7 @@ func BenchmarkTreeWalker(b *testing.B) {
 // between this and BenchmarkCompiledVM is the VM's dispatch/register overhead;
 // the gap to BenchmarkTreeWalker is the interpreter's front-end overhead.
 func BenchmarkRuntimeBaseline(b *testing.B) {
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := benchStore{balances: map[runtime.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 	rs := runtime.New(store)
@@ -77,15 +90,11 @@ func BenchmarkCompiledVM(b *testing.B) {
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	compiled, cErr := compileProgramToVirtual(parsed.Value)
-	if cErr != nil {
-		b.Fatalf("compile: %v", cErr)
+	program, err := compiler.Compile(parsed.Value)
+	if err != nil {
+		b.Fatalf("compile: %v", err)
 	}
-	program, aErr := Assemble(compiled.instructions)
-	if aErr != nil {
-		b.Fatalf("assemble: %v", aErr)
-	}
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := benchStore{balances: map[runtime.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
@@ -138,8 +147,8 @@ func BenchmarkTreeWalkerCapped(b *testing.B) {
 	}
 }
 
-func cappedStore() e2eStore {
-	return e2eStore{balances: map[runtime.PairKey]*big.Int{
+func cappedStore() benchStore {
+	return benchStore{balances: map[runtime.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
@@ -204,13 +213,9 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	compiled, cErr := compileProgramToVirtual(parsed.Value)
-	if cErr != nil {
-		b.Fatalf("compile: %v", cErr)
-	}
-	program, aErr := Assemble(compiled.instructions)
-	if aErr != nil {
-		b.Fatalf("assemble: %v", aErr)
+	program, err := compiler.Compile(parsed.Value)
+	if err != nil {
+		b.Fatalf("compile: %v", err)
 	}
 	store := cappedStore()
 

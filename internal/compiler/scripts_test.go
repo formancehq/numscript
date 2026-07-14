@@ -1,4 +1,4 @@
-package compiler
+package compiler_test
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/runtime"
@@ -141,10 +142,8 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	compiled, cErr := compileProgramToVirtual(parsed.Value)
+	program, cErr := compiler.Compile(parsed.Value)
 	require.Nil(t, cErr)
-	program, aErr := Assemble(compiled.instructions)
-	require.NoError(t, aErr)
 
 	for _, tc := range specs.TestCases {
 		if tc.Skip {

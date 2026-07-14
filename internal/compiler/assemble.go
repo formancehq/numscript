@@ -112,7 +112,7 @@ type assembler struct {
 	stringsPool constPool[string]
 }
 
-func Assemble(instrs []vInstr) (vm.Program, error) {
+func assembleProgram(instrs []vInstr) (vm.Program, error) {
 	a := &assembler{
 		ints:       newRegPool(),
 		strings:    newRegPool(),
@@ -565,6 +565,7 @@ func (i makeAllotment) assemble(a *assembler) error {
 	})
 	return nil
 }
+
 type loadVarSig struct {
 	opcode vm.Opcode
 	dest   regResolver

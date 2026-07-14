@@ -9,7 +9,7 @@ import (
 func TestAssemble_AddInt(t *testing.T) {
 	// Three distinct virtual int registers map to the first three int-bank
 	// indices in first-use order.
-	prog, err := Assemble([]vInstr{
+	prog, err := assembleProgram([]vInstr{
 		binaryOp{op: opAddInt{}, dest: 10, left: 20, right: 30},
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func TestAssemble_AddInt(t *testing.T) {
 func TestAssemble_AddInt_ReusesRegisterIndices(t *testing.T) {
 	// A virtual register reused across operands/instructions keeps the same
 	// bank index; new ones get fresh indices in first-use order.
-	prog, err := Assemble([]vInstr{
+	prog, err := assembleProgram([]vInstr{
 		// reg 7 -> 0, reg 8 -> 1 ; dest==left==7
 		binaryOp{op: opAddInt{}, dest: 7, left: 7, right: 8},
 		// reg 9 -> 2 ; reuses 7->0 and 8->1
@@ -55,7 +55,7 @@ func TestAssemble_AddInt_ReusesRegisterIndices(t *testing.T) {
 }
 
 func TestAssemble_Empty(t *testing.T) {
-	prog, err := Assemble(nil)
+	prog, err := assembleProgram(nil)
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}
