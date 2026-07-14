@@ -839,6 +839,14 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (reg, CompilerError) {
 		return st.pushInstructionWithDest(func(dest reg) vInstr {
 			return unaryOp{op: opIntToString{}, arg: r, dest: dest}
 		}), nil
+	case typecheck.TypePortion:
+		return st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{op: opPortionToString{}, arg: r, dest: dest}
+		}), nil
+	case typecheck.TypeMonetary:
+		return st.pushInstructionWithDest(func(dest reg) vInstr {
+			return unaryOp{op: opMonetaryToString{}, arg: r, dest: dest}
+		}), nil
 	default:
 		panic("TODO meta value of type " + st.exprTypes[expr])
 	}

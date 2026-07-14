@@ -279,6 +279,13 @@ func Exec[S Store](
 		case Op_IntToString:
 			vm.stringsRegs[instr.A] = vm.intsRegs[instr.B].String()
 
+		case Op_PortionToString:
+			vm.stringsRegs[instr.A] = vm.portionsRegs[instr.B].String()
+
+		case Op_MonetaryToString:
+			mon := &vm.monetariesRegs[instr.B]
+			vm.stringsRegs[instr.A] = mon.asset + " " + mon.amount.String()
+
 		default:
 			panic("Invalid operation")
 		}

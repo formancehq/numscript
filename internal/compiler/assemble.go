@@ -238,6 +238,20 @@ func (opIntToString) sig() unaryOpSig {
 		arg:    (*assembler).intReg,
 	}
 }
+func (opPortionToString) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_PortionToString,
+		dest:   (*assembler).strReg,
+		arg:    (*assembler).portionReg,
+	}
+}
+func (opMonetaryToString) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_MonetaryToString,
+		dest:   (*assembler).strReg,
+		arg:    (*assembler).monetaryReg,
+	}
+}
 
 func (i unaryOp) assemble(a *assembler) error {
 	sig := i.op.sig()

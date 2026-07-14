@@ -16,12 +16,14 @@ func (opSubPortion) String() string   { return "sub_portion" }
 func (opMakePortion) String() string  { return "mk_portion" }
 func (opMakeMonetary) String() string { return "mk_monetary" }
 
-func (opIntCopy) String() string     { return "int_copy" }
-func (opPortionCopy) String() string { return "portion_copy" }
-func (opGetAsset) String() string    { return "get_asset" }
-func (opGetAmount) String() string   { return "get_amount" }
-func (opNegInt) String() string      { return "neg_int" }
-func (opIntToString) String() string { return "int_to_string" }
+func (opIntCopy) String() string          { return "int_copy" }
+func (opPortionCopy) String() string      { return "portion_copy" }
+func (opGetAsset) String() string         { return "get_asset" }
+func (opGetAmount) String() string        { return "get_amount" }
+func (opNegInt) String() string           { return "neg_int" }
+func (opIntToString) String() string      { return "int_to_string" }
+func (opPortionToString) String() string  { return "portion_to_string" }
+func (opMonetaryToString) String() string { return "monetary_to_string" }
 
 func (i pullAccount) String() string {
 	opts := joinOpts(

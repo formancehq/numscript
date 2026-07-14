@@ -72,9 +72,6 @@ var scriptsBlacklist = []string{
 	"send-all-multi.num",
 	"send-allt-max-in-src.num",
 	"set-account-meta.num",
-	"set-tx-meta.num",
-	"sub-monetaries.num",
-	"variables-json.num",
 }
 
 func TestCompilerScripts(t *testing.T) {

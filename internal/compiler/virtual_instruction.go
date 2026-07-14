@@ -30,12 +30,14 @@ type unKind interface {
 }
 
 type (
-	opIntCopy     struct{}
-	opPortionCopy struct{}
-	opGetAsset    struct{}
-	opGetAmount   struct{}
-	opNegInt      struct{}
-	opIntToString struct{}
+	opIntCopy          struct{}
+	opPortionCopy      struct{}
+	opGetAsset         struct{}
+	opGetAmount        struct{}
+	opNegInt           struct{}
+	opIntToString      struct{}
+	opPortionToString  struct{}
+	opMonetaryToString struct{}
 )
 
 type varType interface {

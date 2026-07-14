@@ -97,6 +97,8 @@ const (
 	Op_PortionCopy
 	Op_NegInt
 	Op_IntToString
+	Op_PortionToString
+	Op_MonetaryToString
 
 	// --- BinaryOp ---
 	Op_MinInt
