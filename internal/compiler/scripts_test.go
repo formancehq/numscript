@@ -64,11 +64,6 @@ var scriptsBlacklist = []string{
 
 	// unimplemented core features
 	"feature-flag-syntax.num",
-	"overdraft-when-negative-balance-in-send-all.num",
-	"overdraft-when-negative-ovedraft-in-send-all.num",
-	"send-all-destinatio-allot-complex.num",
-	"send-all-multi.num",
-	"send-allt-max-in-src.num",
 }
 
 func TestCompilerScripts(t *testing.T) {

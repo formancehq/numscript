@@ -782,6 +782,47 @@ func TestE2E_UncappedBoundedOverdraft(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_SendAllMultiSource(t *testing.T) {
+	// unbounded inorder: pull everything from each source in order and sum it
+	src := `
+		send [USD/2 *] (
+			source = {
+				@a
+				max [USD/2 5] from @b
+				@c
+			}
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(10),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(7),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(7)},
+	}, postings)
+}
+
+func TestE2E_SendAllNegativeOverdraftBoundClamped(t *testing.T) {
+	// a negative overdraft bound is clamped to 0 in the unbounded path, so only
+	// the positive balance is sent (mirrors the interpreter's NonNeg).
+	src := `
+		send [COIN *] (
+			source = @s allowing overdraft up to [COIN -10]
+			destination = @dest
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "s", Asset: "COIN", Color: ""}: big.NewInt(1),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "s", Destination: "dest", Asset: "COIN", Amount: big.NewInt(1)},
+	}, postings)
+}
+
 func TestE2E_CapAssetMismatch(t *testing.T) {
 	src := `
 		send [USD/2 100] (

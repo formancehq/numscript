@@ -512,7 +512,26 @@ func (st *state) compileSource(
 
 	case *parser.SourceInorder:
 		if capReg == nil {
-			panic("TODO unbounded inorder")
+			inorderTotalReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return loadInt{
+					value: *big.NewInt(0),
+					dest:  dest,
+				}
+			})
+			for _, subSrc := range src.Sources {
+				innerPulledAmtReg, err := st.compileSource(nil, subSrc)
+				if err != nil {
+					return 0, err
+				}
+				// inorderTotalReg += innerPulledAmtReg
+				st.pushInstruction(binaryOp{
+					op:    opAddInt{},
+					dest:  inorderTotalReg,
+					left:  inorderTotalReg,
+					right: innerPulledAmtReg,
+				})
+			}
+			return inorderTotalReg, nil
 		}
 
 		inorderTotalReg := st.pushInstructionWithDest(func(dest reg) vInstr {
