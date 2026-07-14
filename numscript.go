@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/formancehq/numscript/accounts"
+	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/vm"
 )
 
 // This struct represents a parsed numscript source code
@@ -109,4 +111,16 @@ func (p ParseResult) GetSource() string {
 
 func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.InvolvedAccount, []accounts.InvolvedMeta, InterpreterError) {
 	return interpreter.GetInvolvedAccounts(vars, p.parseResult.Value)
+}
+
+type (
+	CompiledProgram = compiler.CompiledProgram
+	VMStore         = vm.Store
+)
+
+func (p ParseResult) Compile() (CompiledProgram, error) {
+	if len(p.parseResult.Errors) != 0 {
+		return CompiledProgram{}, p.parseResult.Errors[0]
+	}
+	return compiler.CompileProgram(p.parseResult.Value)
 }

@@ -7,6 +7,7 @@ import (
 
 type (
 	ExecutionError interface {
+		error
 		execErr()
 	}
 
@@ -61,6 +62,18 @@ type (
 		Opcode byte
 	}
 )
+
+func (e MissingFundsError) Error() string {
+	return fmt.Sprintf("missing funds for asset %s: needed %s, got %s", e.Asset, e.Needed, e.Got)
+}
+
+func (e AssetMismatchError) Error() string {
+	return fmt.Sprintf("asset mismatch: expected %s, got %s", e.Expected, e.Got)
+}
+
+func (e InvalidUncappedSource) Error() string {
+	return fmt.Sprintf("unbounded source is not allowed here: @%s", e.Account)
+}
 
 func (e InternalError) Error() string {
 	return fmt.Sprintf("internal error: unknown opcode %d", e.Opcode)
