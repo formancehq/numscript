@@ -44,8 +44,6 @@ var scriptsBlacklist = []string{
 	"experimental/asset-scaling/scaling-with-oneof.num",
 	"experimental/asset-scaling/scaling.num",
 	"experimental/asset-scaling/update-swap-account-balance.num",
-	"experimental/get-amount-function/get-amount-function.num",
-	"experimental/get-asset-function/get-asset-function.num",
 	"experimental/oneof/oneof-all-failing.num",
 	"experimental/oneof/oneof-destination-first-clause.num",
 	"experimental/oneof/oneof-destination-remaining-clause.num",
