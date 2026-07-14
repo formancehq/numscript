@@ -96,11 +96,17 @@ func inorderProgram() Program {
 // --- mock store -----------------------------------------------------------
 
 type mockStore struct {
-	bal map[runtime.PairKey]int64
+	bal  map[runtime.PairKey]int64
+	meta map[string]map[string]string
 }
 
 func (m mockStore) GetBalance(account, asset string, color string) *big.Int {
 	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}])
+}
+
+func (m mockStore) GetMetadata(account, key string) (string, bool) {
+	v, ok := m.meta[account][key]
+	return v, ok
 }
 
 var _ Store = (*mockStore)(nil)

@@ -24,6 +24,8 @@ func (s benchStore) GetBalance(account, asset, color string) *big.Int {
 	return new(big.Int)
 }
 
+func (benchStore) GetMetadata(string, string) (string, bool) { return "", false }
+
 // Both benchmarks run the SAME program with the same starting balance; only the
 // per-iteration RUN is measured (parse/compile/assemble happen once, up front).
 const benchSrc = `send [USD/2 10] (

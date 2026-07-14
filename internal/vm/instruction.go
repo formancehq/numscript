@@ -45,6 +45,13 @@ const (
 	// A = account (str reg), B = key (str reg), C = value (str reg)
 	Op_SetAccountMeta
 
+	// meta(account, key) read, dispatched on the target type.
+	// A = dest, B = account (str reg), C = key (str reg)
+	Op_MetaStr
+	Op_MetaInt
+	Op_MetaPortion
+	Op_MetaMonetary
+
 	// --- variables ---
 	Op_LoadVarInt // b_c = int-var index
 	Op_LoadVarStr // b_c = string-var index

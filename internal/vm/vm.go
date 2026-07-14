@@ -38,6 +38,16 @@ type Store interface {
 		asset string,
 		color string,
 	) *big.Int
+
+	GetMetadata(account, key string) (string, bool)
+}
+
+func lookupMeta(store Store, account, key string) (string, ExecutionError) {
+	v, ok := store.GetMetadata(account, key)
+	if !ok {
+		return "", MetadataNotFoundError{Account: account, Key: key}
+	}
+	return v, nil
 }
 
 func Exec[S Store](
@@ -195,6 +205,51 @@ func Exec[S Store](
 				accountsMeta[account] = accMeta
 			}
 			accMeta[vm.stringsRegs[instr.B]] = vm.stringsRegs[instr.C]
+
+		case Op_MetaStr:
+			v, err := lookupMeta(store, vm.stringsRegs[instr.B], vm.stringsRegs[instr.C])
+			if err != nil {
+				return runtime.ExecutionResult{}, err
+			}
+			vm.stringsRegs[instr.A] = v
+
+		case Op_MetaInt:
+			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
+			v, err := lookupMeta(store, account, key)
+			if err != nil {
+				return runtime.ExecutionResult{}, err
+			}
+			n, ok := runtime.ParseNumber(v)
+			if !ok {
+				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+			}
+			vm.intsRegs[instr.A].Set(n)
+
+		case Op_MetaPortion:
+			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
+			v, err := lookupMeta(store, account, key)
+			if err != nil {
+				return runtime.ExecutionResult{}, err
+			}
+			r, perr := runtime.ParsePortion(v)
+			if perr != nil {
+				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+			}
+			vm.portionsRegs[instr.A].Set(r)
+
+		case Op_MetaMonetary:
+			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
+			v, err := lookupMeta(store, account, key)
+			if err != nil {
+				return runtime.ExecutionResult{}, err
+			}
+			asset, amount, merr := runtime.ParseMonetary(v)
+			if merr != nil {
+				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+			}
+			dest := &vm.monetariesRegs[instr.A]
+			dest.asset = asset
+			dest.amount.Set(amount)
 
 			// --- Vars
 		case Op_LoadVarInt:

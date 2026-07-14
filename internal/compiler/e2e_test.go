@@ -14,6 +14,7 @@ import (
 // e2eStore is a minimal vm.Store for the end-to-end test.
 type e2eStore struct {
 	balances map[runtime.PairKey]*big.Int
+	metadata map[string]map[string]string
 }
 
 func (s e2eStore) GetBalance(account, asset, color string) *big.Int {
@@ -21,6 +22,11 @@ func (s e2eStore) GetBalance(account, asset, color string) *big.Int {
 		return v
 	}
 	return new(big.Int)
+}
+
+func (s e2eStore) GetMetadata(account, key string) (string, bool) {
+	v, ok := s.metadata[account][key]
+	return v, ok
 }
 
 // TestE2E_CompileAssembleRun exercises the whole pipeline: source -> compiler
