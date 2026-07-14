@@ -373,7 +373,7 @@ func Exec[S Store](
 			vm.stringsRegs[instr.A] = mon.asset + " " + mon.amount.String()
 
 		default:
-			panic("Invalid operation")
+			return runtime.ExecutionResult{}, InternalError{Opcode: instr.Opcode}
 		}
 	}
 

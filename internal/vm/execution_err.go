@@ -52,7 +52,19 @@ type (
 	DivideByZeroError struct {
 		Numerator big.Int
 	}
+
+	// InternalError signals a malformed program the VM cannot execute (e.g. an
+	// unknown opcode). It is a bug in whatever produced the bytecode, never a
+	// user-script error, but it is returned rather than panicked so the VM never
+	// crashes its host.
+	InternalError struct {
+		Opcode byte
+	}
 )
+
+func (e InternalError) Error() string {
+	return fmt.Sprintf("internal error: unknown opcode %d", e.Opcode)
+}
 
 func (e DivideByZeroError) Error() string {
 	return fmt.Sprintf("cannot divide by zero (in %s/0)", e.Numerator.String())
@@ -87,6 +99,7 @@ func (BadMetaValueError) execErr()     {}
 func (InvalidAccountName) execErr()    {}
 func (NegativeBalanceError) execErr()  {}
 func (DivideByZeroError) execErr()     {}
+func (InternalError) execErr()         {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -98,4 +111,5 @@ var (
 	_ ExecutionError = (*InvalidAccountName)(nil)
 	_ ExecutionError = (*NegativeBalanceError)(nil)
 	_ ExecutionError = (*DivideByZeroError)(nil)
+	_ ExecutionError = (*InternalError)(nil)
 )
