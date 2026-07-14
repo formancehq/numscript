@@ -11,18 +11,25 @@ import (
 	"github.com/formancehq/numscript/internal/vm"
 )
 
-// Compile lowers a parsed program to a vm.Program.
-func Compile(program parser.Program) (vm.Program, error) {
+// Compile lowers a parsed program to the VarsEncoder that turns a json var
+// payload into the vm.Vars the program expects, plus the vm.Program itself.
+func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 	compiled, cErr := compileProgramToVirtual(program)
 	if cErr != nil {
-		return vm.Program{}, fmt.Errorf("%v", cErr)
+		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
 	}
 
-	return assembleProgram(compiled.instructions)
+	prog, err := assembleProgram(compiled.instructions)
+	if err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
+	return compiled.varsEncoder, prog, nil
 }
 
 type compiledProgramVirtual struct {
 	instructions []vInstr
+	varsEncoder  VarsEncoder
 }
 
 type state struct {
@@ -32,6 +39,10 @@ type state struct {
 	vars            map[string]reg
 	exprTypes       map[parser.ValueExpr]typecheck.Type
 	currentAssetReg reg
+
+	nextIntVar int
+	nextStrVar int
+	varDecls   []varDecl
 }
 
 func (st *state) getFreshReg() reg {
@@ -821,12 +832,18 @@ func compileProgramToVirtual(program parser.Program) (compiledProgramVirtual, Co
 
 	return compiledProgramVirtual{
 		instructions: st.instructions,
+		varsEncoder: VarsEncoder{
+			decls: st.varDecls,
+			nStr:  st.nextStrVar,
+			nInt:  st.nextIntVar,
+		},
 	}, nil
 }
 
 func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError {
 	if decl.Origin == nil {
-		panic("TODO external vars")
+		st.compileExternalVar(decl)
+		return nil
 	}
 	r, err := st.compileExpr(*decl.Origin)
 	if err != nil {
@@ -834,4 +851,51 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 	}
 	st.vars[decl.Name.Name] = r
 	return nil
+}
+
+// TODO review AI blob
+func (st *state) compileExternalVar(decl parser.VarDeclaration) {
+	name := decl.Name.Name
+	st.varDecls = append(st.varDecls, varDecl{name: name, typ: decl.Type.Name})
+
+	switch decl.Type.Name {
+	case typecheck.TypeNumber:
+		st.vars[name] = st.loadIntVar()
+
+	case typecheck.TypeString, typecheck.TypeAsset, typecheck.TypeAccount:
+		st.vars[name] = st.loadStrVar()
+
+	case typecheck.TypePortion:
+		num := st.loadIntVar()
+		den := st.loadIntVar()
+		st.vars[name] = st.pushInstructionWithDest(func(dest reg) vInstr {
+			return binaryOp{op: opMakePortion{}, left: num, right: den, dest: dest}
+		})
+
+	case typecheck.TypeMonetary:
+		asset := st.loadStrVar()
+		amount := st.loadIntVar()
+		st.vars[name] = st.pushInstructionWithDest(func(dest reg) vInstr {
+			return binaryOp{op: opMakeMonetary{}, left: asset, right: amount, dest: dest}
+		})
+
+	default:
+		panic("unexpected var type: " + decl.Type.Name)
+	}
+}
+
+func (st *state) loadIntVar() reg {
+	index := uint16(st.nextIntVar)
+	st.nextIntVar++
+	return st.pushInstructionWithDest(func(dest reg) vInstr {
+		return loadVar{dest: dest, typ: varInt{}, index: index}
+	})
+}
+
+func (st *state) loadStrVar() reg {
+	index := uint16(st.nextStrVar)
+	st.nextStrVar++
+	return st.pushInstructionWithDest(func(dest reg) vInstr {
+		return loadVar{dest: dest, typ: varStr{}, index: index}
+	})
 }

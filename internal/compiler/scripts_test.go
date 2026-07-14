@@ -2,6 +2,7 @@ package compiler_test
 
 import (
 	"encoding/json"
+	"maps"
 	"math/big"
 	"path/filepath"
 	"slices"
@@ -46,9 +47,6 @@ var scriptsBlacklist = []string{
 	"experimental/asset-scaling/update-swap-account-balance.num",
 	"experimental/get-amount-function/get-amount-function.num",
 	"experimental/get-asset-function/get-asset-function.num",
-	"experimental/mid-script-function-call/expr-in-var-origin.num",
-	"experimental/mid-script-function-call/midscript-balance-after-decrease.num",
-	"experimental/mid-script-function-call/midscript-balance.num",
 	"experimental/oneof/oneof-all-failing.num",
 	"experimental/oneof/oneof-destination-first-clause.num",
 	"experimental/oneof/oneof-destination-remaining-clause.num",
@@ -66,47 +64,18 @@ var scriptsBlacklist = []string{
 
 	// unimplemented core features
 	"add-numbers.num",
-	"allocate-dont-take-too-much.num",
-	"allocation.num",
-	"big-int-monetary.num",
-	"big-int.num",
-	"bigint-literal.num",
-	"cascading-sources.num",
-	"dynamic-allocation.num",
 	"feature-flag-syntax.num",
-	"insufficient-funds.num",
 	"metadata.num",
-	"neg-max-dest.num",
-	"nested-remaining-complex.num",
-	"ovedrafts-playground-example.num",
-	"overdraft-not-enough-funds.num",
-	"overdraft-when-enough-funds.num",
 	"overdraft-when-negative-balance-in-send-all.num",
 	"overdraft-when-negative-ovedraft-in-send-all.num",
-	"overdraft-when-not-enough-funds.num",
 	"override-account-meta.num",
-	"portion-syntax.num",
-	"save/save-from-account__with-asset-var.num",
-	"save/save-from-account__with-monetary-var.num",
 	"send-all-destinatio-allot-complex.num",
-	"send-all-destinatio-allot.num",
 	"send-all-multi.num",
-	"send-all-variable.num",
-	"send-all-when-negative-with-overdraft.num",
-	"send-all-when-negative.num",
-	"send-all.num",
 	"send-allt-max-in-src.num",
 	"set-account-meta.num",
 	"set-tx-meta.num",
-	"source-complex.num",
-	"source.num",
 	"sub-monetaries.num",
 	"sub-numbers.num",
-	"use-different-assets-with-same-source-account.num",
-	"variable-asset.num",
-	"variable-balance__3.num",
-	"variable-balance__4.num",
-	"variable-portion-part.num",
 	"variables-json.num",
 	"variables.num",
 }
@@ -142,7 +111,7 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	program, cErr := compiler.Compile(parsed.Value)
+	enc, program, cErr := compiler.Compile(parsed.Value)
 	require.Nil(t, cErr)
 
 	for _, tc := range specs.TestCases {
@@ -153,8 +122,14 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 			t.Fatalf("case %q: metadata assertions not supported by the VM", tc.It)
 		}
 
+		caseVars := map[string]string{}
+		maps.Copy(caseVars, specs.Vars)
+		maps.Copy(caseVars, tc.Vars)
+		vars, encErr := enc.Encode(caseVars)
+		require.NoError(t, encErr, "case %q: encode vars", tc.It)
+
 		store := scriptStore(specs.Balances, tc.Balances)
-		postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+		postings, execErr := vm.Exec(vm.NewVm(program), &vars, store)
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)

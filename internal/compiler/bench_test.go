@@ -90,7 +90,7 @@ func BenchmarkCompiledVM(b *testing.B) {
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	program, err := compiler.Compile(parsed.Value)
+	_, program, err := compiler.Compile(parsed.Value)
 	if err != nil {
 		b.Fatalf("compile: %v", err)
 	}
@@ -213,7 +213,7 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	program, err := compiler.Compile(parsed.Value)
+	_, program, err := compiler.Compile(parsed.Value)
 	if err != nil {
 		b.Fatalf("compile: %v", err)
 	}
