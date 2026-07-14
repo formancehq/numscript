@@ -43,10 +43,19 @@ type (
 	InvalidAccountName struct {
 		Name string
 	}
+
+	NegativeBalanceError struct {
+		Account string
+		Amount  big.Int
+	}
 )
 
 func (e InvalidAccountName) Error() string {
 	return fmt.Sprintf("invalid account name: %q", e.Name)
+}
+
+func (e NegativeBalanceError) Error() string {
+	return fmt.Sprintf("cannot fetch negative balance from account @%s", e.Account)
 }
 
 func (e InvalidAllotmentSum) Error() string {
@@ -68,6 +77,7 @@ func (InvalidAllotmentSum) execErr()   {}
 func (MetadataNotFoundError) execErr() {}
 func (BadMetaValueError) execErr()     {}
 func (InvalidAccountName) execErr()    {}
+func (NegativeBalanceError) execErr()  {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -77,4 +87,5 @@ var (
 	_ ExecutionError = (*MetadataNotFoundError)(nil)
 	_ ExecutionError = (*BadMetaValueError)(nil)
 	_ ExecutionError = (*InvalidAccountName)(nil)
+	_ ExecutionError = (*NegativeBalanceError)(nil)
 )

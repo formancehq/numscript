@@ -150,6 +150,31 @@ func assertValidAccountProgram(name string) Program {
 	}
 }
 
+func balanceNonNegativeProgram() Program {
+	return Program{
+		Instructions: []Instruction{
+			bc(Op_LoadStr, 0, 0),
+			bc(Op_LoadStr, 1, 1),
+			abc(Op_Balance, 0, 0, 1),
+			abc(Op_AssertNonNegativeBalance, 0, 0, nilReg),
+		},
+		StringsPool: []string{"acc", "USD/2"},
+	}
+}
+
+func TestAssertNonNegativeBalance(t *testing.T) {
+	store := mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
+	if _, err := Exec(NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
+		t.Fatalf("non-negative balance rejected: %v", err)
+	}
+
+	store = mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
+	_, err := Exec(NewVm(balanceNonNegativeProgram()), nil, store)
+	if _, ok := err.(NegativeBalanceError); !ok {
+		t.Fatalf("expected NegativeBalanceError, got %v", err)
+	}
+}
+
 func TestAssertValidAccount(t *testing.T) {
 	_, err := Exec(NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
 	if err != nil {

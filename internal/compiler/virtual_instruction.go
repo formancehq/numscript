@@ -86,12 +86,13 @@ type (
 		portion reg  // the allotment leftover (1 - sum of the given portions)
 		exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
 	}
-	setCurrentAsset    struct{ asset reg }               // str
-	assertSameAsset    struct{ left, right reg }         // str, str
-	assertValidAccount struct{ account reg }             // str
-	setTxMeta          struct{ key, value reg }          // str, str
-	setAccountMeta     struct{ account, key, value reg } // str, str, str
-	metaVar            struct {
+	setCurrentAsset          struct{ asset reg }               // str
+	assertSameAsset          struct{ left, right reg }         // str, str
+	assertValidAccount       struct{ account reg }             // str
+	assertNonNegativeBalance struct{ balance, account reg }    // monetary, str
+	setTxMeta                struct{ key, value reg }          // str, str
+	setAccountMeta           struct{ account, key, value reg } // str, str, str
+	metaVar                  struct {
 		dest         reg
 		account, key reg // str, str
 		typ          metaType
@@ -166,6 +167,9 @@ func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }
 
 func (i assertValidAccount) dests() []reg   { return nil }
 func (i assertValidAccount) sources() []reg { return []reg{i.account} }
+
+func (i assertNonNegativeBalance) dests() []reg   { return nil }
+func (i assertNonNegativeBalance) sources() []reg { return []reg{i.balance, i.account} }
 
 func (i setTxMeta) dests() []reg   { return nil }
 func (i setTxMeta) sources() []reg { return []reg{i.key, i.value} }

@@ -194,6 +194,15 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, InvalidAccountName{Name: account}
 			}
 
+		case Op_AssertNonNegativeBalance:
+			m := &vm.monetariesRegs[instr.A]
+			if m.amount.Sign() < 0 {
+				return runtime.ExecutionResult{}, NegativeBalanceError{
+					Account: vm.stringsRegs[instr.B],
+					Amount:  m.amount,
+				}
+			}
+
 		case Op_SetTxMeta:
 			if txMeta == nil {
 				txMeta = map[string]string{}

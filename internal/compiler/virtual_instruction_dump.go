@@ -77,6 +77,10 @@ func (i assertValidAccount) String() string {
 	return fmt.Sprintf("assert_valid_account(%s)", i.account)
 }
 
+func (i assertNonNegativeBalance) String() string {
+	return fmt.Sprintf("assert_non_negative_balance(%s, %s)", i.balance, i.account)
+}
+
 func (i setTxMeta) String() string {
 	return fmt.Sprintf("set_tx_meta(%s, %s)", i.key, i.value)
 }

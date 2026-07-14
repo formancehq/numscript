@@ -280,6 +280,7 @@ func TestBalance(t *testing.T) {
   $r0 <- load_const("src")
   $r1 <- load_const("USD/2")
   $r2 <- balance($r0, $r1)
+  assert_non_negative_balance($r2, $r0)
   $r3 <- get_asset($r2)
   set_current_asset($r3)
   $r4 <- get_amount($r2)

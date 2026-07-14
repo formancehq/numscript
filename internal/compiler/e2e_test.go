@@ -902,6 +902,22 @@ func TestE2E_OverdraftFunction(t *testing.T) {
 	requirePostingsEqual(t, []runtime.Posting{}, postings)
 }
 
+func TestE2E_BalanceNegativeErrors(t *testing.T) {
+	src := `
+		vars { monetary $b = balance(@acc, USD/2) }
+		send $b (source = @world destination = @dest)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value)
+	require.Nil(t, cErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(-1),
+	}})
+	require.IsType(t, vm.NegativeBalanceError{}, execErr)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

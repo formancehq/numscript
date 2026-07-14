@@ -517,6 +517,21 @@ func (i assertValidAccount) assemble(a *assembler) error {
 	return nil
 }
 
+func (i assertNonNegativeBalance) assemble(a *assembler) error {
+	balance, err := a.monetaryReg(i.balance)
+	if err != nil {
+		return err
+	}
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertNonNegativeBalance, balance, account, maxReg)
+
+	return nil
+}
+
 func (i setTxMeta) assemble(a *assembler) error {
 	key, err := a.strReg(i.key)
 	if err != nil {

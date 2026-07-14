@@ -41,6 +41,10 @@ const (
 	// errors if the account name in str reg A is not well-formed
 	Op_AssertValidAccount
 
+	// errors (NegativeBalanceError) if the monetary in reg A has a negative
+	// amount; B = account str reg (for the error)
+	Op_AssertNonNegativeBalance
+
 	// --- metadata ---
 	// A = key (str reg), B = value (str reg)
 	Op_SetTxMeta

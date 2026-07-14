@@ -408,9 +408,11 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+			balReg := st.pushInstructionWithDest(func(dest reg) vInstr {
 				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
 			})
+			st.pushInstruction(assertNonNegativeBalance{balance: balReg, account: accountReg})
+			return balReg, nil
 
 		case builtins.Overdraft:
 			accountReg, err := st.compileExpr(expr.Args[0])
