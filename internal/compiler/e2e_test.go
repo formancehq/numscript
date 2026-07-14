@@ -882,6 +882,26 @@ func TestE2E_InternalVar(t *testing.T) {
 	}, postings)
 }
 
+func TestE2E_OverdraftFunction(t *testing.T) {
+	src := `
+		vars { monetary $od = overdraft(@acc, USD/2) }
+		send $od (source = @world destination = @dest)
+	`
+	// negative balance -> overdraft is the debt
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(-100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, postings)
+
+	// positive balance -> overdraft is 0, nothing sent
+	postings = runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+	requirePostingsEqual(t, []runtime.Posting{}, postings)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

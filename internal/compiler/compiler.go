@@ -412,6 +412,35 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
 			})
 
+		case builtins.Overdraft:
+			accountReg, err := st.compileExpr(expr.Args[0])
+			if err != nil {
+				return 0, err
+			}
+			assetReg, err := st.compileExpr(expr.Args[1])
+			if err != nil {
+				return 0, err
+			}
+			balReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
+			})
+			amtReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opGetAmount{}, arg: balReg, dest: dest}
+			})
+			zeroReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return loadInt{value: *big.NewInt(0), dest: dest}
+			})
+			minReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return binaryOp{op: opMinInt{}, left: amtReg, right: zeroReg, dest: dest}
+			})
+			// overdraft = max(0, -balance) = -min(balance, 0)
+			negReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return unaryOp{op: opNegInt{}, arg: minReg, dest: dest}
+			})
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return binaryOp{op: opMakeMonetary{}, left: assetReg, right: negReg, dest: dest}
+			})
+
 		case builtins.Meta:
 			return 0, InvalidMetaPosition{Range: expr.Range}
 

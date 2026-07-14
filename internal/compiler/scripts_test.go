@@ -55,12 +55,6 @@ var scriptsBlacklist = []string{
 	"experimental/oneof/oneof-in-source.num",
 	"experimental/oneof/oneof-singleton.num",
 	"experimental/oneof/update-balances-with-oneof.num",
-	"experimental/overdraft-function/overdraft-function-use-case-remove-debt.num",
-	"experimental/overdraft-function/overdraft-function-when-negative.num",
-	"experimental/overdraft-function/overdraft-function-when-positive.num",
-	"experimental/overdraft-function/overdraft-function-when-zero.num",
-	"experimental/overdraft-function/reach-zero.num",
-
 	// unimplemented core features
 	"feature-flag-syntax.num",
 }
