@@ -78,6 +78,9 @@ func Exec[S Store](
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
 		case Op_PullAccount:
+			// TODO crashes if this is the last instruction (the ext word is
+			// missing): instrs[pc] reads past the end. e.g. a program ending in a
+			// lone Op_PullAccount word.
 			instrExt := instrs[pc]
 			pc++
 
@@ -132,9 +135,13 @@ func Exec[S Store](
 			}
 
 		case Op_MkAllotment:
+			// TODO crashes if this is the last instruction (missing ext word),
+			// same as Op_PullAccount.
 			instrExt := instrs[pc]
 			pc++
 
+			// TODO crashes when instr.A+instr.C > 256: the slice runs past the
+			// register bank. Both are bytes, so A+C can be up to 510.
 			destArrStartReg := vm.intsRegs[instr.A : instr.A+instr.C]
 			inpArrStartReg := vm.portionsRegs[instr.B : instr.B+instr.C]
 
@@ -267,6 +274,9 @@ func Exec[S Store](
 			dest.amount.Set(amount)
 
 			// --- Vars
+			// TODO both crash if vars is nil (Exec called with no vars for a
+			// program that reads them), or if GetBC() >= len(vars pool) (caller
+			// passed fewer vars than the program declares).
 		case Op_LoadVarInt:
 			vm.intsRegs[instr.A].Set(&vars.IntsPool[instr.GetBC()])
 
@@ -281,6 +291,8 @@ func Exec[S Store](
 			}
 
 		// --- consts
+		// TODO both crash if GetBC() >= len(pool), e.g. an Op_LoadInt referring to
+		// pool index 5 in a program whose ints pool has 3 entries.
 		case Op_LoadInt:
 			const_ := &vm.program.IntsPool[instr.GetBC()]
 			vm.intsRegs[instr.A].Set(const_)
