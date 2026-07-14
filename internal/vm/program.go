@@ -15,6 +15,62 @@ type Program struct {
 
 var le = binary.LittleEndian
 
+// TODO review AI blob
+func (p Program) Encode() []byte {
+	instrs := make([]byte, 4*len(p.Instructions))
+	for i, ins := range p.Instructions {
+		instrs[i*4], instrs[i*4+1], instrs[i*4+2], instrs[i*4+3] = ins.Opcode, ins.A, ins.B, ins.C
+	}
+
+	data, strTable, intTable := encodePools(p.StringsPool, p.IntsPool)
+
+	const headerLen = 4 + 4*8 // magic + 4 section pointers
+	instrStart := uint32(headerLen)
+	dataStart := instrStart + uint32(len(instrs))
+	strTableStart := dataStart + uint32(len(data))
+	intTableStart := strTableStart + uint32(len(strTable))
+
+	buf := make([]byte, 0, int(intTableStart)+len(intTable))
+	buf = append(buf, "NUMB"...)
+	buf = appendSection(buf, instrStart, uint32(len(instrs)))
+	buf = appendSection(buf, dataStart, uint32(len(data)))
+	buf = appendSection(buf, strTableStart, uint32(len(strTable)))
+	buf = appendSection(buf, intTableStart, uint32(len(intTable)))
+	buf = append(buf, instrs...)
+	buf = append(buf, data...)
+	buf = append(buf, strTable...)
+	buf = append(buf, intTable...)
+	return buf
+}
+
+// TODO review AI blob
+func encodePools(strings []string, ints []big.Int) (data, strTable, intTable []byte) {
+	strOffsets := make([]uint32, len(strings))
+	for i, s := range strings {
+		strOffsets[i] = uint32(len(data))
+		var lenBuf [4]byte
+		le.PutUint32(lenBuf[:], uint32(len(s)))
+		data = append(data, lenBuf[:]...)
+		data = append(data, s...)
+	}
+	intOffsets := make([]uint32, len(ints))
+	for i := range ints {
+		intOffsets[i] = uint32(len(data))
+		n := &ints[i]
+		sign := byte(0)
+		if n.Sign() < 0 {
+			sign = 1
+		}
+		mag := new(big.Int).Abs(n).Bytes()
+		var hdr [5]byte
+		hdr[0] = sign
+		le.PutUint32(hdr[1:], uint32(len(mag)))
+		data = append(data, hdr[:]...)
+		data = append(data, mag...)
+	}
+	return data, offsetTable(strOffsets), offsetTable(intOffsets)
+}
+
 func readArr[T any](
 	segmentName string,
 	buf []byte,

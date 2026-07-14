@@ -114,13 +114,34 @@ func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.Involved
 }
 
 type (
-	CompiledProgram = compiler.CompiledProgram
+	VarsEncoder     = compiler.VarsEncoder
+	CompiledProgram = vm.Program
 	VMStore         = vm.Store
+	Vm              = vm.Vm
+	Vars            = vm.Vars
 )
 
-func (p ParseResult) Compile() (CompiledProgram, error) {
+var NewVm = vm.NewVm
+
+var DecodeVars = vm.DecodeVars
+
+func (p ParseResult) Compile() (VarsEncoder, CompiledProgram, error) {
 	if len(p.parseResult.Errors) != 0 {
-		return CompiledProgram{}, p.parseResult.Errors[0]
+		return VarsEncoder{}, CompiledProgram{}, p.parseResult.Errors[0]
 	}
-	return compiler.CompileProgram(p.parseResult.Value)
+	return compiler.Compile(p.parseResult.Value)
+}
+
+func Compile(source string) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).Compile()
+}
+
+var DecodeCompiledProgram = vm.DecodeProgram
+
+func ExecVm[S VMStore](machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
+	res, execErr := vm.Exec(machine, vars, store)
+	if execErr != nil {
+		return ExecutionResult{}, execErr
+	}
+	return res, nil
 }

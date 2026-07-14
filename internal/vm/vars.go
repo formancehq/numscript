@@ -42,37 +42,8 @@ func DecodeVars(buf []byte) (Vars, error) {
 	}, nil
 }
 
-// TODO review AI blob
 func (v Vars) Encode() []byte {
-	var data []byte
-
-	strOffsets := make([]uint32, len(v.StringsPool))
-	for i, s := range v.StringsPool {
-		strOffsets[i] = uint32(len(data))
-		var lenBuf [4]byte
-		le.PutUint32(lenBuf[:], uint32(len(s)))
-		data = append(data, lenBuf[:]...)
-		data = append(data, s...)
-	}
-
-	intOffsets := make([]uint32, len(v.IntsPool))
-	for i := range v.IntsPool {
-		intOffsets[i] = uint32(len(data))
-		n := &v.IntsPool[i]
-		sign := byte(0)
-		if n.Sign() < 0 {
-			sign = 1
-		}
-		mag := new(big.Int).Abs(n).Bytes()
-		var hdr [5]byte
-		hdr[0] = sign
-		le.PutUint32(hdr[1:], uint32(len(mag)))
-		data = append(data, hdr[:]...)
-		data = append(data, mag...)
-	}
-
-	strTable := offsetTable(strOffsets)
-	intTable := offsetTable(intOffsets)
+	data, strTable, intTable := encodePools(v.StringsPool, v.IntsPool)
 
 	const headerLen = 4 + 3*8 // magic + 3 section pointers
 	dataStart := uint32(headerLen)
