@@ -50,6 +50,18 @@ type (
 	varStr struct{}
 )
 
+type metaType interface {
+	fmt.Stringer
+	assembleMeta(a *assembler, dest, account, key reg) error
+}
+
+type (
+	metaStr      struct{}
+	metaInt      struct{}
+	metaPortion  struct{}
+	metaMonetary struct{}
+)
+
 type (
 	pullAccount struct {
 		dest                  reg  // int: amount pulled
@@ -78,7 +90,12 @@ type (
 	assertSameAsset struct{ left, right reg }         // str, str
 	setTxMeta       struct{ key, value reg }          // str, str
 	setAccountMeta  struct{ account, key, value reg } // str, str, str
-	fetchBalance    struct {
+	metaVar         struct {
+		dest         reg
+		account, key reg // str, str
+		typ          metaType
+	}
+	fetchBalance struct {
 		dest           reg // monetary
 		account, asset reg // str, str
 	} // reads the run-state (impure)
@@ -151,6 +168,9 @@ func (i setTxMeta) sources() []reg { return []reg{i.key, i.value} }
 
 func (i setAccountMeta) dests() []reg   { return nil }
 func (i setAccountMeta) sources() []reg { return []reg{i.account, i.key, i.value} }
+
+func (i metaVar) dests() []reg   { return []reg{i.dest} }
+func (i metaVar) sources() []reg { return []reg{i.account, i.key} }
 
 func (i fetchBalance) dests() []reg   { return []reg{i.dest} }
 func (i fetchBalance) sources() []reg { return []reg{i.account, i.asset} }

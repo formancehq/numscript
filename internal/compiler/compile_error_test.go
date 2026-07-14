@@ -28,6 +28,21 @@ func TestE2E_RejectsTypeMismatch(t *testing.T) {
 	require.IsType(t, typecheck.TypeMismatch{}, cErr.(TypeError).Kind)
 }
 
+func TestE2E_RejectsMetaOutsideVarOrigin(t *testing.T) {
+	// meta() is only supported as a direct variable origin; nested in an
+	// expression it must be a compile error, not a panic.
+	parsed := parser.Parse(`
+		vars {
+			account $a
+			number $n = meta($a, "k") + 1
+		}
+		send [C $n] (source = @world destination = @d)
+	`)
+	require.Empty(t, parsed.Errors)
+	_, cErr := compileProgramToVirtual(parsed.Value)
+	require.IsType(t, InvalidMetaPosition{}, cErr)
+}
+
 func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {
 	parsed := parser.Parse(`
 		send [USD/2 100] (

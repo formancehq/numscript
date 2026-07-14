@@ -406,6 +406,9 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
 			})
 
+		case builtins.Meta:
+			return 0, InvalidMetaPosition{Range: expr.Range}
+
 		default:
 			panic("TODO compileExpr fn call " + expr.Caller.Name)
 		}
@@ -905,11 +908,46 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 		st.compileExternalVar(decl)
 		return nil
 	}
+	// meta() is only supported as a variable origin, statically dispatched on
+	// the declared type; elsewhere compileExpr reports InvalidMetaPosition.
+	if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok && fnCall.Caller.Name == builtins.Meta {
+		return st.compileMetaVar(decl, fnCall)
+	}
 	r, err := st.compileExpr(*decl.Origin)
 	if err != nil {
 		return err
 	}
 	st.vars[decl.Name.Name] = r
+	return nil
+}
+
+func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCall) CompilerError {
+	account, err := st.compileExpr(fnCall.Args[0])
+	if err != nil {
+		return err
+	}
+	key, err := st.compileExpr(fnCall.Args[1])
+	if err != nil {
+		return err
+	}
+
+	var typ metaType
+	switch decl.Type.Name {
+	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
+		typ = metaStr{}
+	case typecheck.TypeNumber:
+		typ = metaInt{}
+	case typecheck.TypePortion:
+		typ = metaPortion{}
+	case typecheck.TypeMonetary:
+		typ = metaMonetary{}
+	default:
+		panic("unexpected meta var type: " + decl.Type.Name)
+	}
+
+	st.vars[decl.Name.Name] = st.pushInstructionWithDest(func(dest reg) vInstr {
+		return metaVar{dest: dest, account: account, key: key, typ: typ}
+	})
 	return nil
 }
 

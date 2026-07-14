@@ -64,7 +64,6 @@ var scriptsBlacklist = []string{
 
 	// unimplemented core features
 	"feature-flag-syntax.num",
-	"metadata.num",
 	"overdraft-when-negative-balance-in-send-all.num",
 	"overdraft-when-negative-ovedraft-in-send-all.num",
 	"send-all-destinatio-allot-complex.num",
@@ -117,7 +116,7 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		require.NoError(t, encErr, "case %q: encode vars", tc.It)
 
 		machine := vm.NewVm(program)
-		store := scriptStore(specs.Balances, tc.Balances)
+		store := scriptStore(specs.Balances, tc.Balances, specs.Meta, tc.Meta)
 		res, execErr := vm.Exec(machine, &vars, store)
 
 		if tc.ExpectMissingFunds {
@@ -138,10 +137,23 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	}
 }
 
-func scriptStore(outer, inner interpreter.Balances) e2eStore {
+func scriptStore(balancesOuter, balancesInner interpreter.Balances, metaOuter, metaInner interpreter.AccountsMetadata) e2eStore {
 	m := map[runtime.PairKey]*big.Int{}
-	for _, b := range append(append(interpreter.Balances{}, outer...), inner...) {
+	for _, b := range append(append(interpreter.Balances{}, balancesOuter...), balancesInner...) {
 		m[runtime.PairKey{Account: b.Account, Asset: b.Asset, Color: b.Color}] = b.Amount
 	}
-	return e2eStore{balances: m}
+
+	meta := map[string]map[string]string{}
+	for _, src := range []interpreter.AccountsMetadata{metaOuter, metaInner} {
+		for acc, kv := range src {
+			if meta[acc] == nil {
+				meta[acc] = map[string]string{}
+			}
+			for k, v := range kv {
+				meta[acc][k] = v
+			}
+		}
+	}
+
+	return e2eStore{balances: m, metadata: meta}
 }

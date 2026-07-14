@@ -521,6 +521,55 @@ func (i setTxMeta) assemble(a *assembler) error {
 	return nil
 }
 
+func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key reg) error {
+	acc, err := a.strReg(account)
+	if err != nil {
+		return err
+	}
+	k, err := a.strReg(key)
+	if err != nil {
+		return err
+	}
+	a.emit(opcode, dest, acc, k)
+	return nil
+}
+
+func (metaStr) assembleMeta(a *assembler, dest, account, key reg) error {
+	d, err := a.strReg(dest)
+	if err != nil {
+		return err
+	}
+	return a.emitMeta(vm.Op_MetaStr, d, account, key)
+}
+
+func (metaInt) assembleMeta(a *assembler, dest, account, key reg) error {
+	d, err := a.intReg(dest)
+	if err != nil {
+		return err
+	}
+	return a.emitMeta(vm.Op_MetaInt, d, account, key)
+}
+
+func (metaPortion) assembleMeta(a *assembler, dest, account, key reg) error {
+	d, err := a.portionReg(dest)
+	if err != nil {
+		return err
+	}
+	return a.emitMeta(vm.Op_MetaPortion, d, account, key)
+}
+
+func (metaMonetary) assembleMeta(a *assembler, dest, account, key reg) error {
+	d, err := a.monetaryReg(dest)
+	if err != nil {
+		return err
+	}
+	return a.emitMeta(vm.Op_MetaMonetary, d, account, key)
+}
+
+func (i metaVar) assemble(a *assembler) error {
+	return i.typ.assembleMeta(a, i.dest, i.account, i.key)
+}
+
 func (i setAccountMeta) assemble(a *assembler) error {
 	account, err := a.strReg(i.account)
 	if err != nil {

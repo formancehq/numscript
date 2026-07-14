@@ -81,6 +81,15 @@ func (i setAccountMeta) String() string {
 	return fmt.Sprintf("set_account_meta(%s, %s, %s)", i.account, i.key, i.value)
 }
 
+func (i metaVar) String() string {
+	return fmt.Sprintf("%s <- meta<%s>(%s, %s)", i.dest, i.typ, i.account, i.key)
+}
+
+func (metaStr) String() string      { return "str" }
+func (metaInt) String() string      { return "int" }
+func (metaPortion) String() string  { return "portion" }
+func (metaMonetary) String() string { return "monetary" }
+
 func (i fetchBalance) String() string {
 	return fmt.Sprintf("%s <- balance(%s, %s)", i.dest, i.account, i.asset)
 }
