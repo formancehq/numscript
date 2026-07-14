@@ -25,7 +25,6 @@ const scriptsFolder = "../interpreter/testdata/script-tests"
 // (all in experimental/). Delete entries as features land, until it's empty.
 var scriptsBlacklist = []string{
 	// feature-flagged (experimental) — not core numscript
-	"experimental/account-interpolation/account-interp.num",
 	"experimental/asset-colors/color-inorder-send-all.num",
 	"experimental/asset-colors/color-inorder.num",
 	"experimental/asset-colors/color-restrict-balance-when-missing-funds.num",
