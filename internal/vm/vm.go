@@ -188,6 +188,12 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_AssertValidAccount:
+			account := vm.stringsRegs[instr.A]
+			if !runtime.ValidateAccount(account) {
+				return runtime.ExecutionResult{}, InvalidAccountName{Name: account}
+			}
+
 		case Op_SetTxMeta:
 			if txMeta == nil {
 				txMeta = map[string]string{}

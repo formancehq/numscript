@@ -139,3 +139,25 @@ func TestInorderSend(t *testing.T) {
 		t.Errorf("postings mismatch\n got: %+v\nwant: %+v", res.Postings, want)
 	}
 }
+
+func assertValidAccountProgram(name string) Program {
+	return Program{
+		Instructions: []Instruction{
+			bc(Op_LoadStr, 0, 0),
+			abc(Op_AssertValidAccount, 0, nilReg, nilReg),
+		},
+		StringsPool: []string{name},
+	}
+}
+
+func TestAssertValidAccount(t *testing.T) {
+	_, err := Exec(NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
+	if err != nil {
+		t.Fatalf("valid account rejected: %v", err)
+	}
+
+	_, err = Exec(NewVm(assertValidAccountProgram("bad name!")), nil, mockStore{})
+	if _, ok := err.(InvalidAccountName); !ok {
+		t.Fatalf("expected InvalidAccountName, got %v", err)
+	}
+}

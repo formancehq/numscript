@@ -39,7 +39,15 @@ type (
 		Key     string
 		Raw     string
 	}
+
+	InvalidAccountName struct {
+		Name string
+	}
 )
+
+func (e InvalidAccountName) Error() string {
+	return fmt.Sprintf("invalid account name: %q", e.Name)
+}
 
 func (e InvalidAllotmentSum) Error() string {
 	return fmt.Sprintf("invalid allotment: portions must sum to 1, got %s", e.ActualSum.String())
@@ -59,6 +67,7 @@ func (InvalidUncappedSource) execErr() {}
 func (InvalidAllotmentSum) execErr()   {}
 func (MetadataNotFoundError) execErr() {}
 func (BadMetaValueError) execErr()     {}
+func (InvalidAccountName) execErr()    {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -67,4 +76,5 @@ var (
 	_ ExecutionError = (*InvalidAllotmentSum)(nil)
 	_ ExecutionError = (*MetadataNotFoundError)(nil)
 	_ ExecutionError = (*BadMetaValueError)(nil)
+	_ ExecutionError = (*InvalidAccountName)(nil)
 )

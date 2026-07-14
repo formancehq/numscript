@@ -38,6 +38,9 @@ const (
 
 	Op_AssertSameAsset
 
+	// errors if the account name in str reg A is not well-formed
+	Op_AssertValidAccount
+
 	// --- metadata ---
 	// A = key (str reg), B = value (str reg)
 	Op_SetTxMeta
