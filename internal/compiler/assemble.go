@@ -565,7 +565,27 @@ func (i makeAllotment) assemble(a *assembler) error {
 	})
 	return nil
 }
-func (i fetchVariable) assemble(a *assembler) error { panic("TODO assemble fetchVariable") }
+type loadVarSig struct {
+	opcode vm.Opcode
+	dest   regResolver
+}
+
+func (varInt) sig() loadVarSig {
+	return loadVarSig{opcode: vm.Op_LoadVarInt, dest: (*assembler).intReg}
+}
+func (varStr) sig() loadVarSig {
+	return loadVarSig{opcode: vm.Op_LoadVarStr, dest: (*assembler).strReg}
+}
+
+func (i loadVar) assemble(a *assembler) error {
+	sig := i.typ.sig()
+	dest, err := sig.dest(a, i.dest)
+	if err != nil {
+		return err
+	}
+	a.emitBC(sig.opcode, dest, i.index)
+	return nil
+}
 
 func (i labelMarker) assemble(a *assembler) error {
 	l := len(a.instructions)

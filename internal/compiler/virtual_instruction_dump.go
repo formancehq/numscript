@@ -75,9 +75,12 @@ func (i fetchBalance) String() string {
 	return fmt.Sprintf("%s <- balance(%s, %s)", i.dest, i.account, i.asset)
 }
 
-func (i fetchVariable) String() string {
-	return fmt.Sprintf("%s <- fetch_var(%d)", i.dest, i.index)
+func (i loadVar) String() string {
+	return fmt.Sprintf("%s <- load_var<%s>(%d)", i.dest, i.typ, i.index)
 }
+
+func (varInt) String() string { return "int" }
+func (varStr) String() string { return "str" }
 
 func (i jmpIfZero) String() string {
 	return fmt.Sprintf("jmp_if_zero(%s, %s)", i.cond, i.target)

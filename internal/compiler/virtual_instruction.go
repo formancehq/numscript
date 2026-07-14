@@ -38,6 +38,16 @@ type (
 	opIntToString struct{}
 )
 
+type varType interface {
+	fmt.Stringer
+	sig() loadVarSig
+}
+
+type (
+	varInt struct{}
+	varStr struct{}
+)
+
 type (
 	pullAccount struct {
 		dest                  reg  // int: amount pulled
@@ -68,9 +78,10 @@ type (
 		dest           reg // monetary
 		account, asset reg // str, str
 	} // reads the run-state (impure)
-	fetchVariable struct {
+	loadVar struct {
 		dest  reg
-		index uint32
+		typ   varType
+		index uint16
 	}
 	jmpIfZero struct {
 		cond   reg // int
@@ -134,8 +145,8 @@ func (i assertSameAsset) sources() []reg { return []reg{i.left, i.right} }
 func (i fetchBalance) dests() []reg   { return []reg{i.dest} }
 func (i fetchBalance) sources() []reg { return []reg{i.account, i.asset} }
 
-func (i fetchVariable) dests() []reg   { return []reg{i.dest} }
-func (i fetchVariable) sources() []reg { return nil }
+func (i loadVar) dests() []reg   { return []reg{i.dest} }
+func (i loadVar) sources() []reg { return nil }
 
 func (i jmpIfZero) dests() []reg   { return nil }
 func (i jmpIfZero) sources() []reg { return []reg{i.cond} }
