@@ -44,7 +44,7 @@ func Exec[S Store](
 	vm *Vm,
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
-) ([]runtime.Posting, ExecutionError) {
+) (runtime.ExecutionResult, ExecutionError) {
 	if vm.runstate == nil {
 		vm.runstate = runtime.New(store)
 	} else {
@@ -92,7 +92,7 @@ func Exec[S Store](
 			case overdraft != nil:
 				runstate.PullUncapped(out, account, overdraft, color)
 			default:
-				return nil, InvalidUncappedSource{Account: account}
+				return runtime.ExecutionResult{}, InvalidUncappedSource{Account: account}
 			}
 
 		case Op_SendToAccount:
@@ -137,7 +137,7 @@ func Exec[S Store](
 			got := &vm.intsRegs[instr.A]
 			needed := &vm.intsRegs[instr.B]
 			if got.Cmp(needed) == -1 {
-				return nil, MissingFundsError{
+				return runtime.ExecutionResult{}, MissingFundsError{
 					Asset:  currentAsset,
 					Got:    got,
 					Needed: needed,
@@ -158,7 +158,7 @@ func Exec[S Store](
 			sign := leftover.Sign()
 			if sign < 0 || (instr.B == 1 && sign != 0) {
 				sum := new(big.Rat).Sub(big.NewRat(1, 1), leftover)
-				return nil, InvalidAllotmentSum{ActualSum: *sum}
+				return runtime.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *sum}
 			}
 
 		case Op_SetCurrentAsset:
@@ -169,7 +169,7 @@ func Exec[S Store](
 			left := vm.stringsRegs[instr.A]
 			right := vm.stringsRegs[instr.B]
 			if left != right {
-				return nil, AssetMismatchError{
+				return runtime.ExecutionResult{}, AssetMismatchError{
 					Expected: left,
 					Got:      right,
 				}
@@ -276,5 +276,7 @@ func Exec[S Store](
 		}
 	}
 
-	return runstate.GetPostings(), nil
+	return runtime.ExecutionResult{
+		Postings: runstate.GetPostings(),
+	}, nil
 }

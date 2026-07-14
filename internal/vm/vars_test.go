@@ -2,10 +2,10 @@ package vm
 
 import (
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVarsRoundTrip(t *testing.T) {
@@ -15,13 +15,8 @@ func TestVarsRoundTrip(t *testing.T) {
 	}
 
 	out, err := DecodeVars(in.Encode())
-	if err != nil {
-		t.Fatalf("DecodeVars: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, in) {
-		t.Errorf("round trip mismatch\n got: %+v\nwant: %+v", out, in)
-	}
+	require.NoError(t, err)
+	require.Equal(t, in, out)
 }
 
 func TestLoadVarOpcodes(t *testing.T) {
@@ -29,9 +24,7 @@ func TestLoadVarOpcodes(t *testing.T) {
 		StringsPool: []string{"world", "dest"},
 		IntsPool:    []big.Int{*big.NewInt(42)},
 	}.Encode())
-	if err != nil {
-		t.Fatalf("DecodeVars: %v", err)
-	}
+	require.NoError(t, err)
 
 	prog := Program{
 		Instructions: []Instruction{
@@ -47,15 +40,11 @@ func TestLoadVarOpcodes(t *testing.T) {
 		StringsPool: []string{"USD/2"},
 	}
 
-	got, execErr := Exec(NewVm(prog), &vars, mockStore{})
-	if execErr != nil {
-		t.Fatalf("Exec: %v", execErr)
-	}
+	res, execErr := Exec(NewVm(prog), &vars, mockStore{})
+	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("postings mismatch\n got: %+v\nwant: %+v", got, want)
-	}
+	require.Equal(t, want, res.Postings)
 }

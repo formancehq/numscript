@@ -44,13 +44,13 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	}}
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 // TestE2E_Inorder exercises an inorder source { @a @b @c } end-to-end, including
@@ -81,14 +81,14 @@ func TestE2E_Inorder(t *testing.T) {
 	}}
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 // TestE2E_InorderWithCap exercises a capped (`max`) source inside an inorder
@@ -119,7 +119,7 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	}}
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
@@ -127,7 +127,7 @@ func TestE2E_InorderWithCap(t *testing.T) {
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
 		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 // TestE2E_InsufficientFunds checks the failure path: when the source can't cover
@@ -179,14 +179,14 @@ func TestE2E_DestinationInorder(t *testing.T) {
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
 		{Source: "world", Destination: "x", Asset: "USD/2", Amount: big.NewInt(30)},
 		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 // TestE2E_DestinationKept exercises a `kept` clause: of 100 pulled from @world,
@@ -211,14 +211,14 @@ func TestE2E_DestinationKept(t *testing.T) {
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
 
 	// only the remaining 70 is posted; the kept 30 produces no posting
 	want := []runtime.Posting{
 		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 // TestE2E_DestinationAllotment splits the pulled amount by portions. 100 from
@@ -432,12 +432,12 @@ func TestE2E_IntAddition(t *testing.T) {
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
-	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	res, execErr := vm.Exec(vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
-	}, postings)
+	}, res.Postings)
 }
 
 func TestE2E_IntSubtraction(t *testing.T) {
@@ -458,12 +458,12 @@ func TestE2E_IntSubtraction(t *testing.T) {
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
-	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	res, execErr := vm.Exec(vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
-	}, postings)
+	}, res.Postings)
 }
 
 func TestE2E_MonetaryAddition(t *testing.T) {
@@ -488,12 +488,12 @@ func TestE2E_MonetaryAddition(t *testing.T) {
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
-	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	res, execErr := vm.Exec(vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
-	}, postings)
+	}, res.Postings)
 }
 
 func TestE2E_MonetarySubtraction(t *testing.T) {
@@ -584,12 +584,12 @@ func TestE2E_GetAmount(t *testing.T) {
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
-	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	res, execErr := vm.Exec(vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
-	}, postings)
+	}, res.Postings)
 }
 
 func TestE2E_GetAsset(t *testing.T) {
@@ -614,12 +614,12 @@ func TestE2E_GetAsset(t *testing.T) {
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
-	postings, execErr := vm.Exec(vm.NewVm(program), nil, store)
+	res, execErr := vm.Exec(vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
 	requirePostingsEqual(t, []runtime.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
-	}, postings)
+	}, res.Postings)
 }
 
 func TestE2E_PrefixMinusNumber(t *testing.T) {
@@ -842,9 +842,9 @@ func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	_, program, cErr := compiler.Compile(parsed.Value)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, nil, store)
+	res, execErr := vm.Exec(machine, nil, store)
 	require.Nil(t, execErr)
-	return postings
+	return res.Postings
 }
 
 func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {

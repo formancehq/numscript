@@ -120,7 +120,7 @@ func TestInorderSend(t *testing.T) {
 
 	vm := NewVm(prog)
 
-	got, err := Exec(vm, nil, store)
+	res, err := Exec(vm, nil, store)
 	if err != nil {
 		t.Fatalf("Exec returned error: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestInorderSend(t *testing.T) {
 		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("postings mismatch\n got: %+v\nwant: %+v", got, want)
+	if !reflect.DeepEqual(res.Postings, want) {
+		t.Errorf("postings mismatch\n got: %+v\nwant: %+v", res.Postings, want)
 	}
 }

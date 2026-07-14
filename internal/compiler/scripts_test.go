@@ -128,8 +128,9 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		vars, encErr := enc.Encode(caseVars)
 		require.NoError(t, encErr, "case %q: encode vars", tc.It)
 
+		machine := vm.NewVm(program)
 		store := scriptStore(specs.Balances, tc.Balances)
-		postings, execErr := vm.Exec(vm.NewVm(program), &vars, store)
+		res, execErr := vm.Exec(machine, &vars, store)
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)
@@ -138,7 +139,7 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		require.Nil(t, execErr, "case %q: unexpected error: %v", tc.It, execErr)
 
 		if tc.ExpectPostings != nil {
-			requirePostingsEqual(t, tc.ExpectPostings, postings)
+			requirePostingsEqual(t, tc.ExpectPostings, res.Postings)
 		}
 	}
 }

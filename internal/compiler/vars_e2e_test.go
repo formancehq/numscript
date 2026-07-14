@@ -36,13 +36,13 @@ func TestE2E_ExternalVars(t *testing.T) {
 	require.NoError(t, err)
 
 	machine := vm.NewVm(program)
-	postings, execErr := vm.Exec(machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	res, execErr := vm.Exec(machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
 		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
 	}
-	requirePostingsEqual(t, want, postings)
+	requirePostingsEqual(t, want, res.Postings)
 }
 
 func compileEncoder(t *testing.T, src string) compiler.VarsEncoder {
