@@ -614,26 +614,26 @@ func (i makeAllotment) assemble(a *assembler) error {
 	return nil
 }
 
-type loadVarSig struct {
-	opcode vm.Opcode
-	dest   regResolver
-}
-
-func (varInt) sig() loadVarSig {
-	return loadVarSig{opcode: vm.Op_LoadVarInt, dest: (*assembler).intReg}
-}
-func (varStr) sig() loadVarSig {
-	return loadVarSig{opcode: vm.Op_LoadVarStr, dest: (*assembler).strReg}
-}
-
-func (i loadVar) assemble(a *assembler) error {
-	sig := i.typ.sig()
-	dest, err := sig.dest(a, i.dest)
+func (varInt) assembleLoad(a *assembler, dest reg, index uint16) error {
+	d, err := a.intReg(dest)
 	if err != nil {
 		return err
 	}
-	a.emitBC(sig.opcode, dest, i.index)
+	a.emitBC(vm.Op_LoadVarInt, d, index)
 	return nil
+}
+
+func (varStr) assembleLoad(a *assembler, dest reg, index uint16) error {
+	d, err := a.strReg(dest)
+	if err != nil {
+		return err
+	}
+	a.emitBC(vm.Op_LoadVarStr, d, index)
+	return nil
+}
+
+func (i loadVar) assemble(a *assembler) error {
+	return i.typ.assembleLoad(a, i.dest, i.index)
 }
 
 func (i labelMarker) assemble(a *assembler) error {

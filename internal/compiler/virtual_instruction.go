@@ -42,7 +42,7 @@ type (
 
 type varType interface {
 	fmt.Stringer
-	sig() loadVarSig
+	assembleLoad(a *assembler, dest reg, index uint16) error
 }
 
 type (
