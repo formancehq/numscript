@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -40,7 +41,7 @@ func TestLoadVarOpcodes(t *testing.T) {
 		StringsPool: []string{"USD/2"},
 	}
 
-	res, execErr := Exec(NewVm(prog), &vars, mockStore{})
+	res, execErr := Exec(context.Background(), NewVm(prog), &vars, mockStore{})
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{

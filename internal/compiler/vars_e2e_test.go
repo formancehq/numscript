@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestE2E_ExternalVars(t *testing.T) {
 	require.NoError(t, err)
 
 	machine := vm.NewVm(program)
-	res, execErr := vm.Exec(machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	res, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
 	require.Nil(t, execErr)
 
 	want := []runtime.Posting{
@@ -60,7 +61,7 @@ func TestE2E_InvalidInterpolatedAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
 	require.Equal(t, vm.InvalidAccountName{Name: "user:!invalid acc.."}, execErr)
 }
 

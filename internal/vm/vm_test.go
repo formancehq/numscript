@@ -19,6 +19,7 @@ package vm
 // SendToAccount uses invalid `new(value)`.
 
 import (
+	"context"
 	"math/big"
 	"reflect"
 	"testing"
@@ -100,11 +101,11 @@ type mockStore struct {
 	meta map[string]map[string]string
 }
 
-func (m mockStore) GetBalance(account, asset string, color string) (*big.Int, error) {
+func (m mockStore) GetBalance(ctx context.Context, account, asset string, color string) (*big.Int, error) {
 	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}]), nil
 }
 
-func (m mockStore) GetMetadata(account, key string) (string, bool, error) {
+func (m mockStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
 	v, ok := m.meta[account][key]
 	return v, ok, nil
 }
@@ -126,7 +127,7 @@ func TestInorderSend(t *testing.T) {
 
 	vm := NewVm(prog)
 
-	res, err := Exec(vm, nil, store)
+	res, err := Exec(context.Background(), vm, nil, store)
 	if err != nil {
 		t.Fatalf("Exec returned error: %v", err)
 	}
@@ -164,12 +165,12 @@ func balanceNonNegativeProgram() Program {
 
 func TestAssertNonNegativeBalance(t *testing.T) {
 	store := mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
-	if _, err := Exec(NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
+	if _, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
 		t.Fatalf("non-negative balance rejected: %v", err)
 	}
 
 	store = mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
-	_, err := Exec(NewVm(balanceNonNegativeProgram()), nil, store)
+	_, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store)
 	if _, ok := err.(NegativeBalanceError); !ok {
 		t.Fatalf("expected NegativeBalanceError, got %v", err)
 	}
@@ -177,7 +178,7 @@ func TestAssertNonNegativeBalance(t *testing.T) {
 
 func TestUnknownOpcode(t *testing.T) {
 	prog := Program{Instructions: []Instruction{abc(0xFE, 0, 0, 0)}}
-	_, err := Exec(NewVm(prog), nil, mockStore{})
+	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	if _, ok := err.(InternalError); !ok {
 		t.Fatalf("expected InternalError, got %v", err)
 	}
@@ -192,19 +193,19 @@ func TestMkPortionDivideByZero(t *testing.T) {
 		},
 		IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(0)},
 	}
-	_, err := Exec(NewVm(prog), nil, mockStore{})
+	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	if _, ok := err.(DivideByZeroError); !ok {
 		t.Fatalf("expected DivideByZeroError, got %v", err)
 	}
 }
 
 func TestAssertValidAccount(t *testing.T) {
-	_, err := Exec(NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
+	_, err := Exec(context.Background(), NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
 	if err != nil {
 		t.Fatalf("valid account rejected: %v", err)
 	}
 
-	_, err = Exec(NewVm(assertValidAccountProgram("bad name!")), nil, mockStore{})
+	_, err = Exec(context.Background(), NewVm(assertValidAccountProgram("bad name!")), nil, mockStore{})
 	if _, ok := err.(InvalidAccountName); !ok {
 		t.Fatalf("expected InvalidAccountName, got %v", err)
 	}

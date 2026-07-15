@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math/big"
@@ -112,7 +113,7 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 
 		machine := vm.NewVm(program)
 		store := scriptStore(specs.Balances, tc.Balances, specs.Meta, tc.Meta)
-		res, execErr := vm.Exec(machine, &vars, store)
+		res, execErr := vm.Exec(context.Background(), machine, &vars, store)
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)

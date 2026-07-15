@@ -153,8 +153,8 @@ func Compile(source string) (VarsEncoder, CompiledProgram, error) {
 
 var DecodeCompiledProgram = vm.DecodeProgram
 
-func ExecVm[S VMStore](machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
-	res, execErr := vm.Exec(machine, vars, store)
+func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
+	res, execErr := vm.Exec(ctx, machine, vars, store)
 	if execErr != nil {
 		return ExecutionResult{}, execErr
 	}

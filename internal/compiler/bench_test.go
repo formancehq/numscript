@@ -17,14 +17,28 @@ type benchStore struct {
 	balances map[runtime.PairKey]*big.Int
 }
 
-func (s benchStore) GetBalance(account, asset, color string) (*big.Int, error) {
+func (s benchStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
 	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
 		return v, nil
 	}
 	return new(big.Int), nil
 }
 
-func (benchStore) GetMetadata(string, string) (string, bool, error) { return "", false, nil }
+func (benchStore) GetMetadata(ctx context.Context, k, v string) (string, bool, error) {
+	return "", false, nil
+}
+
+type runtimeStoreAdapter struct {
+	store vm.Store
+}
+
+func (s runtimeStoreAdapter) GetBalance(
+	account string,
+	asset string,
+	color string,
+) (*big.Int, error) {
+	return s.store.GetBalance(context.Background(), account, asset, color)
+}
 
 // Both benchmarks run the SAME program with the same starting balance; only the
 // per-iteration RUN is measured (parse/compile/assemble happen once, up front).
@@ -63,9 +77,12 @@ func BenchmarkTreeWalker(b *testing.B) {
 // between this and BenchmarkCompiledVM is the VM's dispatch/register overhead;
 // the gap to BenchmarkTreeWalker is the interpreter's front-end overhead.
 func BenchmarkRuntimeBaseline(b *testing.B) {
-	store := benchStore{balances: map[runtime.PairKey]*big.Int{
-		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
-	}}
+	store := runtimeStoreAdapter{
+		store: benchStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		}},
+	}
+
 	rs := runtime.New(store)
 
 	ten := big.NewInt(10)  // the sent amount / pull cap
@@ -105,7 +122,7 @@ func BenchmarkCompiledVM(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := vm.Exec(machine, nil, store)
+		_, err := vm.Exec(context.Background(), machine, nil, store)
 		if err != nil {
 			b.Fatalf("exec: %v", err)
 		}
@@ -162,7 +179,7 @@ func cappedStore() benchStore {
 // the cap/running-total/early-exit arithmetic done inline on reused big.Ints) —
 // no AST walk, no bytecode dispatch. RunState reused across iterations.
 func BenchmarkRuntimeBaselineCapped(b *testing.B) {
-	store := cappedStore()
+	store := runtimeStoreAdapter{store: cappedStore()}
 	rs := runtime.New(store)
 
 	zero := big.NewInt(0)
@@ -226,7 +243,7 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := vm.Exec(machine, nil, store)
+		_, err := vm.Exec(context.Background(), machine, nil, store)
 		if err != nil {
 			b.Fatalf("exec: %v", err)
 		}

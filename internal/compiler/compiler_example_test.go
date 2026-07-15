@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestCompilerExample(t *testing.T) {
 		"src_account": 100,
 	}
 
-	result, execErr := numscript.ExecVm(vm, &vars, store)
+	result, execErr := numscript.ExecVm(context.Background(), vm, &vars, store)
 	require.NoError(t, execErr) // e.g. missing funds, or any other runtime error
 	require.Equal(t, []numscript.Posting{
 		{
@@ -75,10 +76,10 @@ func TestCompilerExample(t *testing.T) {
 
 type testStore map[string]int64
 
-func (s testStore) GetBalance(account, asset, color string) (*big.Int, error) {
+func (s testStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
 	return big.NewInt(s[account]), nil
 }
 
-func (testStore) GetMetadata(account, key string) (string, bool, error) {
+func (testStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
 	return "", false, nil
 }

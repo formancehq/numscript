@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/runtime"
@@ -34,16 +35,21 @@ func NewVm(
 
 type Store interface {
 	GetBalance(
+		ctx context.Context,
 		account string,
 		asset string,
 		color string,
 	) (*big.Int, error)
 
-	GetMetadata(account, key string) (string, bool, error)
+	GetMetadata(
+		ctx context.Context,
+		account,
+		key string,
+	) (string, bool, error)
 }
 
-func lookupMeta(store Store, account, key string) (string, ExecutionError) {
-	v, ok, err := store.GetMetadata(account, key)
+func lookupMeta(ctx context.Context, store Store, account, key string) (string, ExecutionError) {
+	v, ok, err := store.GetMetadata(ctx, account, key)
 	if err != nil {
 		return "", StoreError{Wrapped: err}
 	}
@@ -53,17 +59,32 @@ func lookupMeta(store Store, account, key string) (string, ExecutionError) {
 	return v, nil
 }
 
+type runtimeStoreAdapter struct {
+	ctx   context.Context
+	store Store
+}
+
+func (s runtimeStoreAdapter) GetBalance(
+	account string,
+	asset string,
+	color string,
+) (*big.Int, error) {
+	return s.store.GetBalance(s.ctx, account, asset, color)
+}
+
 func Exec[S Store](
+	ctx context.Context,
 	vm *Vm,
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
 ) (runtime.ExecutionResult, ExecutionError) {
+	runtimeStore := runtimeStoreAdapter{store: store}
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
 	if vm.runstate == nil {
-		vm.runstate = runtime.New(store)
+		vm.runstate = runtime.New(runtimeStore)
 	} else {
-		vm.runstate.Reset(store)
+		vm.runstate.Reset(runtimeStore)
 	}
 	runstate := vm.runstate
 
@@ -244,7 +265,7 @@ func Exec[S Store](
 			accMeta[vm.stringsRegs[instr.B]] = vm.stringsRegs[instr.C]
 
 		case Op_MetaStr:
-			v, err := lookupMeta(store, vm.stringsRegs[instr.B], vm.stringsRegs[instr.C])
+			v, err := lookupMeta(ctx, store, vm.stringsRegs[instr.B], vm.stringsRegs[instr.C])
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -252,7 +273,7 @@ func Exec[S Store](
 
 		case Op_MetaInt:
 			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
-			v, err := lookupMeta(store, account, key)
+			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -264,7 +285,7 @@ func Exec[S Store](
 
 		case Op_MetaPortion:
 			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
-			v, err := lookupMeta(store, account, key)
+			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -276,7 +297,7 @@ func Exec[S Store](
 
 		case Op_MetaMonetary:
 			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
-			v, err := lookupMeta(store, account, key)
+			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
