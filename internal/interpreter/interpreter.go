@@ -11,6 +11,7 @@ import (
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -23,15 +24,7 @@ type InterpreterError interface {
 
 type Metadata = map[string]Value
 
-type Posting struct {
-	Source           string   `json:"source"`
-	SourceScope      string   `json:"sourceScope,omitempty"`
-	Destination      string   `json:"destination"`
-	DestinationScope string   `json:"destinationScope,omitempty"`
-	Amount           *big.Int `json:"amount"`
-	Asset            string   `json:"asset"`
-	Color            string   `json:"color,omitempty"`
-}
+type Posting = runtime.Posting
 
 // newPosting builds a Posting from the source and destination addresses,
 // exposing each address's account and scope as the separate fields the posting

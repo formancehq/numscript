@@ -159,17 +159,8 @@ func ExecVm[S VMStore](machine *Vm, vars *Vars, store S) (ExecutionResult, error
 		return ExecutionResult{}, execErr
 	}
 
-	postings := make([]Posting, len(res.Postings))
-	for i, p := range res.Postings {
-		postings[i] = Posting{
-			Source:      p.Source,
-			Destination: p.Destination,
-			Amount:      p.Amount,
-			Asset:       p.Asset,
-			Color:       p.Color,
-		}
-	}
-	// TODO map VM tx/account metadata (stringified) onto the typed contract;
-	// deferred together with scopes/colors in the VM
-	return ExecutionResult{Postings: postings}, nil
+	// Postings share one type now (runtime.Posting); the VM leaves scope fields
+	// empty. TODO map VM tx/account metadata (stringified) onto the typed
+	// contract; deferred together with scopes/colors in the VM.
+	return ExecutionResult{Postings: res.Postings}, nil
 }

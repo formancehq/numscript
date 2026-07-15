@@ -44,13 +44,15 @@ type Store interface {
 // from Source to Destination. It is the single source of truth for the
 // interpreter's public Posting type (aliased there), hence the json tags: field
 // names and order define the public ledger serialization contract — keep them
-// stable.
+// stable. The VM leaves the scope fields empty; the interpreter fills them.
 type Posting struct {
-	Source      string   `json:"source"`
-	Destination string   `json:"destination"`
-	Amount      *big.Int `json:"amount"`
-	Asset       string   `json:"asset"`
-	Color       string   `json:"color,omitempty"`
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Amount           *big.Int `json:"amount"`
+	Asset            string   `json:"asset"`
+	Color            string   `json:"color,omitempty"`
 }
 
 type ExecutionResult struct {
