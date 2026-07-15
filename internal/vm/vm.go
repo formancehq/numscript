@@ -37,13 +37,16 @@ type Store interface {
 		account string,
 		asset string,
 		color string,
-	) *big.Int
+	) (*big.Int, error)
 
-	GetMetadata(account, key string) (string, bool)
+	GetMetadata(account, key string) (string, bool, error)
 }
 
 func lookupMeta(store Store, account, key string) (string, ExecutionError) {
-	v, ok := store.GetMetadata(account, key)
+	v, ok, err := store.GetMetadata(account, key)
+	if err != nil {
+		return "", StoreError{Wrapped: err}
+	}
 	if !ok {
 		return "", MetadataNotFoundError{Account: account, Key: key}
 	}
@@ -55,6 +58,8 @@ func Exec[S Store](
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
 ) (runtime.ExecutionResult, ExecutionError) {
+	// RunState fetches balances lazily through this store; a fetch error surfaces
+	// from the RunState call that triggered it, wrapped in StoreError below.
 	if vm.runstate == nil {
 		vm.runstate = runtime.New(store)
 	} else {
@@ -104,9 +109,13 @@ func Exec[S Store](
 			out := &vm.intsRegs[instr.A]
 			switch {
 			case cap != nil:
-				runstate.Pull(out, account, "", cap, overdraft, color)
+				if err := runstate.Pull(out, account, "", cap, overdraft, color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
 			case overdraft != nil:
-				runstate.PullUncapped(out, account, "", overdraft, color)
+				if err := runstate.PullUncapped(out, account, "", overdraft, color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
 			default:
 				return runtime.ExecutionResult{}, InvalidUncappedSource{Account: account}
 			}
@@ -129,9 +138,13 @@ func Exec[S Store](
 			}
 
 			if cap == nil {
-				runstate.SendUncapped(dest, "", color)
+				if err := runstate.SendUncapped(dest, "", color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
 			} else {
-				runstate.Send(dest, "", cap, color)
+				if err := runstate.Send(dest, "", cap, color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
 			}
 
 		case Op_MkAllotment:
@@ -171,7 +184,9 @@ func Exec[S Store](
 			if instr.C != nilReg {
 				amount = &vm.intsRegs[instr.C]
 			}
-			runstate.Save(account, "", asset, "", amount)
+			if err := runstate.Save(account, "", asset, "", amount); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
 
 		case Op_AssertLeftover:
 			leftover := &vm.portionsRegs[instr.A]
@@ -349,9 +364,13 @@ func Exec[S Store](
 			account := vm.stringsRegs[instr.B]
 			asset := vm.stringsRegs[instr.C]
 
+			bal, err := runstate.GetAccountBalance(account, "", asset, "")
+			if err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
 			dest := &vm.monetariesRegs[instr.A]
 			dest.asset = asset
-			dest.amount.Set(runstate.GetAccountBalance(account, "", asset, ""))
+			dest.amount.Set(bal)
 
 		// --- Unary ops
 		case Op_IntCopy:

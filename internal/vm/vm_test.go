@@ -100,13 +100,13 @@ type mockStore struct {
 	meta map[string]map[string]string
 }
 
-func (m mockStore) GetBalance(account, asset string, color string) *big.Int {
-	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}])
+func (m mockStore) GetBalance(account, asset string, color string) (*big.Int, error) {
+	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}]), nil
 }
 
-func (m mockStore) GetMetadata(account, key string) (string, bool) {
+func (m mockStore) GetMetadata(account, key string) (string, bool, error) {
 	v, ok := m.meta[account][key]
-	return v, ok
+	return v, ok, nil
 }
 
 var _ Store = (*mockStore)(nil)

@@ -17,14 +17,14 @@ type benchStore struct {
 	balances map[runtime.PairKey]*big.Int
 }
 
-func (s benchStore) GetBalance(account, asset, color string) *big.Int {
+func (s benchStore) GetBalance(account, asset, color string) (*big.Int, error) {
 	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
-		return v
+		return v, nil
 	}
-	return new(big.Int)
+	return new(big.Int), nil
 }
 
-func (benchStore) GetMetadata(string, string) (string, bool) { return "", false }
+func (benchStore) GetMetadata(string, string) (string, bool, error) { return "", false, nil }
 
 // Both benchmarks run the SAME program with the same starting balance; only the
 // per-iteration RUN is measured (parse/compile/assemble happen once, up front).

@@ -61,6 +61,13 @@ type (
 	InternalError struct {
 		Opcode byte
 	}
+
+	// StoreError wraps an error returned by the host Store (balance or metadata
+	// fetch). It is neither a script error nor a bytecode bug — the backing store
+	// failed — so the wrapped error is preserved for the host to inspect.
+	StoreError struct {
+		Wrapped error
+	}
 )
 
 func (e MissingFundsError) Error() string {
@@ -103,6 +110,9 @@ func (e BadMetaValueError) Error() string {
 	return fmt.Sprintf("invalid metadata value for %s[%q]: %q", e.Account, e.Key, e.Raw)
 }
 
+func (e StoreError) Error() string { return "store error: " + e.Wrapped.Error() }
+func (e StoreError) Unwrap() error { return e.Wrapped }
+
 func (MissingFundsError) execErr()     {}
 func (AssetMismatchError) execErr()    {}
 func (InvalidUncappedSource) execErr() {}
@@ -113,6 +123,7 @@ func (InvalidAccountName) execErr()    {}
 func (NegativeBalanceError) execErr()  {}
 func (DivideByZeroError) execErr()     {}
 func (InternalError) execErr()         {}
+func (StoreError) execErr()            {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -125,4 +136,5 @@ var (
 	_ ExecutionError = (*NegativeBalanceError)(nil)
 	_ ExecutionError = (*DivideByZeroError)(nil)
 	_ ExecutionError = (*InternalError)(nil)
+	_ ExecutionError = (*StoreError)(nil)
 )

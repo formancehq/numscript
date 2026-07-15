@@ -16,7 +16,9 @@ import (
 // zero — exactly the semantics this store provides.
 type zeroStore struct{}
 
-func (zeroStore) GetBalance(account, asset, color string) *big.Int { return new(big.Int) }
+func (zeroStore) GetBalance(account, asset, color string) (*big.Int, error) {
+	return new(big.Int), nil
+}
 
 // fetchAndPrewarm fetches the not-yet-cached tuples of query from the scope-aware
 // Store in one round-trip and seeds them into rs, so later reads hit the cache.
@@ -103,7 +105,13 @@ func newBalanceGetter(ctx context.Context, store Store, rs *runtime.RunState) fu
 		if err := fetchAndPrewarm(ctx, store, rs, query); err != nil {
 			return nil, QueryBalanceError{WrappedError: err}
 		}
-		return rs.GetAccountBalance(account.Name, account.Scope, string(asset), string(color)), nil
+		// rs is backed by zeroStore (never errors); the fetch above already
+		// surfaced any real store error.
+		bal, err := rs.GetAccountBalance(account.Name, account.Scope, string(asset), string(color))
+		if err != nil {
+			return nil, QueryBalanceError{WrappedError: err}
+		}
+		return bal, nil
 	}
 }
 

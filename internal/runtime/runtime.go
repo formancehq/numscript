@@ -37,7 +37,7 @@ import "math/big"
 // not an error. The returned *big.Int is cloned on ingest, so the Store may
 // safely reuse it.
 type Store interface {
-	GetBalance(account, asset, color string) *big.Int
+	GetBalance(account, asset, color string) (*big.Int, error)
 }
 
 // Posting is a recorded movement of Amount units of Asset (of the given Color)
@@ -186,11 +186,15 @@ func (s *RunState) AccountBalances(account, scope string) []AccountBalance {
 // Note: "" is the unset sentinel for asset, consistent with currentAsset
 // starting as "". A real asset must never be the empty string. For color, ""
 // is a legitimate value meaning "uncolored".
-func (s *RunState) GetAccountBalance(account, scope, asset, color string) *big.Int {
+func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.Int, error) {
 	if asset == "" {
 		asset = s.currentAsset
 	}
-	return new(big.Int).Set(s.cachedBalance(account, scope, asset, color))
+	bal, err := s.cachedBalance(account, scope, asset, color)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).Set(bal), nil
 }
 
 // Pull mirrors the OCaml `pull`. It debits up to cap from src's (currentAsset,
@@ -208,8 +212,11 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) *big.I
 // Inputs cap and overdraft are not mutated. The only allocation per call is the
 // queued source's own copy of the amount (it must outlive out and is mutated in
 // place by compactAt/Send); the balance is debited in place on the cached value.
-func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) {
-	currentBal := s.cachedBalance(src, scope, s.currentAsset, color)
+func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) error {
+	currentBal, err := s.cachedBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
 
 	if overdraft == nil {
 		out.Set(cap) // unbounded; clamped to >= 0 below
@@ -239,6 +246,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 
 	// debit the source balance in place; the cache keeps the same *big.Int
 	currentBal.Sub(currentBal, out)
+	return nil
 }
 
 // PullUncapped mirrors the OCaml `pull_uncapped`: makes available
@@ -253,8 +261,11 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 // mutated. When the available amount is positive it costs one allocation (the
 // queued source's own copy) and debits the balance in place; when it is zero
 // nothing is queued, nothing is debited, and no allocation occurs.
-func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) {
-	currentBal := s.cachedBalance(src, scope, s.currentAsset, color)
+func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) error {
+	currentBal, err := s.cachedBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
 
 	// available = max(0, currentBal + max(0, overdraftBound))
 	out.Set(currentBal)
@@ -270,6 +281,7 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 		s.sources = append(s.sources, source{src, scope, amt, color})
 		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	}
+	return nil
 }
 
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
@@ -288,7 +300,7 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 // dest == nil is the "keep/refund" path: the source is credited back and no
 // posting is emitted. A partially consumed source's remainder stays at its
 // position.
-func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) {
+func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
 	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
 	i := 0
@@ -300,25 +312,30 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 			continue
 		}
 		if src.amount.Cmp(cap) >= 0 {
-			s.credit(dest, destScope, src, asset, cap)
+			if err := s.credit(dest, destScope, src, asset, cap); err != nil {
+				return err
+			}
 			if diff := new(big.Int).Sub(src.amount, cap); diff.Sign() > 0 {
 				s.sources[i].amount = diff // remainder stays at this position
 			} else {
 				s.removeAt(i)
 			}
-			return // cap fully satisfied
+			return nil // cap fully satisfied
 		}
-		s.credit(dest, destScope, src, asset, src.amount)
+		if err := s.credit(dest, destScope, src, asset, src.amount); err != nil {
+			return err
+		}
 		cap.Sub(cap, src.amount)
 		s.removeAt(i) // do not advance i; the next source shifts into position i
 	}
+	return nil
 }
 
 // SendUncapped mirrors the OCaml `send_uncapped`, extended with the same color
 // filter as Send: color == nil drains every queued source (each posting keeping
 // its own color); color != nil drains only matching ones, leaving others in
 // place.
-func (s *RunState) SendUncapped(dest *string, destScope string, color *string) {
+func (s *RunState) SendUncapped(dest *string, destScope string, color *string) error {
 	asset := s.currentAsset
 	i := 0
 	for i < len(s.sources) {
@@ -328,9 +345,12 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) {
 			i++ // filtered out: skip, leave in place
 			continue
 		}
-		s.credit(dest, destScope, src, asset, src.amount)
+		if err := s.credit(dest, destScope, src, asset, src.amount); err != nil {
+			return err
+		}
 		s.removeAt(i)
 	}
+	return nil
 }
 
 // ForcePosting records a direct movement of amount (of asset/color) from src to
@@ -340,12 +360,14 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) {
 // explicit asset argument, which may differ from the current asset (a scaled
 // asset). A non-positive amount is a no-op. PRE: the caller has already checked
 // invariants (e.g. amount sign); no balance sufficiency check is performed.
-func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) {
+func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
-		return
+		return nil
 	}
-	s.addToBalance(src, srcScope, asset, color, new(big.Int).Neg(amount))
-	s.addPosting(src, srcScope, dst, dstScope, asset, color, amount) // appends the posting and credits dst
+	if err := s.addToBalance(src, srcScope, asset, color, new(big.Int).Neg(amount)); err != nil {
+		return err
+	}
+	return s.addPosting(src, srcScope, dst, dstScope, asset, color, amount) // appends the posting and credits dst
 }
 
 // Save mirrors the numscript `save` statement: it protects funds from being
@@ -354,12 +376,15 @@ func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color strin
 //	amount != nil -> balance = max(0, balance - amount)   (PRE: amount >= 0)
 //	amount == nil -> "save all": a positive balance becomes 0; a negative
 //	                 balance is left unchanged (= min(balance, 0))
-func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) {
-	cur := s.cachedBalance(account, scope, asset, color)
+func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) error {
+	cur, err := s.cachedBalance(account, scope, asset, color)
+	if err != nil {
+		return err
+	}
 	var next *big.Int
 	if amount == nil {
 		if cur.Sign() <= 0 {
-			return // negative/zero balance left unchanged
+			return nil // negative/zero balance left unchanged
 		}
 		next = new(big.Int) // floor positive to zero
 	} else {
@@ -369,6 +394,7 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) {
 		}
 	}
 	s.balances[PairKey{account, scope, asset, color}] = next
+	return nil
 }
 
 // Snapshot returns a cheap marker of the current source-queue depth, for
@@ -389,12 +415,15 @@ func (s *RunState) Snapshot() int {
 // which is the only place backtracking happens — Send runs later, in the
 // destination phase. (compactAt may have folded same-(account,color) funds, but
 // the fold preserves both per the merge key, so the repay still lands correctly.)
-func (s *RunState) Restore(mark int) {
+func (s *RunState) Restore(mark int) error {
 	for i := mark; i < len(s.sources); i++ {
 		src := s.sources[i]
-		s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount)
+		if err := s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount); err != nil {
+			return err
+		}
 	}
 	s.sources = s.sources[:mark]
+	return nil
 }
 
 // GetPostings returns a copy of the recorded postings: a fresh slice, so callers
@@ -414,13 +443,14 @@ func (s *RunState) GetPostings() []Posting {
 // back to the source as a refund (dest == nil). The funds keep their color, so
 // both the posting and the destination/source balance land on (asset, color).
 // amount is treated as read-only.
-func (s *RunState) credit(dest *string, destScope string, src source, asset string, amount *big.Int) {
+func (s *RunState) credit(dest *string, destScope string, src source, asset string, amount *big.Int) error {
 	if dest != nil {
-		s.addPosting(src.account, src.scope, *dest, destScope, asset, src.color, amount)
+		return s.addPosting(src.account, src.scope, *dest, destScope, asset, src.color, amount)
 	} else if amount.Sign() > 0 {
 		// refund the source: consume funding, emit no posting
-		s.addToBalance(src.account, src.scope, asset, src.color, amount)
+		return s.addToBalance(src.account, src.scope, asset, src.color, amount)
 	}
+	return nil
 }
 
 // cachedBalance returns the cached balance for (account, asset, color), fetching
@@ -429,20 +459,23 @@ func (s *RunState) credit(dest *string, destScope string, src source, asset stri
 // cloned on ingest so runtime never mutates a pointer the Store owns. The
 // returned pointer is the live cache entry — internal callers must not mutate it
 // in place; they replace the map entry with a freshly allocated value instead.
-func (s *RunState) cachedBalance(account, scope, asset, color string) *big.Int {
+func (s *RunState) cachedBalance(account, scope, asset, color string) (*big.Int, error) {
 	key := PairKey{account, scope, asset, color}
 	if v, ok := s.balances[key]; ok {
-		return v
+		return v, nil
 	}
 	// the Store is scope-agnostic; scoped balances are seeded via Prewarm, and
 	// the VM (the only path hitting the Store) never uses scopes
-	fromStore := s.store.GetBalance(account, asset, color)
+	fromStore, err := s.store.GetBalance(account, asset, color)
+	if err != nil {
+		return nil, err
+	}
 	cached := new(big.Int)
 	if fromStore != nil {
 		cached.Set(fromStore)
 	}
 	s.balances[key] = cached
-	return cached
+	return cached, nil
 }
 
 // addToBalance applies delta to (account, asset, color), loading the base value
@@ -450,9 +483,13 @@ func (s *RunState) cachedBalance(account, scope, asset, color string) *big.Int {
 // cached value is mutated in place (no realloc): it is runtime-owned and never
 // aliased externally — GetAccountBalance hands out copies — so this is safe, and
 // it mirrors Pull's in-place debit. delta is read-only.
-func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.Int) {
-	cur := s.cachedBalance(account, scope, asset, color)
+func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.Int) error {
+	cur, err := s.cachedBalance(account, scope, asset, color)
+	if err != nil {
+		return err
+	}
 	cur.Add(cur, delta)
+	return nil
 }
 
 // addPosting appends a posting verbatim and credits the destination balance.
@@ -461,9 +498,9 @@ func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.
 // posting can only ever fuse adjacent funds *within* one drain — never across
 // separate sends. This mirrors the interpreter's fundsQueue, which merges in the
 // queue (compactTop), not in the posting list. amount is cloned into the posting.
-func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) {
+func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
-		return
+		return nil
 	}
 	s.postings = append(s.postings, Posting{
 		Source:           src,
@@ -474,7 +511,7 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 		Color:            color,
 		Amount:           new(big.Int).Set(amount),
 	})
-	s.addToBalance(dst, dstScope, asset, color, amount)
+	return s.addToBalance(dst, dstScope, asset, color, amount)
 }
 
 // compactAt coalesces the maximal run of funds at index i that share i's

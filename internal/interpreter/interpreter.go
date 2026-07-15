@@ -224,21 +224,29 @@ func (st *programState) forcePushPostingUncolored(
 	destination AccountAddress,
 	amount MonetaryInt,
 	asset Asset,
-) {
+) InterpreterError {
 	amtBi := big.Int(amount)
-	st.rs.ForcePosting(source.Name, source.Scope, destination.Name, destination.Scope, string(asset), "", &amtBi)
+	if err := st.rs.ForcePosting(source.Name, source.Scope, destination.Name, destination.Scope, string(asset), "", &amtBi); err != nil {
+		return QueryBalanceError{WrappedError: err}
+	}
+	return nil
 }
 
-func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
+func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) InterpreterError {
 	// color == nil: drain the queue regardless of color, each posting keeping its
 	// source fund's own color.
+	var err error
 	if name.Name == KEPT_ADDR {
 		// kept funds are refunded to their sources, emitting no posting
-		st.rs.Send(nil, "", monetary, nil)
-		return
+		err = st.rs.Send(nil, "", monetary, nil)
+	} else {
+		dest := name.Name
+		err = st.rs.Send(&dest, name.Scope, monetary, nil)
 	}
-	dest := name.Name
-	st.rs.Send(&dest, name.Scope, monetary, nil)
+	if err != nil {
+		return QueryBalanceError{WrappedError: err}
+	}
+	return nil
 }
 
 func (st *programState) runStatement(statement parser.Statement) InterpreterError {
@@ -290,7 +298,9 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 	}
 
 	// amt == nil -> "save all"; otherwise reduce by amt, floored at 0
-	st.rs.Save(account.Name, account.Scope, string(asset), "", amt)
+	if err := st.rs.Save(account.Name, account.Scope, string(asset), "", amt); err != nil {
+		return QueryBalanceError{WrappedError: err}
+	}
 	return nil
 }
 
@@ -363,7 +373,9 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 	// PullUncapped queues balance+overdraft (== CalculateMaxSafeWithdraw),
 	// debiting the (account, currentAsset, color) balance.
 	sentAmt := new(big.Int)
-	s.rs.PullUncapped(sentAmt, account.Name, account.Scope, overdraft, string(color))
+	if err := s.rs.PullUncapped(sentAmt, account.Name, account.Scope, overdraft, string(color)); err != nil {
+		return nil, QueryBalanceError{WrappedError: err}
+	}
 	return sentAmt, nil
 }
 
@@ -414,20 +426,24 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		)
 
 		for _, convAmt := range sol {
-			s.forcePushPostingUncolored(
+			if err := s.forcePushPostingUncolored(
 				account,
 				scalingAccount,
 				MonetaryInt(*new(big.Int).Set(convAmt.Amount)),
 				Asset(runtime.BuildScaledAsset(baseAsset, convAmt.Scale)),
-			)
+			); err != nil {
+				return nil, err
+			}
 		}
 
-		s.forcePushPostingUncolored(
+		if err := s.forcePushPostingUncolored(
 			scalingAccount,
 			account,
 			MonetaryInt(*new(big.Int).Set(totSent)),
 			s.CurrentAsset,
-		)
+		); err != nil {
+			return nil, err
+		}
 
 		return s.takeAllFromAccount(source.Address, big.NewInt(0), nil)
 
@@ -515,17 +531,22 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	// (account, currentAsset, color) balance, and queues the funds. The
 	// interpreter's overdraft convention (nil == unbounded) is exactly Pull's.
 	actuallySentAmt := new(big.Int)
-	s.rs.Pull(actuallySentAmt, account.Name, account.Scope, amount, overdraft, string(color))
+	if err := s.rs.Pull(actuallySentAmt, account.Name, account.Scope, amount, overdraft, string(color)); err != nil {
+		return nil, QueryBalanceError{WrappedError: err}
+	}
 	return actuallySentAmt, nil
 }
 
 // cloneState returns an undo function for speculative source evaluation (oneof).
 // Backtracking is a cheap source-queue snapshot: on undo, the runtime repays the
 // funds pulled since the mark and truncates the queue — no map cloning.
-func (s *programState) cloneState() func() {
+func (s *programState) cloneState() func() InterpreterError {
 	mark := s.rs.Snapshot()
-	return func() {
-		s.rs.Restore(mark)
+	return func() InterpreterError {
+		if err := s.rs.Restore(mark); err != nil {
+			return QueryBalanceError{WrappedError: err}
+		}
+		return nil
 	}
 }
 
@@ -570,20 +591,24 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		)
 
 		for _, pair := range sol {
-			s.forcePushPostingUncolored(
+			if err := s.forcePushPostingUncolored(
 				account,
 				scalingAccount,
 				NewMonetaryIntBig(pair.Amount),
 				Asset(runtime.BuildScaledAsset(baseAsset, pair.Scale)),
-			)
+			); err != nil {
+				return nil, err
+			}
 		}
 
-		s.forcePushPostingUncolored(
+		if err := s.forcePushPostingUncolored(
 			scalingAccount,
 			account,
 			NewMonetaryIntBig(swappedAmt),
 			s.CurrentAsset,
-		)
+		); err != nil {
+			return nil, err
+		}
 
 		return s.tryTakingFromAccount(source.Address, amount, big.NewInt(0), nil)
 
@@ -634,7 +659,9 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			}
 
 			// else, backtrack to remove this branch's sendings
-			undo()
+			if err := undo(); err != nil {
+				return nil, err
+			}
 		}
 
 		return s.tryTakingUpTo(source.Sources[len(source.Sources)-1], amount)
@@ -681,8 +708,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 		if err != nil {
 			return err
 		}
-		s.pushReceiver(account, amount)
-		return nil
+		return s.pushReceiver(account, amount)
 
 	case *parser.DestinationAllotment:
 		var items []parser.AllotmentValue
@@ -782,8 +808,7 @@ const KEPT_ADDR = "<kept>"
 func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.pushReceiver(AccountAddress{Name: KEPT_ADDR}, amount)
-		return nil
+		return s.pushReceiver(AccountAddress{Name: KEPT_ADDR}, amount)
 
 	case *parser.DestinationTo:
 		return s.sendTo(destinationTarget.Destination, amount)

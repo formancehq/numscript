@@ -25,13 +25,13 @@ func newMockStore(initial map[runtime.PairKey]int64) *mockStore {
 	return &mockStore{balances: b, calls: make(map[runtime.PairKey]int)}
 }
 
-func (m *mockStore) GetBalance(account, asset, color string) *big.Int {
+func (m *mockStore) GetBalance(account, asset, color string) (*big.Int, error) {
 	k := runtime.PairKey{account, "", asset, color}
 	m.calls[k]++
 	if v, ok := m.balances[k]; ok {
-		return v
+		return v, nil
 	}
-	return new(big.Int) // 0 if absent
+	return new(big.Int), nil // 0 if absent
 }
 
 func (m *mockStore) callCount(account, asset string) int {
@@ -49,6 +49,15 @@ func newRS(initial map[runtime.PairKey]int64) (*runtime.RunState, *mockStore) {
 
 func strptr(s string) *string { return &s }
 
+// accBal reads a balance; the mock store never errors, so a failure is fatal.
+func accBal(rs *runtime.RunState, account, scope, asset, color string) *big.Int {
+	b, err := rs.GetAccountBalance(account, scope, asset, color)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 // pull adapts the out-param Pull to a value-returning form for test ergonomics.
 func pull(rs *runtime.RunState, src string, cap, overdraft *big.Int, color string) *big.Int {
 	out := new(big.Int)
@@ -65,7 +74,7 @@ func pullUncapped(rs *runtime.RunState, src string, overdraftBound *big.Int, col
 
 func wantBalance(t *testing.T, rs *runtime.RunState, account string, want int64) {
 	t.Helper()
-	if got := rs.GetAccountBalance(account, "", usd, ""); got.Cmp(big.NewInt(want)) != 0 {
+	if got := accBal(rs, account, "", usd, ""); got.Cmp(big.NewInt(want)) != 0 {
 		t.Errorf("balance(%s) = %s, want %d", account, got, want)
 	}
 }
@@ -117,18 +126,18 @@ func TestGetAccountBalance_FetchesFromStore(t *testing.T) {
 
 func TestGetAccountBalance_EmptyAssetUsesCurrent(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 42})
-	if got := rs.GetAccountBalance("A", "", "", ""); got.Cmp(big.NewInt(42)) != 0 {
+	if got := accBal(rs, "A", "", "", ""); got.Cmp(big.NewInt(42)) != 0 {
 		t.Errorf("got %d, want 42 (empty asset should resolve to currentAsset)", got)
 	}
 }
 
 func TestGetAccountBalance_MissingIsZeroAndCached(t *testing.T) {
 	rs, store := newRS(nil)
-	if got := rs.GetAccountBalance("ghost", "", usd, ""); got.Cmp(big.NewInt(0)) != 0 {
+	if got := accBal(rs, "ghost", "", usd, ""); got.Cmp(big.NewInt(0)) != 0 {
 		t.Errorf("missing account = %d, want 0", got)
 	}
 	// second read must not re-hit the store even though value is 0
-	_ = rs.GetAccountBalance("ghost", "", usd, "")
+	_ = accBal(rs, "ghost", "", usd, "")
 	if c := store.callCount("ghost", usd); c != 1 {
 		t.Errorf("zero balance not cached: store called %d times, want 1", c)
 	}
@@ -137,7 +146,7 @@ func TestGetAccountBalance_MissingIsZeroAndCached(t *testing.T) {
 func TestCaching_FetchedOnlyOnce(t *testing.T) {
 	rs, store := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
 	for i := 0; i < 5; i++ {
-		rs.GetAccountBalance("A", "", usd, "")
+		accBal(rs, "A", "", usd, "")
 	}
 	if c := store.callCount("A", usd); c != 1 {
 		t.Errorf("store called %d times, want 1", c)
@@ -527,10 +536,10 @@ func TestBigInt_AmountsBeyondInt64(t *testing.T) {
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: new(big.Int).Set(huge)},
 	})
-	if bal := rs.GetAccountBalance("X", "", usd, ""); bal.Cmp(huge) != 0 {
+	if bal := accBal(rs, "X", "", usd, ""); bal.Cmp(huge) != 0 {
 		t.Errorf("X balance = %s, want %s", bal, huge)
 	}
-	if bal := rs.GetAccountBalance("A", "", usd, ""); bal.Sign() != 0 {
+	if bal := accBal(rs, "A", "", usd, ""); bal.Sign() != 0 {
 		t.Errorf("A balance = %s, want 0", bal)
 	}
 }
@@ -538,7 +547,7 @@ func TestBigInt_AmountsBeyondInt64(t *testing.T) {
 func TestBigInt_GetAccountBalanceReturnsCopy(t *testing.T) {
 	// Mutating the returned balance must not corrupt the cache.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
-	b := rs.GetAccountBalance("A", "", usd, "")
+	b := accBal(rs, "A", "", usd, "")
 	b.SetInt64(999999)
 	wantBalance(t, rs, "A", 100)
 }
@@ -552,7 +561,7 @@ func TestPrewarm_SeedsCacheAndSkipsStore(t *testing.T) {
 		{"B", "", usd, "red"}: big.NewInt(40),
 	})
 	wantBalance(t, rs, "A", 100)
-	if b := rs.GetAccountBalance("B", "", usd, "red"); b.Cmp(big.NewInt(40)) != 0 {
+	if b := accBal(rs, "B", "", usd, "red"); b.Cmp(big.NewInt(40)) != 0 {
 		t.Errorf("B red = %s, want 40", b)
 	}
 	// nothing was fetched lazily — the batch seed covered it
@@ -596,7 +605,7 @@ func TestForcePosting_UsesExplicitAssetNotCurrent(t *testing.T) {
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "B", Asset: "USD/2", Amount: big.NewInt(500)},
 	})
-	if b := rs.GetAccountBalance("A", "", "USD/2", ""); b.Sign() != 0 {
+	if b := accBal(rs, "A", "", "USD/2", ""); b.Sign() != 0 {
 		t.Errorf("A USD/2 = %s, want 0", b)
 	}
 }
@@ -712,14 +721,14 @@ func TestColor_BalancesTrackedSeparatelyPerColor(t *testing.T) {
 		{"A", "", usd, "red"}:  100,
 		{"A", "", usd, "blue"}: 40,
 	})
-	if got := rs.GetAccountBalance("A", "", usd, "red"); got.Cmp(big.NewInt(100)) != 0 {
+	if got := accBal(rs, "A", "", usd, "red"); got.Cmp(big.NewInt(100)) != 0 {
 		t.Errorf("red balance = %d, want 100", got)
 	}
-	if got := rs.GetAccountBalance("A", "", usd, "blue"); got.Cmp(big.NewInt(40)) != 0 {
+	if got := accBal(rs, "A", "", usd, "blue"); got.Cmp(big.NewInt(40)) != 0 {
 		t.Errorf("blue balance = %d, want 40", got)
 	}
 	// uncolored slot is independent and absent -> 0
-	if got := rs.GetAccountBalance("A", "", usd, ""); got.Cmp(big.NewInt(0)) != 0 {
+	if got := accBal(rs, "A", "", usd, ""); got.Cmp(big.NewInt(0)) != 0 {
 		t.Errorf("uncolored balance = %d, want 0", got)
 	}
 	if c := store.calls[runtime.PairKey{"A", "", usd, "red"}]; c != 1 {
@@ -735,10 +744,10 @@ func TestColor_PullTagsSourceAndPostingCarriesColor(t *testing.T) {
 		{Source: "A", Destination: "X", Asset: usd, Color: "red", Amount: big.NewInt(60)},
 	})
 	// destination credited on the colored slot, source debited on it
-	if got := rs.GetAccountBalance("X", "", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
+	if got := accBal(rs, "X", "", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
 		t.Errorf("X red = %d, want 60", got)
 	}
-	if got := rs.GetAccountBalance("A", "", usd, "red"); got.Cmp(big.NewInt(40)) != 0 {
+	if got := accBal(rs, "A", "", usd, "red"); got.Cmp(big.NewInt(40)) != 0 {
 		t.Errorf("A red = %d, want 40", got)
 	}
 }
@@ -808,10 +817,10 @@ func TestColor_MatchAnyDrainsMixedColorsPreservingEach(t *testing.T) {
 		{Source: "C", Destination: "X", Asset: usd, Color: "", Amount: big.NewInt(20)},
 	})
 	// destination credited on each respective color slot
-	if b := rs.GetAccountBalance("X", "", usd, "red"); b.Cmp(big.NewInt(50)) != 0 {
+	if b := accBal(rs, "X", "", usd, "red"); b.Cmp(big.NewInt(50)) != 0 {
 		t.Errorf("X red = %s, want 50", b)
 	}
-	if b := rs.GetAccountBalance("X", "", usd, "blue"); b.Cmp(big.NewInt(30)) != 0 {
+	if b := accBal(rs, "X", "", usd, "blue"); b.Cmp(big.NewInt(30)) != 0 {
 		t.Errorf("X blue = %s, want 30", b)
 	}
 }
@@ -820,7 +829,7 @@ func TestColor_RefundUsesSourceColor(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, "red"}: 100})
 	pull(rs, "A", big.NewInt(100), big.NewInt(0), "red") // A red -> 0
 	rs.Send(nil, "", big.NewInt(60), strptr("red"))          // refund 60 to A's red slot
-	if got := rs.GetAccountBalance("A", "", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
+	if got := accBal(rs, "A", "", usd, "red"); got.Cmp(big.NewInt(60)) != 0 {
 		t.Errorf("A red after refund = %d, want 60", got)
 	}
 	wantPostings(t, rs, []runtime.Posting{})

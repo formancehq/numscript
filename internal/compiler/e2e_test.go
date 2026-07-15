@@ -17,16 +17,16 @@ type e2eStore struct {
 	metadata map[string]map[string]string
 }
 
-func (s e2eStore) GetBalance(account, asset, color string) *big.Int {
+func (s e2eStore) GetBalance(account, asset, color string) (*big.Int, error) {
 	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
-		return v
+		return v, nil
 	}
-	return new(big.Int)
+	return new(big.Int), nil
 }
 
-func (s e2eStore) GetMetadata(account, key string) (string, bool) {
+func (s e2eStore) GetMetadata(account, key string) (string, bool, error) {
 	v, ok := s.metadata[account][key]
-	return v, ok
+	return v, ok, nil
 }
 
 // TestE2E_CompileAssembleRun exercises the whole pipeline: source -> compiler
