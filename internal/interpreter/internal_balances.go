@@ -1,6 +1,10 @@
 package interpreter
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/formancehq/numscript/internal/runtime"
+)
 
 // An internal representation of the balances. Used to cache balances we get from external store.
 // Whereas the external representation (interpreter.Balances) is user-facing and be a stable contract,
@@ -9,11 +13,7 @@ import "math/big"
 type InternalBalances map[AccountAddress][]AccountBalance
 
 // A single balance entry for an account: an (asset, color) pair and its amount.
-type AccountBalance struct {
-	Asset  string
-	Color  string
-	Amount *big.Int
-}
+type AccountBalance = runtime.AccountBalance
 
 func FromBalancesRows(b Balances) InternalBalances {
 	out := make(InternalBalances, len(b))

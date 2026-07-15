@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -110,7 +111,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		// NOTE we don't query the swap account's balance
 
-		st.batchQuery(account, assetToScaledAsset(st.CurrentAsset), "")
+		st.batchQuery(account, Asset(runtime.AssetToScaledAsset(string(st.CurrentAsset))), "")
 		return nil
 
 	case *parser.SourceOverdraft:

@@ -457,24 +457,24 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
-		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
+		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
 		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, totSent := findScalingSolution(
+		sol, totSent := runtime.FindScalingSolution(
 			nil,
 			assetScale,
-			getAssets(acc, baseAsset),
+			runtime.GetAssets(acc, baseAsset),
 		)
 
 		for _, convAmt := range sol {
 			s.forcePushPostingUncolored(
 				account,
 				scalingAccount,
-				MonetaryInt(*new(big.Int).Set(convAmt.amount)),
-				Asset(buildScaledAsset(baseAsset, convAmt.scale)),
+				MonetaryInt(*new(big.Int).Set(convAmt.Amount)),
+				Asset(runtime.BuildScaledAsset(baseAsset, convAmt.Scale)),
 			)
 		}
 
@@ -618,25 +618,25 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 
-		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
+		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
 
 		acc, ok := s.CachedBalances[account]
 		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, swappedAmt := findScalingSolution(
+		sol, swappedAmt := runtime.FindScalingSolution(
 			amount,
 			assetScale,
-			getAssets(acc, baseAsset),
+			runtime.GetAssets(acc, baseAsset),
 		)
 
 		for _, pair := range sol {
 			s.forcePushPostingUncolored(
 				account,
 				scalingAccount,
-				NewMonetaryIntBig(pair.amount),
-				Asset(buildScaledAsset(baseAsset, pair.scale)),
+				NewMonetaryIntBig(pair.Amount),
+				Asset(runtime.BuildScaledAsset(baseAsset, pair.Scale)),
 			)
 		}
 
