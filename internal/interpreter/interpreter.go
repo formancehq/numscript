@@ -112,20 +112,12 @@ func evaluateVarOrigin(env *evalEnv, type_ string, expr parser.ValueExpr) (Value
 	return evaluateExpr(env, expr)
 }
 
-const accountSegmentRegex = "[a-zA-Z0-9_-]+"
-
-var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
-
-// https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
 func checkAccountName(addr string) bool {
-	return accountNameRegex.Match([]byte(addr))
+	return runtime.ValidateAccount(addr)
 }
 
-var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?$`)
-
-// https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
 func checkAssetName(v string) bool {
-	return assetNameRegexp.Match([]byte(v))
+	return runtime.ValidateAsset(v)
 }
 
 var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
