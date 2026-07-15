@@ -18,13 +18,29 @@ type zeroStore struct{}
 
 func (zeroStore) GetBalance(account, asset, color string) *big.Int { return new(big.Int) }
 
-// prewarmBalanceRows seeds the runtime's balance cache from queried rows.
-func prewarmBalanceRows(rs *runtime.RunState, rows []BalanceRow) {
+// fetchAndPrewarm fetches the not-yet-cached tuples of query from the scope-aware
+// Store in one round-trip and seeds them into rs, so later reads hit the cache.
+// Shared by the single-key balance reader and the batched pre-execution pass.
+func fetchAndPrewarm(ctx context.Context, store Store, rs *runtime.RunState, query BalanceQuery) error {
+	var missing BalanceQuery
+	for _, item := range query {
+		if !rs.Has(item.Account, item.Scope, item.Asset, item.Color) {
+			missing = append(missing, item)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	rows, err := store.GetBalances(ctx, missing)
+	if err != nil {
+		return err
+	}
 	seed := make(map[runtime.PairKey]*big.Int, len(rows))
 	for _, row := range rows {
 		seed[runtime.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = row.Amount
 	}
 	rs.Prewarm(seed)
+	return nil
 }
 
 // evalEnv is the environment for evaluating expressions. It reads metadata
@@ -81,14 +97,11 @@ func (env *evalEnv) checkFeatureFlag(flag string) InterpreterError {
 func newBalanceGetter(ctx context.Context, store Store, rs *runtime.RunState) func(AccountAddress, Asset) (*big.Int, InterpreterError) {
 	return func(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
 		color := String("")
-		if !rs.Has(account.Name, account.Scope, string(asset), string(color)) {
-			rows, err := store.GetBalances(ctx, BalanceQuery{
-				{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
-			})
-			if err != nil {
-				return nil, QueryBalanceError{WrappedError: err}
-			}
-			prewarmBalanceRows(rs, rows)
+		query := BalanceQuery{
+			{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
+		}
+		if err := fetchAndPrewarm(ctx, store, rs, query); err != nil {
+			return nil, QueryBalanceError{WrappedError: err}
 		}
 		return rs.GetAccountBalance(account.Name, account.Scope, string(asset), string(color)), nil
 	}

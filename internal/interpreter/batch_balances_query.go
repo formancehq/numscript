@@ -69,28 +69,11 @@ func (st *programState) batchQuery(account AccountAddress, asset Asset, color St
 }
 
 func (st *programState) runBalancesQuery() error {
-	// keep only the (account, scope, asset, color) tuples not already cached
-	var filteredQuery BalanceQuery
-	for _, item := range st.CurrentBalanceQuery {
-		if !st.rs.Has(item.Account, item.Scope, item.Asset, item.Color) {
-			filteredQuery = append(filteredQuery, item)
-		}
-	}
-
-	// avoid updating balances if we don't need to fetch new data
-	if len(filteredQuery) == 0 {
-		return nil
-	}
-
-	queriedBalances, err := st.Store.GetBalances(st.ctx, filteredQuery)
-	if err != nil {
+	if err := fetchAndPrewarm(st.ctx, st.Store, st.rs, st.CurrentBalanceQuery); err != nil {
 		return err
 	}
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
-
-	prewarmBalanceRows(st.rs, queriedBalances)
-
 	return nil
 }
 
