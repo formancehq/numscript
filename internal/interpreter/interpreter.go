@@ -58,7 +58,7 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	asset := parts[0]
 
 	rawAmount := parts[1]
-	n, ok := new(big.Int).SetString(rawAmount, 10)
+	n, ok := runtime.ParseNumber(rawAmount)
 	if !ok {
 		return Monetary{}, InvalidNumberLiteral{Source: rawAmount}
 	}
@@ -91,7 +91,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAsset:
 		return NewAsset(rawValue)
 	case analysis.TypeNumber:
-		n, ok := new(big.Int).SetString(rawValue, 10)
+		n, ok := runtime.ParseNumber(rawValue)
 		if !ok {
 			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
@@ -954,42 +954,10 @@ func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int,
 	}
 }
 
-var percentRegex = regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
-var fractionRegex = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
-
-// slightly edited copy-paste from:
-// https://github.com/formancehq/ledger/blob/b188d0c80eadaab5024d74edc967c7005e155f7c/internal/machine/portion.go#L57
-
 func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
-	var res *big.Rat
-	var ok bool
-
-	percentMatch := percentRegex.FindStringSubmatch(input)
-	if len(percentMatch) != 0 {
-		integral := percentMatch[1]
-		fractional := percentMatch[2]
-		res, ok = new(big.Rat).SetString(integral + "." + fractional)
-		if !ok {
-			return nil, BadPortionParsingErr{Reason: "invalid percent format", Source: input}
-		}
-		res.Mul(res, big.NewRat(1, 100))
-	} else {
-		fractionMatch := fractionRegex.FindStringSubmatch(input)
-		if len(fractionMatch) != 0 {
-			numerator := fractionMatch[1]
-			denominator := fractionMatch[2]
-			res, ok = new(big.Rat).SetString(numerator + "/" + denominator)
-			if !ok {
-				return nil, BadPortionParsingErr{Reason: "invalid fractional format", Source: input}
-			}
-		}
-	}
-	if res == nil {
-		return nil, BadPortionParsingErr{Reason: "invalid format", Source: input}
-	}
-
-	if res.Cmp(big.NewRat(0, 1)) == -1 || res.Cmp(big.NewRat(1, 1)) == 1 {
-		return nil, BadPortionParsingErr{Reason: "portion must be between 0% and 100% inclusive", Source: input}
+	res, err := runtime.ParsePortion(input)
+	if err != nil {
+		return nil, BadPortionParsingErr{Reason: err.Error(), Source: input}
 	}
 
 	return res, nil
