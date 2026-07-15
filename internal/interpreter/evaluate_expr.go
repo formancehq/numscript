@@ -10,24 +10,46 @@ import (
 	"github.com/formancehq/numscript/internal/runtime"
 )
 
-type evalEnv struct {
-	ctx          context.Context
-	Store        Store
-	FeatureFlags map[string]struct{}
+// zeroStore backs the runtime.RunState's lazy balance fallback. The interpreter
+// fetches every needed balance through its own scope-aware Store and Prewarms it
+// into the runtime, treating any un-fetched (account, scope, asset, color) as
+// zero — exactly the semantics this store provides.
+type zeroStore struct{}
 
-	vars               map[string]Value
-	CachedBalances     InternalBalances
-	CachedAccountsMeta InternalAccountsMetadata
+func (zeroStore) GetBalance(account, asset, color string) *big.Int { return new(big.Int) }
+
+// prewarmBalanceRows seeds the runtime's balance cache from queried rows.
+func prewarmBalanceRows(rs *runtime.RunState, rows []BalanceRow) {
+	seed := make(map[runtime.PairKey]*big.Int, len(rows))
+	for _, row := range rows {
+		seed[runtime.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = row.Amount
+	}
+	rs.Prewarm(seed)
 }
 
-func newEvalEnv(ctx context.Context, store Store, featureFlags map[string]struct{}, varDecls *parser.VarDeclarations, rawVars map[string]string) (evalEnv, InterpreterError) {
+// evalEnv is the environment for evaluating expressions. Its only I/O is through
+// two injected readers, getBalance and getMetadata — evaluation never touches the
+// store or the funds engine directly.
+type evalEnv struct {
+	FeatureFlags map[string]struct{}
+	vars         map[string]Value
+
+	getBalance  func(account AccountAddress, asset Asset) (*big.Int, InterpreterError)
+	getMetadata func(account AccountAddress, key string) (string, bool, InterpreterError)
+}
+
+func newEvalEnv(
+	featureFlags map[string]struct{},
+	getBalance func(AccountAddress, Asset) (*big.Int, InterpreterError),
+	getMetadata func(AccountAddress, string) (string, bool, InterpreterError),
+	varDecls *parser.VarDeclarations,
+	rawVars map[string]string,
+) (evalEnv, InterpreterError) {
 	env := evalEnv{
-		ctx:                ctx,
-		Store:              store,
-		FeatureFlags:       featureFlags,
-		vars:               map[string]Value{},
-		CachedBalances:     InternalBalances{},
-		CachedAccountsMeta: InternalAccountsMetadata{},
+		FeatureFlags: featureFlags,
+		vars:         map[string]Value{},
+		getBalance:   getBalance,
+		getMetadata:  getMetadata,
 	}
 	if err := bindVars(&env, varDecls, rawVars); err != nil {
 		return evalEnv{}, err
@@ -46,33 +68,41 @@ func (env *evalEnv) checkFeatureFlag(flag string) InterpreterError {
 	return ExperimentalFeature{FlagName: flag}
 }
 
-func (env *evalEnv) getBalance(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
-	color := String("")
-	if !env.CachedBalances.has(account, string(asset), string(color)) {
-		rows, err := env.Store.GetBalances(env.ctx, BalanceQuery{
-			{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
-		})
-		if err != nil {
-			return nil, QueryBalanceError{WrappedError: err}
+// newBalanceGetter builds the balance reader used during evaluation: a lazy,
+// write-through fetch over the batched, scope-aware Store into rs, so a mid-script
+// balance() sees running balances mutated by funds execution (both share rs).
+func newBalanceGetter(ctx context.Context, store Store, rs *runtime.RunState) func(AccountAddress, Asset) (*big.Int, InterpreterError) {
+	return func(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
+		color := String("")
+		if !rs.Has(account.Name, account.Scope, string(asset), string(color)) {
+			rows, err := store.GetBalances(ctx, BalanceQuery{
+				{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
+			})
+			if err != nil {
+				return nil, QueryBalanceError{WrappedError: err}
+			}
+			prewarmBalanceRows(rs, rows)
 		}
-		env.CachedBalances.Merge(rows)
+		return rs.GetAccountBalance(account.Name, account.Scope, string(asset), string(color)), nil
 	}
-	return env.CachedBalances.fetchBalance(account, asset, color), nil
 }
 
-func (env *evalEnv) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
-	if !env.CachedAccountsMeta.has(account, key) {
-		rows, err := env.Store.GetAccountsMetadata(env.ctx, MetadataQuery{
-			{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
-		})
-		if err != nil {
-			return "", false, QueryMetadataError{WrappedError: err}
+// newMetadataGetter builds the metadata reader used during evaluation: a lazy,
+// cached fetch over the Store.
+func newMetadataGetter(ctx context.Context, store Store, cache InternalAccountsMetadata) func(AccountAddress, string) (string, bool, InterpreterError) {
+	return func(account AccountAddress, key string) (string, bool, InterpreterError) {
+		if !cache.has(account, key) {
+			rows, err := store.GetAccountsMetadata(ctx, MetadataQuery{
+				{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
+			})
+			if err != nil {
+				return "", false, QueryMetadataError{WrappedError: err}
+			}
+			cache.Merge(rows)
 		}
-		env.CachedAccountsMeta.Merge(rows)
+		value, ok := cache.Get(account, key)
+		return value, ok, nil
 	}
-
-	value, ok := env.CachedAccountsMeta.Get(account, key)
-	return value, ok, nil
 }
 
 func bindVars(env *evalEnv, varDecls *parser.VarDeclarations, rawVars map[string]string) InterpreterError {
@@ -235,8 +265,7 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, Interp
 		return "", err
 	}
 
-	isValidColor := runtime.ValidateColor(string(color))
-	if !isValidColor {
+	if !runtime.ValidateColor(string(color)) {
 		return "", InvalidColor{
 			Range: colorExpr.GetRange(),
 			Color: string(color),

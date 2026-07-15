@@ -25,20 +25,8 @@ type Metadata = map[string]Value
 
 type Posting = runtime.Posting
 
-// newPosting builds a Posting from the source and destination addresses,
-// exposing each address's account and scope as the separate fields the posting
-// contract uses.
-func newPosting(source AccountAddress, destination AccountAddress, amount *big.Int, asset string, color string) Posting {
-	return Posting{
-		Source:           source.Name,
-		SourceScope:      source.Scope,
-		Destination:      destination.Name,
-		DestinationScope: destination.Scope,
-		Amount:           amount,
-		Asset:            asset,
-		Color:            color,
-	}
-}
+// AccountBalance is a single (asset, color, amount) balance entry for an account.
+type AccountBalance = runtime.AccountBalance
 
 type ExecutionResult struct {
 	Postings []Posting `json:"postings"`
@@ -152,17 +140,25 @@ func RunProgram(
 		flagSet[flag.String] = struct{}{}
 	}
 
-	env, err := newEvalEnv(ctx, store, flagSet, program.Vars, vars)
+	rs := runtime.New(zeroStore{})
+	accountsMeta := InternalAccountsMetadata{}
+	env, err := newEvalEnv(
+		flagSet,
+		newBalanceGetter(ctx, store, rs),
+		newMetadataGetter(ctx, store, accountsMeta),
+		program.Vars, vars,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	st := programState{
 		evalEnv:             env,
+		ctx:                 ctx,
+		Store:               store,
+		rs:                  rs,
 		TxMeta:              make(map[string]Value),
 		SetAccountsMeta:     internalSetAccountsMeta{},
-		Postings:            make([]Posting, 0),
-		fundsQueue:          newFundsQueue(nil),
 		CurrentBalanceQuery: BalanceQuery{},
 	}
 
@@ -186,7 +182,8 @@ func RunProgram(
 		}
 	}
 
-	for _, posting := range st.Postings {
+	postings := st.rs.GetPostings()
+	for _, posting := range postings {
 		err := checkPostingInvariants(posting)
 		if err != nil {
 			return nil, err
@@ -194,7 +191,7 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings:         st.Postings,
+		Postings:         postings,
 		Metadata:         st.TxMeta,
 		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
@@ -204,35 +201,23 @@ func RunProgram(
 type programState struct {
 	evalEnv
 
+	ctx   context.Context
+	Store Store
+	// rs owns the funds state: the write-through balance cache (seeded via
+	// Prewarm from the batched Store fetch), the FIFO funding-source queue, and
+	// the emitted postings. evalEnv's getBalance reader closes over this same rs.
+	rs *runtime.RunState
+
 	// Asset of the send statement currently being executed.
 	//
 	// its value is undefined outside of send statements execution
 	CurrentAsset Asset
 
-	TxMeta     map[string]Value
-	Postings   []Posting
-	fundsQueue fundsQueue
+	TxMeta map[string]Value
 
 	SetAccountsMeta internalSetAccountsMeta
 
 	CurrentBalanceQuery BalanceQuery
-}
-
-func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, color String) {
-	monetaryBi := big.Int(monetary)
-
-	if monetaryBi.Cmp(big.NewInt(0)) == 0 {
-		return
-	}
-
-	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
-	balance.Sub(balance, &monetaryBi)
-
-	st.fundsQueue.Push(Sender{
-		Account: name,
-		Amount:  &monetaryBi,
-		Color:   string(color),
-	})
 }
 
 // Append a posting without checking if account has enough balance.
@@ -245,43 +230,19 @@ func (st *programState) forcePushPostingUncolored(
 	asset Asset,
 ) {
 	amtBi := big.Int(amount)
-
-	if amtBi.Sign() == 0 {
-		return
-	}
-
-	srcBalance := st.CachedBalances.fetchBalance(source, asset, "")
-	srcBalance.Sub(srcBalance, &amtBi)
-
-	destBalance := st.CachedBalances.fetchBalance(destination, asset, "")
-	destBalance.Add(destBalance, &amtBi)
-
-	st.Postings = append(st.Postings, newPosting(source, destination, new(big.Int).Set(&amtBi), string(asset), ""))
+	st.rs.ForcePosting(source.Name, source.Scope, destination.Name, destination.Scope, string(asset), "", &amtBi)
 }
 
 func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
-	if monetary.Cmp(big.NewInt(0)) == 0 {
+	// color == nil: drain the queue regardless of color, each posting keeping its
+	// source fund's own color.
+	if name.Name == KEPT_ADDR {
+		// kept funds are refunded to their sources, emitting no posting
+		st.rs.Send(nil, "", monetary, nil)
 		return
 	}
-
-	senders := st.fundsQueue.PullAnything(monetary)
-
-	for _, sender := range senders {
-		posting := newPosting(sender.Account, name, sender.Amount, string(st.CurrentAsset), sender.Color)
-
-		if name.Name == KEPT_ADDR {
-			// If funds are kept, give them back to senders
-			srcBalance := st.CachedBalances.fetchBalance(sender.Account, st.CurrentAsset, String(sender.Color))
-			srcBalance.Add(srcBalance, posting.Amount)
-
-			continue
-		}
-
-		destBalance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, String(sender.Color))
-		destBalance.Add(destBalance, posting.Amount)
-
-		st.Postings = append(st.Postings, posting)
-	}
+	dest := name.Name
+	st.rs.Send(&dest, name.Scope, monetary, nil)
 }
 
 func (st *programState) runStatement(statement parser.Statement) InterpreterError {
@@ -324,29 +285,16 @@ func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) Int
 		return err
 	}
 
-	balance := st.CachedBalances.fetchBalance(account, asset, "")
-
-	if amt == nil {
-		if balance.Sign() > 0 {
-			balance.Set(big.NewInt(0))
-		}
-	} else {
-		// Do not allow negative saves
-		if amt.Cmp(big.NewInt(0)) == -1 {
-			return NegativeAmountErr{
-				Range:  saveStatement.SentValue.GetRange(),
-				Amount: MonetaryInt(*amt),
-			}
-		}
-
-		// we decrease the balance by "amt"
-		balance.Sub(balance, amt)
-		// without going under 0
-		if balance.Cmp(big.NewInt(0)) == -1 {
-			balance.Set(big.NewInt(0))
+	// Do not allow negative saves
+	if amt != nil && amt.Cmp(big.NewInt(0)) == -1 {
+		return NegativeAmountErr{
+			Range:  saveStatement.SentValue.GetRange(),
+			Amount: MonetaryInt(*amt),
 		}
 	}
 
+	// amt == nil -> "save all"; otherwise reduce by amt, floored at 0
+	st.rs.Save(account.Name, account.Scope, string(asset), "", amt)
 	return nil
 }
 
@@ -358,6 +306,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 			return err
 		}
 		st.CurrentAsset = asset
+		st.rs.SetCurrentAsset(string(asset))
 		sentAmt, err := st.takeAll(statement.Source)
 		if err != nil {
 			return err
@@ -370,6 +319,7 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 			return err
 		}
 		st.CurrentAsset = monetary.Asset
+		st.rs.SetCurrentAsset(string(monetary.Asset))
 
 		amtBi := big.Int(monetary.Amount)
 		if amtBi.Sign() == -1 {
@@ -414,12 +364,10 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
-
-	// we sent balance+overdraft
-	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
-
-	s.pushSender(account, MonetaryInt(*sentAmt), color)
+	// PullUncapped queues balance+overdraft (== CalculateMaxSafeWithdraw),
+	// debiting the (account, currentAsset, color) balance.
+	sentAmt := new(big.Int)
+	s.rs.PullUncapped(sentAmt, account.Name, account.Scope, overdraft, string(color))
 	return sentAmt, nil
 }
 
@@ -458,8 +406,8 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
-		acc, ok := s.CachedBalances[account]
-		if !ok {
+		acc := s.rs.AccountBalances(account.Name, account.Scope)
+		if len(acc) == 0 {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
@@ -544,7 +492,6 @@ func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) 
 	return nil
 }
 
-
 // PRE: overdraft >= 0
 func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
@@ -567,27 +514,22 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		return nil, err
 	}
 
-	var actuallySentAmt *big.Int
-	if overdraft == nil {
-		// unbounded overdraft: we send the required amount
-		actuallySentAmt = new(big.Int).Set(amount)
-	} else {
-		balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
-
-		// that's the amount we are allowed to send (balance + overdraft)
-		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
-	}
-	s.pushSender(account, MonetaryInt(*actuallySentAmt), color)
+	// Pull computes the available amount (min(max(0, balance+overdraft), amount)
+	// == CalculateSafeWithdraw; unbounded for world/overdraft==nil), debits the
+	// (account, currentAsset, color) balance, and queues the funds. The
+	// interpreter's overdraft convention (nil == unbounded) is exactly Pull's.
+	actuallySentAmt := new(big.Int)
+	s.rs.Pull(actuallySentAmt, account.Name, account.Scope, amount, overdraft, string(color))
 	return actuallySentAmt, nil
 }
 
+// cloneState returns an undo function for speculative source evaluation (oneof).
+// Backtracking is a cheap source-queue snapshot: on undo, the runtime repays the
+// funds pulled since the mark and truncates the queue — no map cloning.
 func (s *programState) cloneState() func() {
-	fqBackup := s.fundsQueue.Clone()
-	balancesBackup := s.CachedBalances.DeepClone()
-
+	mark := s.rs.Snapshot()
 	return func() {
-		s.fundsQueue = fqBackup
-		s.CachedBalances = balancesBackup
+		s.rs.Restore(mark)
 	}
 }
 
@@ -620,8 +562,8 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
 
-		acc, ok := s.CachedBalances[account]
-		if !ok {
+		acc := s.rs.AccountBalances(account.Name, account.Scope)
+		if len(acc) == 0 {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
@@ -682,7 +624,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		leadingSources := source.Sources[0 : len(source.Sources)-1]
 
 		for _, source := range leadingSources {
-			// do not move this line below (as .tryTakingUpTo() will mutate the fundsQueue)
+			// do not move this line below (as .tryTakingUpTo() will mutate the source queue)
 			undo := s.cloneState()
 
 			sentAmt, err := s.tryTakingUpTo(source, amount)
@@ -945,32 +887,6 @@ func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
 	}
 
 	return res, nil
-}
-
-/*
-PRE: ovedraft != nil, balance != nil
-PRE: ovedraft >= 0
-POST: $out >= 0
-*/
-func CalculateMaxSafeWithdraw(balance *big.Int, overdraft *big.Int) *big.Int {
-	return utils.NonNeg(
-		new(big.Int).Add(balance, overdraft),
-	)
-}
-
-/*
-PRE: ovedraft != nil, balance != nil
-PRE: ovedraft >= 0
-PRE: requestedAmount >= 0
-POST: $out >= 0
-*/
-func CalculateSafeWithdraw(
-	balance *big.Int,
-	overdraft *big.Int,
-	requestedAmount *big.Int,
-) *big.Int {
-	safe := CalculateMaxSafeWithdraw(balance, overdraft)
-	return utils.MinBigInt(safe, requestedAmount)
 }
 
 func PrettyPrintPostings(postings []Posting) string {
