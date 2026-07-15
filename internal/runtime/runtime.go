@@ -1,5 +1,6 @@
 // Package runtime is a Go port of the OCaml run_state module, extended with
-// color (sub-asset fungibility) support to match the interpreter's fundsQueue.
+// color (sub-asset fungibility) support. It is the shared funds engine driven by
+// both the VM and the tree-walking interpreter.
 //
 // It tracks per-(account, asset, color) balances, an ordered FIFO queue of
 // funding sources produced by Pull/PullUncapped, and the list of postings
@@ -15,7 +16,7 @@
 // Color is a plain string; the empty string "" means "uncolored". Pull tags the
 // funds it queues with a color, and Send drains only the sources whose color
 // matches the requested one, skipping (but preserving the position of)
-// non-matching funds — exactly like the interpreter's fundsQueue.
+// non-matching funds.
 //
 // Concurrency: a *RunState is mutable and NOT safe for concurrent use. Use one
 // per execution.
@@ -290,12 +291,11 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 //
 // The color filter selects which sources are eligible:
 //
-//	color == nil   -> match anything (fundsQueue.PullAnything); a single drain
-//	                  may consume and emit funds of several colors at once. This
-//	                  is the mode the interpreter's destinations use.
-//	color != nil   -> only sources whose color == *color are consumed; others
-//	                  are skipped and left in place (fundsQueue.PullColored /
-//	                  PullUncolored, with *color == "" meaning uncolored).
+//	color == nil   -> match anything; a single drain may consume and emit funds
+//	                  of several colors at once. This is the mode the interpreter's
+//	                  destinations use.
+//	color != nil   -> only sources whose color == *color are consumed; others are
+//	                  skipped and left in place (*color == "" meaning uncolored).
 //
 // dest == nil is the "keep/refund" path: the source is credited back and no
 // posting is emitted. A partially consumed source's remainder stays at its
@@ -496,8 +496,7 @@ func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.
 // Non-positive amounts are ignored. Postings are never merged here: same-source
 // funds are instead coalesced upstream in the source queue by compactAt, so a
 // posting can only ever fuse adjacent funds *within* one drain — never across
-// separate sends. This mirrors the interpreter's fundsQueue, which merges in the
-// queue (compactTop), not in the posting list. amount is cloned into the posting.
+// separate sends. amount is cloned into the posting.
 func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
 		return nil
@@ -516,8 +515,8 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 
 // compactAt coalesces the maximal run of funds at index i that share i's
 // (account, color), folding each into s.sources[i], and drops any zero-amount
-// entries it passes. This is the slice analogue of fundsQueue.compactTop: it
-// merges adjacent same-source funds in the queue before they are drained, so
+// entries it passes. It merges adjacent same-source funds in the queue before
+// they are drained, so
 // one drain over them yields a single posting. Because it operates on the queue
 // (which each send fully consumes) and never on the posting list, it cannot fuse
 // funds belonging to different sends. The fold mutates s.sources[i].amount in
