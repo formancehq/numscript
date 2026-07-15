@@ -93,9 +93,10 @@ func ResolveDependencies(ctx context.Context, store Store, vars map[string]strin
 		return new(big.Int), nil
 	}
 	env, err := newEvalEnv(
+		ctx,
+		recording,
 		nil,
 		getBalance,
-		newMetadataGetter(ctx, recording, InternalAccountsMetadata{}),
 		program.Vars, vars,
 	)
 	if err != nil {

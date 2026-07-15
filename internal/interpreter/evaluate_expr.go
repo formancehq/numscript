@@ -27,29 +27,36 @@ func prewarmBalanceRows(rs *runtime.RunState, rows []BalanceRow) {
 	rs.Prewarm(seed)
 }
 
-// evalEnv is the environment for evaluating expressions. Its only I/O is through
-// two injected readers, getBalance and getMetadata — evaluation never touches the
-// store or the funds engine directly.
+// evalEnv is the environment for evaluating expressions. It reads metadata
+// straight from the Store (cached), but balance reads are injected via getBalance
+// because their policy differs by caller: script execution reads running balances
+// from rs, while dependency resolution only needs the read recorded. Evaluation
+// never touches the funds engine directly.
 type evalEnv struct {
+	ctx          context.Context
+	Store        Store
 	FeatureFlags map[string]struct{}
 	vars         map[string]Value
 
-	getBalance  func(account AccountAddress, asset Asset) (*big.Int, InterpreterError)
-	getMetadata func(account AccountAddress, key string) (string, bool, InterpreterError)
+	getBalance         func(account AccountAddress, asset Asset) (*big.Int, InterpreterError)
+	CachedAccountsMeta InternalAccountsMetadata
 }
 
 func newEvalEnv(
+	ctx context.Context,
+	store Store,
 	featureFlags map[string]struct{},
 	getBalance func(AccountAddress, Asset) (*big.Int, InterpreterError),
-	getMetadata func(AccountAddress, string) (string, bool, InterpreterError),
 	varDecls *parser.VarDeclarations,
 	rawVars map[string]string,
 ) (evalEnv, InterpreterError) {
 	env := evalEnv{
-		FeatureFlags: featureFlags,
-		vars:         map[string]Value{},
-		getBalance:   getBalance,
-		getMetadata:  getMetadata,
+		ctx:                ctx,
+		Store:              store,
+		FeatureFlags:       featureFlags,
+		vars:               map[string]Value{},
+		getBalance:         getBalance,
+		CachedAccountsMeta: InternalAccountsMetadata{},
 	}
 	if err := bindVars(&env, varDecls, rawVars); err != nil {
 		return evalEnv{}, err
@@ -87,22 +94,19 @@ func newBalanceGetter(ctx context.Context, store Store, rs *runtime.RunState) fu
 	}
 }
 
-// newMetadataGetter builds the metadata reader used during evaluation: a lazy,
-// cached fetch over the Store.
-func newMetadataGetter(ctx context.Context, store Store, cache InternalAccountsMetadata) func(AccountAddress, string) (string, bool, InterpreterError) {
-	return func(account AccountAddress, key string) (string, bool, InterpreterError) {
-		if !cache.has(account, key) {
-			rows, err := store.GetAccountsMetadata(ctx, MetadataQuery{
-				{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
-			})
-			if err != nil {
-				return "", false, QueryMetadataError{WrappedError: err}
-			}
-			cache.Merge(rows)
+// getMetadata is a lazy, cached read of account metadata from the Store.
+func (env *evalEnv) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
+	if !env.CachedAccountsMeta.has(account, key) {
+		rows, err := env.Store.GetAccountsMetadata(env.ctx, MetadataQuery{
+			{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
+		})
+		if err != nil {
+			return "", false, QueryMetadataError{WrappedError: err}
 		}
-		value, ok := cache.Get(account, key)
-		return value, ok, nil
+		env.CachedAccountsMeta.Merge(rows)
 	}
+	value, ok := env.CachedAccountsMeta.Get(account, key)
+	return value, ok, nil
 }
 
 func bindVars(env *evalEnv, varDecls *parser.VarDeclarations, rawVars map[string]string) InterpreterError {

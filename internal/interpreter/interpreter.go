@@ -141,11 +141,11 @@ func RunProgram(
 	}
 
 	rs := runtime.New(zeroStore{})
-	accountsMeta := InternalAccountsMetadata{}
 	env, err := newEvalEnv(
+		ctx,
+		store,
 		flagSet,
 		newBalanceGetter(ctx, store, rs),
-		newMetadataGetter(ctx, store, accountsMeta),
 		program.Vars, vars,
 	)
 	if err != nil {
@@ -154,8 +154,6 @@ func RunProgram(
 
 	st := programState{
 		evalEnv:             env,
-		ctx:                 ctx,
-		Store:               store,
 		rs:                  rs,
 		TxMeta:              make(map[string]Value),
 		SetAccountsMeta:     internalSetAccountsMeta{},
@@ -201,8 +199,6 @@ func RunProgram(
 type programState struct {
 	evalEnv
 
-	ctx   context.Context
-	Store Store
 	// rs owns the funds state: the write-through balance cache (seeded via
 	// Prewarm from the batched Store fetch), the FIFO funding-source queue, and
 	// the emitted postings. evalEnv's getBalance reader closes over this same rs.
