@@ -104,9 +104,9 @@ func Exec[S Store](
 			out := &vm.intsRegs[instr.A]
 			switch {
 			case cap != nil:
-				runstate.Pull(out, account, cap, overdraft, color)
+				runstate.Pull(out, account, "", cap, overdraft, color)
 			case overdraft != nil:
-				runstate.PullUncapped(out, account, overdraft, color)
+				runstate.PullUncapped(out, account, "", overdraft, color)
 			default:
 				return runtime.ExecutionResult{}, InvalidUncappedSource{Account: account}
 			}
@@ -129,9 +129,9 @@ func Exec[S Store](
 			}
 
 			if cap == nil {
-				runstate.SendUncapped(dest, color)
+				runstate.SendUncapped(dest, "", color)
 			} else {
-				runstate.Send(dest, cap, color)
+				runstate.Send(dest, "", cap, color)
 			}
 
 		case Op_MkAllotment:
@@ -171,7 +171,7 @@ func Exec[S Store](
 			if instr.C != nilReg {
 				amount = &vm.intsRegs[instr.C]
 			}
-			runstate.Save(account, asset, "", amount)
+			runstate.Save(account, "", asset, "", amount)
 
 		case Op_AssertLeftover:
 			leftover := &vm.portionsRegs[instr.A]
@@ -351,7 +351,7 @@ func Exec[S Store](
 
 			dest := &vm.monetariesRegs[instr.A]
 			dest.asset = asset
-			dest.amount.Set(runstate.GetAccountBalance(account, asset, ""))
+			dest.amount.Set(runstate.GetAccountBalance(account, "", asset, ""))
 
 		// --- Unary ops
 		case Op_IntCopy:
