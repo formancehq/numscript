@@ -468,7 +468,7 @@ func (st *state) compileSource(
 	switch src := src.(type) {
 	case *parser.SourceAccount:
 		if src.Color != nil {
-			panic("TODO impl color")
+			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
 		}
 
 		accReg, err := st.compileExpr(src.ValueExpr)
@@ -495,7 +495,7 @@ func (st *state) compileSource(
 
 	case *parser.SourceOverdraft:
 		if src.Color != nil {
-			panic("TODO impl color")
+			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
 		}
 
 		if src.Bounded == nil && capReg == nil {
@@ -626,7 +626,7 @@ func (st *state) compileSource(
 		return inorderTotalReg, nil
 
 	case *parser.SourceOneof:
-		panic("TODO impl source")
+		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "oneof"}
 
 	case *parser.SourceAllotment:
 		// an allotment source splits the cap among sub-sources, so it needs one
@@ -650,7 +650,7 @@ func (st *state) compileSource(
 		return *capReg, nil
 
 	case *parser.SourceWithScaling:
-		panic("TODO impl source")
+		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "scaling"}
 
 	default:
 		return utils.NonExhaustiveMatchPanic[reg](src), nil
@@ -697,7 +697,7 @@ func (st *state) compileDestination(
 		return nil
 
 	case *parser.DestinationOneof:
-		panic("TODO unimplemented")
+		return FeatureNotImplemented{Range: dest.GetRange(), Feature: "oneof"}
 
 	case *parser.DestinationAccount:
 		accReg, err := st.compileExpr(dest.ValueExpr)
@@ -894,7 +894,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			return nil
 
 		default:
-			panic("TODO fn call statement: " + stmt.Caller.Name)
+			return utils.NonExhaustiveMatchPanic[CompilerError](stmt.Caller.Name)
 		}
 
 	default:

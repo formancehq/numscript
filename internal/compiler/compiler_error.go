@@ -41,6 +41,14 @@ type (
 		parser.Range
 		Type typecheck.Type
 	}
+
+	// FeatureNotImplemented is returned (never panicked) when the compiler meets a
+	// construct it does not support yet — e.g. colors or scoped accounts — so the
+	// host gets an error instead of a crash.
+	FeatureNotImplemented struct {
+		parser.Range
+		Feature string
+	}
 )
 
 func (UnboundVar) compileError()            {}
@@ -49,7 +57,11 @@ func (InvalidUncappedSource) compileError() {}
 func (DuplicateRemaining) compileError()    {}
 func (InvalidMetaPosition) compileError()   {}
 func (CannotCastToString) compileError()    {}
+func (FeatureNotImplemented) compileError() {}
 
+func (e FeatureNotImplemented) Error() string {
+	return "internal error: feature not implemented: " + e.Feature
+}
 func (e TypeError) Error() string { return e.Kind.Message() }
 func (InvalidMetaPosition) Error() string {
 	return "meta() is only allowed as a variable origin"
@@ -65,4 +77,5 @@ var (
 	_ CompilerError = (*DuplicateRemaining)(nil)
 	_ CompilerError = (*InvalidMetaPosition)(nil)
 	_ CompilerError = (*CannotCastToString)(nil)
+	_ CompilerError = (*FeatureNotImplemented)(nil)
 )
