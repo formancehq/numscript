@@ -4,7 +4,6 @@ import (
 	"context"
 	"maps"
 	"math/big"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -112,20 +111,6 @@ func evaluateVarOrigin(env *evalEnv, type_ string, expr parser.ValueExpr) (Value
 	return evaluateExpr(env, expr)
 }
 
-func checkAccountName(addr string) bool {
-	return runtime.ValidateAccount(addr)
-}
-
-func checkAssetName(v string) bool {
-	return runtime.ValidateAsset(v)
-}
-
-var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
-
-func checkScopeName(scope string) bool {
-	return scopeRegex.MatchString(scope)
-}
-
 // Check the following invariants:
 //   - no negative postings
 //   - no invalid account names
@@ -134,9 +119,9 @@ func checkPostingInvariants(posting Posting) InterpreterError {
 	isAmtNegative := posting.Amount.Cmp(big.NewInt(0)) == -1
 
 	isInvalidPosting := (isAmtNegative ||
-		!checkAssetName(posting.Asset) ||
-		!checkAccountName(posting.Source) ||
-		!checkAccountName(posting.Destination))
+		!runtime.ValidateAsset(posting.Asset) ||
+		!runtime.ValidateAccount(posting.Source) ||
+		!runtime.ValidateAccount(posting.Destination))
 
 	if isInvalidPosting {
 		return InternalError{Posting: posting}
@@ -559,7 +544,6 @@ func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) 
 	return nil
 }
 
-var colorRe = regexp.MustCompile("^[A-Z]*$")
 
 // PRE: overdraft >= 0
 func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {

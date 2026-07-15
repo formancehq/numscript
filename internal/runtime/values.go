@@ -25,8 +25,13 @@ var assetNameRegex = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\
 var percentRegex = regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
 var fractionRegex = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
 
+var colorNameRegex = regexp.MustCompile("^[A-Z]*$")
+var scopeNameRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
+
 func ValidateAccount(addr string) bool { return accountNameRegex.MatchString(addr) }
 func ValidateAsset(v string) bool      { return assetNameRegex.MatchString(v) }
+func ValidateColor(v string) bool      { return colorNameRegex.MatchString(v) }
+func ValidateScope(v string) bool      { return scopeNameRegex.MatchString(v) }
 
 // ParseNumber parses a base-10 integer (arbitrary precision).
 func ParseNumber(s string) (*big.Int, bool) {

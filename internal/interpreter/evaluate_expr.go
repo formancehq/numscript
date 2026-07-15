@@ -7,6 +7,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 )
 
 type evalEnv struct {
@@ -234,7 +235,7 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, Interp
 		return "", err
 	}
 
-	isValidColor := colorRe.Match([]byte(string(color)))
+	isValidColor := runtime.ValidateColor(string(color))
 	if !isValidColor {
 		return "", InvalidColor{
 			Range: colorExpr.GetRange(),
