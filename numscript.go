@@ -3,7 +3,6 @@ package numscript
 import (
 	"context"
 
-	"github.com/formancehq/numscript/accounts"
 	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
@@ -62,10 +61,13 @@ type (
 	Balances         = interpreter.Balances
 	BalanceRow       = interpreter.BalanceRow
 
-	AccountMetadata = interpreter.AccountMetadata
+	// Input account metadata (opaque, string-valued) read via meta()
+	AccountMetadataRow = interpreter.AccountMetadataRow
+	AccountsMetadata   = interpreter.AccountsMetadata
 
-	// The newly defined account metadata after the execution
-	AccountsMetadata = interpreter.AccountsMetadata
+	// The account metadata set during the execution (tagged, typed values)
+	SetAccountMetadataRow = interpreter.SetAccountMetadataRow
+	SetAccountsMetadata   = interpreter.SetAccountsMetadata
 
 	// The transaction metadata, set by set_tx_meta()
 	Metadata = interpreter.Metadata
@@ -78,7 +80,13 @@ type (
 
 	InterpreterError = interpreter.InterpreterError
 	MissingFundsErr  = interpreter.MissingFundsErr
+
+	ResolvedDependencies = interpreter.ResolvedDependencies
+	AccountDependency    = interpreter.AccountDependency
+	MetaDependency       = interpreter.MetaDependency
 )
+
+var ErrScalingNotSupported = interpreter.ErrScalingNotSupported
 
 func (p ParseResult) Run(ctx context.Context, vars VariablesMap, store Store) (ExecutionResult, InterpreterError) {
 	return p.RunWithFeatureFlags(ctx, vars, store, nil)
@@ -105,12 +113,19 @@ func (p ParseResult) RunWithFeatureFlags(
 	return *res, nil
 }
 
-func (p ParseResult) GetSource() string {
-	return p.parseResult.Source
+// ResolveDependencies statically determines which accounts and metadata the
+// script reads and writes, resolving account/asset/key expressions against the
+// given vars and store.
+func (p ParseResult) ResolveDependencies(ctx context.Context, vars VariablesMap, store Store) (ResolvedDependencies, error) {
+	if len(p.parseResult.Errors) != 0 {
+		return ResolvedDependencies{}, p.parseResult.Errors[0]
+	}
+
+	return interpreter.ResolveDependencies(ctx, store, vars, p.parseResult.Value)
 }
 
-func (p ParseResult) GetInvolvedAccounts(vars VariablesMap) ([]accounts.InvolvedAccount, []accounts.InvolvedMeta, InterpreterError) {
-	return interpreter.GetInvolvedAccounts(vars, p.parseResult.Value)
+func (p ParseResult) GetSource() string {
+	return p.parseResult.Source
 }
 
 type (
@@ -143,5 +158,18 @@ func ExecVm[S VMStore](machine *Vm, vars *Vars, store S) (ExecutionResult, error
 	if execErr != nil {
 		return ExecutionResult{}, execErr
 	}
-	return res, nil
+
+	postings := make([]Posting, len(res.Postings))
+	for i, p := range res.Postings {
+		postings[i] = Posting{
+			Source:      p.Source,
+			Destination: p.Destination,
+			Amount:      p.Amount,
+			Asset:       p.Asset,
+			Color:       p.Color,
+		}
+	}
+	// TODO map VM tx/account metadata (stringified) onto the typed contract;
+	// deferred together with scopes/colors in the VM
+	return ExecutionResult{Postings: postings}, nil
 }

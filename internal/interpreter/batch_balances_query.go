@@ -1,11 +1,9 @@
 package interpreter
 
 import (
-	"math/big"
 	"slices"
 
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -17,7 +15,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		return nil
 
 	case *parser.SaveStatement:
-		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		asset, _, err := evaluateSentAmt(&st.evalEnv, statement.SentValue)
 		if err != nil {
 			return err
 		}
@@ -29,7 +27,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		//
 		// this would mean that the "save" statement was not needed in the first place,
 		// so preventing this query would hardly be an useful optimization
-		account, err := evaluateExprAs(st, statement.Account, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, statement.Account, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -37,7 +35,7 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 		return nil
 
 	case *parser.SendStatement:
-		asset, _, err := st.evaluateSentAmt(statement.SentValue)
+		asset, _, err := evaluateSentAmt(&st.evalEnv, statement.SentValue)
 		if err != nil {
 			return err
 		}
@@ -53,14 +51,15 @@ func (st *programState) findBalancesQueriesInStatement(statement parser.Statemen
 }
 
 func (st *programState) batchQuery(account AccountAddress, asset Asset, color String) {
-	if account == "world" {
+	if account.Name == "world" {
 		return
 	}
 
 	item := BalanceQueryItem{
-		Account: string(account),
+		Account: account.Name,
 		Asset:   string(asset),
 		Color:   string(color),
+		Scope:   account.Scope,
 	}
 
 	if !slices.Contains(st.CurrentBalanceQuery, item) {
@@ -69,13 +68,7 @@ func (st *programState) batchQuery(account AccountAddress, asset Asset, color St
 }
 
 func (st *programState) runBalancesQuery() error {
-	// keep only triples the runtime hasn't already cached (prewarmed or touched)
-	var filteredQuery BalanceQuery
-	for _, item := range st.CurrentBalanceQuery {
-		if !st.rs.Has(item.Account, item.Asset, item.Color) {
-			filteredQuery = append(filteredQuery, item)
-		}
-	}
+	filteredQuery := st.CachedBalances.filterQuery(st.CurrentBalanceQuery)
 
 	// avoid updating balances if we don't need to fetch new data
 	if len(filteredQuery) == 0 {
@@ -89,13 +82,7 @@ func (st *programState) runBalancesQuery() error {
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
 
-	// seed the runtime's balance cache with the batch result, so its lazy
-	// per-key Store path is never hit for these triples
-	seed := make(map[runtime.PairKey]*big.Int, len(queriedBalances))
-	for _, row := range queriedBalances {
-		seed[runtime.PairKey{Account: row.Account, Asset: row.Asset, Color: row.Color}] = row.Amount
-	}
-	st.rs.Prewarm(seed)
+	st.CachedBalances.Merge(queriedBalances)
 
 	return nil
 }
@@ -103,12 +90,12 @@ func (st *programState) runBalancesQuery() error {
 func (st *programState) findBalancesQueries(source parser.Source) InterpreterError {
 	switch source := source.(type) {
 	case *parser.SourceAccount:
-		account, err := evaluateExprAs(st, source.ValueExpr, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
 
-		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		color, err := evaluateOptExprAs(&st.evalEnv, source.Color, expectString)
 		if err != nil {
 			return err
 		}
@@ -117,7 +104,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		return nil
 
 	case *parser.SourceWithScaling:
-		account, err := evaluateExprAs(st, source.Address, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return err
 		}
@@ -132,11 +119,11 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 			return nil
 		}
 
-		account, err := evaluateExprAs(st, source.Address, expectAccount)
+		account, err := evaluateExprAs(&st.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return err
 		}
-		color, err := evaluateOptExprAs(st, source.Color, expectString)
+		color, err := evaluateOptExprAs(&st.evalEnv, source.Color, expectString)
 		if err != nil {
 			return err
 		}

@@ -7,6 +7,22 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 )
 
+// UnhandledError is returned instead of panicking when expression evaluation or
+// dependency resolution meets an AST node it doesn't handle (e.g. a language
+// construct added after this code was written).
+type UnhandledError struct {
+	parser.Range
+	Node string
+}
+
+func (e UnhandledError) Error() string {
+	return fmt.Sprintf("internal error: unhandled ast node (%s)", e.Node)
+}
+
+func unhandledErr(node any) UnhandledError {
+	return UnhandledError{Node: fmt.Sprintf("%#v", node)}
+}
+
 type InternalError struct {
 	parser.Range
 	Posting Posting
@@ -53,6 +69,7 @@ func (e InvalidNumberLiteral) Error() string {
 type MetadataNotFound struct {
 	parser.Range
 	Account string
+	Scope   string
 	Key     string
 }
 
@@ -67,7 +84,7 @@ type TypeError struct {
 }
 
 func (e TypeError) Error() string {
-	return fmt.Sprintf("Invalid value received. Expecting value of type %s (got %s instead)", e.Expected, e.Value.String())
+	return fmt.Sprintf("Invalid value received. Expecting value of type `%s` (got `%s` instead)", e.Expected, e.Value.String())
 }
 
 type UnboundVariableErr struct {
@@ -129,6 +146,7 @@ func (e InvalidTypeErr) Error() string {
 type NegativeBalanceError struct {
 	parser.Range
 	Account string
+	Scope   string
 	Amount  big.Int
 }
 
@@ -164,7 +182,8 @@ func (e DivideByZero) Error() string {
 
 type InvalidUnboundedInSendAll struct {
 	parser.Range
-	Name string
+	Name  string
+	Scope string
 }
 
 func (e InvalidUnboundedInSendAll) Error() string {
@@ -199,6 +218,10 @@ func (e QueryBalanceError) Error() string {
 	return e.WrappedError.Error()
 }
 
+func (e QueryBalanceError) Unwrap() error {
+	return e.WrappedError
+}
+
 type QueryMetadataError struct {
 	parser.Range
 	WrappedError error
@@ -206,6 +229,10 @@ type QueryMetadataError struct {
 
 func (e QueryMetadataError) Error() string {
 	return e.WrappedError.Error()
+}
+
+func (e QueryMetadataError) Unwrap() error {
+	return e.WrappedError
 }
 
 type ExperimentalFeature struct {
@@ -224,6 +251,26 @@ type CannotCastToString struct {
 
 func (e CannotCastToString) Error() string {
 	return fmt.Sprintf("Cannot cast this value to string: %s", e.Value)
+}
+
+type CannotCastScopedAccountToString struct {
+	parser.Range
+	Account string
+	Scope   string
+}
+
+func (e CannotCastScopedAccountToString) Error() string {
+	return fmt.Sprintf("Cannot cast a scoped account to string (account %q has scope %q)", e.Account, e.Scope)
+}
+
+type CannotStoreScopedAccountInMeta struct {
+	parser.Range
+	Account string
+	Scope   string
+}
+
+func (e CannotStoreScopedAccountInMeta) Error() string {
+	return fmt.Sprintf("Cannot store a scoped account as metadata (account %q has scope %q)", e.Account, e.Scope)
 }
 
 type InvalidAccountName struct {
@@ -285,4 +332,13 @@ type InvalidOperatorErr struct {
 
 func (e InvalidOperatorErr) Error() string {
 	return fmt.Sprintf("Invalid operator: %s", e.Operator)
+}
+
+type InvalidScope struct {
+	parser.Range
+	Scope string
+}
+
+func (e InvalidScope) Error() string {
+	return fmt.Sprintf("Invalid scope syntax: %s", e.Scope)
 }

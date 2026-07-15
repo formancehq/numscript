@@ -6,6 +6,7 @@ const (
 	ExperimentalOverdraftFunctionFeatureFlag FeatureFlag = "experimental-overdraft-function"
 	ExperimentalGetAssetFunctionFeatureFlag  FeatureFlag = "experimental-get-asset-function"
 	ExperimentalGetAmountFunctionFeatureFlag FeatureFlag = "experimental-get-amount-function"
+	ExperimentalScopedFunction               FeatureFlag = "experimental-scoped-function"
 	ExperimentalOneofFeatureFlag             FeatureFlag = "experimental-oneof"
 	ExperimentalAccountInterpolationFlag     FeatureFlag = "experimental-account-interpolation"
 	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
@@ -17,6 +18,7 @@ var AllFlags []string = []string{
 	ExperimentalOverdraftFunctionFeatureFlag,
 	ExperimentalGetAssetFunctionFeatureFlag,
 	ExperimentalGetAmountFunctionFeatureFlag,
+	ExperimentalScopedFunction,
 	ExperimentalOneofFeatureFlag,
 	ExperimentalAccountInterpolationFlag,
 	ExperimentalMidScriptFunctionCall,

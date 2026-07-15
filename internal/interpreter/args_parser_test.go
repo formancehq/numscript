@@ -36,7 +36,7 @@ func TestParseValid(t *testing.T) {
 
 	p := NewArgsParser([]Value{
 		NewMonetaryInt(42),
-		AccountAddress("user:001"),
+		AccountAddress{Name: "user:001"},
 	})
 	a1 := parseArg(p, parser.Range{}, expectNumber)
 	a2 := parseArg(p, parser.Range{}, expectAccount)
@@ -48,7 +48,7 @@ func TestParseValid(t *testing.T) {
 	require.NotNil(t, a2, "a2 should not be nil")
 
 	require.Equal(t, a1, MonetaryInt(*big.NewInt(42)))
-	require.Equal(t, a2, AccountAddress("user:001"))
+	require.Equal(t, a2, AccountAddress{Name: "user:001"})
 }
 
 func TestParseBadType(t *testing.T) {
@@ -56,7 +56,7 @@ func TestParseBadType(t *testing.T) {
 
 	p := NewArgsParser([]Value{
 		NewMonetaryInt(42),
-		AccountAddress("user:001"),
+		AccountAddress{Name: "user:001"},
 	})
 	parseArg(p, parser.Range{}, expectMonetary)
 	parseArg(p, parser.Range{}, expectAccount)

@@ -1,15 +1,104 @@
 package interpreter
 
 import (
+	"context"
 	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/utils"
 )
 
-func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterError) {
+type evalEnv struct {
+	ctx          context.Context
+	Store        Store
+	FeatureFlags map[string]struct{}
+
+	vars               map[string]Value
+	CachedBalances     InternalBalances
+	CachedAccountsMeta InternalAccountsMetadata
+}
+
+func newEvalEnv(ctx context.Context, store Store, featureFlags map[string]struct{}, varDecls *parser.VarDeclarations, rawVars map[string]string) (evalEnv, InterpreterError) {
+	env := evalEnv{
+		ctx:                ctx,
+		Store:              store,
+		FeatureFlags:       featureFlags,
+		vars:               map[string]Value{},
+		CachedBalances:     InternalBalances{},
+		CachedAccountsMeta: InternalAccountsMetadata{},
+	}
+	if err := bindVars(&env, varDecls, rawVars); err != nil {
+		return evalEnv{}, err
+	}
+	return env, nil
+}
+
+func (env *evalEnv) checkFeatureFlag(flag string) InterpreterError {
+	// a nil set enables every feature (e.g. dependency resolution)
+	if env.FeatureFlags == nil {
+		return nil
+	}
+	if _, ok := env.FeatureFlags[flag]; ok {
+		return nil
+	}
+	return ExperimentalFeature{FlagName: flag}
+}
+
+func (env *evalEnv) getBalance(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
+	color := String("")
+	if !env.CachedBalances.has(account, string(asset), string(color)) {
+		rows, err := env.Store.GetBalances(env.ctx, BalanceQuery{
+			{Account: account.Name, Asset: string(asset), Color: string(color), Scope: account.Scope},
+		})
+		if err != nil {
+			return nil, QueryBalanceError{WrappedError: err}
+		}
+		env.CachedBalances.Merge(rows)
+	}
+	return env.CachedBalances.fetchBalance(account, asset, color), nil
+}
+
+func (env *evalEnv) getMetadata(account AccountAddress, key string) (string, bool, InterpreterError) {
+	if !env.CachedAccountsMeta.has(account, key) {
+		rows, err := env.Store.GetAccountsMetadata(env.ctx, MetadataQuery{
+			{Account: account.Name, Scope: account.Scope, Keys: []string{key}},
+		})
+		if err != nil {
+			return "", false, QueryMetadataError{WrappedError: err}
+		}
+		env.CachedAccountsMeta.Merge(rows)
+	}
+
+	value, ok := env.CachedAccountsMeta.Get(account, key)
+	return value, ok, nil
+}
+
+func bindVars(env *evalEnv, varDecls *parser.VarDeclarations, rawVars map[string]string) InterpreterError {
+	if varDecls == nil {
+		return nil
+	}
+	for _, decl := range varDecls.Declarations {
+		var value Value
+		var err InterpreterError
+		if decl.Origin == nil {
+			raw, ok := rawVars[decl.Name.Name]
+			if !ok {
+				return MissingVariableErr{Name: decl.Name.Name}
+			}
+			value, err = parseVar(decl.Type.Name, raw, decl.Type.Range)
+		} else {
+			value, err = evaluateVarOrigin(env, decl.Type.Name, *decl.Origin)
+		}
+		if err != nil {
+			return err
+		}
+		env.vars[decl.Name.Name] = value
+	}
+	return nil
+}
+
+func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError) {
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
 		return Asset(expr.Asset), nil
@@ -20,12 +109,12 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 			case parser.AccountTextPart:
 				parts = append(parts, part.Name)
 			case *parser.Variable:
-				err := st.checkFeatureFlag(flags.ExperimentalAccountInterpolationFlag)
+				err := env.checkFeatureFlag(flags.ExperimentalAccountInterpolationFlag)
 				if err != nil {
 					return nil, err
 				}
 
-				value, err := st.evaluateExpr(part)
+				value, err := evaluateExpr(env, part)
 				if err != nil {
 					return nil, err
 				}
@@ -34,6 +123,9 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 					return nil, err
 				}
 				parts = append(parts, strValue)
+
+			default:
+				return nil, unhandledErr(part)
 			}
 		}
 		name := strings.Join(parts, "")
@@ -46,12 +138,12 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	case *parser.NumberLiteral:
 		return MonetaryInt(*expr.Number), nil
 	case *parser.MonetaryLiteral:
-		asset, err := evaluateExprAs(st, expr.Asset, expectAsset)
+		asset, err := evaluateExprAs(env, expr.Asset, expectAsset)
 		if err != nil {
 			return nil, err
 		}
 
-		amount, err := evaluateExprAs(st, expr.Amount, expectNumber)
+		amount, err := evaluateExprAs(env, expr.Amount, expectNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -59,8 +151,8 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 		return Monetary{Asset: asset, Amount: amount}, nil
 
 	case *parser.Variable:
-		value, ok := st.ParsedVars[expr.Name]
-		if !ok {
+		value := env.vars[expr.Name]
+		if value == nil {
 			return nil, UnboundVariableErr{
 				Name:  expr.Name,
 				Range: expr.Range,
@@ -71,56 +163,47 @@ func (st *programState) evaluateExpr(expr parser.ValueExpr) (Value, InterpreterE
 	case *parser.BinaryInfix:
 		switch expr.Operator {
 		case parser.InfixOperatorPlus:
-			return st.plusOp(expr.Left, expr.Right)
+			return plusOp(env, expr.Left, expr.Right)
 
 		case parser.InfixOperatorMinus:
-			return st.subOp(expr.Left, expr.Right)
+			return subOp(env, expr.Left, expr.Right)
 
 		case parser.InfixOperatorDiv:
-			return st.divOp(expr.Range, expr.Left, expr.Right)
+			return divOp(env, expr.Range, expr.Left, expr.Right)
 
 		default:
-			utils.NonExhaustiveMatchPanic[any](expr.Operator)
-			return nil, nil
+			return nil, unhandledErr(expr.Operator)
 		}
 
 	case *parser.Prefix:
 		switch expr.Operator {
 		case parser.PrefixOperatorMinus:
-			return st.unaryNegOp(expr.Expr)
+			return unaryNegOp(env, expr.Expr)
 
 		default:
-			utils.NonExhaustiveMatchPanic[any](expr.Operator)
-			return nil, nil
+			return nil, unhandledErr(expr.Operator)
 		}
 
 	case *parser.FnCall:
-		if !st.varOriginPosition {
-			err := st.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return st.handleFnCall(nil, *expr)
+		// nil type: not a direct var origin, hence a mid-script call.
+		return evaluateFnCall(env, nil, *expr)
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](expr)
-		return nil, nil
+		return nil, unhandledErr(expr)
 	}
 }
 
-func evaluateOptExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
+func evaluateOptExprAs[T any](env *evalEnv, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
 	var t T
 	if expr == nil {
 		return t, nil
 	}
-	return evaluateExprAs(st, expr, expect)
+	return evaluateExprAs(env, expr, expect)
 }
 
-func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
+func evaluateExprAs[T any](env *evalEnv, expr parser.ValueExpr, expect func(Value, parser.Range) (T, InterpreterError)) (T, InterpreterError) {
 	var default_ T
-	value, err := st.evaluateExpr(expr)
+	value, err := evaluateExpr(env, expr)
 	if err != nil {
 		return default_, err
 	}
@@ -133,10 +216,10 @@ func evaluateExprAs[T any](st *programState, expr parser.ValueExpr, expect func(
 	return res, nil
 }
 
-func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Value, InterpreterError) {
+func evaluateExpressions(env *evalEnv, literals []parser.ValueExpr) ([]Value, InterpreterError) {
 	var values []Value
 	for _, argLit := range literals {
-		value, err := st.evaluateExpr(argLit)
+		value, err := evaluateExpr(env, argLit)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +229,7 @@ func (st *programState) evaluateExpressions(literals []parser.ValueExpr) ([]Valu
 }
 
 func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, InterpreterError) {
-	color, err := evaluateOptExprAs(s, colorExpr, expectString)
+	color, err := evaluateOptExprAs(&s.evalEnv, colorExpr, expectString)
 	if err != nil {
 		return "", err
 	}
@@ -162,9 +245,9 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, Interp
 	return color, nil
 }
 
-func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+func plusOp(env *evalEnv, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
 
-	leftValue, err := evaluateExprAs(st, left, expectOneOf(
+	leftValue, err := evaluateExprAs(env, left, expectOneOf(
 		expectMapped(expectMonetary, func(m Monetary) opAdd {
 			return m
 		}),
@@ -179,11 +262,11 @@ func (st *programState) plusOp(left parser.ValueExpr, right parser.ValueExpr) (V
 		return nil, err
 	}
 
-	return leftValue.evalAdd(st, right)
+	return leftValue.evalAdd(env, right)
 }
 
-func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	leftValue, err := evaluateExprAs(st, left, expectOneOf(
+func subOp(env *evalEnv, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+	leftValue, err := evaluateExprAs(env, left, expectOneOf(
 		expectMapped(expectMonetary, func(m Monetary) opSub {
 			return m
 		}),
@@ -196,16 +279,16 @@ func (st *programState) subOp(left parser.ValueExpr, right parser.ValueExpr) (Va
 		return nil, err
 	}
 
-	return leftValue.evalSub(st, right)
+	return leftValue.evalSub(env, right)
 }
 
-func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
-	leftValue, err := evaluateExprAs(st, left, expectNumber)
+func divOp(env *evalEnv, rng parser.Range, left parser.ValueExpr, right parser.ValueExpr) (Value, InterpreterError) {
+	leftValue, err := evaluateExprAs(env, left, expectNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	rightValue, err := evaluateExprAs(st, right, expectNumber)
+	rightValue, err := evaluateExprAs(env, right, expectNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -224,8 +307,8 @@ func (st *programState) divOp(rng parser.Range, left parser.ValueExpr, right par
 	return Portion(*rat), nil
 }
 
-func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterError) {
-	evExpr, err := evaluateExprAs(st, expr, expectOneOf(
+func unaryNegOp(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError) {
+	evExpr, err := evaluateExprAs(env, expr, expectOneOf(
 		expectMapped(expectMonetary, func(m Monetary) opNeg {
 			return m
 		}),
@@ -240,15 +323,18 @@ func (st *programState) unaryNegOp(expr parser.ValueExpr) (Value, InterpreterErr
 		return nil, err
 	}
 
-	return evExpr.evalNeg(st)
+	return evExpr.evalNeg(env)
 }
 
 func castToString(v Value, rng parser.Range) (string, InterpreterError) {
 	switch v := v.(type) {
 	case AccountAddress:
-		return v.String(), nil
+		if v.Scope != "" {
+			return "", CannotCastScopedAccountToString{Account: v.Name, Scope: v.Scope, Range: rng}
+		}
+		return v.Name, nil
 	case String:
-		return v.String(), nil
+		return string(v), nil
 	case MonetaryInt:
 		return v.String(), nil
 

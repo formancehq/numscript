@@ -114,7 +114,7 @@ send [COIN 100] (
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Balances: interpreter.Balances{},
-			Meta:     interpreter.AccountsMetadata{"account_that_needs_meta": {"k": "source2"}},
+			Meta:     interpreter.AccountsMetadata{{Account: "account_that_needs_meta", Key: "k", Value: "source2"}},
 		},
 	}
 	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{
@@ -127,7 +127,7 @@ send [COIN 100] (
 	require.Equal(t,
 		[]numscript.MetadataQuery{
 			{
-				"account_that_needs_meta": {"k"},
+				{Account: "account_that_needs_meta", Keys: []string{"k"}},
 			},
 		},
 		store.GetMetadataCalls)
@@ -455,7 +455,7 @@ set_tx_meta(
 	require.Nil(t, err)
 
 	require.Equal(t, interpreter.Metadata{
-		"k": "USD/2 100",
+		"k": interpreter.Monetary{Asset: "USD/2", Amount: interpreter.NewMonetaryInt(100)},
 	}, res.Metadata)
 
 	require.Equal(t,
@@ -486,9 +486,7 @@ send [USD/2 10] (
 	store := ObservableStore{
 		StaticStore: interpreter.StaticStore{
 			Meta: interpreter.AccountsMetadata{
-				"a": interpreter.AccountMetadata{
-					"k": "a2",
-				},
+				{Account: "a", Key: "k", Value: "a2"},
 			},
 			Balances: interpreter.Balances{
 				{Account: "a", Asset: "USD/2", Amount: big.NewInt(100)},
@@ -558,4 +556,24 @@ func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) 
 
 func (*ErrorStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	return nil, errors.New("Error while fetching metadata")
+}
+
+func TestResolveDependenciesPublicAPI(t *testing.T) {
+	parsed := numscript.Parse(`
+		send [USD 10] (
+			source = @alice
+			destination = @bob
+		)
+	`)
+
+	deps, err := parsed.ResolveDependencies(context.Background(), nil, numscript.StaticStore{})
+	require.NoError(t, err)
+
+	require.Equal(t, map[numscript.AccountDependency]struct{}{
+		{Account: "alice", Asset: "USD"}: {},
+	}, deps.AccountsReads)
+	require.Equal(t, map[numscript.AccountDependency]struct{}{
+		{Account: "alice", Asset: "USD"}: {},
+		{Account: "bob", Asset: "USD"}:   {},
+	}, deps.AccountsWrites)
 }

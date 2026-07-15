@@ -3,11 +3,10 @@ package analysis
 import (
 	"math/big"
 	"slices"
+	"strings"
 
-	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -55,26 +54,40 @@ func (StatementFnCallResolution) fnCallResolution() {}
 func (r VarOriginFnCallResolution) GetParams() []string { return r.Params }
 func (r StatementFnCallResolution) GetParams() []string { return r.Params }
 
+const (
+	// Statemetn fns
+	FnSetTxMeta      = "set_tx_meta"
+	FnSetAccountMeta = "set_account_meta"
+
+	// Expr fns
+	FnVarOriginMeta      = "meta"
+	FnVarOriginBalance   = "balance"
+	FnVarOriginOverdraft = "overdraft"
+	FnVarOriginGetAsset  = "get_asset"
+	FnVarOriginGetAmount = "get_amount"
+	FnVarOriginScoped    = "scoped"
+)
+
 var Builtins = map[string]FnCallResolution{
-	builtins.SetTxMeta: StatementFnCallResolution{
+	FnSetTxMeta: StatementFnCallResolution{
 		Params: []string{TypeString, TypeAny},
 		Docs:   "set transaction metadata",
 	},
-	builtins.SetAccountMeta: StatementFnCallResolution{
+	FnSetAccountMeta: StatementFnCallResolution{
 		Params: []string{TypeAccount, TypeString, TypeAny},
 		Docs:   "set account metadata",
 	},
-	builtins.Meta: VarOriginFnCallResolution{
+	FnVarOriginMeta: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeString},
 		Return: TypeAny,
 		Docs:   "fetch account metadata",
 	},
-	builtins.Balance: VarOriginFnCallResolution{
+	FnVarOriginBalance: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "fetch account balance",
 	},
-	builtins.Overdraft: VarOriginFnCallResolution{
+	FnVarOriginOverdraft: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeAsset},
 		Return: TypeMonetary,
 		Docs:   "get absolute amount of the overdraft of an account. Returns zero if balance is not negative",
@@ -85,7 +98,7 @@ var Builtins = map[string]FnCallResolution{
 			},
 		},
 	},
-	builtins.GetAsset: VarOriginFnCallResolution{
+	FnVarOriginGetAsset: VarOriginFnCallResolution{
 		Params: []string{TypeMonetary},
 		Return: TypeAsset,
 		Docs:   "get the asset of the given monetary",
@@ -96,7 +109,7 @@ var Builtins = map[string]FnCallResolution{
 			},
 		},
 	},
-	builtins.GetAmount: VarOriginFnCallResolution{
+	FnVarOriginGetAmount: VarOriginFnCallResolution{
 		Params: []string{TypeMonetary},
 		Return: TypeNumber,
 		Docs:   "get the amount of the given monetary",
@@ -104,6 +117,17 @@ var Builtins = map[string]FnCallResolution{
 			{
 				Version:     parser.NewVersionInterpreter(0, 0, 16),
 				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+			},
+		},
+	},
+	FnVarOriginScoped: VarOriginFnCallResolution{
+		Params: []string{TypeAccount, TypeString},
+		Return: TypeAccount,
+		Docs:   "returns the scoped version of that account. Empty string means no scope. Overwrites the previous scope",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 0, 25),
+				FeatureFlag: flags.ExperimentalScopedFunction,
 			},
 		},
 	},
@@ -223,10 +247,6 @@ func newCheckResult(program parser.Program) CheckResult {
 }
 
 func (res *CheckResult) check() {
-	for _, e := range typecheck.Check(res.Program).Errors {
-		res.pushDiagnostic(e.Range, e.Kind)
-	}
-
 	for _, flag := range res.Program.Flags {
 		validFlag := slices.Contains(flags.AllFlags, flag.String)
 		if !validFlag {
@@ -239,6 +259,10 @@ func (res *CheckResult) check() {
 
 	if res.Program.Vars != nil {
 		for _, varDecl := range res.Program.Vars.Declarations {
+			if varDecl.Type != nil {
+				res.checkVarType(*varDecl.Type)
+			}
+
 			if varDecl.Name != nil {
 				res.checkDuplicateVars(*varDecl.Name, varDecl)
 			}
@@ -374,6 +398,33 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 
 	if resolved {
 		sig := resolution.GetParams()
+		actualArgs := len(validArgs)
+		expectedArgs := len(sig)
+
+		if actualArgs < expectedArgs {
+			// Too few args
+			res.pushDiagnostic(fnCall.Range, BadArity{
+				Expected: expectedArgs,
+				Actual:   actualArgs,
+			})
+		} else if actualArgs > expectedArgs {
+			// Too many args
+			firstIllegalArg := validArgs[expectedArgs]
+			lastIllegalArg := validArgs[len(validArgs)-1]
+
+			if lastIllegalArg != nil {
+				rng := parser.Range{
+					Start: firstIllegalArg.GetRange().Start,
+					End:   lastIllegalArg.GetRange().End,
+				}
+
+				res.pushDiagnostic(rng, BadArity{
+					Expected: expectedArgs,
+					Actual:   actualArgs,
+				})
+			}
+
+		}
 
 		for index, arg := range validArgs {
 			lastElemIndex := len(sig) - 1
@@ -386,14 +437,14 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 		}
 
 		switch fnCall.Caller.Name {
-		case builtins.Balance, builtins.Overdraft:
+		case FnVarOriginBalance, FnVarOriginOverdraft:
 			if len(validArgs) > 1 {
 				// we run unify(<expr>, <asset>) in:
 				// <expr> := balance(@acc, <asset>)
 				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[1]))
 			}
 
-		case builtins.GetAsset:
+		case FnVarOriginGetAsset:
 			if len(validArgs) > 0 {
 				res.unifyNodeWith(fnCall, res.GetExprType(validArgs[0]))
 			}
@@ -403,14 +454,9 @@ func (res *CheckResult) checkFnCallArity(fnCall *parser.FnCall) {
 			res.checkExpression(arg, TypeAny)
 		}
 
-		// A known builtin used in the wrong context. Truly-unknown names are
-		// reported by typecheck instead (disjoint: those aren't in Builtins).
-		if builtin, isBuiltin := Builtins[fnCall.Caller.Name]; isBuiltin {
-			res.pushDiagnostic(fnCall.Caller.Range, UnknownFunction{
-				Name:         fnCall.Caller.Name,
-				WrongContext: builtin.ContextName(),
-			})
-		}
+		res.pushDiagnostic(fnCall.Caller.Range, UnknownFunction{
+			Name: fnCall.Caller.Name,
+		})
 	}
 }
 
@@ -418,8 +464,17 @@ func isTypeAllowed(typeName string) bool {
 	return slices.Contains(AllowedTypes, typeName)
 }
 
+func (res *CheckResult) checkVarType(typeDecl parser.TypeDecl) {
+	if !isTypeAllowed(typeDecl.Name) {
+		res.pushDiagnostic(typeDecl.Range, InvalidType{Name: typeDecl.Name})
+	}
+}
+
 func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl parser.VarDeclaration) {
-	if _, ok := res.DeclaredVars[variableName.Name]; !ok {
+	// check there aren't duplicate variables
+	if _, ok := res.DeclaredVars[variableName.Name]; ok {
+		res.pushDiagnostic(variableName.Range, DuplicateVariable{Name: variableName.Name})
+	} else {
 		res.DeclaredVars[variableName.Name] = decl
 		res.unusedVars[variableName.Name] = variableName.Range
 	}
@@ -443,19 +498,19 @@ func (res *CheckResult) checkFnCall(fnCall *parser.FnCall) string {
 	return returnType
 }
 
-// checkExpression drives the analysis-only side effects (asset unification, var
-// resolution, version gating) for an expression. Type checking itself is done by
-// internal/typecheck; requiredType is kept only to match the traversal shape.
 func (res *CheckResult) checkExpression(lit parser.ValueExpr, requiredType string) {
-	res.checkTypeOf(lit, requiredType)
+	actualType := res.checkTypeOf(lit, requiredType)
+	res.assertHasType(lit, requiredType, actualType)
 }
 
-func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, _ string) string {
+func (res *CheckResult) checkTypeOf(lit parser.ValueExpr, typeHint string) string {
 	switch lit := lit.(type) {
 	case *parser.Variable:
 		if varDeclaration, ok := res.DeclaredVars[lit.Name]; ok {
 			res.varResolution[lit] = varDeclaration
 			res.unifyNodeWith(lit, res.GetVarDeclType(varDeclaration))
+		} else {
+			res.pushDiagnostic(lit.Range, UnboundVariable{Name: lit.Name, Type: typeHint})
 		}
 		delete(res.unusedVars, lit.Name)
 
@@ -546,6 +601,10 @@ func (res *CheckResult) checkInfixOverload(bin *parser.BinaryInfix, allowed []st
 		return leftType
 	}
 
+	res.pushDiagnostic(bin.Left.GetRange(), TypeMismatch{
+		Expected: strings.Join(allowed, "|"),
+		Got:      leftType,
+	})
 	return TypeAny
 }
 
@@ -556,7 +615,22 @@ func (res *CheckResult) checkHasOneOfTypes(expr parser.ValueExpr, allowed []stri
 		return exprType
 	}
 
+	res.pushDiagnostic(expr.GetRange(), TypeMismatch{
+		Expected: strings.Join(allowed, "|"),
+		Got:      exprType,
+	})
 	return TypeAny
+}
+
+func (res *CheckResult) assertHasType(lit parser.ValueExpr, requiredType string, actualType string) {
+	if requiredType == TypeAny || actualType == TypeAny || requiredType == actualType {
+		return
+	}
+
+	res.pushDiagnostic(lit.GetRange(), TypeMismatch{
+		Expected: requiredType,
+		Got:      actualType,
+	})
 }
 
 func (res *CheckResult) checkSentValue(sentValue parser.SentValue) {

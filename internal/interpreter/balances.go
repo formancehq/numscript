@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"math/big"
-	"slices"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
@@ -12,6 +11,7 @@ type BalanceRow struct {
 	Asset   string   `json:"asset"`
 	Amount  *big.Int `json:"amount"`
 	Color   string   `json:"color,omitempty"`
+	Scope   string   `json:"scope,omitempty"`
 }
 type Balances []BalanceRow
 
@@ -20,9 +20,9 @@ type Balances []BalanceRow
 // entry and the amount is its value, so a repeated key is an ambiguous,
 // malformed input.
 func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
-	seen := make(map[[3]string]struct{}, len(rows))
+	seen := make(map[[4]string]struct{}, len(rows))
 	for _, row := range rows {
-		key := [3]string{row.Account, row.Asset, row.Color}
+		key := [4]string{row.Account, row.Asset, row.Color, row.Scope}
 		if _, ok := seen[key]; ok {
 			return row, true
 		}
@@ -32,17 +32,9 @@ func (rows Balances) FirstDuplicate() (BalanceRow, bool) {
 }
 
 func (rows Balances) PrettyPrint() string {
-	// the Color column is shown only when at least one entry has a color
-	hasColor := slices.ContainsFunc(rows, func(row BalanceRow) bool {
-		return row.Color != ""
-	})
-
-	var header []string
-	if hasColor {
-		header = []string{"Account", "Asset", "Color", "Balance"}
-	} else {
-		header = []string{"Account", "Asset", "Balance"}
-	}
+	// the optional columns (scope, color) are dropped automatically when no entry
+	// populates them
+	header := []string{"Account", "Scope", "Asset", "Color", "Balance"}
 
 	var tableRows [][]string
 	for _, row := range rows {
@@ -50,19 +42,15 @@ func (rows Balances) PrettyPrint() string {
 		if row.Amount != nil {
 			amount = row.Amount.String()
 		}
-		if hasColor {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, row.Color, amount})
-		} else {
-			tableRows = append(tableRows, []string{row.Account, row.Asset, amount})
-		}
+		tableRows = append(tableRows, []string{row.Account, row.Scope, row.Asset, row.Color, amount})
 	}
-	return utils.CsvPretty(header, tableRows, true)
+	return utils.CsvPrettyOmitEmptyCols(header, tableRows, true)
 }
 
-// findRow returns the amount for a given (account, asset, color), if present.
-func findRow(rows Balances, account, asset, color string) (*big.Int, bool) {
+// findRow returns the amount for a given (account, asset, color, scope), if present.
+func findRow(rows Balances, account, asset, color, scope string) (*big.Int, bool) {
 	for i := range rows {
-		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color {
+		if rows[i].Account == account && rows[i].Asset == asset && rows[i].Color == color && rows[i].Scope == scope {
 			return rows[i].Amount, true
 		}
 	}
@@ -84,13 +72,35 @@ func CompareBalances(b1 Balances, b2 Balances) bool {
 	if len(b1) != len(b2) {
 		return false
 	}
-	return CompareBalancesIncluding(b1, b2)
+	// multiset comparison, respecting multiplicity: a duplicated row in b1 must be
+	// matched by the same number of occurrences in b2 (so [x, x] != [x, y]). A
+	// plain subset check would wrongly report equality there.
+	type rowKey struct{ account, asset, color, scope, amount string }
+	mk := func(r BalanceRow) rowKey {
+		amount := "0" // amountsEqual treats nil as zero
+		if r.Amount != nil {
+			amount = r.Amount.String()
+		}
+		return rowKey{r.Account, r.Asset, r.Color, r.Scope, amount}
+	}
+	counts := make(map[rowKey]int, len(b1))
+	for _, r := range b1 {
+		counts[mk(r)]++
+	}
+	for _, r := range b2 {
+		k := mk(r)
+		counts[k]--
+		if counts[k] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // Returns whether the first value is a subset of the second one.
 func CompareBalancesIncluding(b1 Balances, b2 Balances) bool {
 	for _, entry := range b1 {
-		amount2, ok := findRow(b2, entry.Account, entry.Asset, entry.Color)
+		amount2, ok := findRow(b2, entry.Account, entry.Asset, entry.Color, entry.Scope)
 		if !ok || !amountsEqual(entry.Amount, amount2) {
 			return false
 		}

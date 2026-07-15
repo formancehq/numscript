@@ -1,0 +1,16 @@
+
+[TestPrettyPrintPostings/no_scope,_no_color_(no_optional_columns) - 1]
+| [36mSource[0m | [36mDestination[0m | [36mAsset[0m | [36mAmount[0m |
+| world  | alice       | EUR/2 | 100    |
+---
+
+[TestPrettyPrintPostings/only_source_scope_(only_Source_Scope_column_shown) - 1]
+| [36mSource[0m | [36mSource Scope[0m | [36mDestination[0m | [36mAsset[0m | [36mAmount[0m |
+| src    | x            | dest        | USD   | 10     |
+| world  |              | dest        | USD   | 5      |
+---
+
+[TestPrettyPrintPostings/both_scopes_(both_Scope_columns_shown) - 1]
+| [36mSource[0m | [36mSource Scope[0m | [36mDestination[0m | [36mDestination Scope[0m | [36mAsset[0m | [36mAmount[0m |
+| src    | x            | dest        | y                 | USD   | 10     |
+---

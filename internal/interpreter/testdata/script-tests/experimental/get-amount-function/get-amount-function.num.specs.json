@@ -5,9 +5,9 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMetadata": {
-        "amt": "100"
-      }
+      "expect.txMetadata": [
+        { "key": "amt", "value": { "type": "number", "value": "100" } }
+      ]
     }
   ]
 }

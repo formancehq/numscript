@@ -1,0 +1,12 @@
+
+[TestPrettyPrintMeta/renders_plain_values - 1]
+| [36mName    [0m | [36mValue  [0m |
+| count    | 42      |
+| greeting | "hello" |
+---
+
+[TestPrettyPrintMeta/renders_a_scoped_account_value_in_its_source_form - 1]
+| [36mName    [0m | [36mValue                   [0m |
+| greeting | "hello"                  |
+| owner    | scoped(alice, "reserve") |
+---

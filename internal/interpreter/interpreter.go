@@ -9,20 +9,10 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
-	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
-
-// zeroStore backs the runtime.RunState's lazy balance fallback. The interpreter
-// pre-fetches every needed balance in one batched query (runBalancesQuery) and
-// Prewarms it into the runtime, and treats any un-fetched (account, asset,
-// color) as zero — exactly the semantics this store provides.
-type zeroStore struct{}
-
-func (zeroStore) GetBalance(account, asset, color string) *big.Int { return new(big.Int) }
 
 type VariablesMap map[string]string
 
@@ -31,14 +21,40 @@ type InterpreterError interface {
 	parser.Ranged
 }
 
-type Metadata = map[string]string
+type Metadata = map[string]Value
 
-// Posting is an alias for runtime.Posting, which owns the definition (and the
-// json serialization contract). Kept as an alias so the public name
-// interpreter.Posting / numscript.Posting is preserved.
-type Posting = runtime.Posting
+type Posting struct {
+	Source           string   `json:"source"`
+	SourceScope      string   `json:"sourceScope,omitempty"`
+	Destination      string   `json:"destination"`
+	DestinationScope string   `json:"destinationScope,omitempty"`
+	Amount           *big.Int `json:"amount"`
+	Asset            string   `json:"asset"`
+	Color            string   `json:"color,omitempty"`
+}
 
-type ExecutionResult = runtime.ExecutionResult
+// newPosting builds a Posting from the source and destination addresses,
+// exposing each address's account and scope as the separate fields the posting
+// contract uses.
+func newPosting(source AccountAddress, destination AccountAddress, amount *big.Int, asset string, color string) Posting {
+	return Posting{
+		Source:           source.Name,
+		SourceScope:      source.Scope,
+		Destination:      destination.Name,
+		DestinationScope: destination.Scope,
+		Amount:           amount,
+		Asset:            asset,
+		Color:            color,
+	}
+}
+
+type ExecutionResult struct {
+	Postings []Posting `json:"postings"`
+
+	Metadata Metadata `json:"txMeta"`
+
+	AccountsMetadata SetAccountsMetadata `json:"accountsMeta"`
+}
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
 	parts := strings.Split(source, " ")
@@ -49,7 +65,7 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	asset := parts[0]
 
 	rawAmount := parts[1]
-	n, ok := runtime.ParseNumber(rawAmount)
+	n, ok := new(big.Int).SetString(rawAmount, 10)
 	if !ok {
 		return Monetary{}, InvalidNumberLiteral{Source: rawAmount}
 	}
@@ -82,7 +98,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAsset:
 		return NewAsset(rawValue)
 	case analysis.TypeNumber:
-		n, ok := runtime.ParseNumber(rawValue)
+		n, ok := new(big.Int).SetString(rawValue, 10)
 		if !ok {
 			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
@@ -95,91 +111,35 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 
 }
 
-func (s *programState) handleFnOrigin(type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
-	// Special case for top-level meta() call
-	if fnCall, ok := expr.(*parser.FnCall); ok && fnCall.Caller.Name == builtins.Meta {
-		return s.handleFnCall(&type_, *fnCall)
+func evaluateVarOrigin(env *evalEnv, type_ string, expr parser.ValueExpr) (Value, InterpreterError) {
+	if fnCall, ok := expr.(*parser.FnCall); ok {
+		return evaluateFnCall(env, &type_, *fnCall)
 	}
 
-	if _, isFnCall := expr.(*parser.FnCall); !isFnCall {
-		err := s.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return s.evaluateExpr(expr)
+	return evaluateExpr(env, expr)
 }
 
-func (s *programState) handleFnCall(type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
-	args, err := s.evaluateExpressions(fnCall.Args)
-	if err != nil {
-		return nil, err
-	}
+const accountSegmentRegex = "[a-zA-Z0-9_-]+"
 
-	switch fnCall.Caller.Name {
-	case builtins.Meta:
-		if type_ == nil {
-			return nil, InvalidNestedMeta{}
-		}
+var accountNameRegex = regexp.MustCompile("^" + accountSegmentRegex + "(:" + accountSegmentRegex + ")*$")
 
-		rawValue, err := meta(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return parseVar(*type_, rawValue, fnCall.Range)
-
-	case builtins.Balance:
-		monetary, err := balance(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return monetary, nil
-
-	case builtins.Overdraft:
-		monetary, err := overdraft(s, fnCall.Range, args)
-		if err != nil {
-			return nil, err
-		}
-		return monetary, nil
-
-	case builtins.GetAsset:
-		return getAsset(s, fnCall.Range, args)
-	case builtins.GetAmount:
-		return getAmount(s, fnCall.Range, args)
-
-	default:
-		return nil, UnboundFunctionErr{Name: fnCall.Caller.Name}
-	}
-
+// https://github.com/formancehq/ledger/blob/main/pkg/accounts/accounts.go
+func checkAccountName(addr string) bool {
+	return accountNameRegex.Match([]byte(addr))
 }
 
-func (s *programState) parseVars(varDeclrs []parser.VarDeclaration, rawVars map[string]string) InterpreterError {
-	for _, varsDecl := range varDeclrs {
-		if varsDecl.Origin == nil {
-			raw, ok := rawVars[varsDecl.Name.Name]
-			if !ok {
-				return MissingVariableErr{Name: varsDecl.Name.Name}
-			}
+var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?$`)
 
-			parsed, err := parseVar(varsDecl.Type.Name, raw, varsDecl.Type.Range)
-			if err != nil {
-				return err
-			}
-			s.ParsedVars[varsDecl.Name.Name] = parsed
-		} else {
-			value, err := s.handleFnOrigin(varsDecl.Type.Name, *varsDecl.Origin)
-			if err != nil {
-				return err
-			}
-			s.ParsedVars[varsDecl.Name.Name] = value
-		}
-	}
-	return nil
+// https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
+func checkAssetName(v string) bool {
+	return assetNameRegexp.Match([]byte(v))
 }
 
-func checkAccountName(addr string) bool { return runtime.ValidateAccount(addr) }
-func checkAssetName(v string) bool      { return runtime.ValidateAsset(v) }
+var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
+
+func checkScopeName(scope string) bool {
+	return scopeRegex.MatchString(scope)
+}
 
 // Check the following invariants:
 //   - no negative postings
@@ -208,23 +168,10 @@ func RunProgram(
 	featureFlags map[string]struct{},
 ) (*ExecutionResult, InterpreterError) {
 
-	st := programState{
-		ParsedVars:         make(map[string]Value),
-		TxMeta:             make(map[string]string),
-		CachedAccountsMeta: AccountsMetadata{},
-		SetAccountsMeta:    AccountsMetadata{},
-		Store:              store,
-		rs:                 runtime.New(zeroStore{}),
-
-		CurrentBalanceQuery: BalanceQuery{},
-		ctx:                 ctx,
-		FeatureFlags:        maps.Clone(featureFlags),
+	flagSet := maps.Clone(featureFlags)
+	if flagSet == nil {
+		flagSet = make(map[string]struct{}, len(program.Flags))
 	}
-
-	if st.FeatureFlags == nil {
-		st.FeatureFlags = make(map[string]struct{}, len(program.Flags))
-	}
-
 	for _, flag := range program.Flags {
 		index := slices.Index(flags.AllFlags, flag.String)
 		if index == -1 {
@@ -232,18 +179,22 @@ func RunProgram(
 				Feature: flag.String,
 			}
 		}
-
-		st.FeatureFlags[flag.String] = struct{}{}
+		flagSet[flag.String] = struct{}{}
 	}
 
-	st.varOriginPosition = true
-	if program.Vars != nil {
-		err := st.parseVars(program.Vars.Declarations, vars)
-		if err != nil {
-			return nil, err
-		}
+	env, err := newEvalEnv(ctx, store, flagSet, program.Vars, vars)
+	if err != nil {
+		return nil, err
 	}
-	st.varOriginPosition = false
+
+	st := programState{
+		evalEnv:             env,
+		TxMeta:              make(map[string]Value),
+		SetAccountsMeta:     internalSetAccountsMeta{},
+		Postings:            make([]Posting, 0),
+		fundsQueue:          newFundsQueue(nil),
+		CurrentBalanceQuery: BalanceQuery{},
+	}
 
 	// preload balances before executing the script
 	for _, statement := range program.Statements {
@@ -265,9 +216,7 @@ func RunProgram(
 		}
 	}
 
-	// GetPostings returns []runtime.Posting, which is []Posting (alias).
-	postings := st.rs.GetPostings()
-	for _, posting := range postings {
+	for _, posting := range st.Postings {
 		err := checkPostingInvariants(posting)
 		if err != nil {
 			return nil, err
@@ -275,40 +224,45 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings:         postings,
+		Postings:         st.Postings,
 		Metadata:         st.TxMeta,
-		AccountsMetadata: st.SetAccountsMeta,
+		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
 	return res, nil
 }
 
 type programState struct {
-	ctx context.Context
-
-	varOriginPosition bool
+	evalEnv
 
 	// Asset of the send statement currently being executed.
 	//
 	// its value is undefined outside of send statements execution
 	CurrentAsset Asset
 
-	ParsedVars map[string]Value
-	TxMeta     map[string]string
+	TxMeta     map[string]Value
+	Postings   []Posting
+	fundsQueue fundsQueue
 
-	// rs owns the funds state: balances (write-through cache over the batched
-	// Store fetch, seeded via Prewarm), the FIFO funding-source queue, and the
-	// emitted postings. Replaces the former fundsQueue + CachedBalances + Postings.
-	rs *runtime.RunState
-
-	Store Store
-
-	SetAccountsMeta AccountsMetadata
-
-	CachedAccountsMeta AccountsMetadata
+	SetAccountsMeta internalSetAccountsMeta
 
 	CurrentBalanceQuery BalanceQuery
+}
 
-	FeatureFlags map[string]struct{}
+func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, color String) {
+	monetaryBi := big.Int(monetary)
+
+	if monetaryBi.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+
+	balance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, color)
+	balance.Sub(balance, &monetaryBi)
+
+	st.fundsQueue.Push(Sender{
+		Account: name,
+		Amount:  &monetaryBi,
+		Color:   string(color),
+	})
 }
 
 // Append a posting without checking if account has enough balance.
@@ -321,33 +275,57 @@ func (st *programState) forcePushPostingUncolored(
 	asset Asset,
 ) {
 	amtBi := big.Int(amount)
-	st.rs.ForcePosting(string(source), string(destination), string(asset), "", &amtBi)
-}
 
-func (st *programState) pushReceiver(name string, monetary *big.Int) {
-	// color == nil: drain the queue regardless of color (PullAnything), each
-	// posting keeping its source fund's own color.
-	if name == KEPT_ADDR {
-		// kept funds are refunded to their sources, emitting no posting
-		st.rs.Send(nil, monetary, nil)
+	if amtBi.Sign() == 0 {
 		return
 	}
-	dest := name
-	st.rs.Send(&dest, monetary, nil)
+
+	srcBalance := st.CachedBalances.fetchBalance(source, asset, "")
+	srcBalance.Sub(srcBalance, &amtBi)
+
+	destBalance := st.CachedBalances.fetchBalance(destination, asset, "")
+	destBalance.Add(destBalance, &amtBi)
+
+	st.Postings = append(st.Postings, newPosting(source, destination, new(big.Int).Set(&amtBi), string(asset), ""))
+}
+
+func (st *programState) pushReceiver(name AccountAddress, monetary *big.Int) {
+	if monetary.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+
+	senders := st.fundsQueue.PullAnything(monetary)
+
+	for _, sender := range senders {
+		posting := newPosting(sender.Account, name, sender.Amount, string(st.CurrentAsset), sender.Color)
+
+		if name.Name == KEPT_ADDR {
+			// If funds are kept, give them back to senders
+			srcBalance := st.CachedBalances.fetchBalance(sender.Account, st.CurrentAsset, String(sender.Color))
+			srcBalance.Add(srcBalance, posting.Amount)
+
+			continue
+		}
+
+		destBalance := st.CachedBalances.fetchBalance(name, st.CurrentAsset, String(sender.Color))
+		destBalance.Add(destBalance, posting.Amount)
+
+		st.Postings = append(st.Postings, posting)
+	}
 }
 
 func (st *programState) runStatement(statement parser.Statement) InterpreterError {
 	switch statement := statement.(type) {
 	case *parser.FnCall:
-		args, err := st.evaluateExpressions(statement.Args)
+		args, err := evaluateExpressions(&st.evalEnv, statement.Args)
 		if err != nil {
 			return err
 		}
 
 		switch statement.Caller.Name {
-		case builtins.SetTxMeta:
+		case analysis.FnSetTxMeta:
 			return setTxMeta(st, statement.Caller.Range, args)
-		case builtins.SetAccountMeta:
+		case analysis.FnSetAccountMeta:
 			return setAccountMeta(st, statement.Caller.Range, args)
 		default:
 			return UnboundFunctionErr{Name: statement.Caller.Name}
@@ -366,38 +344,50 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 }
 
 func (st *programState) runSaveStatement(saveStatement parser.SaveStatement) InterpreterError {
-	asset, amt, err := st.evaluateSentAmt(saveStatement.SentValue)
+	asset, amt, err := evaluateSentAmt(&st.evalEnv, saveStatement.SentValue)
 	if err != nil {
 		return err
 	}
 
-	account, err := evaluateExprAs(st, saveStatement.Account, expectAccount)
+	account, err := evaluateExprAs(&st.evalEnv, saveStatement.Account, expectAccount)
 	if err != nil {
 		return err
 	}
 
-	// Do not allow negative saves
-	if amt != nil && amt.Cmp(big.NewInt(0)) == -1 {
-		return NegativeAmountErr{
-			Range:  saveStatement.SentValue.GetRange(),
-			Amount: MonetaryInt(*amt),
+	balance := st.CachedBalances.fetchBalance(account, asset, "")
+
+	if amt == nil {
+		if balance.Sign() > 0 {
+			balance.Set(big.NewInt(0))
+		}
+	} else {
+		// Do not allow negative saves
+		if amt.Cmp(big.NewInt(0)) == -1 {
+			return NegativeAmountErr{
+				Range:  saveStatement.SentValue.GetRange(),
+				Amount: MonetaryInt(*amt),
+			}
+		}
+
+		// we decrease the balance by "amt"
+		balance.Sub(balance, amt)
+		// without going under 0
+		if balance.Cmp(big.NewInt(0)) == -1 {
+			balance.Set(big.NewInt(0))
 		}
 	}
 
-	// amt == nil -> "save all"; otherwise reduce by amt, floored at 0
-	st.rs.Save(string(account), string(asset), "", amt)
 	return nil
 }
 
 func (st *programState) runSendStatement(statement parser.SendStatement) InterpreterError {
 	switch sentValue := statement.SentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(&st.evalEnv, sentValue.Asset, expectAsset)
 		if err != nil {
 			return err
 		}
 		st.CurrentAsset = asset
-		st.rs.SetCurrentAsset(string(asset))
 		sentAmt, err := st.takeAll(statement.Source)
 		if err != nil {
 			return err
@@ -405,12 +395,11 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 		return st.sendTo(statement.Destination, sentAmt)
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(&st.evalEnv, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return err
 		}
 		st.CurrentAsset = monetary.Asset
-		st.rs.SetCurrentAsset(string(monetary.Asset))
 
 		amtBi := big.Int(monetary.Amount)
 		if amtBi.Sign() == -1 {
@@ -438,14 +427,15 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		}
 	}
 
-	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
 
-	if account == "world" || overdraft == nil {
+	if account.Name == "world" || overdraft == nil {
 		return nil, InvalidUnboundedInSendAll{
-			Name: string(account),
+			Name:  account.Name,
+			Scope: account.Scope,
 		}
 	}
 
@@ -454,10 +444,12 @@ func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overd
 		return nil, err
 	}
 
-	// PullUncapped queues balance+overdraft (== CalculateMaxSafeWithdraw),
-	// debiting the (account, currentAsset, color) balance.
-	sentAmt := new(big.Int)
-	s.rs.PullUncapped(sentAmt, string(account), overdraft, string(color))
+	balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
+
+	// we sent balance+overdraft
+	sentAmt := CalculateMaxSafeWithdraw(balance, overdraft)
+
+	s.pushSender(account, MonetaryInt(*sentAmt), color)
 	return sentAmt, nil
 }
 
@@ -470,7 +462,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			bounded, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			bounded, err := evaluateExprAs(&s.evalEnv, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -485,19 +477,19 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
-		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return nil, err
 		}
 
-		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		scalingAccount, err := evaluateExprAs(&s.evalEnv, source.Through, expectAccount)
 		if err != nil {
 			return nil, err
 		}
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
-		acc := toAccountBalances(s.rs.AccountBalances(string(account)))
-		if len(acc) == 0 {
+		acc, ok := s.CachedBalances[account]
+		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
@@ -547,7 +539,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		return s.takeAll(first)
 
 	case *parser.SourceCapped:
-		monetary, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		monetary, err := evaluateExprAs(&s.evalEnv, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -593,11 +585,11 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		}
 	}
 
-	account, err := evaluateExprAs(s, accountLiteral, expectAccount)
+	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
 	}
-	if account == "world" {
+	if account.Name == "world" {
 		overdraft = nil
 	}
 
@@ -606,22 +598,27 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 		return nil, err
 	}
 
-	// Pull computes the available amount (min(max(0, balance+overdraft), amount)
-	// == CalculateSafeWithdraw; unbounded for world/overdraft==nil), debits the
-	// (account, currentAsset, color) balance, and queues the funds. The
-	// interpreter's overdraft convention (nil == unbounded) is exactly Pull's.
-	actuallySentAmt := new(big.Int)
-	s.rs.Pull(actuallySentAmt, string(account), amount, overdraft, string(color))
+	var actuallySentAmt *big.Int
+	if overdraft == nil {
+		// unbounded overdraft: we send the required amount
+		actuallySentAmt = new(big.Int).Set(amount)
+	} else {
+		balance := s.CachedBalances.fetchBalance(account, s.CurrentAsset, color)
+
+		// that's the amount we are allowed to send (balance + overdraft)
+		actuallySentAmt = CalculateSafeWithdraw(balance, overdraft, amount)
+	}
+	s.pushSender(account, MonetaryInt(*actuallySentAmt), color)
 	return actuallySentAmt, nil
 }
 
-// cloneState returns an undo function for speculative source evaluation (oneof).
-// Backtracking is a cheap source-queue snapshot: on undo, the runtime repays the
-// funds pulled since the mark and truncates the queue — no map cloning.
 func (s *programState) cloneState() func() {
-	mark := s.rs.Snapshot()
+	fqBackup := s.fundsQueue.Clone()
+	balancesBackup := s.CachedBalances.DeepClone()
+
 	return func() {
-		s.rs.Restore(mark)
+		s.fundsQueue = fqBackup
+		s.CachedBalances = balancesBackup
 	}
 }
 
@@ -643,19 +640,19 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 
-		account, err := evaluateExprAs(s, source.Address, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, source.Address, expectAccount)
 		if err != nil {
 			return nil, err
 		}
-		scalingAccount, err := evaluateExprAs(s, source.Through, expectAccount)
+		scalingAccount, err := evaluateExprAs(&s.evalEnv, source.Through, expectAccount)
 		if err != nil {
 			return nil, err
 		}
 
 		baseAsset, assetScale := s.CurrentAsset.GetBaseAndScale()
 
-		acc := toAccountBalances(s.rs.AccountBalances(string(account)))
-		if len(acc) == 0 {
+		acc, ok := s.CachedBalances[account]
+		if !ok {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
@@ -686,7 +683,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 	case *parser.SourceOverdraft:
 		var cap *big.Int
 		if source.Bounded != nil {
-			upTo, err := evaluateExprAs(s, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
+			upTo, err := evaluateExprAs(&s.evalEnv, *source.Bounded, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return nil, err
 			}
@@ -745,7 +742,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 		for i, allotmentItem := range source.Items {
-			err := s.tryTakingExact(allotmentItem.From, MonetaryInt(allot[i]))
+			err := s.tryTakingExact(allotmentItem.From, MonetaryInt(*allot[i]))
 			if err != nil {
 				return nil, err
 			}
@@ -753,7 +750,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		return amount, nil
 
 	case *parser.SourceCapped:
-		cap, err := evaluateExprAs(s, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+		cap, err := evaluateExprAs(&s.evalEnv, source.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -773,11 +770,11 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 func (s *programState) sendTo(destination parser.Destination, amount *big.Int) InterpreterError {
 	switch destination := destination.(type) {
 	case *parser.DestinationAccount:
-		account, err := evaluateExprAs(s, destination.ValueExpr, expectAccount)
+		account, err := evaluateExprAs(&s.evalEnv, destination.ValueExpr, expectAccount)
 		if err != nil {
 			return err
 		}
-		s.pushReceiver(string(account), amount)
+		s.pushReceiver(account, amount)
 		return nil
 
 	case *parser.DestinationAllotment:
@@ -793,7 +790,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 
 		receivedTotal := big.NewInt(0)
 		for i, allotmentItem := range destination.Items {
-			amtToReceive := &allot[i]
+			amtToReceive := allot[i]
 			err := s.sendToKeptOrDest(allotmentItem.To, amtToReceive)
 			if err != nil {
 				return err
@@ -825,7 +822,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 				break
 			}
 
-			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(&s.evalEnv, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -850,7 +847,7 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 			return err
 		}
 		for _, destinationClause := range destination.Clauses {
-			cap, err := evaluateExprAs(s, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
+			cap, err := evaluateExprAs(&s.evalEnv, destinationClause.Cap, expectMonetaryOfAsset(s.CurrentAsset))
 			if err != nil {
 				return err
 			}
@@ -878,7 +875,7 @@ const KEPT_ADDR = "<kept>"
 func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amount *big.Int) InterpreterError {
 	switch destinationTarget := keptOrDest.(type) {
 	case *parser.DestinationKept:
-		s.pushReceiver(KEPT_ADDR, amount)
+		s.pushReceiver(AccountAddress{Name: KEPT_ADDR}, amount)
 		return nil
 
 	case *parser.DestinationTo:
@@ -891,72 +888,75 @@ func (s *programState) sendToKeptOrDest(keptOrDest parser.KeptOrDestination, amo
 
 }
 
-func (s *programState) makeAllotment(monetary *big.Int, items []parser.AllotmentValue) ([]big.Int, InterpreterError) {
+func (s *programState) makeAllotment(monetary *big.Int, items []parser.AllotmentValue) ([]*big.Int, InterpreterError) {
 	totalAllotment := big.NewRat(0, 1)
-	allotments := make([]big.Rat, 0, len(items))
+	var allotments []*big.Rat
 
 	remainingAllotmentIndex := -1
 
 	for i, item := range items {
 		switch allotment := item.(type) {
 		case *parser.ValueExprAllotment:
-			rat, err := evaluateExprAs(s, allotment.Value, expectPortion)
+			rat, err := evaluateExprAs(&s.evalEnv, allotment.Value, expectPortion)
 			if err != nil {
 				return nil, err
 			}
 
 			totalAllotment.Add(totalAllotment, rat)
-			allotments = append(allotments, *rat)
+			allotments = append(allotments, rat)
 
 		case *parser.RemainingAllotment:
 			remainingAllotmentIndex = i
-			allotments = append(allotments, big.Rat{})
+			allotments = append(allotments, new(big.Rat))
 			// TODO check there are not duplicate remaining clause
 		}
 	}
 
 	if remainingAllotmentIndex != -1 {
-		allotments[remainingAllotmentIndex] = *new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		allotments[remainingAllotmentIndex] = new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
 	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}
 
-	// portions are resolved (remaining computed, sum validated) — delegate the
-	// floor-then-distribute split to the runtime, filling one contiguous buffer.
-	parts := make([]big.Int, len(allotments))
-	runtime.MakeAllotment(parts, monetary, allotments)
+	parts := make([]*big.Int, len(allotments))
+
+	totalAllocated := big.NewInt(0)
+
+	for i, allot := range allotments {
+		monetaryRat := new(big.Rat).SetInt(monetary)
+		product := new(big.Rat).Mul(allot, monetaryRat)
+
+		floored := new(big.Int).Div(product.Num(), product.Denom())
+
+		parts[i] = floored
+		totalAllocated.Add(totalAllocated, floored)
+
+	}
+
+	for i := range parts {
+		if /* totalAllocated >= monetary */ totalAllocated.Cmp(monetary) != -1 {
+			break
+		}
+
+		parts[i].Add(parts[i], big.NewInt(1))
+		// totalAllocated++
+		totalAllocated.Add(totalAllocated, big.NewInt(1))
+	}
+
 	return parts, nil
 }
 
-// Utility function to get the balance
-func getBalance(
-	s *programState,
-	account AccountAddress,
-	asset Asset,
-) (*big.Int, InterpreterError) {
-	color := String("")
-
-	s.batchQuery(account, asset, color)
-	fetchBalanceErr := s.runBalancesQuery()
-	if fetchBalanceErr != nil {
-		return nil, QueryBalanceError{WrappedError: fetchBalanceErr}
-	}
-	balance := s.rs.GetAccountBalance(string(account), string(asset), string(color))
-	return balance, nil
-
-}
-
-func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
+func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int, InterpreterError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueAll:
-		asset, err := evaluateExprAs(st, sentValue.Asset, expectAsset)
+		asset, err := evaluateExprAs(env, sentValue.Asset, expectAsset)
 		if err != nil {
 			return "", nil, err
 		}
 		return asset, nil, nil
 
 	case *parser.SentValueLiteral:
-		monetary, err := evaluateExprAs(st, sentValue.Monetary, expectMonetary)
+		monetary, err := evaluateExprAs(env, sentValue.Monetary, expectMonetary)
 		if err != nil {
 			return "", nil, err
 		}
@@ -965,26 +965,49 @@ func (st *programState) evaluateSentAmt(sentValue parser.SentValue) (Asset, *big
 		return monetary.Asset, &bi, nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](sentValue)
-		return "", nil, nil
+		return "", nil, unhandledErr(sentValue)
 	}
 }
+
+var percentRegex = regexp.MustCompile(`^([0-9]+)(?:[.]([0-9]+))?[%]$`)
+var fractionRegex = regexp.MustCompile(`^([0-9]+)\s?[/]\s?([0-9]+)$`)
+
+// slightly edited copy-paste from:
+// https://github.com/formancehq/ledger/blob/b188d0c80eadaab5024d74edc967c7005e155f7c/internal/machine/portion.go#L57
 
 func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
-	res, err := runtime.ParsePortion(input)
-	if err != nil {
-		return nil, BadPortionParsingErr{Reason: err.Error(), Source: input}
-	}
-	return res, nil
-}
+	var res *big.Rat
+	var ok bool
 
-func (s programState) checkFeatureFlag(flag string) InterpreterError {
-	_, ok := s.FeatureFlags[flag]
-	if ok {
-		return nil
+	percentMatch := percentRegex.FindStringSubmatch(input)
+	if len(percentMatch) != 0 {
+		integral := percentMatch[1]
+		fractional := percentMatch[2]
+		res, ok = new(big.Rat).SetString(integral + "." + fractional)
+		if !ok {
+			return nil, BadPortionParsingErr{Reason: "invalid percent format", Source: input}
+		}
+		res.Mul(res, big.NewRat(1, 100))
 	} else {
-		return ExperimentalFeature{FlagName: flag}
+		fractionMatch := fractionRegex.FindStringSubmatch(input)
+		if len(fractionMatch) != 0 {
+			numerator := fractionMatch[1]
+			denominator := fractionMatch[2]
+			res, ok = new(big.Rat).SetString(numerator + "/" + denominator)
+			if !ok {
+				return nil, BadPortionParsingErr{Reason: "invalid fractional format", Source: input}
+			}
+		}
 	}
+	if res == nil {
+		return nil, BadPortionParsingErr{Reason: "invalid format", Source: input}
+	}
+
+	if res.Cmp(big.NewRat(0, 1)) == -1 || res.Cmp(big.NewRat(1, 1)) == 1 {
+		return nil, BadPortionParsingErr{Reason: "portion must be between 0% and 100% inclusive", Source: input}
+	}
+
+	return res, nil
 }
 
 /*
@@ -1014,31 +1037,30 @@ func CalculateSafeWithdraw(
 }
 
 func PrettyPrintPostings(postings []Posting) string {
-	// the Color column is shown only when at least one posting has a color
-	hasColor := slices.ContainsFunc(postings, func(posting Posting) bool {
-		return posting.Color != ""
-	})
-
-	var header []string
-	if hasColor {
-		header = []string{"Source", "Destination", "Asset", "Color", "Amount"}
-	} else {
-		header = []string{"Source", "Destination", "Asset", "Amount"}
-	}
+	// the optional columns (scopes, color) are dropped automatically when no
+	// posting populates them
+	header := []string{"Source", "Source Scope", "Destination", "Destination Scope", "Asset", "Color", "Amount"}
 
 	var rows [][]string
 	for _, posting := range postings {
-		var row []string
-		if hasColor {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Color, posting.Amount.String()}
-		} else {
-			row = []string{posting.Source, posting.Destination, posting.Asset, posting.Amount.String()}
-		}
-		rows = append(rows, row)
+		rows = append(rows, []string{
+			posting.Source,
+			posting.SourceScope,
+			posting.Destination,
+			posting.DestinationScope,
+			posting.Asset,
+			posting.Color,
+			posting.Amount.String(),
+		})
 	}
-	return utils.CsvPretty(header, rows, false)
+	return utils.CsvPrettyOmitEmptyCols(header, rows, false)
 }
 
 func PrettyPrintMeta(meta Metadata) string {
-	return utils.CsvPrettyMap("Name", "Value", meta)
+	m := map[string]string{}
+	for k, v := range meta {
+		m[k] = v.String()
+	}
+
+	return utils.CsvPrettyMap("Name", "Value", m)
 }

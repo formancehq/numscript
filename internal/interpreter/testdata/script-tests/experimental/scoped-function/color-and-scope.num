@@ -1,0 +1,4 @@
+send [COIN *] (
+  source = scoped(@a, "s") \ "RED"
+  destination = @dest
+)

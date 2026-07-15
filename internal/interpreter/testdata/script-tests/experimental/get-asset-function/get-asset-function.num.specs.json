@@ -5,9 +5,9 @@
   "testCases": [
     {
       "it": "-",
-      "expect.txMetadata": {
-        "asset": "ABC"
-      }
+      "expect.txMetadata": [
+        { "key": "asset", "value": { "type": "asset", "name": "ABC" } }
+      ]
     }
   ]
 }

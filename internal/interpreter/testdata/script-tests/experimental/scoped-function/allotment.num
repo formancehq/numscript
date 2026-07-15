@@ -1,0 +1,7 @@
+send [COIN 100] (
+  source = {
+    60% from scoped(@a, "s")
+    40% from @b
+  }
+  destination = @dest
+)

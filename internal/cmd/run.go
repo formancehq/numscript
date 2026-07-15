@@ -58,13 +58,25 @@ func run(scriptPath string, opts RunArgs) error {
 	}
 
 	// Reject a malformed inputs file before running anything: a balance list is a
-	// map keyed by (account, asset, color), so a repeated key is ambiguous.
+	// map keyed by (account, asset, color, scope), so a repeated key is ambiguous.
 	if dup, ok := inputs.Balances.FirstDuplicate(); ok {
 		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
 		if dup.Color != "" {
 			key += fmt.Sprintf(" color=%q", dup.Color)
 		}
+		if dup.Scope != "" {
+			key += fmt.Sprintf(" scope=%q", dup.Scope)
+		}
 		return fmt.Errorf("invalid inputs file '%s': balances must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
+	}
+
+	// Likewise, a metadata list is keyed by (account, key, scope).
+	if dup, ok := inputs.Meta.FirstDuplicate(); ok {
+		key := fmt.Sprintf("account=%q key=%q", dup.Account, dup.Key)
+		if dup.Scope != "" {
+			key += fmt.Sprintf(" scope=%q", dup.Scope)
+		}
+		return fmt.Errorf("invalid inputs file '%s': metadata must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
 	}
 
 	featureFlags := map[string]struct{}{}
