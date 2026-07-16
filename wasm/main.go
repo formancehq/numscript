@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -159,7 +160,16 @@ func buildDiagnostics(pr parser.ParseResult, featureFlags map[string]struct{}) [
 	return out
 }
 
-func analyze(_ js.Value, args []js.Value) any {
+// A panic in the parser/interpreter must not unwind through the js callback,
+// which would kill the Go runtime and brick every later call. Recover and
+// degrade: analyze yields no diagnostics, run yields an error result.
+func analyze(_ js.Value, args []js.Value) (result any) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = "[]"
+		}
+	}()
+
 	source := args[0].String()
 	pr := cache.getOrParse(source)
 	b, err := json.Marshal(buildDiagnostics(pr, parseFeatureFlags(argAt(args, 1))))
@@ -169,7 +179,14 @@ func analyze(_ js.Value, args []js.Value) any {
 	return string(b)
 }
 
-func run(_ js.Value, args []js.Value) any {
+func run(_ js.Value, args []js.Value) (result any) {
+	defer func() {
+		if r := recover(); r != nil {
+			errBytes, _ := json.Marshal(errResult{Ok: false, Error: fmt.Sprintf("internal error: %v", r)})
+			result = string(errBytes)
+		}
+	}()
+
 	b, err := json.Marshal(runImpl(args[0].String(), args[1].String()))
 	if err != nil {
 		errBytes, _ := json.Marshal(errResult{Ok: false, Error: err.Error()})
