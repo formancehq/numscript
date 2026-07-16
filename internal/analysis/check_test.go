@@ -850,6 +850,33 @@ send [EUR/2 100] (
 	)
 }
 
+func TestCheckProgramWithFeatureFlagsEnablesExperimentalFeature(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+
+send [EUR/2 100] (
+  	source = oneof {
+			@a
+			@b
+		}
+  	destination = @dest
+)
+`
+	program := parser.Parse(input).Value
+
+	// Without the flag, the experimental feature is reported.
+	require.Len(t, analysis.CheckProgram(program).Diagnostics, 1)
+
+	// Passing the flag externally silences it (mirrors RunProgram), even
+	// though the script has no // @feature_flag comment.
+	enabled := map[string]struct{}{flags.ExperimentalOneofFeatureFlag: {}}
+	require.Empty(t,
+		analysis.CheckProgramWithFeatureFlags(program, enabled).Diagnostics,
+	)
+}
+
 func TestRequireFlagForOneofWhenGiven(t *testing.T) {
 	t.Parallel()
 
