@@ -102,6 +102,30 @@ func (c *parseCache) setMax(n int) {
 	c.evict()
 }
 
+func argAt(args []js.Value, i int) js.Value {
+	if i < len(args) {
+		return args[i]
+	}
+	return js.Undefined()
+}
+
+// parseFeatureFlags reads an optional JSON array of flag names into a set.
+func parseFeatureFlags(arg js.Value) map[string]struct{} {
+	flags := map[string]struct{}{}
+	if arg.Type() != js.TypeString {
+		return flags
+	}
+
+	var list []string
+	if err := json.Unmarshal([]byte(arg.String()), &list); err != nil {
+		return flags
+	}
+	for _, f := range list {
+		flags[f] = struct{}{}
+	}
+	return flags
+}
+
 func toDiagnostic(r parser.Range, msg string, severity string) diagnostic {
 	return diagnostic{
 		StartLineNumber: r.Start.Line + 1,
@@ -114,15 +138,16 @@ func toDiagnostic(r parser.Range, msg string, severity string) diagnostic {
 }
 
 // buildDiagnostics mirrors analysis.CheckSource but reuses the cached parse:
-// parse errors become diagnostics, then static analysis is appended.
-func buildDiagnostics(pr parser.ParseResult) []diagnostic {
+// parse errors become diagnostics, then static analysis is appended. Enabled
+// feature flags are passed through so experimental features aren't flagged.
+func buildDiagnostics(pr parser.ParseResult, featureFlags map[string]struct{}) []diagnostic {
 	out := []diagnostic{}
 
 	for _, e := range pr.Errors {
 		out = append(out, toDiagnostic(e.Range, e.Msg, "error"))
 	}
 
-	check := analysis.CheckProgram(pr.Value)
+	check := analysis.CheckProgramWithFeatureFlags(pr.Value, featureFlags)
 	for _, d := range check.Diagnostics {
 		severity := "warning"
 		if d.Kind.Severity() == analysis.ErrorSeverity {
@@ -137,7 +162,7 @@ func buildDiagnostics(pr parser.ParseResult) []diagnostic {
 func analyze(_ js.Value, args []js.Value) any {
 	source := args[0].String()
 	pr := cache.getOrParse(source)
-	b, err := json.Marshal(buildDiagnostics(pr))
+	b, err := json.Marshal(buildDiagnostics(pr, parseFeatureFlags(argAt(args, 1))))
 	if err != nil {
 		return "[]"
 	}
@@ -160,7 +185,17 @@ func runImpl(source string, argsJSON string) any {
 		return errResult{Ok: false, Error: parser.ParseErrorsToString(pr.Errors, source)}
 	}
 
-	check := analysis.CheckProgram(pr.Value)
+	var a runArgs
+	if err := json.Unmarshal([]byte(argsJSON), &a); err != nil {
+		return errResult{Ok: false, Error: err.Error()}
+	}
+
+	flags := map[string]struct{}{}
+	for _, f := range a.FeatureFlags {
+		flags[f] = struct{}{}
+	}
+
+	check := analysis.CheckProgramWithFeatureFlags(pr.Value, flags)
 	var sb strings.Builder
 	hasError := false
 	for _, d := range check.Diagnostics {
@@ -177,11 +212,6 @@ func runImpl(source string, argsJSON string) any {
 	}
 	if hasError {
 		return errResult{Ok: false, Error: sb.String()}
-	}
-
-	var a runArgs
-	if err := json.Unmarshal([]byte(argsJSON), &a); err != nil {
-		return errResult{Ok: false, Error: err.Error()}
 	}
 
 	store := interpreter.StaticStore{}
@@ -202,11 +232,6 @@ func runImpl(source string, argsJSON string) any {
 				Value:   value,
 			})
 		}
-	}
-
-	flags := map[string]struct{}{}
-	for _, f := range a.FeatureFlags {
-		flags[f] = struct{}{}
 	}
 
 	res, ierr := interpreter.RunProgram(context.Background(), pr.Value, a.Variables, store, flags)

@@ -61,6 +61,9 @@ func (res *CheckResult) requireVersion(
 	clauses ...VersionClause,
 ) {
 	flags := res.Program.GetFlags()
+	for flag := range res.enabledFeatureFlags {
+		flags[flag] = struct{}{}
+	}
 	actualVersion := res.Program.GetVersion()
 	if actualVersion == nil {
 		return

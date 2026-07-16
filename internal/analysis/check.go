@@ -150,6 +150,7 @@ type CheckResult struct {
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
 	Diagnostics            []Diagnostic
 	Program                parser.Program
+	enabledFeatureFlags    map[string]struct{}
 
 	stmtType  Type
 	exprTypes map[parser.ValueExpr]Type
@@ -371,7 +372,16 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 }
 
 func CheckProgram(program parser.Program) CheckResult {
+	return CheckProgramWithFeatureFlags(program, nil)
+}
+
+// CheckProgramWithFeatureFlags is like CheckProgram but treats the given
+// feature flags as enabled, in addition to those declared in the program.
+// This mirrors how RunProgram accepts externally-enabled flags, so static
+// analysis doesn't flag experimental features the caller has turned on.
+func CheckProgramWithFeatureFlags(program parser.Program, featureFlags map[string]struct{}) CheckResult {
 	res := newCheckResult(program)
+	res.enabledFeatureFlags = featureFlags
 	res.check()
 	return res
 }
