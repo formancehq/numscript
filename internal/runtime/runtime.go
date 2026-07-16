@@ -7,11 +7,17 @@
 // produced by Send/SendUncapped. It is the state layer the VM's PullAccount /
 // SendToAccount / CheckEnoughFunds opcodes call into.
 //
-// Balances are sourced lazily from a Store and then cached write-through: the
-// first read of an (account, asset, color) triple fetches from the Store and
-// caches the result; every subsequent read and every debit/credit operates on
-// the cached value. So once @acc is fetched and decreased, later reads see the
-// decreased balance without consulting the Store again.
+// Balances are tracked per (account, asset, color) triple as a balanceEntry that
+// separates the movement applied this run from the account's starting balance.
+// Until something needs the absolute balance, an entry holds only the net delta
+// (debits/credits) and the Store is never consulted: an unbounded pull (from
+// @world, or `allowing unbounded overdraft`) makes cap available regardless of
+// balance, so it just records a debit. The starting balance is fetched from the
+// Store lazily, the first time an operation actually needs the absolute value (a
+// bounded pull, a send-all, or a balance() read), and folded into the delta;
+// from then on the entry holds the absolute balance and further ops mutate it in
+// place. This keeps the common send-from-@world path free of Store round-trips
+// while a later balance(@world) still reports the correct running balance.
 //
 // Color is a plain string; the empty string "" means "uncolored". Pull tags the
 // funds it queues with a color, and Send drains only the sources whose color
@@ -84,12 +90,21 @@ type source struct {
 	color   string
 }
 
+// balanceEntry tracks one (account, asset, color) balance. While baseLoaded is
+// false, amount is the net delta applied this run (starting from 0) and the
+// Store has not been consulted; once baseLoaded is true, the Store's starting
+// balance has been folded in and amount is the absolute running balance.
+type balanceEntry struct {
+	amount     big.Int
+	baseLoaded bool
+}
+
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
 // call New. All fields are unexported to preserve the .mli interface boundary.
 type RunState struct {
 	store        Store
-	balances     map[PairKey]*big.Int // write-through cache over store
-	sources      []source             // FIFO: front = index 0
+	balances     map[PairKey]*balanceEntry
+	sources      []source // FIFO: front = index 0
 	postings     []Posting
 	currentAsset string
 }
@@ -98,7 +113,7 @@ type RunState struct {
 func New(store Store) *RunState {
 	return &RunState{
 		store:    store,
-		balances: make(map[PairKey]*big.Int),
+		balances: make(map[PairKey]*balanceEntry),
 	}
 }
 
@@ -130,27 +145,31 @@ func (s *RunState) Reset(store Store) {
 // instead of paying one Store call per triple.
 //
 // Call it once, before any Pull/Send/Save/ForcePosting. Amounts are cloned, so
-// the caller may reuse them. A key that is already cached is left untouched (the
-// live value wins), so a stray double-call can never clobber computed state.
+// the caller may reuse them. A key whose base is already loaded is left untouched
+// (the live value wins), so a stray double-call can never clobber computed state;
+// a key that only holds a delta so far has the base folded into it here.
 func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 	for key, amount := range balances {
-		if _, ok := s.balances[key]; ok {
+		e := s.balances[key]
+		if e == nil {
+			e = &balanceEntry{}
+			s.balances[key] = e
+		} else if e.baseLoaded {
 			continue
 		}
-		cloned := new(big.Int)
 		if amount != nil {
-			cloned.Set(amount)
+			e.amount.Add(&e.amount, amount) // fold base into any accumulated delta
 		}
-		s.balances[key] = cloned
+		e.baseLoaded = true
 	}
 }
 
-// Has reports whether (account, asset, color) is already in the balance cache
-// (prewarmed or touched). Lets a caller skip re-fetching balances it already
-// holds, without triggering a Store load.
+// Has reports whether (account, asset, color) already has its starting balance
+// loaded (prewarmed or fetched). An entry that only holds a delta so far reports
+// false, so a caller (e.g. fetchAndPrewarm) still fetches and folds in the base.
 func (s *RunState) Has(account, scope, asset, color string) bool {
-	_, ok := s.balances[PairKey{account, scope, asset, color}]
-	return ok
+	e := s.balances[PairKey{account, scope, asset, color}]
+	return e != nil && e.baseLoaded
 }
 
 // AccountBalance is a single cached (asset, color, amount) entry for an account.
@@ -160,22 +179,26 @@ type AccountBalance struct {
 	Amount *big.Int
 }
 
-// AccountBalances returns copies of every cached balance entry for account. It
-// only reports entries already in the cache (it does not consult the Store), so
-// an account that was never prewarmed/touched yields an empty slice. Used by
-// asset scaling, which must enumerate an account's holdings across scales.
-func (s *RunState) AccountBalances(account, scope string) []AccountBalance {
+// AccountBalances returns copies of every tracked balance entry for account,
+// with each entry's starting balance folded in so the amounts are absolute. It
+// only reports triples already touched this run (it does not enumerate the
+// Store), so an account that was never prewarmed/touched yields an empty slice.
+// Used by asset scaling, which must enumerate an account's holdings across scales.
+func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, error) {
 	var out []AccountBalance
-	for key, amount := range s.balances {
+	for key, e := range s.balances {
 		if key.Account == account && key.Scope == scope {
+			if err := s.loadBase(key, e); err != nil {
+				return nil, err
+			}
 			out = append(out, AccountBalance{
 				Asset:  key.Asset,
 				Color:  key.Color,
-				Amount: new(big.Int).Set(amount),
+				Amount: new(big.Int).Set(&e.amount),
 			})
 		}
 	}
-	return out
+	return out, nil
 }
 
 // GetAccountBalance returns the balance for (account, asset, color). An empty
@@ -191,7 +214,7 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 	if asset == "" {
 		asset = s.currentAsset
 	}
-	bal, err := s.cachedBalance(account, scope, asset, color)
+	bal, err := s.absoluteBalance(account, scope, asset, color)
 	if err != nil {
 		return nil, err
 	}
@@ -214,27 +237,38 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 // queued source's own copy of the amount (it must outlive out and is mutated in
 // place by compactAt/Send); the balance is debited in place on the cached value.
 func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) error {
-	currentBal, err := s.cachedBalance(src, scope, s.currentAsset, color)
+	if overdraft == nil {
+		// unbounded: available = max(0, cap), independent of the balance — so no
+		// Store fetch. The debit is recorded as a delta and folded against the
+		// starting balance only if the balance is later needed.
+		out.Set(cap)
+		if out.Sign() < 0 {
+			out.SetInt64(0)
+		}
+		amt := new(big.Int).Set(out)
+		s.sources = append(s.sources, source{src, scope, amt, color})
+		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
+		e.amount.Sub(&e.amount, out)
+		return nil
+	}
+
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
 	if err != nil {
 		return err
 	}
 
-	if overdraft == nil {
-		out.Set(cap) // unbounded; clamped to >= 0 below
-	} else {
-		// eff = max(0, currentBal + max(0, overdraft))
-		out.Set(currentBal)
-		if overdraft.Sign() > 0 {
-			out.Add(out, overdraft)
-		}
-		if out.Sign() < 0 {
-			out.SetInt64(0)
-		}
-		// available = min(eff, cap); a cap < eff (incl. negative) wins here and
-		// is clamped to >= 0 below
-		if cap.Cmp(out) < 0 {
-			out.Set(cap)
-		}
+	// eff = max(0, currentBal + max(0, overdraft))
+	out.Set(currentBal)
+	if overdraft.Sign() > 0 {
+		out.Add(out, overdraft)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+	// available = min(eff, cap); a cap < eff (incl. negative) wins here and
+	// is clamped to >= 0 below
+	if cap.Cmp(out) < 0 {
+		out.Set(cap)
 	}
 	if out.Sign() < 0 {
 		out.SetInt64(0)
@@ -263,7 +297,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 // queued source's own copy) and debits the balance in place; when it is zero
 // nothing is queued, nothing is debited, and no allocation occurs.
 func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) error {
-	currentBal, err := s.cachedBalance(src, scope, s.currentAsset, color)
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
 	if err != nil {
 		return err
 	}
@@ -377,23 +411,21 @@ func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color strin
 //	amount == nil -> "save all": a positive balance becomes 0; a negative
 //	                 balance is left unchanged (= min(balance, 0))
 func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) error {
-	cur, err := s.cachedBalance(account, scope, asset, color)
+	cur, err := s.absoluteBalance(account, scope, asset, color)
 	if err != nil {
 		return err
 	}
-	var next *big.Int
 	if amount == nil {
 		if cur.Sign() <= 0 {
 			return nil // negative/zero balance left unchanged
 		}
-		next = new(big.Int) // floor positive to zero
-	} else {
-		next = new(big.Int).Sub(cur, amount)
-		if next.Sign() < 0 {
-			next.SetInt64(0)
-		}
+		cur.SetInt64(0) // floor positive to zero
+		return nil
 	}
-	s.balances[PairKey{account, scope, asset, color}] = next
+	cur.Sub(cur, amount)
+	if cur.Sign() < 0 {
+		cur.SetInt64(0)
+	}
 	return nil
 }
 
@@ -453,42 +485,58 @@ func (s *RunState) credit(dest *string, destScope string, src source, asset stri
 	return nil
 }
 
-// cachedBalance returns the cached balance for (account, asset, color), fetching
-// from the Store and caching on first access. Presence in the map distinguishes
-// "already fetched (possibly 0)" from "not yet fetched". The Store's value is
-// cloned on ingest so runtime never mutates a pointer the Store owns. The
-// returned pointer is the live cache entry — internal callers must not mutate it
-// in place; they replace the map entry with a freshly allocated value instead.
-func (s *RunState) cachedBalance(account, scope, asset, color string) (*big.Int, error) {
-	key := PairKey{account, scope, asset, color}
-	if v, ok := s.balances[key]; ok {
-		return v, nil
+// entryFor returns the entry for key, creating a fresh zero-delta one (base not
+// yet loaded) if absent.
+func (s *RunState) entryFor(key PairKey) *balanceEntry {
+	e := s.balances[key]
+	if e == nil {
+		e = &balanceEntry{}
+		s.balances[key] = e
 	}
-	// the Store is scope-agnostic; scoped balances are seeded via Prewarm, and
-	// the VM (the only path hitting the Store) never uses scopes
-	fromStore, err := s.store.GetBalance(account, asset, color)
-	if err != nil {
-		return nil, err
-	}
-	cached := new(big.Int)
-	if fromStore != nil {
-		cached.Set(fromStore)
-	}
-	s.balances[key] = cached
-	return cached, nil
+	return e
 }
 
-// addToBalance applies delta to (account, asset, color), loading the base value
-// through the cache first so an un-fetched account is not treated as 0. The
-// cached value is mutated in place (no realloc): it is runtime-owned and never
-// aliased externally — GetAccountBalance hands out copies — so this is safe, and
-// it mirrors Pull's in-place debit. delta is read-only.
-func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.Int) error {
-	cur, err := s.cachedBalance(account, scope, asset, color)
+// loadBase folds e's starting balance in from the Store on first need, turning a
+// delta-only entry into an absolute one. Idempotent once baseLoaded is set. The
+// Store is scope-agnostic; scoped balances are seeded via Prewarm, and the VM
+// (the only path hitting the Store) never uses scopes.
+func (s *RunState) loadBase(key PairKey, e *balanceEntry) error {
+	if e.baseLoaded {
+		return nil
+	}
+	fromStore, err := s.store.GetBalance(key.Account, key.Asset, key.Color)
 	if err != nil {
 		return err
 	}
-	cur.Add(cur, delta)
+	if fromStore != nil {
+		e.amount.Add(&e.amount, fromStore) // absolute = base + accumulated delta
+	}
+	e.baseLoaded = true
+	return nil
+}
+
+// absoluteBalance returns a live pointer to the (account, asset, color) absolute
+// balance, loading the starting balance from the Store on first access. The
+// returned pointer is the live entry value — internal callers may mutate it in
+// place to debit/credit; it is never aliased externally (GetAccountBalance hands
+// out copies).
+func (s *RunState) absoluteBalance(account, scope, asset, color string) (*big.Int, error) {
+	key := PairKey{account, scope, asset, color}
+	e := s.entryFor(key)
+	if err := s.loadBase(key, e); err != nil {
+		return nil, err
+	}
+	return &e.amount, nil
+}
+
+// addToBalance applies delta to (account, asset, color). It never consults the
+// Store: a delta added to a not-yet-loaded entry just accumulates against the
+// running delta (folded against the base later, if ever needed), and a delta
+// added to a loaded entry mutates the absolute balance in place. delta is
+// read-only. The error return is kept for call-site symmetry; it is always nil.
+func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.Int) error {
+	e := s.entryFor(PairKey{account, scope, asset, color})
+	e.amount.Add(&e.amount, delta)
 	return nil
 }
 

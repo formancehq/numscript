@@ -414,7 +414,10 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
-		acc := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		if balErr != nil {
+			return nil, QueryBalanceError{WrappedError: balErr}
+		}
 		if len(acc) == 0 {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
@@ -579,7 +582,10 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
 
-		acc := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		if balErr != nil {
+			return nil, QueryBalanceError{WrappedError: balErr}
+		}
 		if len(acc) == 0 {
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
