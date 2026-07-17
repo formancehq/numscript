@@ -121,8 +121,32 @@ func (i loadStr) String() string {
 	return fmt.Sprintf("%s = %q", i.dest, i.value)
 }
 
+// returns "" when there's no alias
+func getAliasSyntax(k binKind) string {
+	switch k.(type) {
+	case opAddInt:
+		return "+"
+	case opSubInt:
+		return "-"
+	default:
+		return ""
+	}
+}
+
 func (i binaryOp) String() string {
-	return fmt.Sprintf("%s = %s(%s, %s)", i.dest, i.op, i.left, i.right)
+	aliasSyntax := getAliasSyntax(i.op)
+
+	if aliasSyntax == "" {
+		return fmt.Sprintf("%s = %s(%s, %s)", i.dest, i.op, i.left, i.right)
+	}
+
+	if i.dest == i.left {
+		// e.g. $acc += $reg
+		return fmt.Sprintf("%s %s= %s", i.dest, aliasSyntax, i.right)
+	}
+
+	// e.g. $tot = $l + $r
+	return fmt.Sprintf("%s = %s %s %s", i.dest, i.left, aliasSyntax, i.right)
 }
 
 func (i unaryOp) String() string {

@@ -54,7 +54,7 @@ func TestIntAddition(t *testing.T) {
   $r0 = "USD/2"
   $r1 = 4
   $r2 = 6
-  $r3 = add_int($r1, $r2)
+  $r3 = $r1 + $r2
   $r4 = mk_monetary($r0, $r3)
   $r5 = get_asset($r4)
   set_current_asset($r5)
@@ -80,7 +80,7 @@ func TestIntSubtraction(t *testing.T) {
   $r0 = "USD/2"
   $r1 = 16
   $r2 = 6
-  $r3 = sub_int($r1, $r2)
+  $r3 = $r1 - $r2
   $r4 = mk_monetary($r0, $r3)
   $r5 = get_asset($r4)
   set_current_asset($r5)
@@ -118,7 +118,7 @@ func TestMonetaryAddition(t *testing.T) {
   assert_same_asset($r6, $r7)
   $r8 = get_amount($r2)
   $r9 = get_amount($r5)
-  $r10 = add_int($r8, $r9)
+  $r10 = $r8 + $r9
   $r11 = mk_monetary($r6, $r10)
   $r12 = get_asset($r11)
   set_current_asset($r12)
@@ -156,7 +156,7 @@ func TestMonetarySubtraction(t *testing.T) {
   assert_same_asset($r6, $r7)
   $r8 = get_amount($r2)
   $r9 = get_amount($r5)
-  $r10 = sub_int($r8, $r9)
+  $r10 = $r8 - $r9
   $r11 = mk_monetary($r6, $r10)
   $r12 = get_asset($r11)
   set_current_asset($r12)
@@ -386,19 +386,19 @@ func TestInorder(t *testing.T) {
   $r7 = "a"
   $r8 = 0
   $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 = add_int($r5, $r9)
-  $r6 = sub_int($r6, $r9)
+  $r5 += $r9
+  $r6 -= $r9
   jmp_if_zero($r6, #inorder_end_0)
   $r10 = "b"
   $r11 = 0
   $r12 = pull_account(account: $r10, cap: $r6, overdraft: $r11)
-  $r5 = add_int($r5, $r12)
-  $r6 = sub_int($r6, $r12)
+  $r5 += $r12
+  $r6 -= $r12
   jmp_if_zero($r6, #inorder_end_0)
   $r13 = "c"
   $r14 = 0
   $r15 = pull_account(account: $r13, cap: $r6, overdraft: $r14)
-  $r5 = add_int($r5, $r15)
+  $r5 += $r15
 #inorder_end_0
   check_enough_funds($r5, $r4)
   $r16 = "dest"
@@ -430,8 +430,8 @@ func TestInorderWithCap(t *testing.T) {
   $r7 = "a"
   $r8 = 0
   $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 = add_int($r5, $r9)
-  $r6 = sub_int($r6, $r9)
+  $r5 += $r9
+  $r6 -= $r9
   jmp_if_zero($r6, #inorder_end_0)
   $r10 = "USD/2"
   $r11 = 5
@@ -443,13 +443,13 @@ func TestInorderWithCap(t *testing.T) {
   $r16 = "b"
   $r17 = 0
   $r18 = pull_account(account: $r16, cap: $r15, overdraft: $r17)
-  $r5 = add_int($r5, $r18)
-  $r6 = sub_int($r6, $r18)
+  $r5 += $r18
+  $r6 -= $r18
   jmp_if_zero($r6, #inorder_end_0)
   $r19 = "c"
   $r20 = 0
   $r21 = pull_account(account: $r19, cap: $r6, overdraft: $r20)
-  $r5 = add_int($r5, $r21)
+  $r5 += $r21
 #inorder_end_0
   check_enough_funds($r5, $r4)
   $r22 = "dest"
@@ -489,7 +489,7 @@ func TestDestInorder(t *testing.T) {
   $r14 = min_int($r8, $r13)
   $r15 = "d1"
   send_to_account(account: $r15, cap: $r14)
-  $r8 = sub_int($r8, $r14)
+  $r8 -= $r14
   $r16 = "d2"
   send_to_account(account: $r16, cap: $r8)
 `))
