@@ -148,6 +148,12 @@ func assembleProgram(instrs []vInstr) (vm.Program, error) {
 		Instructions: a.instructions,
 		StringsPool:  a.stringsPool.items,
 		IntsPool:     a.intsPool.items,
+		// each pool's next is the number of registers used in that bank (<= 255,
+		// since regPool.index/reserveContiguous cap allocation at maxReg)
+		IntRegs:      byte(a.ints.next),
+		StrRegs:      byte(a.strings.next),
+		PortionRegs:  byte(a.portions.next),
+		MonetaryRegs: byte(a.monetaries.next),
 	}, nil
 }
 

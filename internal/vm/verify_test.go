@@ -5,11 +5,13 @@ import (
 	"testing"
 )
 
+// mustReject asserts Verify rejects p. Programs are sized first (as the
+// assembler would) so a rejection reflects the specific incoherence under test
+// rather than an incidentally-too-small declared bank.
 func mustReject(t *testing.T, p Program) {
 	t.Helper()
-	_, err := Exec(t.Context(), NewVm(p), nil, mockStore{})
-	if _, ok := err.(MalformedProgramError); !ok {
-		t.Fatalf("expected MalformedProgramError, got %v", err)
+	if err := sizeProgram(p).Verify(); err == nil {
+		t.Fatalf("expected program to be rejected by Verify, got nil")
 	}
 }
 
@@ -42,8 +44,10 @@ func TestVerify_JumpOutOfRange(t *testing.T) {
 }
 
 func TestVerify_MissingVars(t *testing.T) {
-	// reads var int 0 but no vars are passed
-	_, err := Exec(t.Context(), NewVm(Program{Instructions: []Instruction{bc(Op_LoadVarInt, 0, 0)}}), nil, mockStore{})
+	// reads var int 0 but no vars are passed. This is an Exec-time guard (vars are
+	// caller input, not part of the bytecode), not a Verify check.
+	p := sizeProgram(Program{Instructions: []Instruction{bc(Op_LoadVarInt, 0, 0)}})
+	_, err := Exec(t.Context(), NewVm(p), nil, mockStore{})
 	if _, ok := err.(MalformedProgramError); !ok {
 		t.Fatalf("expected MalformedProgramError, got %v", err)
 	}
@@ -68,14 +72,19 @@ func TestVerify_CurrentAssetNotSet(t *testing.T) {
 	}, StringsPool: []string{"dest"}})
 }
 
-func TestVerify_SizesBanksToNeed(t *testing.T) {
-	// a program using int reg 5 must get an int bank of at least 6
-	p := Program{Instructions: []Instruction{bc(Op_LoadInt, 5, 0)}, IntsPool: []big.Int{*big.NewInt(1)}}
-	vm := NewVm(p)
-	if _, err := Exec(t.Context(), vm, nil, mockStore{}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestNewVmSizesBanksFromDeclaredCounts(t *testing.T) {
+	// NewVm allocates each bank to the program's declared count (no scanning).
+	vm := NewVm(Program{IntRegs: 6, StrRegs: 2, PortionRegs: 1, MonetaryRegs: 3})
+	if got := len(vm.intsRegs); got != 6 {
+		t.Fatalf("int bank size = %d, want 6", got)
 	}
-	if len(vm.intsRegs) != 6 {
-		t.Fatalf("int bank size = %d, want 6", len(vm.intsRegs))
+	if got := len(vm.stringsRegs); got != 2 {
+		t.Fatalf("string bank size = %d, want 2", got)
+	}
+	if got := len(vm.portionsRegs); got != 1 {
+		t.Fatalf("portion bank size = %d, want 1", got)
+	}
+	if got := len(vm.monetariesRegs); got != 3 {
+		t.Fatalf("monetary bank size = %d, want 3", got)
 	}
 }

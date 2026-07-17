@@ -8,7 +8,6 @@ import (
 	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
-	"github.com/formancehq/numscript/internal/vm"
 
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +29,7 @@ func TestCompiledCorpusPassesVerify(t *testing.T) {
 			require.Empty(t, parsed.Errors)
 			_, program, cErr := compiler.Compile(parsed.Value)
 			require.Nil(t, cErr)
-			require.NoError(t, vm.Verify(program))
+			require.NoError(t, program.Verify())
 		})
 	}
 }

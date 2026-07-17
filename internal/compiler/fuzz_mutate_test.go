@@ -62,8 +62,11 @@ func FuzzMutatedBytecode(f *testing.F) {
 			instrs[k] = vm.Instruction{Opcode: flat[k*4], A: flat[k*4+1], B: flat[k*4+2], C: flat[k*4+3]}
 		}
 
-		prog := vm.Program{Instructions: instrs, StringsPool: base.StringsPool, IntsPool: base.IntsPool}
-		if vm.Verify(prog) != nil {
+		// keep base's declared counts; a mutation that points an instruction at a
+		// register outside those bounds must be caught by Verify (coherence).
+		prog := base
+		prog.Instructions = instrs
+		if prog.Verify() != nil {
 			return // mutation broke the sanity checks: nothing more to prove
 		}
 

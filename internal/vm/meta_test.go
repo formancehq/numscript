@@ -20,7 +20,7 @@ func TestSetAccountMeta(t *testing.T) {
 		StringsPool: []string{"acc", "k", "v"},
 	}
 
-	res, execErr := Exec(context.Background(), NewVm(prog), nil, mockStore{})
+	res, execErr := Exec(context.Background(), NewVm(sizeProgram(prog)), nil, mockStore{})
 	require.Nil(t, execErr)
 	require.Equal(t, runtime.AccountsMetadata{"acc": {"k": "v"}}, res.AccountsMetadata)
 }
@@ -48,7 +48,7 @@ func TestMetaStr(t *testing.T) {
 		"config": {"beneficiary": "alice"},
 	}}
 
-	res, execErr := Exec(context.Background(), NewVm(prog), nil, store)
+	res, execErr := Exec(context.Background(), NewVm(sizeProgram(prog)), nil, store)
 	require.Nil(t, execErr)
 	require.Equal(t, []runtime.Posting{
 		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},

@@ -17,8 +17,6 @@ const worldAccount = "world"
 
 type Vm struct {
 	program  Program
-	verified bool
-	info     programInfo
 	runstate *runtime.RunState
 
 	stringsRegs    []string // asset,string,account
@@ -27,11 +25,18 @@ type Vm struct {
 	monetariesRegs []monetary
 }
 
+// NewVm allocates the register banks from the program's declared sizes. It does
+// not verify the program: run program.Verify() first if the bytecode is not
+// already trusted to be coherent with its declared counts.
 func NewVm(
 	program Program,
 ) *Vm {
 	return &Vm{
-		program: program,
+		program:        program,
+		intsRegs:       make([]big.Int, program.IntRegs),
+		stringsRegs:    make([]string, program.StrRegs),
+		portionsRegs:   make([]big.Rat, program.PortionRegs),
+		monetariesRegs: make([]monetary, program.MonetaryRegs),
 	}
 }
 
@@ -83,21 +88,13 @@ func Exec[S Store](
 	runtimeStore := runtimeStoreAdapter{store: store}
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
-	if !vm.verified {
-		info, err := verify(vm.program)
-		if err != nil {
-			return runtime.ExecutionResult{}, MalformedProgramError{Reason: err.Error()}
-		}
-		vm.info = info
-		vm.intsRegs = make([]big.Int, info.regs.ints)
-		vm.stringsRegs = make([]string, info.regs.strings)
-		vm.portionsRegs = make([]big.Rat, info.regs.portions)
-		vm.monetariesRegs = make([]monetary, info.regs.monetaries)
-		vm.verified = true
-	}
-
-	if vm.info.varIntsLen > 0 || vm.info.varStrsLen > 0 {
-		if vars == nil || len(vars.IntsPool) < vm.info.varIntsLen || len(vars.StringsPool) < vm.info.varStrsLen {
+	//
+	// Exec does not verify the program (that is program.Verify(), the caller's
+	// responsibility). The register banks are already sized to the declared
+	// counts by NewVm. Vars are separate caller-supplied input, so we still guard
+	// that enough were provided for what the program declares it reads.
+	if vm.program.IntVars > 0 || vm.program.StrVars > 0 {
+		if vars == nil || len(vars.IntsPool) < int(vm.program.IntVars) || len(vars.StringsPool) < int(vm.program.StrVars) {
 			return runtime.ExecutionResult{}, MalformedProgramError{Reason: "program reads more variables than were provided"}
 		}
 	}

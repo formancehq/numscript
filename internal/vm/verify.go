@@ -34,21 +34,25 @@ type decoded struct {
 	jumpTarget int // instruction index, or -1
 }
 
-type regCounts struct {
-	ints, strings, portions, monetaries int
-}
-
-type programInfo struct {
-	regs       regCounts
-	varIntsLen int
-	varStrsLen int
-}
-
-// Verify statically checks that a program is safe to execute: a nil result
-// guarantees the execution loop cannot read out of bounds or crash on it.
-func Verify(p Program) error {
-	_, err := verify(p)
-	return err
+// regBankSize is the declared size of the register bank r belongs to. The
+// verifier checks every register index against it; the execution loop allocates
+// exactly this many. bankCurrentAsset is a single-slot pseudo-bank that is never
+// allocated (definite-assignment tracking only).
+func (p Program) regBankSize(b regBank) int {
+	switch b {
+	case bankInt:
+		return int(p.IntRegs)
+	case bankStr:
+		return int(p.StrRegs)
+	case bankPortion:
+		return int(p.PortionRegs)
+	case bankMonetary:
+		return int(p.MonetaryRegs)
+	case bankCurrentAsset:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func instrWords(op byte) int {
@@ -60,10 +64,18 @@ func instrWords(op byte) int {
 	}
 }
 
-// verify statically checks a program cannot make the VM read out of bounds and
-// returns the exact register-bank sizes it needs. A verified program can be run
-// with no bounds checks in the execution loop.
-func verify(p Program) (programInfo, error) {
+// Verify statically checks that a program is safe to execute: a nil result
+// guarantees the execution loop cannot read out of bounds or crash on it.
+//
+// It only reports validity — it never derives sizes. Every register/var index is
+// checked against the counts the program declares (see Program.IntRegs etc.);
+// an index within a declared bound is valid, so an over-large declared count is
+// accepted (wasteful, but the producer's concern, not the verifier's).
+//
+// Verify is optional and the caller's responsibility: Exec does not run it.
+// Trusted producers (our own compiler) may skip it; run it on any bytecode whose
+// coherence with its declared counts is not already guaranteed.
+func (p Program) Verify() error {
 	instrs := p.Instructions
 	n := len(instrs)
 
@@ -80,7 +92,7 @@ func verify(p Program) (programInfo, error) {
 		op := instrs[i].Opcode
 		w := instrWords(op)
 		if i+w > n {
-			return programInfo{}, fmt.Errorf("truncated instruction at %d: opcode %d needs %d words", i, op, w)
+			return fmt.Errorf("truncated instruction at %d: opcode %d needs %d words", i, op, w)
 		}
 		var ext Instruction
 		if w == 2 {
@@ -88,67 +100,64 @@ func verify(p Program) (programInfo, error) {
 		}
 		d, err := decodeInstr(instrs[i], ext)
 		if err != nil {
-			return programInfo{}, fmt.Errorf("at instruction %d: %w", i, err)
+			return fmt.Errorf("at instruction %d: %w", i, err)
 		}
 		boundary[i] = true
 		steps = append(steps, step{i, d})
 		i += w
 	}
 
-	info := programInfo{}
-	grow := func(r regRef) {
-		s := r.index + 1
-		switch r.bank {
-		case bankInt:
-			if s > info.regs.ints {
-				info.regs.ints = s
-			}
-		case bankStr:
-			if s > info.regs.strings {
-				info.regs.strings = s
-			}
-		case bankPortion:
-			if s > info.regs.portions {
-				info.regs.portions = s
-			}
-		case bankMonetary:
-			if s > info.regs.monetaries {
-				info.regs.monetaries = s
-			}
+	check := func(at int, r regRef) error {
+		if r.index >= p.regBankSize(r.bank) {
+			return fmt.Errorf("at instruction %d: %s exceeds declared bank size %d", at, describeRef(r), p.regBankSize(r.bank))
 		}
+		return nil
 	}
 
 	for _, st := range steps {
 		d := st.d
 		for _, r := range d.reads {
-			grow(r)
+			if err := check(st.at, r); err != nil {
+				return err
+			}
 		}
 		for _, r := range d.writes {
-			grow(r)
-		}
-		if d.constInt >= 0 {
-			if d.constInt >= len(p.IntsPool) {
-				return programInfo{}, fmt.Errorf("at instruction %d: int constant %d out of range (pool size %d)", st.at, d.constInt, len(p.IntsPool))
+			if err := check(st.at, r); err != nil {
+				return err
 			}
 		}
-		if d.constStr >= 0 {
-			if d.constStr >= len(p.StringsPool) {
-				return programInfo{}, fmt.Errorf("at instruction %d: string constant %d out of range (pool size %d)", st.at, d.constStr, len(p.StringsPool))
+		// Op_MkAllotment slices intsRegs[A:A+C] and portionsRegs[B:B+C]. The
+		// per-element refs above cover C>0, but a slice expression bounds-checks
+		// its endpoints regardless of length, so an empty slice (C==0) with a
+		// start past the bank still panics. Check the endpoints explicitly.
+		if Opcode(instrs[st.at].Opcode) == Op_MkAllotment {
+			ins := instrs[st.at]
+			if int(ins.A)+int(ins.C) > p.regBankSize(bankInt) {
+				return fmt.Errorf("at instruction %d: allotment dest array [%d:%d] exceeds int bank size %d", st.at, ins.A, int(ins.A)+int(ins.C), p.regBankSize(bankInt))
+			}
+			if int(ins.B)+int(ins.C) > p.regBankSize(bankPortion) {
+				return fmt.Errorf("at instruction %d: allotment portion array [%d:%d] exceeds portion bank size %d", st.at, ins.B, int(ins.B)+int(ins.C), p.regBankSize(bankPortion))
 			}
 		}
-		if d.varInt >= 0 && d.varInt+1 > info.varIntsLen {
-			info.varIntsLen = d.varInt + 1
+		if d.constInt >= 0 && d.constInt >= len(p.IntsPool) {
+			return fmt.Errorf("at instruction %d: int constant %d out of range (pool size %d)", st.at, d.constInt, len(p.IntsPool))
 		}
-		if d.varStr >= 0 && d.varStr+1 > info.varStrsLen {
-			info.varStrsLen = d.varStr + 1
+		if d.constStr >= 0 && d.constStr >= len(p.StringsPool) {
+			return fmt.Errorf("at instruction %d: string constant %d out of range (pool size %d)", st.at, d.constStr, len(p.StringsPool))
+		}
+		if d.varInt >= 0 && d.varInt >= int(p.IntVars) {
+			return fmt.Errorf("at instruction %d: int var %d exceeds declared var count %d", st.at, d.varInt, p.IntVars)
+		}
+		if d.varStr >= 0 && d.varStr >= int(p.StrVars) {
+			return fmt.Errorf("at instruction %d: string var %d exceeds declared var count %d", st.at, d.varStr, p.StrVars)
 		}
 		if d.jumpTarget >= 0 {
 			t := d.jumpTarget
 			if t <= st.at {
-				return programInfo{}, fmt.Errorf("at instruction %d: backward jump to %d", st.at, t)
+				return fmt.Errorf("at instruction %d: backward jump to %d", st.at, t)
 			}
 			if t > n || !boundary[t] {
-				return programInfo{}, fmt.Errorf("at instruction %d: jump to %d is not an instruction boundary", st.at, t)
+				return fmt.Errorf("at instruction %d: jump to %d is not an instruction boundary", st.at, t)
 			}
 		}
 	}
@@ -177,7 +186,7 @@ func verify(p Program) (programInfo, error) {
 		in := intersectAssigned(assignedOut, preds[k])
 		for _, r := range st.d.reads {
 			if !in[r] {
-				return programInfo{}, fmt.Errorf("at instruction %d: %s read before being assigned on all paths", st.at, describeRef(r))
+				return fmt.Errorf("at instruction %d: %s read before being assigned on all paths", st.at, describeRef(r))
 			}
 		}
 		for _, r := range st.d.writes {
@@ -186,7 +195,7 @@ func verify(p Program) (programInfo, error) {
 		assignedOut[k] = in
 	}
 
-	return info, nil
+	return nil
 }
 
 func intersectAssigned(out []map[regRef]bool, preds []int) map[regRef]bool {
