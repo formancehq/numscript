@@ -31,7 +31,7 @@ func (i pullAccount) String() string {
 		optLabel("overdraft", i.overdraft),
 		optLabel("color", i.color),
 	)
-	s := fmt.Sprintf("%s <- pull_account(account: %s", i.dest, i.account)
+	s := fmt.Sprintf("%s = pull_account(account: %s", i.dest, i.account)
 	if opts != "" {
 		s += ", " + opts
 	}
@@ -44,7 +44,7 @@ func (i sendToAccount) String() string {
 }
 
 func (i makeAllotment) String() string {
-	return fmt.Sprintf("[%s] <- mk_allot(%s, [%s])", regList(i.dest), i.amount, regList(i.portions))
+	return fmt.Sprintf("[%s] = mk_allot(%s, [%s])", regList(i.dest), i.amount, regList(i.portions))
 }
 
 func (i checkEnoughFunds) String() string {
@@ -90,7 +90,7 @@ func (i setAccountMeta) String() string {
 }
 
 func (i metaVar) String() string {
-	return fmt.Sprintf("%s <- meta<%s>(%s, %s)", i.dest, i.typ, i.account, i.key)
+	return fmt.Sprintf("%s = meta<%s>(%s, %s)", i.dest, i.typ, i.account, i.key)
 }
 
 func (metaStr) String() string      { return "str" }
@@ -99,11 +99,11 @@ func (metaPortion) String() string  { return "portion" }
 func (metaMonetary) String() string { return "monetary" }
 
 func (i fetchBalance) String() string {
-	return fmt.Sprintf("%s <- balance(%s, %s)", i.dest, i.account, i.asset)
+	return fmt.Sprintf("%s = balance(%s, %s)", i.dest, i.account, i.asset)
 }
 
 func (i loadVar) String() string {
-	return fmt.Sprintf("%s <- load_var<%s>(%d)", i.dest, i.typ, i.index)
+	return fmt.Sprintf("%s = load_var<%s>(%d)", i.dest, i.typ, i.index)
 }
 
 func (varInt) String() string { return "int" }
@@ -114,19 +114,43 @@ func (i jmpIfZero) String() string {
 }
 
 func (i loadInt) String() string {
-	return fmt.Sprintf("%s <- load_const(%s)", i.dest, i.value.String())
+	return fmt.Sprintf("%s = %s", i.dest, &i.value)
 }
 
 func (i loadStr) String() string {
-	return fmt.Sprintf("%s <- load_const(%q)", i.dest, i.value)
+	return fmt.Sprintf("%s = %q", i.dest, i.value)
+}
+
+// returns "" when there's no alias
+func getAliasSyntax(k binKind) string {
+	switch k.(type) {
+	case opAddInt:
+		return "+"
+	case opSubInt:
+		return "-"
+	default:
+		return ""
+	}
 }
 
 func (i binaryOp) String() string {
-	return fmt.Sprintf("%s <- %s(%s, %s)", i.dest, i.op, i.left, i.right)
+	aliasSyntax := getAliasSyntax(i.op)
+
+	if aliasSyntax == "" {
+		return fmt.Sprintf("%s = %s(%s, %s)", i.dest, i.op, i.left, i.right)
+	}
+
+	if i.dest == i.left {
+		// e.g. $acc += $reg
+		return fmt.Sprintf("%s %s= %s", i.dest, aliasSyntax, i.right)
+	}
+
+	// e.g. $tot = $l + $r
+	return fmt.Sprintf("%s = %s %s %s", i.dest, i.left, aliasSyntax, i.right)
 }
 
 func (i unaryOp) String() string {
-	return fmt.Sprintf("%s <- %s(%s)", i.dest, i.op, i.arg)
+	return fmt.Sprintf("%s = %s(%s)", i.dest, i.op, i.arg)
 }
 
 func (i labelMarker) String() string { return i.label.String() }
