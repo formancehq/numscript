@@ -32,8 +32,8 @@
 // package is careful about aliasing: it clones values it ingests from the Store
 // and clones caller-supplied amounts it intends to mutate, it only mutates
 // big.Ints it privately owns (queued source amounts), and it never hands out a
-// live reference to its internal state (GetAccountBalance / GetPostings return
-// copies).
+// live reference to its internal state (GetAccountBalance returns a copy;
+// GetPostings returns a fresh slice whose amounts are valid until the next Reset).
 package runtime
 
 import "math/big"
@@ -97,6 +97,14 @@ type source struct {
 type balanceEntry struct {
 	amount     big.Int
 	baseLoaded bool
+	// gen is the RunState generation this entry was last freshened in. When it
+	// differs from RunState.gen the entry is stale (left over from a previous run)
+	// and is lazily reset on first access — see freshen. This lets Reset invalidate
+	// the whole balance cache in O(1) (bump gen) instead of clearing the map and
+	// reallocating a balanceEntry per account every run. [PROTOTYPE: no eviction —
+	// the map grows with distinct accounts across runs; a real impl needs a size
+	// cap. Fine for benchmarking a fixed working set.]
+	gen uint64
 }
 
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
@@ -104,9 +112,62 @@ type balanceEntry struct {
 type RunState struct {
 	store        Store
 	balances     map[PairKey]*balanceEntry
-	sources      []source // FIFO: front = index 0
+	sources      []source // FIFO; the live window is sources[head:]
+	head         int      // index of the front: consuming it is head++, no shift
 	postings     []Posting
 	currentAsset string
+
+	// free recycles *big.Int across runs to avoid per-run allocation. It holds
+	// runtime-OWNED big.Ints that never escape past the next Reset: queued source
+	// amounts (reclaimed when a source is consumed, merged, or dropped, and any
+	// leftovers at Reset) and posting amounts (reclaimed on Reset — see the
+	// GetPostings/PostingsRef lifetime contract). Balance amounts are NOT pooled:
+	// they live inline in balanceEntry (a value big.Int), not as separate pointers.
+	// takeBig() returns a (possibly dirty) one to overwrite; putBig() returns a dead
+	// one.
+	free []*big.Int
+
+	// capScratch is a reusable big.Int for Send's decrementing cap, so a capped
+	// send allocates nothing. Safe to reuse: Send is not reentrant.
+	capScratch big.Int
+
+	// gen is bumped on every Reset; balanceEntry.gen is compared against it to
+	// lazily invalidate the balance cache without clearing the map. See freshen.
+	gen uint64
+
+	// allotTotal/allotTmp are reusable scratch for MakeAllotment, so splitting an
+	// allotment across portions allocates nothing (the previous big.Rat impl
+	// allocated per portion). Safe to reuse: MakeAllotment is not reentrant.
+	allotTotal big.Int
+	allotTmp   big.Int
+}
+
+// freshen brings a possibly-stale entry into the current generation: an entry
+// carried over from a previous run (e.gen != s.gen) is reset to its fresh state
+// (zero delta, base not loaded) and re-stamped. The big.Int keeps its backing
+// array, so this reuses the allocation across runs. An entry already in the
+// current generation is returned untouched.
+func (s *RunState) freshen(e *balanceEntry) *balanceEntry {
+	if e.gen != s.gen {
+		e.amount.SetInt64(0)
+		e.baseLoaded = false
+		e.gen = s.gen
+	}
+	return e
+}
+
+func (s *RunState) takeBig() *big.Int {
+	n := len(s.free)
+	if n == 0 {
+		return new(big.Int)
+	}
+	v := s.free[n-1]
+	s.free = s.free[:n-1]
+	return v
+}
+
+func (s *RunState) putBig(x *big.Int) {
+	s.free = append(s.free, x)
 }
 
 // New creates an empty RunState backed by store.
@@ -128,12 +189,28 @@ func (s *RunState) SetCurrentAsset(asset string) {
 // across executions without reallocating its containers (the balances map and
 // the sources/postings slices keep their backing storage).
 //
-// Note: GetPostings returns deep copies, so a result obtained before Reset stays
-// valid afterward.
+// Note: Reset recycles the posting amounts into the pool, so a GetPostings /
+// PostingsRef result from before this Reset must not be used afterward (see their
+// lifetime contract). A RunState that is never Reset keeps such results valid.
 func (s *RunState) Reset(store Store) {
 	s.store = store
-	clear(s.balances)
+	// Invalidate the balance cache in O(1): bump the generation instead of
+	// clear(s.balances). Stale entries are lazily reset (and their big.Ints reused)
+	// on next access via freshen; entries for recurring accounts survive across
+	// runs with zero allocation. [PROTOTYPE: no eviction — see balanceEntry.gen.]
+	s.gen++
+	// reclaim any leftover source amounts: they are runtime-owned and now dead, so
+	// recycle them for the next run. Only the live window (sources[head:]) still
+	// holds amounts that haven't been recycled; the dead prefix left by
+	// front-consumption (head > 0) was already recycled at consume time.
+	for i := s.head; i < len(s.sources); i++ {
+		s.free = append(s.free, s.sources[i].amount)
+	}
 	s.sources = s.sources[:0]
+	s.head = 0
+	for i := range s.postings {
+		s.free = append(s.free, s.postings[i].Amount)
+	}
 	s.postings = s.postings[:0]
 	s.currentAsset = ""
 }
@@ -152,9 +229,9 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 	for key, amount := range balances {
 		e := s.balances[key]
 		if e == nil {
-			e = &balanceEntry{}
+			e = &balanceEntry{gen: s.gen}
 			s.balances[key] = e
-		} else if e.baseLoaded {
+		} else if s.freshen(e); e.baseLoaded {
 			continue
 		}
 		if amount != nil {
@@ -169,7 +246,8 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 // false, so a caller (e.g. fetchAndPrewarm) still fetches and folds in the base.
 func (s *RunState) Has(account, scope, asset, color string) bool {
 	e := s.balances[PairKey{account, scope, asset, color}]
-	return e != nil && e.baseLoaded
+	// a stale entry (from a previous generation) counts as absent
+	return e != nil && e.gen == s.gen && e.baseLoaded
 }
 
 // AccountBalance is a single cached (asset, color, amount) entry for an account.
@@ -187,6 +265,9 @@ type AccountBalance struct {
 func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, error) {
 	var out []AccountBalance
 	for key, e := range s.balances {
+		if e.gen != s.gen {
+			continue // stale entry from a previous run — not touched this run
+		}
 		if key.Account == account && key.Scope == scope {
 			if err := s.loadBase(key, e); err != nil {
 				return nil, err
@@ -245,7 +326,8 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		amt := new(big.Int).Set(out)
+		amt := s.takeBig()
+		amt.Set(out)
 		s.sources = append(s.sources, source{src, scope, amt, color})
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
@@ -274,10 +356,11 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// queue the pulled funds — an independent copy (out stays the caller's; the
-	// queued amount is mutated in place by compactAt/Send)
-	amt := new(big.Int).Set(out)
-	s.sources = append(s.sources, source{src, scope, amt, color})
+	// queue the pulled funds — an independent (recycled) copy (out stays the
+	// caller's; the queued amount is mutated in place by compactAt/Send)
+	amt := s.takeBig()
+	amt.Set(out)
+	s.pushSource(src, scope, amt, color)
 
 	// debit the source balance in place; the cache keeps the same *big.Int
 	currentBal.Sub(currentBal, out)
@@ -312,11 +395,86 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	}
 
 	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
+		amt := s.takeBig()
+		amt.Set(out)
+		s.pushSource(src, scope, amt, color)
 		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	}
 	return nil
+}
+
+// Take computes the available amount from src exactly as Pull (same overdraft
+// convention: nil => unbounded) and debits src, but WITHOUT queuing it. The
+// amount is written into out. Paired with PostDirect, this is Pull+Send for a
+// 1-source/1-destination send with the queue round-trip elided — the debit
+// happens here (at the source site), the posting later at the destination site.
+// See the compiler's funds-bypass peephole.
+func (s *RunState) Take(out *big.Int, src, scope string, cap, overdraft *big.Int, color string) error {
+	if overdraft == nil {
+		// unbounded: available = max(0, cap), independent of the balance
+		out.Set(cap)
+		if out.Sign() < 0 {
+			out.SetInt64(0)
+		}
+		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
+		e.amount.Sub(&e.amount, out) // record the debit as a delta (no base fetch)
+		return nil
+	}
+
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
+
+	// eff = max(0, currentBal + max(0, overdraft)); available = min(eff, cap)
+	out.Set(currentBal)
+	if overdraft.Sign() > 0 {
+		out.Add(out, overdraft)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+	if cap.Cmp(out) < 0 {
+		out.Set(cap)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+
+	currentBal.Sub(currentBal, out) // debit in place
+	return nil
+}
+
+// TakeUncapped is Take for the uncapped (send-all) source: available =
+// max(0, balance + max(0, overdraftBound)), debited from src, no queuing. Mirrors
+// PullUncapped's amount math.
+func (s *RunState) TakeUncapped(out *big.Int, src, scope string, overdraftBound *big.Int, color string) error {
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
+
+	out.Set(currentBal)
+	if overdraftBound.Sign() > 0 {
+		out.Add(out, overdraftBound)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+
+	if out.Sign() > 0 {
+		currentBal.Sub(currentBal, out)
+	}
+	return nil
+}
+
+// PostDirect appends a posting src->dst of amount (currentAsset, color) and
+// credits dst, WITHOUT debiting src — the caller already debited it (via Take).
+// A non-positive amount is a no-op. It is the destination-site half of the
+// funds-bypass fast path; unlike ForcePosting it uses currentAsset and does not
+// touch the source balance.
+func (s *RunState) PostDirect(src, srcScope, dst, dstScope, color string, amount *big.Int) error {
+	return s.addPosting(src, srcScope, dst, dstScope, s.currentAsset, color, amount)
 }
 
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
@@ -335,9 +493,12 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 // posting is emitted. A partially consumed source's remainder stays at its
 // position.
 func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
-	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
+	// copy cap into a reusable scratch we decrement as sources are consumed; the
+	// caller's cap is left untouched and no allocation is made.
+	s.capScratch.Set(cap)
+	cap = &s.capScratch
 	asset := s.currentAsset
-	i := 0
+	i := s.head
 	for cap.Sign() > 0 && i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,scope,color) funds at i
 		src := s.sources[i]
@@ -349,9 +510,9 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 			if err := s.credit(dest, destScope, src, asset, cap); err != nil {
 				return err
 			}
-			if diff := new(big.Int).Sub(src.amount, cap); diff.Sign() > 0 {
-				s.sources[i].amount = diff // remainder stays at this position
-			} else {
+			src.amount.Sub(src.amount, cap) // remainder stays in place (no alloc)
+			if src.amount.Sign() == 0 {
+				s.putBig(src.amount)
 				s.removeAt(i)
 			}
 			return nil // cap fully satisfied
@@ -360,7 +521,12 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 			return err
 		}
 		cap.Sub(cap, src.amount)
-		s.removeAt(i) // do not advance i; the next source shifts into position i
+		s.putBig(src.amount) // source fully consumed; recycle its amount
+		s.removeAt(i)
+		if i < s.head {
+			i = s.head // consumed the front (head advanced); resume at the new front
+		}
+		// otherwise a mid source was removed and the tail shifted into i; re-read i
 	}
 	return nil
 }
@@ -371,7 +537,7 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 // place.
 func (s *RunState) SendUncapped(dest *string, destScope string, color *string) error {
 	asset := s.currentAsset
-	i := 0
+	i := s.head
 	for i < len(s.sources) {
 		s.compactAt(i) // merge the run of adjacent same-(account,scope,color) funds at i
 		src := s.sources[i]
@@ -382,7 +548,11 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 		if err := s.credit(dest, destScope, src, asset, src.amount); err != nil {
 			return err
 		}
+		s.putBig(src.amount) // source fully consumed; recycle its amount
 		s.removeAt(i)
+		if i < s.head {
+			i = s.head // consumed the front (head advanced); resume at the new front
+		}
 	}
 	return nil
 }
@@ -415,6 +585,8 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 	if err != nil {
 		return err
 	}
+	// mutate the cached balance in place (it is runtime-owned and never aliased
+	// externally — GetAccountBalance hands out copies — like addToBalance).
 	if amount == nil {
 		if cur.Sign() <= 0 {
 			return nil // negative/zero balance left unchanged
@@ -433,6 +605,11 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 // backtracking a speculative source evaluation (e.g. a `oneof` branch). It is
 // just the queue length: O(1), no allocation, no map cloning.
 func (s *RunState) Snapshot() int {
+	// Normalize a fully-drained queue back to the front so the mark (an absolute
+	// index) stays valid even though front-consumption may have left head > 0 with
+	// a dead prefix. Without this a stale head==len would make Restore truncate to
+	// an out-of-range mark after the next Pull rewinds the backing.
+	s.rewindIfEmpty()
 	return len(s.sources)
 }
 
@@ -458,15 +635,28 @@ func (s *RunState) Restore(mark int) error {
 	return nil
 }
 
-// GetPostings returns a copy of the recorded postings: a fresh slice, so callers
-// cannot alter the internal queue's length/order. Posting amounts are write-once
-// (addPosting appends a freshly-cloned Amount and never mutates an existing
-// posting), so the *big.Int values are shared rather than deep-cloned — safe,
-// and it avoids an allocation per posting.
+// GetPostings returns the recorded postings in a fresh slice, so callers cannot
+// alter the internal queue's length/order. The posting Amounts are shared, not
+// deep-cloned (avoiding an allocation per posting).
+//
+// LIFETIME: the shared Amounts are pooled and recycled by the next Reset of this
+// RunState, so the result is valid only until then. A RunState that is never
+// Reset (e.g. the tree-walker's fresh-per-run state) keeps them valid for good.
+// A caller that reuses a RunState across runs (the VM) and needs to retain a
+// result past the next run must deep-copy the Amounts itself.
 func (s *RunState) GetPostings() []Posting {
 	out := make([]Posting, len(s.postings))
 	copy(out, s.postings)
 	return out
+}
+
+// PostingsRef returns the internal postings slice directly, with no copy — for
+// hot-loop callers that consume the result immediately. It is valid only until
+// the next Reset or the next posting append (which may reallocate the slice), and
+// its Amounts are pooled (recycled by the next Reset). Do not retain it. Use
+// GetPostings when you need an independent slice.
+func (s *RunState) PostingsRef() []Posting {
+	return s.postings
 }
 
 // --- internal helpers ---
@@ -490,10 +680,11 @@ func (s *RunState) credit(dest *string, destScope string, src source, asset stri
 func (s *RunState) entryFor(key PairKey) *balanceEntry {
 	e := s.balances[key]
 	if e == nil {
-		e = &balanceEntry{}
+		e = &balanceEntry{gen: s.gen}
 		s.balances[key] = e
+		return e
 	}
-	return e
+	return s.freshen(e) // reuse a struct carried over from a previous run
 }
 
 // loadBase folds e's starting balance in from the Store on first need, turning a
@@ -549,6 +740,11 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 	if amount.Sign() <= 0 {
 		return nil
 	}
+	// the posting amount is recycled from the pool and reclaimed at Reset; it is a
+	// distinct big.Int from amount (takeBig never returns a live one), so the
+	// following in-place balance credit does not alias it.
+	amt := s.takeBig()
+	amt.Set(amount)
 	s.postings = append(s.postings, Posting{
 		Source:           src,
 		SourceScope:      srcScope,
@@ -556,7 +752,7 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 		DestinationScope: dstScope,
 		Asset:            asset,
 		Color:            color,
-		Amount:           new(big.Int).Set(amount),
+		Amount:           amt,
 	})
 	return s.addToBalance(dst, dstScope, asset, color, amount)
 }
@@ -573,6 +769,7 @@ func (s *RunState) compactAt(i int) {
 	for i+1 < len(s.sources) {
 		next := s.sources[i+1]
 		if next.amount.Sign() == 0 {
+			s.putBig(next.amount) // dropped; recycle
 			s.removeAt(i + 1)
 			continue
 		}
@@ -580,11 +777,42 @@ func (s *RunState) compactAt(i int) {
 			return
 		}
 		s.sources[i].amount.Add(s.sources[i].amount, next.amount)
+		s.putBig(next.amount) // merged away; recycle
 		s.removeAt(i + 1)
 	}
 }
 
-// removeAt deletes the source at index i, preserving the order of the rest.
+// removeAt deletes the live source at index i, preserving the order of the rest.
+// Removing the front (i == head) is O(1): just advance head, leaving behind a
+// dead entry whose amount the caller has already recycled. A mid removal — only
+// the rare color-skip and compaction cases — shifts the suffix down and
+// truncates, as before. This makes the common front-to-back drain O(1) per pop
+// instead of O(n) (an O(n^2) drain becomes O(n)).
 func (s *RunState) removeAt(i int) {
+	if i == s.head {
+		s.head++
+		return
+	}
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
+}
+
+// pushSource appends a funding source at the tail of the queue, first rewinding
+// the backing array to the front if the queue has been fully drained — so
+// front-consumption's dead prefix doesn't make the slice grow across the
+// pull/send cycles of a single run.
+func (s *RunState) pushSource(account, scope string, amount *big.Int, color string) {
+	s.rewindIfEmpty()
+	s.sources = append(s.sources, source{account, scope, amount, color})
+}
+
+// rewindIfEmpty resets the queue to index 0 when it holds no live sources
+// (head == len). The dead prefix left by front-consumption holds only
+// already-recycled amounts, so discarding it loses nothing and keeps the backing
+// array bounded by the max concurrently-queued sources rather than the total
+// pulled over the run.
+func (s *RunState) rewindIfEmpty() {
+	if s.head == len(s.sources) {
+		s.head = 0
+		s.sources = s.sources[:0]
+	}
 }

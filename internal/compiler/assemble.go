@@ -30,7 +30,12 @@ type constPool[T any] struct {
 func newConstPool[T any](toString func(T) string) constPool[T] {
 	return constPool[T]{
 		indexByValue: map[string]uint16{},
-		toString:     toString,
+		// non-nil so an empty pool stays a non-nil empty slice, matching what the
+		// decoder reconstructs (make([]T, 0)); otherwise Encode/Decode would not
+		// round-trip for programs that pool no constants (e.g. all ints inlined as
+		// LoadIntImm immediates).
+		items:    []T{},
+		toString: toString,
 	}
 }
 
@@ -359,6 +364,16 @@ func (i loadInt) assemble(a *assembler) error {
 		return err
 	}
 
+	// Small unsigned constants are encoded directly in the instruction (no const
+	// pool entry, no big.Int copy on load) — numscript constants are unsigned in
+	// the common case (overdraft 0, small caps, allotment num/den).
+	if i.value.IsUint64() {
+		if v := i.value.Uint64(); v <= math.MaxUint16 {
+			a.emitBC(vm.Op_LoadIntImm, dest, uint16(v))
+			return nil
+		}
+	}
+
 	poolIndex, err := a.intsPool.alloc(i.value)
 	if err != nil {
 		return err
@@ -449,6 +464,16 @@ func (i pullAccount) assemble(a *assembler) error {
 		return err
 	}
 
+	// compact single-word form: bounded-zero overdraft, no color, cap present
+	if i.boundedZero && i.color == nil && i.cap != nil {
+		cap, err := a.intReg(*i.cap)
+		if err != nil {
+			return err
+		}
+		a.emit(vm.Op_PullAccountCapZero, dest, account, cap)
+		return nil
+	}
+
 	cap, err := a.optionalReg((*assembler).intReg, i.cap)
 	if err != nil {
 		return err
@@ -473,6 +498,69 @@ func (i pullAccount) assemble(a *assembler) error {
 		C:      maxReg,    // <- UNUSED
 	})
 
+	return nil
+}
+
+func (i takeAccount) assemble(a *assembler) error {
+	dest, err := a.intReg(i.dest)
+	if err != nil {
+		return err
+	}
+
+	account, err := a.strReg(i.account)
+	if err != nil {
+		return err
+	}
+
+	// compact single-word form: bounded-zero overdraft, no color, cap present
+	if i.boundedZero && i.color == nil && i.cap != nil {
+		cap, err := a.intReg(*i.cap)
+		if err != nil {
+			return err
+		}
+		a.emit(vm.Op_TakeCapZero, dest, account, cap)
+		return nil
+	}
+
+	cap, err := a.optionalReg((*assembler).intReg, i.cap)
+	if err != nil {
+		return err
+	}
+	overdraft, err := a.optionalReg((*assembler).intReg, i.overdraft)
+	if err != nil {
+		return err
+	}
+	color, err := a.optionalReg((*assembler).strReg, i.color)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_Take, dest, account, cap)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,    // <- UNUSED
+		A:      overdraft, // overdraft (int)
+		B:      color,     // color (str)
+		C:      maxReg,    // <- UNUSED
+	})
+	return nil
+}
+
+func (i postAccount) assemble(a *assembler) error {
+	src, err := a.strReg(i.srcAccount)
+	if err != nil {
+		return err
+	}
+	dst, err := a.strReg(i.dstAccount)
+	if err != nil {
+		return err
+	}
+	amount, err := a.intReg(i.amount)
+	if err != nil {
+		return err
+	}
+	// color is currently always nil (colors unimplemented); Op_Post carries the
+	// current asset implicitly. A colored variant would need a second word.
+	a.emit(vm.Op_Post, src, dst, amount)
 	return nil
 }
 

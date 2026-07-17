@@ -71,34 +71,53 @@ func TestCompilerScripts(t *testing.T) {
 	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
 	require.NoError(t, err)
 
-	for _, rawSpec := range rawSpecs {
-		rel, err := filepath.Rel(scriptsFolder, rawSpec.NumscriptPath)
-		require.NoError(t, err)
+	// The whole corpus is run twice: once through the naive compiler (no
+	// peepholes) and once through the optimizing compiler. Both must satisfy every
+	// spec, so any peephole that changed observable behavior fails here.
+	modes := []struct {
+		name     string
+		optimize bool
+	}{
+		{"naive", false},
+		{"optimized", true},
+	}
 
-		t.Run(rel, func(t *testing.T) {
-			if slices.Contains(scriptsBlacklist, rel) {
-				t.Skip("blacklisted: not supported yet")
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			for _, rawSpec := range rawSpecs {
+				rel, err := filepath.Rel(scriptsFolder, rawSpec.NumscriptPath)
+				require.NoError(t, err)
+
+				t.Run(rel, func(t *testing.T) {
+					if slices.Contains(scriptsBlacklist, rel) {
+						t.Skip("blacklisted: not supported yet")
+					}
+
+					var specs specs_format.Specs
+					require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
+
+					defer func() {
+						if r := recover(); r != nil {
+							t.Errorf("panic: %v", r)
+						}
+					}()
+
+					runScriptSpec(t, specs, rawSpec.NumscriptContent, mode.optimize)
+				})
 			}
-
-			var specs specs_format.Specs
-			require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
-
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("panic: %v", r)
-				}
-			}()
-
-			runScriptSpec(t, specs, rawSpec.NumscriptContent)
 		})
 	}
 }
 
-func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
+func runScriptSpec(t *testing.T, specs specs_format.Specs, src string, optimize bool) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	enc, program, cErr := compiler.Compile(parsed.Value)
+	compile := compiler.Compile
+	if optimize {
+		compile = compiler.CompileWithOptimizations
+	}
+	enc, program, cErr := compile(parsed.Value)
 	require.Nil(t, cErr)
 
 	for _, tc := range specs.TestCases {
@@ -111,9 +130,8 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		vars, encErr := enc.Encode(caseVars)
 		require.NoError(t, encErr, "case %q: encode vars", tc.It)
 
-		machine := vm.NewVm(program)
 		store := scriptStore(specs.Balances, tc.Balances, specs.Meta, tc.Meta)
-		res, execErr := vm.Exec(context.Background(), machine, &vars, store)
+		res, execErr := vm.Exec(context.Background(), vm.NewVm(program), &vars, store)
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)

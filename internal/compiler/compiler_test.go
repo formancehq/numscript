@@ -18,6 +18,19 @@ func getCompiledOutput(t *testing.T, source string) string {
 	return "\n" + out
 }
 
+// getOptimizedOutput compiles source and runs the full peephole pipeline
+// (defaultPeepholes, to a fixpoint) before dumping — the same optimization
+// CompileWithOptimizations applies before assembling.
+func getOptimizedOutput(t *testing.T, source string) string {
+	program := parser.Parse(source)
+	require.Empty(t, program.Errors)
+	compiled, err := compileProgramToVirtual(program.Value)
+	require.Nil(t, err)
+
+	out := dump(optimize(compiled.instructions, defaultPeepholes()))
+	return "\n" + out
+}
+
 func TestSimpleProgram(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (
@@ -34,12 +47,40 @@ func TestSimpleProgram(t *testing.T) {
   set_current_asset($r3)
   $r4 <- get_amount($r2)
   $r5 <- load_const("src")
-  $r6 <- load_const(0)
-  $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 <- load_const("dest")
-  send_to_account(account: $r8)
-`))
+  $r6 <- pull_account(account: $r5, cap: $r4, overdraft: 0)
+  check_enough_funds($r6, $r4)
+  $r7 <- load_const("dest")
+  send_to_account(account: $r7)
+`),
+	)
+}
+
+// TestOptimizedSimpleProgram is the same script as TestSimpleProgram, but with
+// all peepholes applied. Contrast the two snapshots:
+//   - monetaryFold + deadCode strip the mk_monetary / get_asset / get_amount
+//     round-trip (the asset/amount registers are read directly);
+//   - fundsBypass fuses the single-source/single-destination pull_account +
+//     send_to_account into take_account (debit, at the source site) +
+//     post_account (posting, at the destination site), skipping the funds queue.
+func TestOptimizedSimpleProgram(t *testing.T) {
+	out := getOptimizedOutput(t, `
+		send [USD/2 10] (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(10)
+  set_current_asset($r0)
+  $r5 <- load_const("src")
+  $r6 <- take_account(account: $r5, cap: $r1, overdraft: 0)
+  check_enough_funds($r6, $r1)
+  $r7 <- load_const("dest")
+  post_account(src: $r5, dst: $r7, amount: $r6)
+`),
+	)
 }
 
 func TestIntAddition(t *testing.T) {
@@ -60,12 +101,12 @@ func TestIntAddition(t *testing.T) {
   set_current_asset($r5)
   $r6 <- get_amount($r4)
   $r7 <- load_const("src")
-  $r8 <- load_const(0)
-  $r9 <- pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  check_enough_funds($r9, $r6)
-  $r10 <- load_const("dest")
-  send_to_account(account: $r10)
-`))
+  $r8 <- pull_account(account: $r7, cap: $r6, overdraft: 0)
+  check_enough_funds($r8, $r6)
+  $r9 <- load_const("dest")
+  send_to_account(account: $r9)
+`),
+	)
 }
 
 func TestIntSubtraction(t *testing.T) {
@@ -86,12 +127,12 @@ func TestIntSubtraction(t *testing.T) {
   set_current_asset($r5)
   $r6 <- get_amount($r4)
   $r7 <- load_const("src")
-  $r8 <- load_const(0)
-  $r9 <- pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  check_enough_funds($r9, $r6)
-  $r10 <- load_const("dest")
-  send_to_account(account: $r10)
-`))
+  $r8 <- pull_account(account: $r7, cap: $r6, overdraft: 0)
+  check_enough_funds($r8, $r6)
+  $r9 <- load_const("dest")
+  send_to_account(account: $r9)
+`),
+	)
 }
 
 func TestMonetaryAddition(t *testing.T) {
@@ -124,12 +165,12 @@ func TestMonetaryAddition(t *testing.T) {
   set_current_asset($r12)
   $r13 <- get_amount($r11)
   $r14 <- load_const("src")
-  $r15 <- load_const(0)
-  $r16 <- pull_account(account: $r14, cap: $r13, overdraft: $r15)
-  check_enough_funds($r16, $r13)
-  $r17 <- load_const("dest")
-  send_to_account(account: $r17)
-`))
+  $r15 <- pull_account(account: $r14, cap: $r13, overdraft: 0)
+  check_enough_funds($r15, $r13)
+  $r16 <- load_const("dest")
+  send_to_account(account: $r16)
+`),
+	)
 }
 
 func TestMonetarySubtraction(t *testing.T) {
@@ -162,12 +203,12 @@ func TestMonetarySubtraction(t *testing.T) {
   set_current_asset($r12)
   $r13 <- get_amount($r11)
   $r14 <- load_const("src")
-  $r15 <- load_const(0)
-  $r16 <- pull_account(account: $r14, cap: $r13, overdraft: $r15)
-  check_enough_funds($r16, $r13)
-  $r17 <- load_const("dest")
-  send_to_account(account: $r17)
-`))
+  $r15 <- pull_account(account: $r14, cap: $r13, overdraft: 0)
+  check_enough_funds($r15, $r13)
+  $r16 <- load_const("dest")
+  send_to_account(account: $r16)
+`),
+	)
 }
 
 func TestGetAmount(t *testing.T) {
@@ -193,12 +234,12 @@ func TestGetAmount(t *testing.T) {
   set_current_asset($r6)
   $r7 <- get_amount($r5)
   $r8 <- load_const("src")
-  $r9 <- load_const(0)
-  $r10 <- pull_account(account: $r8, cap: $r7, overdraft: $r9)
-  check_enough_funds($r10, $r7)
-  $r11 <- load_const("dest")
-  send_to_account(account: $r11)
-`))
+  $r9 <- pull_account(account: $r8, cap: $r7, overdraft: 0)
+  check_enough_funds($r9, $r7)
+  $r10 <- load_const("dest")
+  send_to_account(account: $r10)
+`),
+	)
 }
 
 func TestGetAsset(t *testing.T) {
@@ -224,12 +265,12 @@ func TestGetAsset(t *testing.T) {
   set_current_asset($r6)
   $r7 <- get_amount($r5)
   $r8 <- load_const("src")
-  $r9 <- load_const(0)
-  $r10 <- pull_account(account: $r8, cap: $r7, overdraft: $r9)
-  check_enough_funds($r10, $r7)
-  $r11 <- load_const("dest")
-  send_to_account(account: $r11)
-`))
+  $r9 <- pull_account(account: $r8, cap: $r7, overdraft: 0)
+  check_enough_funds($r9, $r7)
+  $r10 <- load_const("dest")
+  send_to_account(account: $r10)
+`),
+	)
 }
 
 func TestPrefixMinusMonetary(t *testing.T) {
@@ -257,12 +298,12 @@ func TestPrefixMinusMonetary(t *testing.T) {
   set_current_asset($r8)
   $r9 <- get_amount($r7)
   $r10 <- load_const("src")
-  $r11 <- load_const(0)
-  $r12 <- pull_account(account: $r10, cap: $r9, overdraft: $r11)
-  check_enough_funds($r12, $r9)
-  $r13 <- load_const("dest")
-  send_to_account(account: $r13)
-`))
+  $r11 <- pull_account(account: $r10, cap: $r9, overdraft: 0)
+  check_enough_funds($r11, $r9)
+  $r12 <- load_const("dest")
+  send_to_account(account: $r12)
+`),
+	)
 }
 
 func TestBalance(t *testing.T) {
@@ -285,12 +326,12 @@ func TestBalance(t *testing.T) {
   set_current_asset($r3)
   $r4 <- get_amount($r2)
   $r5 <- load_const("src")
-  $r6 <- load_const(0)
-  $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 <- load_const("dest")
-  send_to_account(account: $r8)
-`))
+  $r6 <- pull_account(account: $r5, cap: $r4, overdraft: 0)
+  check_enough_funds($r6, $r4)
+  $r7 <- load_const("dest")
+  send_to_account(account: $r7)
+`),
+	)
 }
 
 func TestAccountInterpolation(t *testing.T) {
@@ -313,20 +354,20 @@ func TestAccountInterpolation(t *testing.T) {
   set_current_asset($r4)
   $r5 <- get_amount($r3)
   $r6 <- load_const("world")
-  $r7 <- load_const(0)
-  $r8 <- pull_account(account: $r6, cap: $r5, overdraft: $r7)
-  check_enough_funds($r8, $r5)
-  $r9 <- load_const("users")
+  $r7 <- pull_account(account: $r6, cap: $r5, overdraft: 0)
+  check_enough_funds($r7, $r5)
+  $r8 <- load_const("users")
+  $r9 <- load_const(":")
   $r10 <- load_const(":")
-  $r11 <- load_const(":")
-  $r12 <- load_const("wallet")
-  $r13 <- add_string($r9, $r10)
-  $r14 <- add_string($r13, $r0)
+  $r11 <- load_const("wallet")
+  $r12 <- add_string($r8, $r9)
+  $r13 <- add_string($r12, $r0)
+  $r14 <- add_string($r13, $r10)
   $r15 <- add_string($r14, $r11)
-  $r16 <- add_string($r15, $r12)
-  assert_valid_account($r16)
-  send_to_account(account: $r16)
-`))
+  assert_valid_account($r15)
+  send_to_account(account: $r15)
+`),
+	)
 }
 
 func TestAccountInterpolationInt(t *testing.T) {
@@ -349,17 +390,17 @@ func TestAccountInterpolationInt(t *testing.T) {
   set_current_asset($r4)
   $r5 <- get_amount($r3)
   $r6 <- load_const("world")
-  $r7 <- load_const(0)
-  $r8 <- pull_account(account: $r6, cap: $r5, overdraft: $r7)
-  check_enough_funds($r8, $r5)
-  $r9 <- load_const("account")
-  $r10 <- load_const(":")
-  $r11 <- int_to_string($r0)
-  $r12 <- add_string($r9, $r10)
-  $r13 <- add_string($r12, $r11)
-  assert_valid_account($r13)
-  send_to_account(account: $r13)
-`))
+  $r7 <- pull_account(account: $r6, cap: $r5, overdraft: 0)
+  check_enough_funds($r7, $r5)
+  $r8 <- load_const("account")
+  $r9 <- load_const(":")
+  $r10 <- int_to_string($r0)
+  $r11 <- add_string($r8, $r9)
+  $r12 <- add_string($r11, $r10)
+  assert_valid_account($r12)
+  send_to_account(account: $r12)
+`),
+	)
 }
 
 func TestInorder(t *testing.T) {
@@ -384,26 +425,24 @@ func TestInorder(t *testing.T) {
   $r5 <- load_const(0)
   $r6 <- int_copy($r4)
   $r7 <- load_const("a")
-  $r8 <- load_const(0)
-  $r9 <- pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 <- add_int($r5, $r9)
-  $r6 <- sub_int($r6, $r9)
+  $r8 <- pull_account(account: $r7, cap: $r6, overdraft: 0)
+  $r5 <- add_int($r5, $r8)
+  $r6 <- sub_int($r6, $r8)
   jmp_if_zero($r6, #inorder_end_0)
-  $r10 <- load_const("b")
-  $r11 <- load_const(0)
-  $r12 <- pull_account(account: $r10, cap: $r6, overdraft: $r11)
+  $r9 <- load_const("b")
+  $r10 <- pull_account(account: $r9, cap: $r6, overdraft: 0)
+  $r5 <- add_int($r5, $r10)
+  $r6 <- sub_int($r6, $r10)
+  jmp_if_zero($r6, #inorder_end_0)
+  $r11 <- load_const("c")
+  $r12 <- pull_account(account: $r11, cap: $r6, overdraft: 0)
   $r5 <- add_int($r5, $r12)
-  $r6 <- sub_int($r6, $r12)
-  jmp_if_zero($r6, #inorder_end_0)
-  $r13 <- load_const("c")
-  $r14 <- load_const(0)
-  $r15 <- pull_account(account: $r13, cap: $r6, overdraft: $r14)
-  $r5 <- add_int($r5, $r15)
 #inorder_end_0
   check_enough_funds($r5, $r4)
-  $r16 <- load_const("dest")
-  send_to_account(account: $r16)
-`))
+  $r13 <- load_const("dest")
+  send_to_account(account: $r13)
+`),
+	)
 }
 
 func TestInorderWithCap(t *testing.T) {
@@ -428,33 +467,31 @@ func TestInorderWithCap(t *testing.T) {
   $r5 <- load_const(0)
   $r6 <- int_copy($r4)
   $r7 <- load_const("a")
-  $r8 <- load_const(0)
-  $r9 <- pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 <- add_int($r5, $r9)
-  $r6 <- sub_int($r6, $r9)
+  $r8 <- pull_account(account: $r7, cap: $r6, overdraft: 0)
+  $r5 <- add_int($r5, $r8)
+  $r6 <- sub_int($r6, $r8)
   jmp_if_zero($r6, #inorder_end_0)
-  $r10 <- load_const("USD/2")
-  $r11 <- load_const(5)
-  $r12 <- mk_monetary($r10, $r11)
-  $r13 <- get_asset($r12)
-  assert_same_asset($r13, $r3)
-  $r14 <- get_amount($r12)
-  $r15 <- min_int($r14, $r6)
-  $r16 <- load_const("b")
-  $r17 <- load_const(0)
-  $r18 <- pull_account(account: $r16, cap: $r15, overdraft: $r17)
+  $r9 <- load_const("USD/2")
+  $r10 <- load_const(5)
+  $r11 <- mk_monetary($r9, $r10)
+  $r12 <- get_asset($r11)
+  assert_same_asset($r12, $r3)
+  $r13 <- get_amount($r11)
+  $r14 <- min_int($r13, $r6)
+  $r15 <- load_const("b")
+  $r16 <- pull_account(account: $r15, cap: $r14, overdraft: 0)
+  $r5 <- add_int($r5, $r16)
+  $r6 <- sub_int($r6, $r16)
+  jmp_if_zero($r6, #inorder_end_0)
+  $r17 <- load_const("c")
+  $r18 <- pull_account(account: $r17, cap: $r6, overdraft: 0)
   $r5 <- add_int($r5, $r18)
-  $r6 <- sub_int($r6, $r18)
-  jmp_if_zero($r6, #inorder_end_0)
-  $r19 <- load_const("c")
-  $r20 <- load_const(0)
-  $r21 <- pull_account(account: $r19, cap: $r6, overdraft: $r20)
-  $r5 <- add_int($r5, $r21)
 #inorder_end_0
   check_enough_funds($r5, $r4)
-  $r22 <- load_const("dest")
-  send_to_account(account: $r22)
-`))
+  $r19 <- load_const("dest")
+  send_to_account(account: $r19)
+`),
+	)
 }
 
 func TestDestInorder(t *testing.T) {
@@ -476,21 +513,21 @@ func TestDestInorder(t *testing.T) {
   set_current_asset($r3)
   $r4 <- get_amount($r2)
   $r5 <- load_const("world")
-  $r6 <- load_const(0)
-  $r7 <- pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 <- int_copy($r7)
-  $r9 <- load_const("USD/2")
-  $r10 <- load_const(4)
-  $r11 <- mk_monetary($r9, $r10)
-  $r12 <- get_asset($r11)
-  assert_same_asset($r12, $r3)
-  $r13 <- get_amount($r11)
-  $r14 <- min_int($r8, $r13)
-  $r15 <- load_const("d1")
-  send_to_account(account: $r15, cap: $r14)
-  $r8 <- sub_int($r8, $r14)
-  $r16 <- load_const("d2")
-  send_to_account(account: $r16, cap: $r8)
-`))
+  $r6 <- pull_account(account: $r5, cap: $r4, overdraft: 0)
+  check_enough_funds($r6, $r4)
+  $r7 <- int_copy($r6)
+  $r8 <- load_const("USD/2")
+  $r9 <- load_const(4)
+  $r10 <- mk_monetary($r8, $r9)
+  $r11 <- get_asset($r10)
+  assert_same_asset($r11, $r3)
+  $r12 <- get_amount($r10)
+  $r13 <- min_int($r7, $r12)
+  $r14 <- load_const("d1")
+  send_to_account(account: $r14, cap: $r13)
+  $r7 <- sub_int($r7, $r13)
+  $r15 <- load_const("d2")
+  send_to_account(account: $r15, cap: $r7)
+`),
+	)
 }

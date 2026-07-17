@@ -137,6 +137,105 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	requirePostingsEqual(t, want, res.Postings)
 }
 
+// TestE2E_OptimizedMatches runs each script through the OPTIONAL peephole pass
+// (compile -> optimize -> assemble -> run) and asserts the postings are identical
+// to the unoptimized pipeline, and that the pass actually removed instructions.
+func TestE2E_OptimizedMatches(t *testing.T) {
+	cases := []struct {
+		name  string
+		src   string
+		store e2eStore
+		want  []runtime.Posting
+	}{
+		{
+			name: "simple",
+			src:  `send [USD/2 10] (source = @src destination = @dest)`,
+			store: e2eStore{balances: map[runtime.PairKey]*big.Int{
+				{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+			}},
+			want: []runtime.Posting{{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)}},
+		},
+		{
+			name: "capped-inorder",
+			src:  `send [USD/2 10] (source = { @a max [USD/2 5] from @b @c } destination = @dest)`,
+			store: e2eStore{balances: map[runtime.PairKey]*big.Int{
+				{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+				{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+				{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+			}},
+			want: []runtime.Posting{
+				{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
+				{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+				{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed := parser.Parse(tc.src)
+			require.Empty(t, parsed.Errors)
+
+			_, plain, cErr := compiler.Compile(parsed.Value)
+			require.Nil(t, cErr)
+
+			_, optimized, oErr := compiler.CompileWithOptimizations(parsed.Value)
+			require.Nil(t, oErr)
+
+			require.Less(t, len(optimized.Instructions), len(plain.Instructions),
+				"peephole should remove instructions")
+
+			res, execErr := vm.Exec(context.Background(), vm.NewVm(optimized), nil, tc.store)
+			require.Nil(t, execErr)
+			requirePostingsEqual(t, tc.want, res.Postings)
+		})
+	}
+}
+
+// TestE2E_ReusedVMStaysCorrect runs the same Vm many times (reusing its runstate,
+// which recycles big.Ints across runs via the freelist). It guards against pool
+// aliasing/corruption: every run must yield identical, correct postings, and
+// varying the store between runs must be reflected.
+func TestE2E_ReusedVMStaysCorrect(t *testing.T) {
+	src := `
+		send [USD/2 10] (
+			source = { @a max [USD/2 5] from @b @c }
+			destination = @dest
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value)
+	require.Nil(t, cErr)
+
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+	want := []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
+		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
+		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
+	}
+
+	machine := vm.NewVm(program)
+	for run := 0; run < 50; run++ {
+		res, execErr := vm.Exec(context.Background(), machine, nil, store)
+		require.Nil(t, execErr, "run %d", run)
+		requirePostingsEqual(t, want, res.Postings)
+	}
+
+	// A different store on the same Vm must be reflected (no stale cached state).
+	store2 := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(10),
+	}}
+	res, execErr := vm.Exec(context.Background(), machine, nil, store2)
+	require.Nil(t, execErr)
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+	}, res.Postings)
+}
+
 // TestE2E_InsufficientFunds checks the failure path: when the source can't cover
 // the sent amount, the VM's CheckEnoughFunds must report a MissingFundsError.
 func TestE2E_InsufficientFunds(t *testing.T) {

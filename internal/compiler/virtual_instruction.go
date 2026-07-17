@@ -67,9 +67,32 @@ type (
 		dest                  reg  // int: amount pulled
 		account               reg  // str
 		cap, overdraft, color *reg // int, int, str
+		// boundedZero means "overdraft of exactly 0" without a register (the
+		// plain-account case). It is mutually exclusive with overdraft != nil;
+		// when set, the assembler can emit the compact single-word pull op.
+		boundedZero bool
 	}
 	sendToAccount struct {
 		account, cap *reg // str, int
+	}
+	// takeAccount is a pullAccount that does NOT queue: it computes the pulled
+	// amount and debits the source, leaving the matching posting to a postAccount.
+	// Same operands as pullAccount. Produced only by the fundsBypass peephole (the
+	// source half of a fused 1-source/1-destination send); the compiler never
+	// emits it directly.
+	takeAccount struct {
+		dest                  reg  // int: amount taken
+		account               reg  // str
+		cap, overdraft, color *reg // int, int, str
+		boundedZero           bool
+	}
+	// postAccount emits a direct posting src->dst of the (already-taken) amount,
+	// crediting dst without debiting src. The destination half of a fused
+	// 1-source/1-destination send (see fundsBypass).
+	postAccount struct {
+		srcAccount, dstAccount reg  // str, str
+		amount                 reg  // int
+		color                  *reg // str
 	}
 	save struct {
 		account reg  // str
@@ -133,6 +156,12 @@ type vInstr interface {
 	dests() []reg   // registers written
 	sources() []reg // registers read
 	assemble(a *assembler) error
+
+	// mapSources returns a copy of the instruction with every source (read)
+	// register replaced by f(r). Destinations are left untouched. It is the
+	// rewrite primitive peephole passes use for register substitution. (See
+	// virtual_instruction_map.go for the implementations.)
+	mapSources(f func(reg) reg) vInstr
 }
 
 func (i pullAccount) dests() []reg   { return []reg{i.dest} }
@@ -140,6 +169,14 @@ func (i pullAccount) sources() []reg { return present(&i.account, i.cap, i.overd
 
 func (i sendToAccount) dests() []reg   { return nil }
 func (i sendToAccount) sources() []reg { return present(i.account, i.cap) }
+
+func (i takeAccount) dests() []reg   { return []reg{i.dest} }
+func (i takeAccount) sources() []reg { return present(&i.account, i.cap, i.overdraft, i.color) }
+
+func (i postAccount) dests() []reg { return nil }
+func (i postAccount) sources() []reg {
+	return present(&i.srcAccount, &i.dstAccount, &i.amount, i.color)
+}
 
 func (i makeAllotment) dests() []reg   { return i.dest }
 func (i makeAllotment) sources() []reg { return append(append([]reg{}, i.portions...), i.amount) }

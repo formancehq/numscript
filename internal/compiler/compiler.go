@@ -31,6 +31,30 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 	return compiled.varsEncoder, prog, nil
 }
 
+// CompileWithOptimizations is like Compile but runs the optional peephole
+// optimization passes (defaultPeepholes) over the virtual instructions before
+// assembling. The optimization is semantics-preserving, so the resulting program
+// yields the same postings as Compile — it just runs fewer instructions.
+func CompileWithOptimizations(program parser.Program) (VarsEncoder, vm.Program, error) {
+	compiled, cErr := compileProgramToVirtual(program)
+	if cErr != nil {
+		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
+	}
+
+	if err := typecheckInstructions(compiled.instructions); err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
+	optimized := optimize(compiled.instructions, defaultPeepholes())
+
+	prog, err := assembleProgram(optimized)
+	if err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
+	return compiled.varsEncoder, prog, nil
+}
+
 type compiledProgramVirtual struct {
 	instructions []vInstr
 	varsEncoder  VarsEncoder
@@ -476,20 +500,31 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		overdraftReg := st.pushInstructionWithDest(func(dest reg) vInstr {
-			return loadInt{
-				value: *big.NewInt(0),
-				dest:  dest,
-			}
-		})
+		// The compact bounded-zero pull op requires a cap. Without one (a send-all
+		// source), fall back to an explicit zero-overdraft register + the general
+		// pull op, which the VM runs as an uncapped, balance-bounded pull.
+		if capReg == nil {
+			overdraftReg := st.pushInstructionWithDest(func(dest reg) vInstr {
+				return loadInt{value: *big.NewInt(0), dest: dest}
+			})
+			return st.pushInstructionWithDestErr(func(dest reg) vInstr {
+				return pullAccount{
+					dest:      dest,
+					account:   accReg,
+					cap:       capReg,
+					overdraft: &overdraftReg,
+				}
+			})
+		}
 
+		// a plain account has an overdraft of exactly 0 — encode it as boundedZero
+		// (no register, no load) so the assembler can use the compact pull op.
 		return st.pushInstructionWithDestErr(func(dest reg) vInstr {
 			return pullAccount{
-				dest:      dest,
-				account:   accReg,
-				cap:       capReg,
-				overdraft: &overdraftReg,
-				color:     nil,
+				dest:        dest,
+				account:     accReg,
+				cap:         capReg,
+				boundedZero: true,
 			}
 		})
 
@@ -509,6 +544,8 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
+		// Bounded != nil -> bounded by that amount (a register); Bounded == nil ->
+		// unbounded (overdraft stays nil).
 		var overdraftReg *reg
 		if src.Bounded != nil {
 			amtReg, err := st.compileCapAmount(*src.Bounded)

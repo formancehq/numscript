@@ -3,6 +3,7 @@ package compiler_test
 import (
 	"context"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
@@ -98,7 +99,35 @@ func BenchmarkRuntimeBaseline(b *testing.B) {
 		rs.Pull(pulled, "src", "", ten, zero, "")
 		_ = pulled.Cmp(ten) // CheckEnoughFunds
 		rs.SendUncapped(&dest, "", nil)
-		_ = rs.GetPostings()
+		_ = rs.PostingsRef()
+	}
+}
+
+// BenchmarkRuntimeBaselineUnique is the WORST case for the balanceEntry
+// generation cache: every iteration touches a brand-new source account, so the
+// cache never hits — each run allocates a fresh entry (like the pre-cache impl)
+// AND the map grows unbounded (the prototype has no eviction). Contrast with
+// BenchmarkRuntimeBaseline (same hot accounts every run = best case) to bracket
+// the cache's real-workload behavior.
+func BenchmarkRuntimeBaselineUnique(b *testing.B) {
+	store := runtimeStoreAdapter{store: benchStore{balances: map[runtime.PairKey]*big.Int{}}}
+	rs := runtime.New(store)
+
+	ten := big.NewInt(10)
+	zero := big.NewInt(0)
+	pulled := new(big.Int)
+	dest := "dest"
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		src := "src" + strconv.Itoa(i) // unique every iteration -> always a cache miss
+		rs.Reset(store)
+		rs.SetCurrentAsset("USD/2")
+		rs.Pull(pulled, src, "", ten, zero, "")
+		_ = pulled.Cmp(ten)
+		rs.SendUncapped(&dest, "", nil)
+		_ = rs.PostingsRef()
 	}
 }
 
@@ -223,7 +252,7 @@ func BenchmarkRuntimeBaselineCapped(b *testing.B) {
 
 		_ = total.Cmp(ten) // check_enough_funds
 		rs.SendUncapped(&dest, "", nil)
-		_ = rs.GetPostings()
+		_ = rs.PostingsRef()
 	}
 }
 
@@ -248,4 +277,138 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 			b.Fatalf("exec: %v", err)
 		}
 	}
+}
+
+// --- peephole-optimized VM (compile -> optimize -> assemble -> reused VM) ----
+
+func benchCompiledVMOpt(b *testing.B, src string, store benchStore) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	_, program, cErr := compiler.CompileWithOptimizations(parsed.Value)
+	if cErr != nil {
+		b.Fatalf("compile: %v", cErr)
+	}
+	machine := vm.NewVm(program)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+}
+
+func BenchmarkCompiledVMOptCapped(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
+}
+
+// Fan-out allotment: 1 source -> {1/2 @a; 1/2 @b}. Exercises MakeAllotment's
+// big.Rat arithmetic and the (not-bypassed) queue drain across two capped sends.
+const benchSrcAllotment = `send [USD/2 100] (
+	source = @src
+	destination = {
+		1/2 to @a
+		1/2 to @b
+	}
+)`
+
+func BenchmarkCompiledVMOptAllotment(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotment, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+// Fan-in: {1/3 from @a; 1/3 from @b; 1/3 from @c} -> @dest. Allotment source (no
+// early-exit jump), so the funds-bypass fires: 3 takes + 3 posts, no queue.
+const benchSrcFanIn = `send [USD/2 30] (
+	source = {
+		1/3 from @a
+		1/3 from @b
+		1/3 from @c
+	}
+	destination = @dest
+)`
+
+func fanInStore() benchStore {
+	return benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+}
+
+// Naive (no peepholes) vs Opt isolates JUST the funds-bypass: both share the
+// always-on runtime wins (balance cache, integer portions), so the delta is the
+// queue (pull/send) vs take/post.
+func BenchmarkCompiledVMFanInNaive(b *testing.B) {
+	benchCompiledVMNaive(b, benchSrcFanIn, fanInStore())
+}
+func BenchmarkCompiledVMOptFanIn(b *testing.B) { benchCompiledVMOpt(b, benchSrcFanIn, fanInStore()) }
+
+func benchCompiledVMNaive(b *testing.B, src string, store benchStore) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	_, program, cErr := compiler.Compile(parsed.Value)
+	if cErr != nil {
+		b.Fatalf("compile: %v", cErr)
+	}
+	machine := vm.NewVm(program)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+// --- cold VM (fresh Vm per iteration): exposes the funds-queue allocation the
+// funds-bypass saves, which a reused VM hides via its big.Int free pool. -------
+
+func benchCompiledVMCold(b *testing.B, src string, store benchStore, optimize bool) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	compile := compiler.Compile
+	if optimize {
+		compile = compiler.CompileWithOptimizations
+	}
+	_, program, err := compile(parsed.Value)
+	if err != nil {
+		b.Fatalf("compile: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		machine := vm.NewVm(program) // fresh runstate each iteration (no pooling)
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMCold(b *testing.B) {
+	benchCompiledVMCold(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}, false)
+}
+
+func BenchmarkCompiledVMOptCold(b *testing.B) {
+	benchCompiledVMCold(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}, true)
 }

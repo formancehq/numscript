@@ -26,9 +26,13 @@ func (opPortionToString) String() string  { return "portion_to_string" }
 func (opMonetaryToString) String() string { return "monetary_to_string" }
 
 func (i pullAccount) String() string {
+	overdraft := optLabel("overdraft", i.overdraft)
+	if i.boundedZero {
+		overdraft = "overdraft: 0"
+	}
 	opts := joinOpts(
 		optLabel("cap", i.cap),
-		optLabel("overdraft", i.overdraft),
+		overdraft,
 		optLabel("color", i.color),
 	)
 	s := fmt.Sprintf("%s <- pull_account(account: %s", i.dest, i.account)
@@ -41,6 +45,28 @@ func (i pullAccount) String() string {
 func (i sendToAccount) String() string {
 	opts := joinOpts(optLabel("account", i.account), optLabel("cap", i.cap))
 	return fmt.Sprintf("send_to_account(%s)", opts)
+}
+
+func (i takeAccount) String() string {
+	overdraft := optLabel("overdraft", i.overdraft)
+	if i.boundedZero {
+		overdraft = "overdraft: 0"
+	}
+	opts := joinOpts(optLabel("cap", i.cap), overdraft, optLabel("color", i.color))
+	s := fmt.Sprintf("%s <- take_account(account: %s", i.dest, i.account)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
+}
+
+func (i postAccount) String() string {
+	opts := joinOpts(optLabel("color", i.color))
+	s := fmt.Sprintf("post_account(src: %s, dst: %s, amount: %s", i.srcAccount, i.dstAccount, i.amount)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
 }
 
 func (i makeAllotment) String() string {
