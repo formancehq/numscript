@@ -129,7 +129,7 @@ type (
 	labelMarker struct{ label label }
 )
 
-type vInstr interface {
+type irInstr interface {
 	dests() []reg   // registers written
 	sources() []reg // registers read
 	assemble(a *assembler) error

@@ -28,7 +28,7 @@ func (t regType) String() string {
 	}
 }
 
-// bytecodeTypechecker validates a virtual-instruction stream one instruction at
+// bytecodeTypechecker validates a IR stream one instruction at
 // a time. It remembers the type each register was written with; a later read of
 // that register with a different type, or a read before any write, is a bug in
 // the code that produced the instructions. The state is updated as each
@@ -70,7 +70,7 @@ func (tc *bytecodeTypechecker) def(r reg, t regType) error {
 }
 
 // check typechecks a single instruction, updating the state on success.
-func (tc *bytecodeTypechecker) check(instr vInstr) error {
+func (tc *bytecodeTypechecker) check(instr irInstr) error {
 	switch i := instr.(type) {
 	case loadInt:
 		return tc.def(i.dest, regInt)
@@ -161,7 +161,7 @@ func (tc *bytecodeTypechecker) check(instr vInstr) error {
 	}
 }
 
-func typecheckInstructions(instrs []vInstr) error {
+func typecheckInstructions(instrs []irInstr) error {
 	tc := newBytecodeTypechecker()
 	for pos, instr := range instrs {
 		if err := tc.check(instr); err != nil {

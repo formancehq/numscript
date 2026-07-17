@@ -156,7 +156,7 @@ func (i unaryOp) String() string {
 func (i labelMarker) String() string { return i.label.String() }
 
 // dump renders a program: labels flush-left, instructions indented.
-func dump(code []vInstr) string {
+func dump(code []irInstr) string {
 	var b strings.Builder
 	for _, in := range code {
 		if _, ok := in.(labelMarker); ok {

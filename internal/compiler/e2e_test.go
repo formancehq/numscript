@@ -31,7 +31,7 @@ func (s e2eStore) GetMetadata(ctx context.Context, account, key string) (string,
 }
 
 // TestE2E_CompileAssembleRun exercises the whole pipeline: source -> compiler
-// (virtual instructions) -> assembler (vm.Program) -> VM execution -> postings.
+// (IR) -> assembler (vm.Program) -> VM execution -> postings.
 func TestE2E_CompileAssembleRun(t *testing.T) {
 	src := `
 		send [USD/2 10] (

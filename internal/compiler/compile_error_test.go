@@ -1,7 +1,7 @@
 package compiler
 
 // White-box tests asserting the concrete CompilerError produced for invalid
-// programs. They call compileProgramToVirtual directly, since the public Compile
+// programs. They call compileProgramToIR directly, since the public Compile
 // stringifies the error and would lose the type.
 
 import (
@@ -15,7 +15,7 @@ import (
 func TestE2E_RejectsUnboundVariable(t *testing.T) {
 	parsed := parser.Parse(`send [C 10] (source = $undeclared destination = @d)`)
 	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToVirtual(parsed.Value)
+	_, cErr := compileProgramToIR(parsed.Value)
 	require.IsType(t, TypeError{}, cErr)
 	require.IsType(t, typecheck.UnboundVariable{}, cErr.(TypeError).Kind)
 }
@@ -23,7 +23,7 @@ func TestE2E_RejectsUnboundVariable(t *testing.T) {
 func TestE2E_RejectsTypeMismatch(t *testing.T) {
 	parsed := parser.Parse(`vars { string $s } send [C 10] (source = $s destination = @d)`)
 	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToVirtual(parsed.Value)
+	_, cErr := compileProgramToIR(parsed.Value)
 	require.IsType(t, TypeError{}, cErr)
 	require.IsType(t, typecheck.TypeMismatch{}, cErr.(TypeError).Kind)
 }
@@ -39,7 +39,7 @@ func TestE2E_RejectsMetaOutsideVarOrigin(t *testing.T) {
 		send [C $n] (source = @world destination = @d)
 	`)
 	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToVirtual(parsed.Value)
+	_, cErr := compileProgramToIR(parsed.Value)
 	require.IsType(t, InvalidMetaPosition{}, cErr)
 }
 
@@ -51,7 +51,7 @@ func TestE2E_RejectsNonCastableInterpVar(t *testing.T) {
 		set_tx_meta("k", @acc:$m)
 	`)
 	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToVirtual(parsed.Value)
+	_, cErr := compileProgramToIR(parsed.Value)
 	require.IsType(t, CannotCastToString{}, cErr)
 	require.Equal(t, typecheck.TypeMonetary, cErr.(CannotCastToString).Type)
 }
@@ -67,6 +67,6 @@ func TestE2E_AllotmentDuplicateRemaining(t *testing.T) {
 		)
 	`)
 	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToVirtual(parsed.Value)
+	_, cErr := compileProgramToIR(parsed.Value)
 	require.IsType(t, DuplicateRemaining{}, cErr)
 }

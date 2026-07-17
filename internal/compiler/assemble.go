@@ -95,7 +95,7 @@ type patch struct {
 	getInstruction func(labelIndex uint16) vm.Instruction
 }
 
-// assembler lowers virtual instructions into a vm.Program.
+// assembler lowers IR instructions into a vm.Program.
 type assembler struct {
 	instructions []vm.Instruction
 
@@ -112,7 +112,7 @@ type assembler struct {
 	stringsPool constPool[string]
 }
 
-func assembleProgram(instrs []vInstr) (vm.Program, error) {
+func assembleProgram(instrs []irInstr) (vm.Program, error) {
 	a := &assembler{
 		ints:       newRegPool(),
 		strings:    newRegPool(),

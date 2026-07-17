@@ -11,7 +11,7 @@ import (
 func getCompiledOutput(t *testing.T, source string) string {
 	program := parser.Parse(source)
 	require.Empty(t, program.Errors)
-	compiled, err := compileProgramToVirtual(program.Value)
+	compiled, err := compileProgramToIR(program.Value)
 	require.Nil(t, err)
 
 	out := dump(compiled.instructions)
