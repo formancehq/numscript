@@ -294,6 +294,33 @@ $dest = "dest"
 send_to_account(account: $dest)
 ```
 
+#### Inorder sources (bounded)
+Let's compile the inorder source `<s1>, .., <sn>`, by storing the pulled amt in the `$pulled` register, bounded by the `$amount` cap.
+
+```
+$total = 0
+$remaining = int_copy($amount)
+
+// first source
+$pulled_s1 = <compile s1, capped by $remaining>
+$total += $pulled_s1
+$remaining -= $pulled_s1
+jmp_if_zero($remaining, #inorder_end)
+
+// second source
+$pulled_s2 = <compile s2, capped by $remaining>
+$total += $pulled_s2
+$remaining -= $pulled_s2
+jmp_if_zero($remaining, #inorder_end)
+
+..
+
+$pulled_sn = <compile sn, capped by $remaining>
+$total += $pulled_sn
+// last one doesn't need jump
+
+#inorder_end
+```
 
 
 ### Optimisations
