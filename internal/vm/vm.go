@@ -115,10 +115,10 @@ func Exec[S Store](
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
 	// access.
-	intsRegs := &vm.intsRegs
-	stringsRegs := &vm.stringsRegs
-	portionsRegs := &vm.portionsRegs
-	monetariesRegs := &vm.monetariesRegs
+	intsRegs := vm.intsRegs
+	stringsRegs := vm.stringsRegs
+	portionsRegs := vm.portionsRegs
+	monetariesRegs := vm.monetariesRegs
 	intsPool := vm.program.IntsPool
 	stringsPool := vm.program.StringsPool
 
