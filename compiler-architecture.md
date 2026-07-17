@@ -140,7 +140,7 @@ arr<T> (8 B)
 
 The header section's items order is pre-defined (the order in the ASCII drawing above).
 But the compiler is free to arrange sections in the body however it's more convenient (e.g. it may perform optimization to ensure padded sections in the future).
-Each `arr` header describes a slice of data (relative to the beginning of the body section).
+Each `arr` header describes a slice of data (as an absolute offset from the beginning of the buffer).
 
 The instructions section describes a slice of bytes that gets hydrated into a `[]vm.Instruction` slice when `vm.Program` is parsed.
 
