@@ -2,8 +2,18 @@
 
 Everything on this branch is a performance change over `feat/exp/vm`; behavior is
 identical (validated by running the whole script-test corpus in both modes, see
-`internal/compiler/scripts_test.go`). Optimization is **opt-in**: `Compile` is
-unchanged and naive; `CompileWithOptimizations` runs the peepholes.
+`internal/compiler/scripts_test.go`).
+
+Two layers, with different opt-in status:
+
+- **Peepholes** are opt-in at compile time: `Compile` is unchanged and naive;
+  `CompileWithOptimizations` runs them. Nothing else changes the bytecode.
+- **Runtime & VM changes** (the allocation/queue work below) are always active —
+  they speed up any compiled program, naive or optimized, since both execute on
+  the same VM and `runtime.RunState`.
+
+Most of these target the **warm** path (a reused `Vm`/`RunState` across many
+runs); allocations they remove are per-run, so the win compounds with reuse.
 
 ## Peepholes (`internal/compiler/peephole*.go`)
 
@@ -35,16 +45,16 @@ Compact / specialized forms to cut per-instruction work:
   Pull without the queue append; Post = a direct posting with no debit.
   `Op_TakeCapZero` is the single-word plain-account form.
 
-## Runtime (`internal/runtime/runtime.go`)
+## Runtime (`internal/runtime/`)
 
-There is **one** allocation strategy, not a naive/optimized pair — a single
-`*big.Int` free-list reused across runs, plus a couple of scratch/index tricks:
+The bulk of the win is here: driving per-run heap allocation on the hot (warm,
+reused-VM) path toward zero. Grouped by what they attack.
+
+### Funds queue (`runtime.go`)
 
 - **`free` pool (`takeBig`/`putBig`)** — recycles `big.Int`s across `Reset`:
   queued-source amounts (reclaimed when consumed/merged/dropped) and posting
-  amounts (reclaimed at `Reset`). So a **reused** VM does ~no per-run heap
-  allocation on the funds path. (Balance amounts are not pooled — they live inline
-  in `balanceEntry`.)
+  amounts (reclaimed at `Reset`).
 - **`head` FIFO index** — the source queue consumes from the front by `head++`
   instead of shifting the slice, so a front-to-back drain is O(1) per pop (an
   O(n²) drain becomes O(n)); `rewindIfEmpty` reclaims the dead prefix.
@@ -52,6 +62,50 @@ There is **one** allocation strategy, not a naive/optimized pair — a single
   capped send allocates nothing.
 - **`PostingsRef()`** — returns the internal postings slice with no copy, for
   hot-loop callers that consume it immediately (vs `GetPostings`, which copies).
+
+### Balance cache — generation-stamped (`runtime.go`)
+
+- Balances live in `map[PairKey]*balanceEntry`. `Reset` bumps a **generation
+  counter** (`s.gen`) instead of `clear`-ing the map; each `balanceEntry` records
+  the gen it was last touched in and is **lazily reset on first access** in a new
+  run (`freshen`), reusing the struct *and* its embedded `big.Int` backing array.
+  So a reused VM re-allocates ~no balance entries for recurring accounts — where
+  the old code allocated one `balanceEntry` per account per run.
+- Impact (warm): single→single **5 → 1 alloc/op** (~−27% ns); a 3-source send
+  **10 → 1 alloc/op**.
+- **Caveat / prototype status:** no eviction yet — the map grows with distinct
+  accounts across runs. Fine for a hot/recurring working set; an all-unique-account
+  workload regresses to ~baseline allocs *and* grows memory unbounded. A production
+  version needs a size cap (the gen doubles as an LRU clock; pin the
+  compiler-known static keys as the floor).
+
+### Portions & allotments — integer, no `big.Rat` (`allotment.go`, `runtime.go`)
+
+- **`runtime.Portion{Num, Den big.Int}`** (unreduced, `Den > 0`) replaces
+  `big.Rat` in the VM's `portionsRegs`. The portion ops (`MkPortion`,
+  `SubPortion`, `PortionCopy`) run integer-only and **in place** (reusing the
+  register's `big.Int` backing; `SubPortion` uses a VM `portScratch [2]big.Int`).
+  Reduction is never needed — `floor(amount * Num / Den)` is invariant under it.
+- **`MakeAllotment`** is a method on `RunState` using reusable scratch
+  (`allotTotal`/`allotTmp`) and integer `floor(amount*Num/Den)` — the old free
+  function allocated a `big.Rat` per portion.
+- Rare paths preserved: `PortionToString` reduces via `big.Rat` for canonical
+  output; `MetaPortion` converts `ParsePortion`'s `*big.Rat` (which stays
+  `*big.Rat` — it is shared with the interpreter and the vars encoder).
+- Impact (warm): allotment fan-out `{1/2 to @a; 1/2 to @b}` **31 → 1 alloc/op**
+  (~1100 → ~450 ns, ~2.4×).
+- **Caveat:** unreduced denominators grow multiplicatively across a `sub_portion`
+  chain (the `1 − p₁ − p₂ …` leftover). Bounded/tiny for realistic allotments;
+  a production version could reduce periodically if it ever mattered.
+
+## Not yet done (candidates)
+
+- **Right-size the `Vm` register banks** — `NewVm` allocates fixed `[256]` banks
+  (`[256]big.Rat` alone ≈16KB, ~50KB total); this dominates the *cold* path. The
+  assembler already knows the exact per-bank count (`regPool.next`); threading it
+  into `Program` would size them to fit. (Warm reuse already amortizes this.)
+- **Extend `fundsBypass` to fan-out / fan-in** — peephole-only, reuses
+  `take`/`post`; removes the queue for allotment destinations and inorder sources.
 
 ## Exposure
 
