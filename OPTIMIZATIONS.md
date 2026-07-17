@@ -23,12 +23,28 @@ fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`, `deadCode`.
 - **`monetaryFold`** — removes the `mk_monetary(A,M)` → `get_asset`/`get_amount`
   round-trip: consumers read the asset/amount registers directly. The dead
   `mk_monetary` is then dropped by `deadCode`.
-- **`fundsBypass`** — fuses a 1-source/1-destination `send` so it skips the
-  `runtime` funds queue. Detects the shape by abstract-interpreting the queue
-  over the instruction list (a drain-all send over a depth-1 queue); rewrites the
-  `pull_account` → `take_account` (debit, no queue) and the `send_to_account` →
-  `post_account` (posting, no debit). Fan-out / fan-in / N×M are left as
-  pull/send and still use the runtime queue. See `queue-bypass` notes.
+- **`fundsBypass`** — skips the `runtime` funds queue for `send`s whose
+  source→destination pairing is static, rewriting `pull_account` →
+  `take_account` (debit, no queue) and `send_to_account` → `post_account`
+  (posting, no debit). It segments the stream into send-statement regions (by
+  `set_current_asset`, where the queue is provably empty) and classifies each by
+  pull count P / send count S:
+  - **single→single** (P=1, S=1 drain-all) — one take, one post.
+  - **fan-out** (P=1, S>1) — one take, one post per destination. Restricted to
+    **allotment** destinations (shares provably in `[0,got]` summing to `got`); an
+    inorder dest is left to the queue because a negative `max` clause can push a
+    send's cap above the available funds, which the queue clamps but a raw post
+    would not.
+  - **fan-in** (P>1, S=1 drain-all) — one take + one post per source. Guarded by
+    statically-distinct source accounts (else the queue's `compactAt` would
+    coalesce same-account funds into one posting) and no early-exit jump (an
+    inorder cap-exhaustion jump would skip pulls, leaving their amounts stale) —
+    so it fires for allotment sources and send-all inorder, not capped inorder.
+
+  The true N×M case (both sides branch) keeps the queue. Impact is CPU-only
+  (allocs are already ~1/op from the runtime work below): single→single ~9%,
+  fan-out ~13%, fan-in ~negligible (the queue's O(1) front-pop + pooled amounts
+  leave little to remove for a clean FIFO drain).
 - **`deadCode`** — drops pure instructions (loads, arithmetic) whose result is
   never read. Cleans up after the other two.
 
@@ -92,8 +108,9 @@ reused-VM) path toward zero. Grouped by what they attack.
 - Rare paths preserved: `PortionToString` reduces via `big.Rat` for canonical
   output; `MetaPortion` converts `ParsePortion`'s `*big.Rat` (which stays
   `*big.Rat` — it is shared with the interpreter and the vars encoder).
-- Impact (warm): allotment fan-out `{1/2 to @a; 1/2 to @b}` **31 → 1 alloc/op**
-  (~1100 → ~450 ns, ~2.4×).
+- Impact (warm): allotment fan-out `{1/2 to @a; 1/2 to @b}` went **31 allocs /
+  ~1100 ns → 1 alloc / ~390 ns** (this change removed the 30 `big.Rat` allocs;
+  `fundsBypass` then removed the queue for the remaining CPU).
 - **Caveat:** unreduced denominators grow multiplicatively across a `sub_portion`
   chain (the `1 − p₁ − p₂ …` leftover). Bounded/tiny for realistic allotments;
   a production version could reduce periodically if it ever mattered.
@@ -104,8 +121,10 @@ reused-VM) path toward zero. Grouped by what they attack.
   (`[256]big.Rat` alone ≈16KB, ~50KB total); this dominates the *cold* path. The
   assembler already knows the exact per-bank count (`regPool.next`); threading it
   into `Program` would size them to fit. (Warm reuse already amortizes this.)
-- **Extend `fundsBypass` to fan-out / fan-in** — peephole-only, reuses
-  `take`/`post`; removes the queue for allotment destinations and inorder sources.
+- **`balanceEntry` cache eviction** — the generation cache never evicts, so an
+  all-unique-account workload grows the map unbounded. A production version needs
+  a size cap (the generation doubles as an LRU clock; pin the compiler-known
+  static keys as the floor).
 
 ## Exposure
 

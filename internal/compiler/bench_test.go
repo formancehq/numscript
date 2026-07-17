@@ -327,6 +327,53 @@ func BenchmarkCompiledVMOptAllotment(b *testing.B) {
 	}})
 }
 
+// Fan-in: {1/3 from @a; 1/3 from @b; 1/3 from @c} -> @dest. Allotment source (no
+// early-exit jump), so the funds-bypass fires: 3 takes + 3 posts, no queue.
+const benchSrcFanIn = `send [USD/2 30] (
+	source = {
+		1/3 from @a
+		1/3 from @b
+		1/3 from @c
+	}
+	destination = @dest
+)`
+
+func fanInStore() benchStore {
+	return benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+}
+
+// Naive (no peepholes) vs Opt isolates JUST the funds-bypass: both share the
+// always-on runtime wins (balance cache, integer portions), so the delta is the
+// queue (pull/send) vs take/post.
+func BenchmarkCompiledVMFanInNaive(b *testing.B) {
+	benchCompiledVMNaive(b, benchSrcFanIn, fanInStore())
+}
+func BenchmarkCompiledVMOptFanIn(b *testing.B) { benchCompiledVMOpt(b, benchSrcFanIn, fanInStore()) }
+
+func benchCompiledVMNaive(b *testing.B, src string, store benchStore) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	_, program, cErr := compiler.Compile(parsed.Value)
+	if cErr != nil {
+		b.Fatalf("compile: %v", cErr)
+	}
+	machine := vm.NewVm(program)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
 // --- cold VM (fresh Vm per iteration): exposes the funds-queue allocation the
 // funds-bypass saves, which a reused VM hides via its big.Int free pool. -------
 
