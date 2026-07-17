@@ -208,6 +208,93 @@ Other differences in the instruction set include:
 
 This split allows us to implement peephole optimisations (bytecode rewriting) - see the "optimisation" section.
 
+We'll use the `irInstr` notation in the following sections:
+```
+// instructions can have many args, which may have labels,
+// and may write the result into another register
+$my_reg = some_instr($arg_reg, label: $another_arg)
+
+// consts use literals directly:
+$some_int = 42
+$some_str = "USD/2"
+
+// special syntax for int math:
+$tot = $x + $y
+// auto-increment syntax
+$tot += $x
+```
+a meta-notation is used for parametrized exprs/sources/dests
+
+#### Bounded send statement
+
+```num
+send <monetary> (
+  source = <src>
+  destination = <dest>
+)
+```
+
+```
+$mon = <compiled monetary>
+$asset = get_asset($mon)
+set_current_asset($asset) // needed for pull_account and send_to_account
+$amount = get_amount($mon)
+
+// a source always compiles by putting the pulled amt into a reg
+$pulled = <compiled src>
+
+// we check if we managed to pull enough funds, or fail due to missing funds
+check_enough_funds($pulled, $amount)
+
+<compiled dest>
+```
+
+#### Plain account source/dest (bounded)
+Let's compile the `@src` source account, bounded by the value in the `$amount` reg.
+It'll write pulled amount into the `$pulled` reg:
+
+```
+$src = "src"
+$overdraft = 0
+$pulled = pull_account(
+  account: $src,
+  cap: $amount,
+  overdraft: $overdraft,
+)
+```
+
+the plain `@dest` destination account will look like:
+```
+$dest = "dest"
+send_to_account(account: $dest)
+```
+
+Here's a full example of a send statement:
+```
+send [USD/2 10] (
+  source = @src
+  destination = @dest
+)
+```
+
+output:
+
+```
+$asset_lit = "USD/2"
+$amount_lit = 10
+$mon = mk_monetary($asset_lit, $amount_lit)
+$asset = get_asset($mon)
+set_current_asset($asset)
+$amount = get_amount($mon)
+$src = "src"
+$overdraft = 0
+$pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+check_enough_funds($pulled, $amount)
+$dest = "dest"
+send_to_account(account: $dest)
+```
+
+
 
 ### Optimisations
 TODO!
