@@ -281,3 +281,42 @@ func BenchmarkCompiledVMOpt(b *testing.B) {
 func BenchmarkCompiledVMOptCapped(b *testing.B) {
 	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
 }
+
+// --- cold VM (fresh Vm per iteration): exposes the funds-queue allocation the
+// funds-bypass saves, which a reused VM hides via its big.Int free pool. -------
+
+func benchCompiledVMCold(b *testing.B, src string, store benchStore, optimize bool) {
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	compile := compiler.Compile
+	if optimize {
+		compile = compiler.CompileWithOptimizations
+	}
+	_, program, err := compile(parsed.Value)
+	if err != nil {
+		b.Fatalf("compile: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		machine := vm.NewVm(program) // fresh runstate each iteration (no pooling)
+		if _, err := vm.Exec(context.Background(), machine, nil, store); err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMCold(b *testing.B) {
+	benchCompiledVMCold(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}, false)
+}
+
+func BenchmarkCompiledVMOptCold(b *testing.B) {
+	benchCompiledVMCold(b, benchSrc, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}, true)
+}

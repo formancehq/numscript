@@ -363,6 +363,80 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	return nil
 }
 
+// Take computes the available amount from src exactly as Pull (same overdraft
+// convention: nil => unbounded) and debits src, but WITHOUT queuing it. The
+// amount is written into out. Paired with PostDirect, this is Pull+Send for a
+// 1-source/1-destination send with the queue round-trip elided — the debit
+// happens here (at the source site), the posting later at the destination site.
+// See the compiler's funds-bypass peephole.
+func (s *RunState) Take(out *big.Int, src, scope string, cap, overdraft *big.Int, color string) error {
+	if overdraft == nil {
+		// unbounded: available = max(0, cap), independent of the balance
+		out.Set(cap)
+		if out.Sign() < 0 {
+			out.SetInt64(0)
+		}
+		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
+		e.amount.Sub(&e.amount, out) // record the debit as a delta (no base fetch)
+		return nil
+	}
+
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
+
+	// eff = max(0, currentBal + max(0, overdraft)); available = min(eff, cap)
+	out.Set(currentBal)
+	if overdraft.Sign() > 0 {
+		out.Add(out, overdraft)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+	if cap.Cmp(out) < 0 {
+		out.Set(cap)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+
+	currentBal.Sub(currentBal, out) // debit in place
+	return nil
+}
+
+// TakeUncapped is Take for the uncapped (send-all) source: available =
+// max(0, balance + max(0, overdraftBound)), debited from src, no queuing. Mirrors
+// PullUncapped's amount math.
+func (s *RunState) TakeUncapped(out *big.Int, src, scope string, overdraftBound *big.Int, color string) error {
+	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
+	if err != nil {
+		return err
+	}
+
+	out.Set(currentBal)
+	if overdraftBound.Sign() > 0 {
+		out.Add(out, overdraftBound)
+	}
+	if out.Sign() < 0 {
+		out.SetInt64(0)
+	}
+
+	if out.Sign() > 0 {
+		currentBal.Sub(currentBal, out)
+	}
+	return nil
+}
+
+// PostDirect appends a posting src->dst of amount (currentAsset, color) and
+// credits dst, WITHOUT debiting src — the caller already debited it (via Take).
+// A non-positive amount is a no-op. It is the destination-site half of the
+// funds-bypass fast path; unlike ForcePosting it uses currentAsset and does not
+// touch the source balance.
+func (s *RunState) PostDirect(src, srcScope, dst, dstScope, color string, amount *big.Int) error {
+	return s.addPosting(src, srcScope, dst, dstScope, s.currentAsset, color, amount)
+}
+
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
 // funding sources in FIFO order until cap is satisfied or eligible sources run
 // out, and each emitted posting carries the *consumed source's* own color.

@@ -29,6 +29,22 @@ func (i sendToAccount) mapSources(f func(reg) reg) vInstr {
 	return i
 }
 
+func (i takeAccount) mapSources(f func(reg) reg) vInstr {
+	i.account = f(i.account)
+	i.cap = mapOptReg(f, i.cap)
+	i.overdraft = mapOptReg(f, i.overdraft)
+	i.color = mapOptReg(f, i.color)
+	return i
+}
+
+func (i postAccount) mapSources(f func(reg) reg) vInstr {
+	i.srcAccount = f(i.srcAccount)
+	i.dstAccount = f(i.dstAccount)
+	i.amount = f(i.amount)
+	i.color = mapOptReg(f, i.color)
+	return i
+}
+
 func (i save) mapSources(f func(reg) reg) vInstr {
 	i.account = f(i.account)
 	i.asset = f(i.asset)

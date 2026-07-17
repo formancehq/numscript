@@ -190,6 +190,61 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_Take:
+			instrExt := instrs[pc]
+			pc++
+
+			src := vm.stringsRegs[instr.B]
+
+			var cap *big.Int
+			if instr.C != nilReg {
+				cap = &vm.intsRegs[instr.C]
+			}
+
+			var overdraft *big.Int
+			if src != worldAccount && instrExt.A != nilReg {
+				overdraft = &vm.intsRegs[instrExt.A]
+			}
+
+			var color string
+			if instrExt.B != nilReg {
+				color = vm.stringsRegs[instrExt.B]
+			}
+
+			out := &vm.intsRegs[instr.A]
+			switch {
+			case cap != nil:
+				if err := runstate.Take(out, src, "", cap, overdraft, color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
+			case overdraft != nil:
+				if err := runstate.TakeUncapped(out, src, "", overdraft, color); err != nil {
+					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				}
+			default:
+				return runtime.ExecutionResult{}, InvalidUncappedSource{Account: src}
+			}
+
+		case Op_TakeCapZero:
+			src := vm.stringsRegs[instr.B]
+
+			overdraft := bigZero // bounded by 0...
+			if src == worldAccount {
+				overdraft = nil // ...except world, which is unbounded
+			}
+
+			if err := runstate.Take(&vm.intsRegs[instr.A], src, "", &vm.intsRegs[instr.C], overdraft, ""); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
+		case Op_Post:
+			src := vm.stringsRegs[instr.A]
+			dst := vm.stringsRegs[instr.B]
+			amount := &vm.intsRegs[instr.C]
+			if err := runstate.PostDirect(src, "", dst, "", "", amount); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
 		case Op_MkAllotment:
 			// TODO crashes if this is the last instruction (missing ext word),
 			// same as Op_PullAccount.

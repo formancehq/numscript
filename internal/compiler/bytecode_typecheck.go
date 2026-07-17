@@ -106,6 +106,21 @@ func (tc *bytecodeTypechecker) check(instr vInstr) error {
 		)
 	case sendToAccount:
 		return firstErr(tc.useOpt(i.account, regStr), tc.useOpt(i.cap, regInt))
+	case takeAccount:
+		return firstErr(
+			tc.use(i.account, regStr),
+			tc.useOpt(i.cap, regInt),
+			tc.useOpt(i.overdraft, regInt),
+			tc.useOpt(i.color, regStr),
+			tc.def(i.dest, regInt),
+		)
+	case postAccount:
+		return firstErr(
+			tc.use(i.srcAccount, regStr),
+			tc.use(i.dstAccount, regStr),
+			tc.use(i.amount, regInt),
+			tc.useOpt(i.color, regStr),
+		)
 	case save:
 		return firstErr(tc.use(i.account, regStr), tc.use(i.asset, regStr), tc.useOpt(i.amount, regInt))
 

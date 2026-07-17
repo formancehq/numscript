@@ -13,6 +13,7 @@ type peephole interface {
 func defaultPeepholes() []peephole {
 	return []peephole{
 		monetaryFold{},
+		fundsBypass{},
 		deadCode{},
 	}
 }

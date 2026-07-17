@@ -47,6 +47,28 @@ func (i sendToAccount) String() string {
 	return fmt.Sprintf("send_to_account(%s)", opts)
 }
 
+func (i takeAccount) String() string {
+	overdraft := optLabel("overdraft", i.overdraft)
+	if i.boundedZero {
+		overdraft = "overdraft: 0"
+	}
+	opts := joinOpts(optLabel("cap", i.cap), overdraft, optLabel("color", i.color))
+	s := fmt.Sprintf("%s <- take_account(account: %s", i.dest, i.account)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
+}
+
+func (i postAccount) String() string {
+	opts := joinOpts(optLabel("color", i.color))
+	s := fmt.Sprintf("post_account(src: %s, dst: %s, amount: %s", i.srcAccount, i.dstAccount, i.amount)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
+}
+
 func (i makeAllotment) String() string {
 	return fmt.Sprintf("[%s] <- mk_allot(%s, [%s])", regList(i.dest), i.amount, regList(i.portions))
 }

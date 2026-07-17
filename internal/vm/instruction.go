@@ -103,6 +103,24 @@ const (
 	// account?, cap?, color?
 	Op_SendToAccount
 
+	// --- funds-bypass fast path (1-source/1-destination send) ---
+	// Take is Pull without queuing: it computes the available amount and debits
+	// the source, leaving the posting to a later Op_Post. Same operand layout and
+	// overdraft/world handling as Op_PullAccount (2 words). Word1: A=dest(int),
+	// B=src(str), C=cap(int or nil). Word2: A=overdraft(int or nil), B=color(str
+	// or nil).
+	Op_Take
+
+	// Compact Take for the common plain-account case (cap present, overdraft
+	// bounded-zero, no color; world stays unbounded). Mirrors
+	// Op_PullAccountCapZero, single word: A=dest, B=src, C=cap.
+	Op_TakeCapZero
+
+	// Post emits a direct posting src->dst of the amount in reg C (currentAsset),
+	// crediting dst, WITHOUT debiting src (Take already did). Single word:
+	// A=src(str), B=dst(str), C=amount(int).
+	Op_Post
+
 	// --- control flow ---
 	Op_JmpIfZero // b_c = resolved instruction offset
 	// note: Label emits no instruction; it only feeds the symbol table at assemble time

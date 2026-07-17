@@ -18,6 +18,19 @@ func getCompiledOutput(t *testing.T, source string) string {
 	return "\n" + out
 }
 
+// getOptimizedOutput compiles source and runs the full peephole pipeline
+// (defaultPeepholes, to a fixpoint) before dumping — the same optimization
+// CompileWithOptimizations applies before assembling.
+func getOptimizedOutput(t *testing.T, source string) string {
+	program := parser.Parse(source)
+	require.Empty(t, program.Errors)
+	compiled, err := compileProgramToVirtual(program.Value)
+	require.Nil(t, err)
+
+	out := dump(optimize(compiled.instructions, defaultPeepholes()))
+	return "\n" + out
+}
+
 func TestSimpleProgram(t *testing.T) {
 	out := getCompiledOutput(t, `
 		send [USD/2 10] (
@@ -38,6 +51,34 @@ func TestSimpleProgram(t *testing.T) {
   check_enough_funds($r6, $r4)
   $r7 <- load_const("dest")
   send_to_account(account: $r7)
+`),
+	)
+}
+
+// TestOptimizedSimpleProgram is the same script as TestSimpleProgram, but with
+// all peepholes applied. Contrast the two snapshots:
+//   - monetaryFold + deadCode strip the mk_monetary / get_asset / get_amount
+//     round-trip (the asset/amount registers are read directly);
+//   - fundsBypass fuses the single-source/single-destination pull_account +
+//     send_to_account into take_account (debit, at the source site) +
+//     post_account (posting, at the destination site), skipping the funds queue.
+func TestOptimizedSimpleProgram(t *testing.T) {
+	out := getOptimizedOutput(t, `
+		send [USD/2 10] (
+			source = @src
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 <- load_const("USD/2")
+  $r1 <- load_const(10)
+  set_current_asset($r0)
+  $r5 <- load_const("src")
+  $r6 <- take_account(account: $r5, cap: $r1, overdraft: 0)
+  check_enough_funds($r6, $r1)
+  $r7 <- load_const("dest")
+  post_account(src: $r5, dst: $r7, amount: $r6)
 `),
 	)
 }
