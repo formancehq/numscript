@@ -7,12 +7,14 @@ import (
 	"github.com/formancehq/numscript/internal/runtime"
 )
 
-func rat(num, denom int64) big.Rat { return *big.NewRat(num, denom) }
+func portion(num, den int64) runtime.Portion {
+	return runtime.Portion{Num: *big.NewInt(num), Den: *big.NewInt(den)}
+}
 
 // allot fills a fresh buffer via MakeAllotment and returns it, for ergonomics.
-func allot(amount int64, portions []big.Rat) []big.Int {
+func allot(amount int64, portions []runtime.Portion) []big.Int {
 	out := make([]big.Int, len(portions))
-	runtime.MakeAllotment(out, big.NewInt(amount), portions)
+	runtime.New(nil).MakeAllotment(out, big.NewInt(amount), portions)
 	return out
 }
 
@@ -29,39 +31,39 @@ func wantParts(t *testing.T, got []big.Int, want []int64) {
 }
 
 func TestMakeAllotment_EvenSplit(t *testing.T) {
-	wantParts(t, allot(100, []big.Rat{rat(1, 2), rat(1, 2)}), []int64{50, 50})
+	wantParts(t, allot(100, []runtime.Portion{portion(1, 2), portion(1, 2)}), []int64{50, 50})
 }
 
 func TestMakeAllotment_UnevenSplit(t *testing.T) {
-	wantParts(t, allot(100, []big.Rat{rat(1, 4), rat(3, 4)}), []int64{25, 75})
+	wantParts(t, allot(100, []runtime.Portion{portion(1, 4), portion(3, 4)}), []int64{25, 75})
 }
 
 func TestMakeAllotment_RemainderGoesToEarliest_Thirds(t *testing.T) {
 	// 1/3 of 100 floors to 33 each (sum 99); the leftover 1 goes to the first.
-	wantParts(t, allot(100, []big.Rat{rat(1, 3), rat(1, 3), rat(1, 3)}), []int64{34, 33, 33})
+	wantParts(t, allot(100, []runtime.Portion{portion(1, 3), portion(1, 3), portion(1, 3)}), []int64{34, 33, 33})
 }
 
 func TestMakeAllotment_RemainderTwoUnits(t *testing.T) {
 	// 1/6,1/6,4/6 of 100 -> 16,16,66 (sum 98); leftover 2 -> first two get +1.
-	wantParts(t, allot(100, []big.Rat{rat(1, 6), rat(1, 6), rat(4, 6)}), []int64{17, 17, 66})
+	wantParts(t, allot(100, []runtime.Portion{portion(1, 6), portion(1, 6), portion(4, 6)}), []int64{17, 17, 66})
 }
 
 func TestMakeAllotment_HalvesOfOddAmount(t *testing.T) {
 	// 7 split in half -> 3,3 (sum 6); leftover 1 -> first.
-	wantParts(t, allot(7, []big.Rat{rat(1, 2), rat(1, 2)}), []int64{4, 3})
+	wantParts(t, allot(7, []runtime.Portion{portion(1, 2), portion(1, 2)}), []int64{4, 3})
 }
 
 func TestMakeAllotment_SinglePortionWhole(t *testing.T) {
-	wantParts(t, allot(100, []big.Rat{rat(1, 1)}), []int64{100})
+	wantParts(t, allot(100, []runtime.Portion{portion(1, 1)}), []int64{100})
 }
 
 func TestMakeAllotment_ZeroAmount(t *testing.T) {
-	wantParts(t, allot(0, []big.Rat{rat(1, 3), rat(2, 3)}), []int64{0, 0})
+	wantParts(t, allot(0, []runtime.Portion{portion(1, 3), portion(2, 3)}), []int64{0, 0})
 }
 
 func TestMakeAllotment_EmptyPortions(t *testing.T) {
 	out := []big.Int{}
-	runtime.MakeAllotment(out, big.NewInt(100), []big.Rat{})
+	runtime.New(nil).MakeAllotment(out, big.NewInt(100), []runtime.Portion{})
 	if len(out) != 0 {
 		t.Errorf("len = %d, want 0", len(out))
 	}
@@ -69,14 +71,20 @@ func TestMakeAllotment_EmptyPortions(t *testing.T) {
 
 func TestMakeAllotment_PercentageLikePortions(t *testing.T) {
 	// 19% / 81% of 10_000 -> 1900 / 8100 exactly.
-	wantParts(t, allot(10_000, []big.Rat{rat(19, 100), rat(81, 100)}), []int64{1900, 8100})
+	wantParts(t, allot(10_000, []runtime.Portion{portion(19, 100), portion(81, 100)}), []int64{1900, 8100})
+}
+
+func TestMakeAllotment_UnreducedPortionsSameAsReduced(t *testing.T) {
+	// 2/4 == 1/2: the impl keeps portions unreduced, but floor(amount*num/den) is
+	// invariant under reduction, so the split is identical.
+	wantParts(t, allot(100, []runtime.Portion{portion(2, 4), portion(2, 4)}), []int64{50, 50})
 }
 
 func TestMakeAllotment_PartsAlwaysSumToAmount(t *testing.T) {
 	// A spread that floors awkwardly must still sum exactly to the amount.
 	amount := big.NewInt(1001)
 	out := make([]big.Int, 3)
-	runtime.MakeAllotment(out, amount, []big.Rat{rat(1, 7), rat(2, 7), rat(4, 7)})
+	runtime.New(nil).MakeAllotment(out, amount, []runtime.Portion{portion(1, 7), portion(2, 7), portion(4, 7)})
 	sum := new(big.Int)
 	for i := range out {
 		sum.Add(sum, &out[i])
@@ -89,7 +97,7 @@ func TestMakeAllotment_PartsAlwaysSumToAmount(t *testing.T) {
 func TestMakeAllotment_BeyondInt64(t *testing.T) {
 	amount, _ := new(big.Int).SetString("1000000000000000000000000001", 10) // ~1e27 + 1, odd
 	out := make([]big.Int, 2)
-	runtime.MakeAllotment(out, amount, []big.Rat{rat(1, 2), rat(1, 2)})
+	runtime.New(nil).MakeAllotment(out, amount, []runtime.Portion{portion(1, 2), portion(1, 2)})
 	// floor halves are equal; the odd unit goes to the first
 	half := new(big.Int).Div(amount, big.NewInt(2)) // floor(amount/2)
 	first := new(big.Int).Add(half, big.NewInt(1))
@@ -108,18 +116,18 @@ func TestMakeAllotment_ModifiesCallerSliceAndOverwritesStale(t *testing.T) {
 	out := make([]big.Int, 2)
 	out[0].SetInt64(999)
 	out[1].SetInt64(-7)
-	runtime.MakeAllotment(out, big.NewInt(100), []big.Rat{rat(1, 4), rat(3, 4)})
+	runtime.New(nil).MakeAllotment(out, big.NewInt(100), []runtime.Portion{portion(1, 4), portion(3, 4)})
 	wantParts(t, out, []int64{25, 75})
 }
 
 func TestMakeAllotment_DoesNotMutateInputs(t *testing.T) {
-	portions := []big.Rat{rat(1, 3), rat(2, 3)}
-	p0, p1 := rat(1, 3), rat(2, 3)
+	portions := []runtime.Portion{portion(1, 3), portion(2, 3)}
 	amount := big.NewInt(100)
 	out := make([]big.Int, 2)
-	runtime.MakeAllotment(out, amount, portions)
-	if portions[0].Cmp(&p0) != 0 || portions[1].Cmp(&p1) != 0 {
-		t.Errorf("portions mutated: %v %v", portions[0].String(), portions[1].String())
+	runtime.New(nil).MakeAllotment(out, amount, portions)
+	if portions[0].Num.Int64() != 1 || portions[0].Den.Int64() != 3 ||
+		portions[1].Num.Int64() != 2 || portions[1].Den.Int64() != 3 {
+		t.Errorf("portions mutated: %+v", portions)
 	}
 	if amount.Cmp(big.NewInt(100)) != 0 {
 		t.Errorf("amount mutated: %s", amount)

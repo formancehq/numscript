@@ -25,8 +25,12 @@ type Vm struct {
 
 	stringsRegs    [256]string // asset,string,account
 	intsRegs       [256]big.Int
-	portionsRegs   [256]big.Rat
+	portionsRegs   [256]runtime.Portion
 	monetariesRegs [256]monetary
+
+	// portScratch is reusable scratch for the integer sub_portion cross-multiply,
+	// so portion arithmetic allocates nothing. Not reentrant (single-threaded VM).
+	portScratch [2]big.Int
 }
 
 func NewVm(
@@ -258,7 +262,7 @@ func Exec[S Store](
 
 			amt := &vm.intsRegs[instrExt.A]
 
-			runtime.MakeAllotment(
+			runstate.MakeAllotment(
 				destArrStartReg,
 				amt,
 				inpArrStartReg,
@@ -288,9 +292,11 @@ func Exec[S Store](
 
 		case Op_AssertLeftover:
 			leftover := &vm.portionsRegs[instr.A]
-			sign := leftover.Sign()
+			sign := leftover.Num.Sign() // Den > 0, so the fraction's sign is Num's
 			if sign < 0 || (instr.B == 1 && sign != 0) {
-				sum := new(big.Rat).Sub(big.NewRat(1, 1), leftover)
+				// sum of given portions = 1 - leftover = (Den - Num) / Den
+				num := new(big.Int).Sub(&leftover.Den, &leftover.Num)
+				sum := new(big.Rat).SetFrac(num, &leftover.Den)
 				return runtime.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *sum}
 			}
 
@@ -370,7 +376,11 @@ func Exec[S Store](
 			if perr != nil {
 				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
 			}
-			vm.portionsRegs[instr.A].Set(r)
+			// ParsePortion returns a normalized *big.Rat (Denom > 0); copy its
+			// num/den into the integer Portion register.
+			dest := &vm.portionsRegs[instr.A]
+			dest.Num.Set(r.Num())
+			dest.Den.Set(r.Denom())
 
 		case Op_MetaMonetary:
 			account, key := vm.stringsRegs[instr.B], vm.stringsRegs[instr.C]
@@ -443,7 +453,17 @@ func Exec[S Store](
 		case Op_SubPortion:
 			left := &vm.portionsRegs[instr.B]
 			right := &vm.portionsRegs[instr.C]
-			vm.portionsRegs[instr.A].Sub(left, right)
+			// (l.Num/l.Den) - (r.Num/r.Den) = (l.Num*r.Den - r.Num*l.Den)/(l.Den*r.Den)
+			// Compute into scratch first so dest may alias left or right; both dens
+			// are > 0 so the product den stays > 0.
+			t0, t1 := &vm.portScratch[0], &vm.portScratch[1]
+			t0.Mul(&left.Num, &right.Den)
+			t1.Mul(&right.Num, &left.Den)
+			t0.Sub(t0, t1)
+			t1.Mul(&left.Den, &right.Den)
+			dest := &vm.portionsRegs[instr.A]
+			dest.Num.Set(t0)
+			dest.Den.Set(t1)
 
 		case Op_MkPortion:
 			num := &vm.intsRegs[instr.B]
@@ -451,7 +471,13 @@ func Exec[S Store](
 			if den.Sign() == 0 {
 				return runtime.ExecutionResult{}, DivideByZeroError{Numerator: *num}
 			}
-			vm.portionsRegs[instr.A].SetFrac(num, den)
+			dest := &vm.portionsRegs[instr.A]
+			dest.Num.Set(num)
+			dest.Den.Set(den)
+			if den.Sign() < 0 { // keep Den > 0 (invariant relied on elsewhere)
+				dest.Num.Neg(&dest.Num)
+				dest.Den.Neg(&dest.Den)
+			}
 
 		case Op_MkMonetary:
 			asset := vm.stringsRegs[instr.B]
@@ -480,7 +506,9 @@ func Exec[S Store](
 
 		case Op_PortionCopy:
 			arg := &vm.portionsRegs[instr.B]
-			vm.portionsRegs[instr.A].Set(arg)
+			dest := &vm.portionsRegs[instr.A]
+			dest.Num.Set(&arg.Num)
+			dest.Den.Set(&arg.Den)
 
 		case Op_GetAsset:
 			arg := &vm.monetariesRegs[instr.B]
@@ -498,7 +526,10 @@ func Exec[S Store](
 			vm.stringsRegs[instr.A] = vm.intsRegs[instr.B].String()
 
 		case Op_PortionToString:
-			vm.stringsRegs[instr.A] = vm.portionsRegs[instr.B].String()
+			// rare (metadata) path: reduce via big.Rat so the string matches the
+			// canonical lowest-terms form (e.g. "1/2", not an unreduced "2/4").
+			p := &vm.portionsRegs[instr.B]
+			vm.stringsRegs[instr.A] = new(big.Rat).SetFrac(&p.Num, &p.Den).String()
 
 		case Op_MonetaryToString:
 			mon := &vm.monetariesRegs[instr.B]

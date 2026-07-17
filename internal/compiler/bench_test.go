@@ -311,6 +311,22 @@ func BenchmarkCompiledVMOptCapped(b *testing.B) {
 	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
 }
 
+// Fan-out allotment: 1 source -> {1/2 @a; 1/2 @b}. Exercises MakeAllotment's
+// big.Rat arithmetic and the (not-bypassed) queue drain across two capped sends.
+const benchSrcAllotment = `send [USD/2 100] (
+	source = @src
+	destination = {
+		1/2 to @a
+		1/2 to @b
+	}
+)`
+
+func BenchmarkCompiledVMOptAllotment(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotment, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
 // --- cold VM (fresh Vm per iteration): exposes the funds-queue allocation the
 // funds-bypass saves, which a reused VM hides via its big.Int free pool. -------
 

@@ -134,6 +134,12 @@ type RunState struct {
 	// gen is bumped on every Reset; balanceEntry.gen is compared against it to
 	// lazily invalidate the balance cache without clearing the map. See freshen.
 	gen uint64
+
+	// allotTotal/allotTmp are reusable scratch for MakeAllotment, so splitting an
+	// allotment across portions allocates nothing (the previous big.Rat impl
+	// allocated per portion). Safe to reuse: MakeAllotment is not reentrant.
+	allotTotal big.Int
+	allotTmp   big.Int
 }
 
 // freshen brings a possibly-stale entry into the current generation: an entry
