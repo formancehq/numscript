@@ -188,6 +188,10 @@ This repr allows us to quickly hydrate the bytecode into a `[]string` and `[]big
 
 The data section, str table and int table work in the exact same way as the program's. In fact the encoding/decoding code for the pools is shared between the two.
 
+An important property is that the `vm.Vars` don't have a 1-1 correspondence with the vars. The `vm.Vars` only encodes ints and strings. Composite objects, such as monetaries, are split into 2 different vars. This keeps data encoding minimal, and makes optimizations surface simplier to implement (see optimisations section below).
+
+The compiler is free to chose any encoding it wants for the vars (the first value in the str table doesn't have to be the first string variable). Behaviour can change across versions.
+
 ### Soundness verification
 TODO!
 
