@@ -114,11 +114,11 @@ func (i jmpIfZero) String() string {
 }
 
 func (i loadInt) String() string {
-	return fmt.Sprintf("%s = load_const(%s)", i.dest, i.value.String())
+	return fmt.Sprintf("%s = %s", i.dest, &i.value)
 }
 
 func (i loadStr) String() string {
-	return fmt.Sprintf("%s = load_const(%q)", i.dest, i.value)
+	return fmt.Sprintf("%s = %q", i.dest, i.value)
 }
 
 func (i binaryOp) String() string {
