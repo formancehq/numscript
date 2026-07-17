@@ -196,7 +196,18 @@ The compiler is free to chose any encoding it wants for the vars (the first valu
 TODO!
 
 ## Compiler
-TODO!
+Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]compiler.irInstr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]irInstr` are assembled into `[]vm.Instruction`. 
+The instruction set is mostly similar, but there are a few differences.
+The most crucial one is that instead of many separate pools of 256 registers, there's a single infinite stream of register.
+We'll materialise those "virtual" registers into actual physical registers during assembly, and perfom register allocation policies so that we'll be able to fit scripts within the 256 registers constraint.
+We are able to fully typecheck the `[]irInstr` program, so that we know that we aren't passing virtual registers that were created with a different type.
+
+Other differences in the instruction set include:
+* instead of `LOAD_INT` or `LOAD_STRING` referencing constant pool index, we have a `loadInt{ dest reg; value big.Int }` and `loadString{ dest reg; value string}` which handle populating and deduping constant pool when assemblying, or using specialised instructions like `LOAD_INT_IMMEDIATE` instructions which contain the number in the payload itself.
+* we have a `labelMarker struct{ label string }` pseudo-instruction. This way the jump can reference an instruction that hasn't been emitted yet without complex hacks at compile time
+
+This split allows us to implement peephole optimisations (bytecode rewriting) - see the "optimisation" section.
+
 
 ### Optimisations
 TODO!
