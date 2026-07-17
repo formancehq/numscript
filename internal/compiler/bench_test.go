@@ -3,6 +3,7 @@ package compiler_test
 import (
 	"context"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
@@ -97,6 +98,34 @@ func BenchmarkRuntimeBaseline(b *testing.B) {
 		rs.SetCurrentAsset("USD/2")
 		rs.Pull(pulled, "src", "", ten, zero, "")
 		_ = pulled.Cmp(ten) // CheckEnoughFunds
+		rs.SendUncapped(&dest, "", nil)
+		_ = rs.PostingsRef()
+	}
+}
+
+// BenchmarkRuntimeBaselineUnique is the WORST case for the balanceEntry
+// generation cache: every iteration touches a brand-new source account, so the
+// cache never hits — each run allocates a fresh entry (like the pre-cache impl)
+// AND the map grows unbounded (the prototype has no eviction). Contrast with
+// BenchmarkRuntimeBaseline (same hot accounts every run = best case) to bracket
+// the cache's real-workload behavior.
+func BenchmarkRuntimeBaselineUnique(b *testing.B) {
+	store := runtimeStoreAdapter{store: benchStore{balances: map[runtime.PairKey]*big.Int{}}}
+	rs := runtime.New(store)
+
+	ten := big.NewInt(10)
+	zero := big.NewInt(0)
+	pulled := new(big.Int)
+	dest := "dest"
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		src := "src" + strconv.Itoa(i) // unique every iteration -> always a cache miss
+		rs.Reset(store)
+		rs.SetCurrentAsset("USD/2")
+		rs.Pull(pulled, src, "", ten, zero, "")
+		_ = pulled.Cmp(ten)
 		rs.SendUncapped(&dest, "", nil)
 		_ = rs.PostingsRef()
 	}

@@ -97,6 +97,14 @@ type source struct {
 type balanceEntry struct {
 	amount     big.Int
 	baseLoaded bool
+	// gen is the RunState generation this entry was last freshened in. When it
+	// differs from RunState.gen the entry is stale (left over from a previous run)
+	// and is lazily reset on first access — see freshen. This lets Reset invalidate
+	// the whole balance cache in O(1) (bump gen) instead of clearing the map and
+	// reallocating a balanceEntry per account every run. [PROTOTYPE: no eviction —
+	// the map grows with distinct accounts across runs; a real impl needs a size
+	// cap. Fine for benchmarking a fixed working set.]
+	gen uint64
 }
 
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
@@ -122,6 +130,24 @@ type RunState struct {
 	// capScratch is a reusable big.Int for Send's decrementing cap, so a capped
 	// send allocates nothing. Safe to reuse: Send is not reentrant.
 	capScratch big.Int
+
+	// gen is bumped on every Reset; balanceEntry.gen is compared against it to
+	// lazily invalidate the balance cache without clearing the map. See freshen.
+	gen uint64
+}
+
+// freshen brings a possibly-stale entry into the current generation: an entry
+// carried over from a previous run (e.gen != s.gen) is reset to its fresh state
+// (zero delta, base not loaded) and re-stamped. The big.Int keeps its backing
+// array, so this reuses the allocation across runs. An entry already in the
+// current generation is returned untouched.
+func (s *RunState) freshen(e *balanceEntry) *balanceEntry {
+	if e.gen != s.gen {
+		e.amount.SetInt64(0)
+		e.baseLoaded = false
+		e.gen = s.gen
+	}
+	return e
 }
 
 func (s *RunState) takeBig() *big.Int {
@@ -162,7 +188,11 @@ func (s *RunState) SetCurrentAsset(asset string) {
 // lifetime contract). A RunState that is never Reset keeps such results valid.
 func (s *RunState) Reset(store Store) {
 	s.store = store
-	clear(s.balances)
+	// Invalidate the balance cache in O(1): bump the generation instead of
+	// clear(s.balances). Stale entries are lazily reset (and their big.Ints reused)
+	// on next access via freshen; entries for recurring accounts survive across
+	// runs with zero allocation. [PROTOTYPE: no eviction — see balanceEntry.gen.]
+	s.gen++
 	// reclaim any leftover source amounts: they are runtime-owned and now dead, so
 	// recycle them for the next run. Only the live window (sources[head:]) still
 	// holds amounts that haven't been recycled; the dead prefix left by
@@ -193,9 +223,9 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 	for key, amount := range balances {
 		e := s.balances[key]
 		if e == nil {
-			e = &balanceEntry{}
+			e = &balanceEntry{gen: s.gen}
 			s.balances[key] = e
-		} else if e.baseLoaded {
+		} else if s.freshen(e); e.baseLoaded {
 			continue
 		}
 		if amount != nil {
@@ -210,7 +240,8 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 // false, so a caller (e.g. fetchAndPrewarm) still fetches and folds in the base.
 func (s *RunState) Has(account, scope, asset, color string) bool {
 	e := s.balances[PairKey{account, scope, asset, color}]
-	return e != nil && e.baseLoaded
+	// a stale entry (from a previous generation) counts as absent
+	return e != nil && e.gen == s.gen && e.baseLoaded
 }
 
 // AccountBalance is a single cached (asset, color, amount) entry for an account.
@@ -228,6 +259,9 @@ type AccountBalance struct {
 func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, error) {
 	var out []AccountBalance
 	for key, e := range s.balances {
+		if e.gen != s.gen {
+			continue // stale entry from a previous run — not touched this run
+		}
 		if key.Account == account && key.Scope == scope {
 			if err := s.loadBase(key, e); err != nil {
 				return nil, err
@@ -640,10 +674,11 @@ func (s *RunState) credit(dest *string, destScope string, src source, asset stri
 func (s *RunState) entryFor(key PairKey) *balanceEntry {
 	e := s.balances[key]
 	if e == nil {
-		e = &balanceEntry{}
+		e = &balanceEntry{gen: s.gen}
 		s.balances[key] = e
+		return e
 	}
-	return e
+	return s.freshen(e) // reuse a struct carried over from a previous run
 }
 
 // loadBase folds e's starting balance in from the Store on first need, turning a
