@@ -31,6 +31,6 @@ func FuzzExec(f *testing.F) {
 				t.Fatalf("Exec panicked: %v", r)
 			}
 		}()
-		_, _ = Exec(NewVm(prog), nil, mockStore{})
+		_, _ = Exec(t.Context(), NewVm(prog), nil, mockStore{})
 	})
 }

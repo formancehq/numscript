@@ -72,6 +72,6 @@ func FuzzMutatedBytecode(f *testing.F) {
 				t.Fatalf("verified program panicked on Exec: %v", r)
 			}
 		}()
-		_, _ = vm.Exec(vm.NewVm(prog), nil, store)
+		_, _ = vm.Exec(t.Context(), vm.NewVm(prog), nil, store)
 	})
 }
