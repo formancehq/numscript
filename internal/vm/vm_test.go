@@ -57,6 +57,64 @@ func bc(op Opcode, a byte, v uint16) Instruction {
 	return Instruction{Opcode: byte(op), A: a, B: byte(v), C: byte(v >> 8)}
 }
 
+// sizeProgram fills a hand-built Program's declared register/var counts by
+// scanning its instructions, mirroring what the assembler does for real
+// programs. Test-only: production Programs are decoded/compiled with counts
+// already declared. On a malformed instruction it stops early and leaves the
+// counts scanned so far, which is enough for Verify to then reject the program.
+func sizeProgram(p Program) Program {
+	instrs := p.Instructions
+	n := len(instrs)
+	bump := func(cur byte, idx int) byte {
+		if idx+1 > int(cur) {
+			return byte(idx + 1)
+		}
+		return cur
+	}
+	bump16 := func(cur uint16, idx int) uint16 {
+		if idx+1 > int(cur) {
+			return uint16(idx + 1)
+		}
+		return cur
+	}
+	for i := 0; i < n; {
+		w := instrWords(instrs[i].Opcode)
+		if i+w > n {
+			break
+		}
+		var ext Instruction
+		if w == 2 {
+			ext = instrs[i+1]
+		}
+		d, err := decodeInstr(instrs[i], ext)
+		if err != nil {
+			break
+		}
+		for _, refs := range [][]regRef{d.reads, d.writes} {
+			for _, r := range refs {
+				switch r.bank {
+				case bankInt:
+					p.IntRegs = bump(p.IntRegs, r.index)
+				case bankStr:
+					p.StrRegs = bump(p.StrRegs, r.index)
+				case bankPortion:
+					p.PortionRegs = bump(p.PortionRegs, r.index)
+				case bankMonetary:
+					p.MonetaryRegs = bump(p.MonetaryRegs, r.index)
+				}
+			}
+		}
+		if d.varInt >= 0 {
+			p.IntVars = bump16(p.IntVars, d.varInt)
+		}
+		if d.varStr >= 0 {
+			p.StrVars = bump16(p.StrVars, d.varStr)
+		}
+		i += w
+	}
+	return p
+}
+
 func inorderProgram() Program {
 	// Index of #inorder_end in the ENCODED stream. Note PullAccount occupies
 	// two words each, so this is not the count of source lines.
@@ -87,11 +145,11 @@ func inorderProgram() Program {
 		/* 21 */ abc(Op_SendToAccount, sDest, nilReg, nilReg), // send_to_account(r11)  (no cap, no color)
 	}
 
-	return Program{
+	return sizeProgram(Program{
 		Instructions: instrs,
 		StringsPool:  []string{"USD/2", "s1", "s2", "dest"},
 		IntsPool:     []big.Int{*big.NewInt(10), *big.NewInt(0)},
-	}
+	})
 }
 
 // --- mock store -----------------------------------------------------------
@@ -142,17 +200,17 @@ func TestInorderSend(t *testing.T) {
 }
 
 func assertValidAccountProgram(name string) Program {
-	return Program{
+	return sizeProgram(Program{
 		Instructions: []Instruction{
 			bc(Op_LoadStr, 0, 0),
 			abc(Op_AssertValidAccount, 0, nilReg, nilReg),
 		},
 		StringsPool: []string{name},
-	}
+	})
 }
 
 func balanceNonNegativeProgram() Program {
-	return Program{
+	return sizeProgram(Program{
 		Instructions: []Instruction{
 			bc(Op_LoadStr, 0, 0),
 			bc(Op_LoadStr, 1, 1),
@@ -160,7 +218,7 @@ func balanceNonNegativeProgram() Program {
 			abc(Op_AssertNonNegativeBalance, 0, 0, nilReg),
 		},
 		StringsPool: []string{"acc", "USD/2"},
-	}
+	})
 }
 
 func TestAssertNonNegativeBalance(t *testing.T) {
@@ -177,22 +235,25 @@ func TestAssertNonNegativeBalance(t *testing.T) {
 }
 
 func TestUnknownOpcode(t *testing.T) {
+	// Exec no longer verifies; an unknown opcode reaches the loop's default arm
+	// and returns InternalError (rather than panicking). Rejection at the static
+	// level is covered by TestVerify_UnknownOpcode.
 	prog := Program{Instructions: []Instruction{abc(0xFE, 0, 0, 0)}}
-	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
+	_, err := Exec(t.Context(), NewVm(prog), nil, mockStore{})
 	if _, ok := err.(InternalError); !ok {
 		t.Fatalf("expected InternalError, got %v", err)
 	}
 }
 
 func TestMkPortionDivideByZero(t *testing.T) {
-	prog := Program{
+	prog := sizeProgram(Program{
 		Instructions: []Instruction{
 			bc(Op_LoadInt, 0, 0),
 			bc(Op_LoadInt, 1, 1),
 			abc(Op_MkPortion, 0, 0, 1),
 		},
 		IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(0)},
-	}
+	})
 	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	if _, ok := err.(DivideByZeroError); !ok {
 		t.Fatalf("expected DivideByZeroError, got %v", err)

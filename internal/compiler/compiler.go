@@ -27,6 +27,14 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
+	// declared var-pool sizes: how many int/str slots Encode will produce
+	prog.IntVars = uint16(compiled.varsEncoder.nInt)
+	prog.StrVars = uint16(compiled.varsEncoder.nStr)
+
+	// the compiler must never emit code the VM would reject
+	if err := prog.Verify(); err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
 
 	return compiled.varsEncoder, prog, nil
 }
@@ -49,6 +57,15 @@ func CompileWithOptimizations(program parser.Program) (VarsEncoder, vm.Program, 
 
 	prog, err := assembleProgram(optimized)
 	if err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+	// declared var-pool sizes: how many int/str slots Encode will produce
+	// (optimization does not change the variable set, so these still hold)
+	prog.IntVars = uint16(compiled.varsEncoder.nInt)
+	prog.StrVars = uint16(compiled.varsEncoder.nStr)
+
+	// the compiler must never emit code the VM would reject
+	if err := prog.Verify(); err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
 

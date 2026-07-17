@@ -11,6 +11,20 @@ type Program struct {
 
 	StringsPool []string
 	IntsPool    []big.Int
+
+	// Declared register-bank sizes (max index + 1). Each fits in a byte because
+	// 0xFF is reserved as nilReg, so a real register index is <= 254. NewVm
+	// allocates exactly these; Verify checks no instruction exceeds them.
+	IntRegs      uint8
+	StrRegs      uint8
+	PortionRegs  uint8
+	MonetaryRegs uint8
+
+	// Declared var-pool sizes. A portion var expands to 2 int slots and a
+	// monetary to 1 int + 1 str slot, so these are not bounded by 255 and use
+	// uint16. Exec checks the caller-provided Vars has at least this many.
+	IntVars uint16
+	StrVars uint16
 }
 
 var le = binary.LittleEndian
@@ -24,7 +38,9 @@ func (p Program) Encode() []byte {
 
 	data, strTable, intTable := encodePools(p.StringsPool, p.IntsPool)
 
-	const headerLen = 4 + 4*8 // magic + 4 section pointers
+	// magic + declared counts (4 reg bytes + 2 var uint16s) + 4 section pointers
+	const countsLen = 4 + 2*2
+	const headerLen = 4 + countsLen + 4*8
 	instrStart := uint32(headerLen)
 	dataStart := instrStart + uint32(len(instrs))
 	strTableStart := dataStart + uint32(len(data))
@@ -32,6 +48,9 @@ func (p Program) Encode() []byte {
 
 	buf := make([]byte, 0, int(intTableStart)+len(intTable))
 	buf = append(buf, "NUMB"...)
+	buf = append(buf, p.IntRegs, p.StrRegs, p.PortionRegs, p.MonetaryRegs)
+	buf = le.AppendUint16(buf, p.IntVars)
+	buf = le.AppendUint16(buf, p.StrVars)
 	buf = appendSection(buf, instrStart, uint32(len(instrs)))
 	buf = appendSection(buf, dataStart, uint32(len(data)))
 	buf = appendSection(buf, strTableStart, uint32(len(strTable)))
@@ -191,6 +210,17 @@ func DecodeProgram(buf []byte) (Program, error) {
 
 	idx := 4
 
+	// declared counts: 4 reg bytes + 2 var uint16s
+	if idx+8 > len(buf) {
+		return Program{}, fmt.Errorf("header truncated: missing declared bank counts")
+	}
+	intRegs, strRegs, portionRegs, monetaryRegs := buf[idx], buf[idx+1], buf[idx+2], buf[idx+3]
+	idx += 4
+	intVars := le.Uint16(buf[idx:])
+	idx += 2
+	strVars := le.Uint16(buf[idx:])
+	idx += 2
+
 	instructions, err := readArr("instructions", buf, &idx, parseInstructions) // <- TODO copy into instructions
 	if err != nil {
 		return Program{}, err
@@ -219,5 +249,11 @@ func DecodeProgram(buf []byte) (Program, error) {
 		Instructions: instructions,
 		StringsPool:  stringsPool,
 		IntsPool:     intsPool,
+		IntRegs:      intRegs,
+		StrRegs:      strRegs,
+		PortionRegs:  portionRegs,
+		MonetaryRegs: monetaryRegs,
+		IntVars:      intVars,
+		StrVars:      strVars,
 	}, nil
 }
