@@ -10,17 +10,6 @@ import (
 
 const maxReg = 0xFF
 
-type regPool struct {
-	indexByReg map[reg]byte
-	next       int
-}
-
-func newRegPool() regPool {
-	return regPool{
-		indexByReg: map[reg]byte{},
-	}
-}
-
 type constPool[T any] struct {
 	indexByValue map[string]uint16
 	items        []T
@@ -55,45 +44,6 @@ func (p *constPool[T]) alloc(item T) (uint16, error) {
 	return index, nil
 }
 
-func (b *regPool) index(r reg) (byte, error) {
-	if idx, ok := b.indexByReg[r]; ok {
-		return idx, nil
-	}
-	if b.next >= maxReg {
-		return 0, fmt.Errorf("register bank overflow: more than %d registers in one bank (register allocation not implemented yet)", maxReg)
-	}
-	idx := byte(b.next)
-	b.next++
-	b.indexByReg[r] = idx
-	return idx, nil
-}
-
-// reserveContiguous reserves n consecutive slots (scratch, not bound to any reg)
-// and returns the first index. Used for the contiguous arrays Op_MkAllotment
-// requires (portionsRegs[B:B+C]).
-func (b *regPool) reserveContiguous(n int) (byte, error) {
-	if b.next+n > maxReg {
-		return 0, fmt.Errorf("register bank overflow: more than %d registers in one bank (register allocation not implemented yet)", maxReg)
-	}
-	start := byte(b.next)
-	b.next += n
-	return start, nil
-}
-
-// bindContiguous reserves len(regs) consecutive slots and binds each reg to one,
-// so later references to those regs resolve to the contiguous block. Used for
-// Op_MkAllotment's output array (intsRegs[A:A+C]), which the following sends read.
-func (b *regPool) bindContiguous(regs []reg) (byte, error) {
-	start, err := b.reserveContiguous(len(regs))
-	if err != nil {
-		return 0, err
-	}
-	for i, r := range regs {
-		b.indexByReg[r] = start + byte(i)
-	}
-	return start, nil
-}
-
 type patch struct {
 	label          label
 	index          int
@@ -107,25 +57,25 @@ type assembler struct {
 	patches []patch
 	labels  map[label]uint16
 
-	// one register bank per VM register bank
-	ints       regPool
-	strings    regPool
-	portions   regPool
-	monetaries regPool
+	// Register allocation state. Exactly one of `in`/`plan` is set:
+	//   - discovery pass: in != nil — resolvers record liveness and hand back a
+	//     dummy index (the emitted instructions are discarded).
+	//   - emit pass: plan != nil — resolvers return the planned physical index.
+	// curIndex is the position of the vInstr currently being assembled, used as
+	// the liveness timeline during discovery.
+	in       *allocInput
+	plan     *regPlan
+	curIndex int
 
 	intsPool    constPool[big.Int]
 	stringsPool constPool[string]
 }
 
-func assembleProgram(instrs []vInstr) (vm.Program, error) {
-	a := &assembler{
-		ints:       newRegPool(),
-		strings:    newRegPool(),
-		portions:   newRegPool(),
-		monetaries: newRegPool(),
-
+func newAssembler(in *allocInput, plan *regPlan) *assembler {
+	return &assembler{
+		in:     in,
+		plan:   plan,
 		labels: map[label]uint16{},
-
 		intsPool: newConstPool(func(i big.Int) string {
 			return i.String()
 		}),
@@ -133,10 +83,40 @@ func assembleProgram(instrs []vInstr) (vm.Program, error) {
 			return s
 		}),
 	}
-	for _, instr := range instrs {
+}
+
+// run lowers every instruction in order, tracking curIndex for liveness.
+func (a *assembler) run(instrs []vInstr) error {
+	for i, instr := range instrs {
+		a.curIndex = i
 		if err := instr.assemble(a); err != nil {
-			return vm.Program{}, err
+			return err
 		}
+	}
+	return nil
+}
+
+// assembleProgram lowers virtual instructions into a vm.Program, allocating
+// registers by expiring linear scan (see regalloc.go). It runs the stream twice:
+// a discovery pass that only collects liveness, then an emit pass that uses the
+// resulting plan. The passes are semantically identical modulo which physical
+// register each virtual reg lands in.
+func assembleProgram(instrs []vInstr) (vm.Program, error) {
+	// pass 1: discover per-reg bank + liveness (emitted instructions discarded)
+	in := newAllocInput()
+	if err := newAssembler(in, nil).run(instrs); err != nil {
+		return vm.Program{}, err
+	}
+
+	plan, err := linearScanPlan(in)
+	if err != nil {
+		return vm.Program{}, err
+	}
+
+	// pass 2: emit for real against the plan
+	a := newAssembler(nil, plan)
+	if err := a.run(instrs); err != nil {
+		return vm.Program{}, err
 	}
 
 	// now we run the patches
@@ -153,19 +133,50 @@ func assembleProgram(instrs []vInstr) (vm.Program, error) {
 		Instructions: a.instructions,
 		StringsPool:  a.stringsPool.items,
 		IntsPool:     a.intsPool.items,
-		// each pool's next is the number of registers used in that bank (<= 255,
-		// since regPool.index/reserveContiguous cap allocation at maxReg)
-		IntRegs:      byte(a.ints.next),
-		StrRegs:      byte(a.strings.next),
-		PortionRegs:  byte(a.portions.next),
-		MonetaryRegs: byte(a.monetaries.next),
+		IntRegs:      byte(plan.widths[bankInt]),
+		StrRegs:      byte(plan.widths[bankStr]),
+		PortionRegs:  byte(plan.widths[bankPortion]),
+		MonetaryRegs: byte(plan.widths[bankMonetary]),
 	}, nil
 }
 
-func (as *assembler) intReg(r reg) (byte, error)      { return as.ints.index(r) }
-func (as *assembler) strReg(r reg) (byte, error)      { return as.strings.index(r) }
-func (as *assembler) portionReg(r reg) (byte, error)  { return as.portions.index(r) }
-func (as *assembler) monetaryReg(r reg) (byte, error) { return as.monetaries.index(r) }
+// resolveReg maps a virtual reg to a physical bank index. During discovery it
+// records the reference and returns a placeholder; during emit it consults the
+// precomputed plan.
+func (as *assembler) resolveReg(bank bankId, r reg) (byte, error) {
+	if as.in != nil {
+		as.in.touch(bank, r, as.curIndex)
+		return 0, nil
+	}
+	return as.plan.resolve(r)
+}
+
+// reserveContig reserves n consecutive scratch slots and returns the first
+// index. Used for the contiguous arrays Op_MkAllotment requires
+// (portionsRegs[B:B+C]).
+func (as *assembler) reserveContig(bank bankId, n int) (byte, error) {
+	if as.in != nil {
+		as.in.addScratch(bank, n)
+		return 0, nil
+	}
+	return as.plan.nextContig(), nil
+}
+
+// bindContig reserves len(regs) consecutive slots, binding each reg to one, and
+// returns the first index. Used for Op_MkAllotment's output array
+// (intsRegs[A:A+C]), which the following sends read.
+func (as *assembler) bindContig(bank bankId, regs []reg) (byte, error) {
+	if as.in != nil {
+		as.in.addBound(bank, regs, as.curIndex)
+		return 0, nil
+	}
+	return as.plan.nextContig(), nil
+}
+
+func (as *assembler) intReg(r reg) (byte, error)      { return as.resolveReg(bankInt, r) }
+func (as *assembler) strReg(r reg) (byte, error)      { return as.resolveReg(bankStr, r) }
+func (as *assembler) portionReg(r reg) (byte, error)  { return as.resolveReg(bankPortion, r) }
+func (as *assembler) monetaryReg(r reg) (byte, error) { return as.resolveReg(bankMonetary, r) }
 
 func (as *assembler) optionalReg(
 	regPool func(*assembler, reg) (byte, error),
@@ -795,19 +806,19 @@ func (i makeAllotment) assemble(a *assembler) error {
 		return err
 	}
 
-	portionStart, err := a.portions.reserveContiguous(n)
+	portionStart, err := a.reserveContig(bankPortion, n)
 	if err != nil {
 		return err
 	}
 	for j, p := range i.portions {
-		src, err := a.portions.index(p)
+		src, err := a.portionReg(p)
 		if err != nil {
 			return err
 		}
 		a.emit(vm.Op_PortionCopy, portionStart+byte(j), src, maxReg)
 	}
 
-	destStart, err := a.ints.bindContiguous(i.dest)
+	destStart, err := a.bindContig(bankInt, i.dest)
 	if err != nil {
 		return err
 	}
