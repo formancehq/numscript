@@ -199,8 +199,8 @@ TODO!
 Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]compiler.irInstr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]irInstr` are assembled into `[]vm.Instruction`. 
 The instruction set is mostly similar, but there are a few differences.
 The most crucial one is that instead of many separate pools of 256 registers, there's a single infinite stream of register.
-We'll materialise those "virtual" registers into actual physical registers during assembly, and perfom register allocation policies so that we'll be able to fit scripts within the 256 registers constraint.
-We are able to fully typecheck the `[]irInstr` program, so that we know that we aren't passing virtual registers that were created with a different type.
+We'll materialise those "logical" registers into actual physical registers during assembly, and perfom register allocation policies so that we'll be able to fit scripts within the 256 registers constraint.
+We are able to fully typecheck the `[]irInstr` program, so that we know that we aren't passing logical registers that were created with a different type.
 
 Other differences in the instruction set include:
 * instead of `LOAD_INT` or `LOAD_STRING` referencing constant pool index, we have a `loadInt{ dest reg; value big.Int }` and `loadString{ dest reg; value string}` which handle populating and deduping constant pool when assemblying, or using specialised instructions like `LOAD_INT_IMMEDIATE` instructions which contain the number in the payload itself.
@@ -378,5 +378,45 @@ Note that proving that a peephole function _does_ have a fixed point is usually 
 > TODO list some peepholes
 
 ### Registers allocator
-TODO
+> [!NOTE]
+> Currently implemented allocator is a bump allocator: allocate a fresh register for each distinct logical register. A linear-scan allocator is prototyped in another branch.
 
+After optimisation pass is (optionally) run, we can materialise logical registers into physical registers of each type bank during assembly phase.
+
+A good register allocation algorithm can reduce the number of needed registers.
+For example, consider the `($x + $y) * $z` expression:
+```
+$x = load_var<number>(idx: 0)
+$y = load_var<number>(idx: 1)
+$z = load_var<number>(idx: 2)
+$w = $x + $y
+$res = $w * $z
+```
+A naive allocation (bump allocation: materialise each distinct logical register into a fresh physical register) would assemble this into:
+```
+// need 5 registers in total
+LOAD_VAR_INT(dest: 0, idx: 0)
+LOAD_VAR_INT(dest: 1, idx: 1)
+LOAD_VAR_INT(dest: 2, idx: 2)
+ADD_INT(dest: 3, left: 0, right: 1)
+MUL_INT(dest: 4, left: 3, right: 2)
+```
+Whereas an optimal allocation would produce something like this:
+```
+// need 2 registers in total
+LOAD_VAR_INT(dest: 0, idx: 0)
+LOAD_VAR_INT(dest: 1, idx: 1)
+ADD_INT(dest: 0, left: 0, right: 1)
+LOAD_VAR_INT(dest: 1, idx: 2)
+MUL_INT(dest: 0, left: 0, right: 1) 
+```
+
+What a better register allocation buys us is:
+1. better CPU locality, thus higher runtime speed (probably irrelevant gain in our case)
+2. less memory used: the initial vm load will have to load less registers (although max number of registers per bank is 256 anyway)
+3. avoid having to forbid scripts that overflow the 256 registers limit, or having to implement register spilling behaviour (the most important improvement)
+
+Registers allocation is a widely studied topic, so we don't really have to discover anything new.
+There are more aggressive and expensive algorithms that are able to produce the most optimal registers allocation (e.g. by having to compute graph coloring, a provably expensive problem), which we don't need in our case: we still need decent perf at compile time as well, and a simplier allocation will most likely be "good enough".
+Specifically, a [linear scan allocation](https://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf) will get us very close to the optimal allocation with `O(n)` cost.
+> Note: Claude argues that, for our instruction set, linear scan would produce _exactly_ the same result as the optimal allocation algorithms. I haven't yet put effort in understanding whether that's the case and why that is
