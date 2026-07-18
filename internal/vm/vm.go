@@ -266,11 +266,35 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
+		case Op_TakeCapZeroSlot:
+			ext := instrs[pc]
+			pc++
+			src := stringsRegs[instr.B]
+
+			overdraft := bigZero
+			if src == worldAccount {
+				overdraft = nil
+			}
+
+			if err := runstate.TakeSlot(&intsRegs[instr.A], src, "", &intsRegs[instr.C], overdraft, "", int(ext.A)); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
 		case Op_Post:
 			src := stringsRegs[instr.A]
 			dst := stringsRegs[instr.B]
 			amount := &intsRegs[instr.C]
 			if err := runstate.PostDirect(src, "", dst, "", "", amount); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
+		case Op_PostSlot:
+			ext := instrs[pc]
+			pc++
+			src := stringsRegs[instr.A]
+			dst := stringsRegs[instr.B]
+			amount := &intsRegs[instr.C]
+			if err := runstate.PostDirectSlot(src, "", dst, "", "", amount, int(ext.A)); err != nil {
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 

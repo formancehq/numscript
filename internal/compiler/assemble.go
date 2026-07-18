@@ -524,6 +524,14 @@ func (i takeAccount) assemble(a *assembler) error {
 		if err != nil {
 			return err
 		}
+		if i.hasSlot {
+			// two-word slot form: word2.A carries the balance slot index.
+			a.emit(vm.Op_TakeCapZeroSlot, dest, account, cap)
+			a.instructions = append(a.instructions, vm.Instruction{
+				Opcode: maxReg, A: byte(i.slot), B: maxReg, C: maxReg,
+			})
+			return nil
+		}
 		a.emit(vm.Op_TakeCapZero, dest, account, cap)
 		return nil
 	}
@@ -566,6 +574,14 @@ func (i postAccount) assemble(a *assembler) error {
 	}
 	// color is currently always nil (colors unimplemented); Op_Post carries the
 	// current asset implicitly. A colored variant would need a second word.
+	if i.hasSlot {
+		// two-word slot form: word2.A carries the balance slot index.
+		a.emit(vm.Op_PostSlot, src, dst, amount)
+		a.instructions = append(a.instructions, vm.Instruction{
+			Opcode: maxReg, A: byte(i.slot), B: maxReg, C: maxReg,
+		})
+		return nil
+	}
 	a.emit(vm.Op_Post, src, dst, amount)
 	return nil
 }

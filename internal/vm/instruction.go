@@ -164,4 +164,12 @@ const (
 	// it entails, the dominant cost of the fused path — is dead. Same operand
 	// layout as Op_PostFromUnbounded (A=src, B=dst, C=cap).
 	Op_PostFromUnboundedLeaf
+
+	// Op_TakeCapZeroSlot / Op_PostSlot are Op_TakeCapZero / Op_Post with a
+	// compile-assigned balance SLOT: a two-word form whose second word carries the
+	// slot index in ext.A. The slot is a fast path over the string-keyed balance
+	// map for a constant (account, asset) access (see runtime.entryForSlot).
+	// Word1 is identical to the base op; word2 = {_, A=slot, _, _}.
+	Op_TakeCapZeroSlot
+	Op_PostSlot
 )

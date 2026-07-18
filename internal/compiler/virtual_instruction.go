@@ -85,6 +85,11 @@ type (
 		account               reg  // str
 		cap, overdraft, color *reg // int, int, str
 		boundedZero           bool
+		// slot/hasSlot: a compile-assigned balance slot for a constant
+		// (account, asset) source (set by assignBalanceSlots). hasSlot false =>
+		// dynamic (map). Only used for the compact bounded-zero form.
+		slot    int
+		hasSlot bool
 	}
 	// postAccount emits a direct posting src->dst of the (already-taken) amount,
 	// crediting dst without debiting src. The destination half of a fused
@@ -93,6 +98,11 @@ type (
 		srcAccount, dstAccount reg  // str, str
 		amount                 reg  // int
 		color                  *reg // str
+		// slot/hasSlot: a compile-assigned balance slot for a constant
+		// (dstAccount, asset) credit (set by assignBalanceSlots). hasSlot false =>
+		// dynamic (map).
+		slot    int
+		hasSlot bool
 	}
 	// postFromUnbounded is the fused single->single fast path for an unbounded
 	// source: it emits a direct posting src->dst of `cap` (the aggressive form of

@@ -60,6 +60,39 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	requirePostingsEqual(t, want, res.Postings)
 }
 
+// TestE2E_SlotCoherence checks the balance-slot fast path stays coherent with
+// the map: @mid is credited by the first send (via the funds path, which touches
+// the map) and then used as a bounded SOURCE by the second send (a slotted
+// take_account). The slotted read must see the credit, and it must hold across a
+// reused (warm) VM where the slot cache persists. Runs optimized (slots on) and
+// asserts the same postings as the naive build.
+func TestE2E_SlotCoherence(t *testing.T) {
+	src := `
+		send [USD/2 100] (source = @world destination = @mid)
+		send [USD/2 30]  (source = @mid   destination = @dest)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	want := []runtime.Posting{
+		{Source: "world", Destination: "mid", Asset: "USD/2", Amount: big.NewInt(100)},
+		{Source: "mid", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(30)},
+	}
+
+	_, program, cErr := compiler.CompileWithOptimizations(parsed.Value)
+	require.Nil(t, cErr)
+	require.NoError(t, program.Verify())
+
+	machine := vm.NewVm(program)
+	// run twice on the SAME machine: the slot cache persists across Exec, so a
+	// stale cached entry would surface on the second run.
+	for i := 0; i < 2; i++ {
+		res, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{})
+		require.Nil(t, execErr)
+		requirePostingsEqual(t, want, res.Postings)
+	}
+}
+
 // TestE2E_Inorder exercises an inorder source { @a @b @c } end-to-end, including
 // the early-exit jump: @a has 6, @b has 10, @c has 100; sending 10 pulls 6 from
 // @a (cap -> 4), then 4 from @b (cap -> 0 -> jump past @c). @c is never touched.

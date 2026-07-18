@@ -54,6 +54,7 @@ func CompileWithOptimizations(program parser.Program) (VarsEncoder, vm.Program, 
 	}
 
 	optimized := optimize(compiled.instructions, defaultPeepholes())
+	optimized = assignBalanceSlots(optimized) // annotate constant balance accesses
 
 	prog, err := assembleProgram(optimized)
 	if err != nil {

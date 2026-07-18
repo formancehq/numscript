@@ -57,7 +57,7 @@ func (p Program) regBankSize(b regBank) int {
 
 func instrWords(op byte) int {
 	switch Opcode(op) {
-	case Op_PullAccount, Op_Take, Op_MkAllotment:
+	case Op_PullAccount, Op_Take, Op_MkAllotment, Op_TakeCapZeroSlot, Op_PostSlot:
 		return 2
 	default:
 		return 1
@@ -248,6 +248,18 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankInt, instr.C)
 		d.reads = append(d.reads, currentAssetRef)
 		write(bankInt, instr.A)
+	case Op_TakeCapZeroSlot:
+		// two-word take: word1 as Op_TakeCapZero; word2.A = slot (not a register).
+		read(bankStr, instr.B)
+		read(bankInt, instr.C)
+		d.reads = append(d.reads, currentAssetRef)
+		write(bankInt, instr.A)
+	case Op_PostSlot:
+		// two-word post: word1 as Op_Post; word2.A = slot (not a register).
+		read(bankStr, instr.A)
+		read(bankStr, instr.B)
+		read(bankInt, instr.C)
+		d.reads = append(d.reads, currentAssetRef)
 	case Op_Post:
 		// direct posting src(A)->dst(B) of amount(C); asset is the current asset.
 		read(bankStr, instr.A)

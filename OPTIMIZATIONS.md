@@ -114,6 +114,47 @@ Compact / specialized forms to cut per-instruction work:
   **leaf** destination: also skips the `dst` credit (and its balance-map lookup)
   via `runtime.PostDirectNoCredit`. Emitted only when the credit is provably
   dead.
+- **`Op_TakeCapZeroSlot` / `Op_PostSlot`** — two-word `Op_TakeCapZero` /
+  `Op_Post` carrying a compile-assigned **balance slot** in the second word
+  (`ext.A`). The slot indexes `runtime`'s `balanceSlots` array instead of hashing
+  the `PairKey` balance map. Emitted by `assignBalanceSlots` for constant
+  `(account, asset)` accesses.
+
+## Balance slots (`internal/compiler/assign_balance_slots.go`, `internal/runtime/slots.go`)
+
+The balance store keys entries by a 4-string `PairKey{account, scope, asset,
+color}` map. That lookup (`entryFor`) is ~40 ns — about **half a warm send**, more
+than all the big.Int arithmetic combined. `assignBalanceSlots` (a post-peephole
+pass, optimized build only) turns the common case into an array index:
+
+- It assigns each compile-time-constant `(account, asset)` pair a dense integer
+  **slot**, tracking the current asset from the enclosing `set_current_asset`
+  (also a constant). The two ops a single→single bypass lowers to — the
+  bounded-zero `take_account` (source debit) and `post_account` (destination
+  credit) — are annotated and assembled as `Op_TakeCapZeroSlot` / `Op_PostSlot`.
+- `runtime.entryForSlot(slot, key)` indexes a `[]*balanceEntry` (`balanceSlots`)
+  instead of the map. The slot table persists across `Reset` (entries are pooled,
+  never freed; `freshen` re-stamps on first touch per generation).
+
+**Soundness with runtime-resolved (variable) accounts.** Accounts may only be
+known at runtime (from vars), so slots cannot *replace* the map. Instead a slot
+**caches the same `*balanceEntry` the map holds** — it is populated by going
+through `entryFor` the first time — so a slotted (constant) access and a dynamic
+(var) access that resolve to the same `(account, asset)` share one entry, and
+balances stay coherent. Dynamic accounts/assets and every un-slotted op (`pull`,
+`send`, `save`, `balance`) keep hitting the map against those same entries. A
+variable account or asset, or more than 254 distinct pairs, leaves the access
+dynamic (map).
+
+- Impact (warm): `send [USD/2 10] (@src → @dest)` goes **156 → 119 ns/op (−24%)**
+  — the source read+debit and the destination credit each drop from a map lookup
+  (~28 ns/key) to an array index (~7 ns/key). The slotted opt now runs *below* the
+  map-based `RuntimeBaseline` floor (143 ns). Allocs unchanged at 1/op.
+- **Scope / not-yet:** only the `take`/`post` bypass ops are slotted; the
+  queue path (`pull`/`send`, used by capped inorder and true N×M sends) still
+  uses the map, so those shapes are unchanged. Slotting them is the natural next
+  step. Coherence is covered by `TestE2E_SlotCoherence` and the corpus in both
+  modes.
 
 ## Runtime (`internal/runtime/`)
 

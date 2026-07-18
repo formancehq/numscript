@@ -140,6 +140,11 @@ type RunState struct {
 	// allocated per portion). Safe to reuse: MakeAllotment is not reentrant.
 	allotTotal big.Int
 	allotTmp   big.Int
+
+	// balanceSlots is the fast-path balance cache: index -> the same *balanceEntry
+	// the map holds, for compile-time-constant (account, asset) accesses. It
+	// persists across Reset (entries are pooled, never freed); see entryForSlot.
+	balanceSlots []*balanceEntry
 }
 
 // freshen brings a possibly-stale entry into the current generation: an entry

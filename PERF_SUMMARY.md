@@ -29,7 +29,7 @@ Three reference points per script:
 
 | Script (warm) | `feat/exp/vm` | `feat/exp/optimize-vm` | Δ ns | allocs |
 |---|---:|---:|---:|---:|
-| simple `send` (VM) | 302.5 ns | **156.2 ns** (opt) | **−48%** | 10 → **1** |
+| simple `send` (VM) | 302.5 ns | **119 ns** (opt+slots) | **−61%** | 10 → **1** |
 | capped inorder (VM) | 853.3 ns | **531 ns** (opt) | **−38%** | 23 → **1** |
 | world → dest (VM) | ~queue, 10 allocs | **44 ns** (opt, leaf) | — | 10 → **1** |
 
@@ -43,9 +43,15 @@ fast path.
 |---|---:|---:|---:|
 | **simple `send`** | | | |
 | TreeWalker (interpreter) | 1603 | 2705 | 47 |
-| RuntimeBaseline (floor) | 137.5 | 16 | 1 |
+| RuntimeBaseline (map-based floor) | 143 | 16 | 1 |
 | CompiledVM (naive) | 181.0 | 32 | 1 |
 | CompiledVMOpt (peephole) | 156.2 | 32 | 1 |
+| **CompiledVMOpt + balance slots** | **119** | 32 | 1 |
+
+The slotted opt (`119 ns`) runs *below* the `RuntimeBaseline` "floor" (`143 ns`) —
+because that floor still keys the balance map by a 4-string `PairKey`, while the
+slotted VM indexes a small array. Once you replace the map, the old floor stops
+being a floor.
 | **capped inorder** | | | |
 | TreeWalkerCapped | 3812 | 6019 | 97 |
 | RuntimeBaselineCapped (floor) | 452.9 | 16 | 1 |
@@ -133,6 +139,35 @@ saved / balance-read destinations are ineligible (guarded) and unchanged. This
 matters because funding `@world → external leaf` is the most common numscript
 shape.
 
+## Balance slots (`assignBalanceSlots` + `Op_*Slot`)
+
+The structural attack on the balance map. The compiler assigns each constant
+`(account, asset)` a dense integer **slot**; the two ops a single→single bypass
+lowers to — the bounded-zero `take_account` (source debit) and `post_account`
+(destination credit) — get two-word `Op_TakeCapZeroSlot` / `Op_PostSlot` forms
+carrying the slot. The runtime indexes a small `[]*balanceEntry` instead of
+hashing a 4-string `PairKey`.
+
+| simple `send` (warm VM) | ns/op |
+|---|---:|
+| CompiledVMOpt (map) | 156 |
+| **CompiledVMOpt + slots** | **119** |
+
+`−24%` — the two map lookups (source read+debit, destination credit) drop to array
+indexes (~40 ns → ~6 ns, matching the isolated micro-benchmark: map ~28 ns/key vs
+slot ~7 ns/key). Capped (queue-based `pull`/`send`, not `take`/`post`) is not yet
+slotted and is unchanged; `@world → leaf` has no balance access and is unchanged.
+
+**Coherence with variables (the subtle part).** Accounts can be resolved at
+runtime (from vars), so slots cannot simply *replace* the map. Instead each slot
+**caches the same `*balanceEntry` the map holds** (populated by going through the
+map the first time), so a slotted (constant-account) access and a dynamic (var)
+access that resolve to the same account share one entry — balances stay coherent.
+Dynamic accounts, dynamic assets, and un-slotted ops (pulls, sends, saves) all
+keep using the map against those same entries. Verified by `TestE2E_SlotCoherence`
+(a slotted read seeing a map-path credit, across a reused warm VM) and the whole
+corpus in both modes.
+
 ## Takeaways
 
 1. **Allocations are the story.** Warm path `10 → 1` (simple) and `23 → 1`
@@ -142,13 +177,16 @@ shape.
    interpreter's. The runtime funds work (the floor) is where the time goes, and
    that's what the rewrite attacked.
 3. **Peepholes add a focused CPU layer on top:** ~9–13% general, up to **−70% for
-   `@world → leaf` sends** via the fused direct-posting op + dead-credit elision.
-4. **The balance map is the next floor.** The `entryFor` map lookup is ~40 ns —
-   ~half a world send, more than all the big.Int arithmetic combined. Dead-credit
-   elision removes it *when provably dead*; removing it in general (integer
-   account slots) is the largest remaining structural lever.
+   `@world → leaf` sends** (fused direct-posting + dead-credit elision) and
+   **−24% for a plain `@src → @dest` send** (balance slots).
+4. **The balance map WAS the next floor — and slots break through it.** The
+   `entryFor` map lookup was ~40 ns (~half a world send, more than all big.Int
+   arithmetic combined). Balance slots turn it into an array index, so the slotted
+   opt now runs *below* the old map-based `RuntimeBaseline` floor. Slotting the
+   queue path (`pull`/`send`) is the natural next step.
 5. **Behavior is identical** — the whole script-test corpus passes in both naive
-   and optimized modes (`internal/compiler/scripts_test.go`).
+   and optimized modes (`internal/compiler/scripts_test.go`), plus targeted
+   coherence tests for the slot cache.
 
 ### Caveats
 
