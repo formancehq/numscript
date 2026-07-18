@@ -16,10 +16,10 @@ stateDiagram
   s7:postings
 ```
 
-while this is the simpliest architecture we could implement, and its performance was still good enough for our use cases, a few things changed with the ledger v3 design:
+while this is the simplest architecture we could implement, and its performance was still good enough for our use cases, a few things changed with the ledger v3 design:
 1. Higher ledger TPS: numscript is more likely to become a bottleneck. So it's now justified to pay with more complexity for better perfs. Tree walker interpreter is usually suboptimal, has a lot of pointer chasing, and makes it hard to optimise things
 2. It needs a way to send the programs around the nodes in a compact and efficient way. This could be solved in the previous architecture by using the syntax itself as a serializations format, or with some rpc encoding, but would still require complex operations on the nodes
-3. We now have a specific section which is sequential and needs maximum perf. So we now prefer and architecture that allows to have pre-computed optimisations in the parallel path, so that the sequential one is highly optimised
+3. We now have a specific section which is sequential and needs maximum perf. So we now prefer an architecture that allows to have pre-computed optimisations in the parallel path, so that the sequential one is highly optimised
 
 that lead to researching a new implementation that would fit those design goals better
 
@@ -35,7 +35,7 @@ The `VarsEncoder` struct knows how to encode a json payload (a `map[string]strin
 Finally, we can obtain our postings and meta output by running the `vm.Exec` function, by passing the `vm.Vm` instance, a `Store` implementation (used by the vm to fetch balances and meta), and the `vm.Vars`.
 
 An important property: Both `vm.Program` and `vm.Vars` can be encoded and decoded as bytes. This way, we can orchestrate the previously mentioned flow:
-* The leader node can parse and pre-compile numscript into a `vm.Program` and keep the `compiler.VarsEncoder`. The `vm.Program` is serialised into bytes and sent to nodes, which'll deserialise it into `vm.Program` again, and used to crate the instance of the `vm.Vm`. 
+* The leader node can parse and pre-compile numscript into a `vm.Program` and keep the `compiler.VarsEncoder`. The `vm.Program` is serialised into bytes and sent to nodes, which'll deserialise it into `vm.Program` again, and used to create the instance of the `vm.Vm`. 
 * On each tx, the leader takes the json payload and turns it into `vm.Vars` with the `vm.Encoder`. `vm.Vars` are serialised, sent and deserialised back. Now node can finally run the highly optimised warm `vm.Vm` instance.
 
 Diagram is roughly like this:
@@ -88,13 +88,13 @@ type Instruction struct {
 
 Because of the fixed-size, the vm can keep the hydrated buffer of `[]Instruction` stream instead of having to parse things on the fly at runtime (or without having to model it via heap-allocated structs) while still being compact enough to benefit good CPU locality.
 
-Instructions come in 2 format: either `ABC` (3 arguments of 1 byte each) or `ABB` (2 arguments, with 1 having 1 byte size and the other a little endian repr of 2bytes).
+Instructions come in 2 formats: either `ABC` (3 arguments of 1 byte each) or `ABB` (2 arguments, with 1 having 1 byte size and the other a little endian repr of 2bytes).
 If an instruction doesn't fit the 4 bytes limit, we simply extend it with the `Instruction` after that.
 
 Instructions are fetched and evaluated one at the time until they are finished (no HALT instructions to stop, so that bytecode always terminates by design).
 
 Instructions can move data by manipulating registers. Registers banks are separated by type (so that we don't have to have a single heap-allocated value, nor unsafe pointers or manually handled unsafe memory). With "type" here we mean the internal representation of data, which isn't the same as numscript types (there isn't necessarily a 1-1 relationship). For example, both strings, assets and accounts are represented via the golang `string` type.
-> Note: we'll probably change accouts' representation when adding scopes
+> Note: we'll probably change accounts' representation when adding scopes
 
 A simple example of an instruction is:
 ```
@@ -108,7 +108,7 @@ Note that this model plays very well with golang's `big.Int` mutable API.
 
 The instruction set has
 * a few pure, binary or unary arithmetic/logic operations (int min, string add, int add, portion sub, etc)
-* a few domain instructions which call the `runtime.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitive can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
+* a few domain instructions which call the `runtime.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitives can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
 * conditional jumps (`JMP_IF_ZERO`), which can only jump forward (so that the vm always halts by design)
 * a `MK_ALLOTMENT` instruction which computes the allotment-related calculations
 * constant pool loading instructions: `LOAD_STR(dest:u8, idx:u16)`, which performs `str_regs[dest] = program.str_pool[idx]`, and `LOAD_INT`.
@@ -188,9 +188,9 @@ This repr allows us to quickly hydrate the bytecode into a `[]string` and `[]big
 
 The data section, str table and int table work in the exact same way as the program's. In fact the encoding/decoding code for the pools is shared between the two.
 
-An important property is that the `vm.Vars` don't have a 1-1 correspondence with the vars. The `vm.Vars` only encodes ints and strings. Composite objects, such as monetaries, are split into 2 different vars. This keeps data encoding minimal, and makes optimizations surface simplier to implement (see optimisations section below).
+An important property is that the `vm.Vars` don't have a 1-1 correspondence with the vars. The `vm.Vars` only encodes ints and strings. Composite objects, such as monetaries, are split into 2 different vars. This keeps data encoding minimal, and makes optimizations surface simpler to implement (see optimisations section below).
 
-The compiler is free to chose any encoding it wants for the vars (the first value in the str table doesn't have to be the first string variable). Behaviour can change across versions.
+The compiler is free to choose any encoding it wants for the vars (the first value in the str table doesn't have to be the first string variable). Behaviour can change across versions.
 
 ### Soundness verification
 > [!NOTE]
@@ -215,12 +215,12 @@ Still, we can use this as a sanity-check right after program is compiled, or aft
 ## Compiler
 Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]compiler.irInstr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]irInstr` are assembled into `[]vm.Instruction`. 
 The instruction set is mostly similar, but there are a few differences.
-The most crucial one is that instead of many separate pools of 256 registers, there's a single infinite stream of register.
+The most crucial one is that instead of many separate pools of 256 registers, there's a single infinite stream of registers.
 We'll materialise those "logical" registers into actual physical registers during assembly, and perfom register allocation policies so that we'll be able to fit scripts within the 256 registers constraint.
 We are able to fully typecheck the `[]irInstr` program, so that we know that we aren't passing logical registers that were created with a different type.
 
 Other differences in the instruction set include:
-* instead of `LOAD_INT` or `LOAD_STRING` referencing constant pool index, we have a `loadInt{ dest reg; value big.Int }` and `loadString{ dest reg; value string}` which handle populating and deduping constant pool when assemblying, or using specialised instructions like `LOAD_INT_IMMEDIATE` instructions which contain the number in the payload itself.
+* instead of `LOAD_INT` or `LOAD_STRING` referencing constant pool index, we have a `loadInt{ dest reg; value big.Int }` and `loadString{ dest reg; value string}` which handle populating and deduping constant pool when assembling, or using specialised instructions like `LOAD_INT_IMMEDIATE` instructions which contain the number in the payload itself.
 * we have a `labelMarker struct{ label string }` pseudo-instruction. This way the jump can reference an instruction that hasn't been emitted yet without complex hacks at compile time
 
 This split allows us to implement peephole optimisations (bytecode rewriting) - see the "optimisation" section.
@@ -434,6 +434,6 @@ What a better register allocation buys us is:
 3. avoid having to forbid scripts that overflow the 256 registers limit, or having to implement register spilling behaviour (the most important improvement)
 
 Registers allocation is a widely studied topic, so we don't really have to discover anything new.
-There are more aggressive and expensive algorithms that are able to produce the most optimal registers allocation (e.g. by having to compute graph coloring, a provably expensive problem), which we don't need in our case: we still need decent perf at compile time as well, and a simplier allocation will most likely be "good enough".
+There are more aggressive and expensive algorithms that are able to produce the most optimal registers allocation (e.g. by having to compute graph coloring, a provably expensive problem), which we don't need in our case: we still need decent perf at compile time as well, and a simpler allocation will most likely be "good enough".
 Specifically, a [linear scan allocation](https://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf) will get us very close to the optimal allocation with `O(n)` cost.
 > Note: Claude argues that, for our instruction set, linear scan would produce _exactly_ the same result as the optimal allocation algorithms. I haven't yet put effort in understanding whether that's the case and why that is
