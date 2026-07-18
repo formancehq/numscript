@@ -23,6 +23,13 @@ type Vm struct {
 	program  Program
 	runstate *runtime.RunState
 
+	// storeAdapter is reused across Exec calls and handed to the runstate BY
+	// POINTER: boxing a *runtimeStoreAdapter into runtime.Store stores the pointer
+	// in the interface word directly (no heap copy), so a warm Exec allocates
+	// nothing for the store plumbing. Its ctx/store fields are refreshed each Exec.
+	// Reused-in-place => fine for the single-threaded, one-Exec-at-a-time VM.
+	storeAdapter runtimeStoreAdapter
+
 	stringsRegs    []string // asset,string,account
 	intsRegs       []big.Int
 	portionsRegs   []runtime.Portion
@@ -100,7 +107,10 @@ func Exec[S Store](
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
 ) (runtime.ExecutionResult, ExecutionError) {
-	runtimeStore := runtimeStoreAdapter{store: store}
+	// Refresh the reused adapter in place and hand it to the runstate by pointer
+	// (see the storeAdapter field): no per-Exec allocation for the store wrapper.
+	vm.storeAdapter.ctx = ctx
+	vm.storeAdapter.store = store
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
 	//
@@ -115,9 +125,9 @@ func Exec[S Store](
 	}
 
 	if vm.runstate == nil {
-		vm.runstate = runtime.New(runtimeStore)
+		vm.runstate = runtime.New(&vm.storeAdapter)
 	} else {
-		vm.runstate.Reset(runtimeStore)
+		vm.runstate.Reset(&vm.storeAdapter)
 	}
 	runstate := vm.runstate
 

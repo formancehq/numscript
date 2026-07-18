@@ -29,13 +29,21 @@ Three reference points per script:
 
 | Script (warm) | `feat/exp/vm` | `feat/exp/optimize-vm` | Δ ns | allocs |
 |---|---:|---:|---:|---:|
-| simple `send` (VM) | 302.5 ns | **119 ns** (opt+slots) | **−61%** | 10 → **1** |
-| capped inorder (VM) | 853.3 ns | **531 ns** (opt) | **−38%** | 23 → **1** |
-| world → dest (VM) | ~queue, 10 allocs | **44 ns** (opt, leaf) | — | 10 → **1** |
+| simple `send` (VM) | 302.5 ns | **103 ns** (opt+slots) | **−66%** | 10 → **0** |
+| capped inorder (VM) | 853.3 ns | **510 ns** (opt) | **−40%** | 23 → **0** |
+| world → dest (VM) | ~queue, 10 allocs | **30 ns** (opt, leaf) | — | 10 → **0** |
 
-The dominant win is **allocations → 1/op** on the warm path (runtime rewrite,
-always-on), compounded by the peepholes (opt-in) and the new unbounded-source
-fast path.
+The dominant win is **allocations → 0/op** on the warm path (runtime rewrite +
+the reused store adapter), compounded by the peepholes (opt-in), the unbounded
+fast path, and balance slots.
+
+**The last allocation.** The warm path sat at 1 alloc/op for a while: `Exec`
+boxed a fresh `runtimeStoreAdapter` value into `RunState`'s `Store` interface
+field every call (that field outlives the call — the runstate fetches balances
+lazily). Reusing one adapter on the `Vm` and handing it over **by pointer**
+(boxing a pointer into an interface stores it in the interface word, no heap
+copy) drops it to **0 alloc/op** — and removing even a 32 B malloc is worth
+real time: `world → dest` 44 → 30 ns (−32%), simple send 119 → 103 ns (−13%).
 
 ## VM vs interpreter vs floor — `feat/exp/optimize-vm`
 
