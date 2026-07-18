@@ -322,6 +322,42 @@ $total += $pulled_sn
 #inorder_end
 ```
 
+#### Max source (bounded)
+Let's compile `max <monetary> from <src>`, bounded by the `$amount` cap.
+
+```
+$mon = <compiled monetary>
+$max_asset = get_asset($mon)
+assert_same_asset($max_asset, $asset) // $asset is the current asset (set via set_current_asset)
+$max_amount = get_amount($mon)
+$cap = min_int($max_amount, $amount)
+$pulled = <compile src, capped by $cap>
+```
+
+If there's no outer cap (an unbounded context), the `min_int` is skipped and the inner source is capped by `$max_amount` directly.
+
+#### Allotment source (bounded)
+Let's compile the allotment source `<p1> from <s1>, .., <pn> from <sn>`, bounded by the `$amount` cap.
+Note that an allotment source is always bounded.
+
+```
+// portions must cover exactly 1 (no `remaining` clause here)
+$leftover = 1 - <p1> - .. - <pn>
+assert_leftover($leftover, exact: true) // "exact: false" if there's a remaining
+
+// evaluate each clause's portion
+// arrays are eventually assembled into contiguous registers
+// (len is always statically known)
+[$share_1, .., $share_n] = mk_allot($amount, [<p1>, .., <pn>])
+
+$pulled_s1 = <compile s1, capped by $share_1>
+check_enough_funds($pulled_s1, $share_1)
+
+..
+
+$pulled_sn = <compile sn, capped by $share_n>
+check_enough_funds($pulled_sn, $share_n)
+```
 
 ### Optimisations
 TODO!
