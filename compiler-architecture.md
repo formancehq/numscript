@@ -193,7 +193,24 @@ An important property is that the `vm.Vars` don't have a 1-1 correspondence with
 The compiler is free to chose any encoding it wants for the vars (the first value in the str table doesn't have to be the first string variable). Behaviour can change across versions.
 
 ### Soundness verification
-TODO!
+> [!NOTE]
+> This isn't yet implemented in the `feat/exp/vm` branch. There is a branch with a POC of those checks.
+
+Even if there are bugs in the compiler, we can analyse the bytecode to prove statically that the bytecode can't make the vm crash, that the computation always halts (the instruction set is designed so that this is a decidable problem). We can also prova statically most of the interesting properties that ensure that the bytecode isn't resulting in undefined behaviour.
+Some of the examples are:
+* No undefined opcodes. Ensures no panic
+* Extended instructions aren't truncated. Ensures no panic
+* Const idx doesn't overflow the const pool array. Ensures no panic
+* Var idx doesn't overflow the vars pool array. Ensures no panic
+* We don't overflow the max register declared by the compiler output. Ensures no panic
+* Only jump forward. Ensures termination
+* No read before write (undefined behaviour). This ensures we can re-use vm instances. Note this has to be checked on every path (including possible jumps)
+
+Vm is simple enough that we can easily audit every line of code that could panic (e.g. array access), and perform static checks on bytecode.
+
+The static check is optional: the compiler should emit valid bytecode anyway.
+Still, we can use this as a sanity-check right after program is compiled, or after the raft node receives the bytes payload, to make sure nothing went wrong in the meanwhile.
+
 
 ## Compiler
 Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]compiler.irInstr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]irInstr` are assembled into `[]vm.Instruction`. 
