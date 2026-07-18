@@ -360,6 +360,23 @@ check_enough_funds($pulled_sn, $share_n)
 ```
 
 ### Optimisations
-TODO!
+> [!NOTE]
+> Peephole optimisations aren't yet implemented in the `feat/exp/vm` branch. There is a POC in another branch, to measure how much perf could be impacted, but it's too soon to consider 
 
+You may have noticed that the previous compilation examples emit _a lot_ of garbage.
+That's done by design: the compiler must be simple and declarative. We don't want dozens of special cases in the compilation logic, which must express a general, albeit redundant, template which focuses on correctness.
+
+However, the `irInstr` layer allows us to easily rewrite the instructions so that we remove garbage instructions, precomputing more aggressively, rewrite them into more efficient code (this is called peephole optimisation)
+
+Each peephole is independent and is expressed as a `func(instr []vInstr) []vInstr`, which returns the new instructions set, or nil if it didn't change.
+Each peephole is independently testable and reviewable.
+
+We apply each peephole optimisation sequentially, and repeat until we reach a fixed point for each peephole (the program `p` such that `f(p) == p`, where `f` is the peephole function).
+
+Note that proving that a peephole function _does_ have a fixed point is usually simple, whereas proving that the function composition of all the peepholes isn't. Pratically speaking, we can avoid non-terminating optimisation passes by imposing a max amount of optimisation passes. A clever order of peepholes should make convergence quite fast anyway.
+
+> TODO list some peepholes
+
+### Registers allocator
+TODO
 
