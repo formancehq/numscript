@@ -18,7 +18,8 @@ runs); allocations they remove are per-run, so the win compounds with reuse.
 ## Peepholes (`internal/compiler/peephole*.go`)
 
 Each is a pass `func([]vInstr) ([]vInstr, bool)`; `optimize` runs them to a
-fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`, `deadCode`.
+fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`,
+`postFromUnbounded`, `deadCode`.
 
 - **`monetaryFold`** — removes the `mk_monetary(A,M)` → `get_asset`/`get_amount`
   round-trip: consumers read the asset/amount registers directly. The dead
@@ -45,8 +46,38 @@ fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`, `deadCode`.
   (allocs are already ~1/op from the runtime work below): single→single ~9%,
   fan-out ~13%, fan-in ~negligible (the queue's O(1) front-pop + pooled amounts
   leave little to remove for a clean FIFO drain).
+- **`postFromUnbounded`** — the aggressive follow-up to `fundsBypass` for a
+  single→single send whose source is **unbounded** (`@world`, or `allowing
+  unbounded overdraft`). It collapses the `take_account` +
+  `check_enough_funds` + `post_account` triple into a single
+  `post_from_unbounded` (`Op_PostFromUnbounded`), deleting two pieces of work
+  that are pure overhead for an unbounded source:
+  - the **enough-funds check** — an unbounded pull makes exactly `cap`
+    available and can never be short (`got == cap == needed`), so the check
+    always passes.
+  - the **source-balance debit** — the `entryFor` map hit + `big.Int` subtract
+    that `take_account` does only so a later `balance()` read of the source
+    stays correct.
+
+  Dropping the debit is sound only when the source balance is never observed
+  afterward, enforced by two guards:
+  - the program contains **no `balance()` read at all** (no `fetchBalance`) —
+    the only way a script observes a running balance directly; if any exists
+    the pass bails wholesale rather than reason about which account it reads.
+  - a **non-`@world` source must not be pulled/taken elsewhere** in the
+    program — a later *bounded* pull of the same account would fold the missing
+    debit into its available-funds math and change the postings. `@world` is
+    exempt: the VM always treats it as unbounded, so its debit is never folded
+    into any later pull.
+
+  The postings are unchanged (the destination is still credited by the emitted
+  posting); only the unobservable source debit and the always-true check go
+  away. Impact (warm, CPU-only): `send [USD/2 42] (@world → @dest)` goes
+  **126.8 → 77.3 ns/op (−39%)** vs the plain `take`+`post` bypass, **−48%** vs
+  naive; allocs unchanged at 1/op. Bounded sources are ineligible and
+  unaffected.
 - **`deadCode`** — drops pure instructions (loads, arithmetic) whose result is
-  never read. Cleans up after the other two.
+  never read. Cleans up after the others.
 
 ## VM opcodes added (`internal/vm/instruction.go`)
 
@@ -60,6 +91,10 @@ Compact / specialized forms to cut per-instruction work:
 - **`Op_Take` / `Op_TakeCapZero` / `Op_Post`** — the `fundsBypass` targets. Take =
   Pull without the queue append; Post = a direct posting with no debit.
   `Op_TakeCapZero` is the single-word plain-account form.
+- **`Op_PostFromUnbounded`** — the `postFromUnbounded` target. Single word
+  (`A=src`, `B=dst`, `C=cap`, same layout as `Op_Post`): emits the posting
+  `src → dst` of `cap` in the current asset and credits `dst`, with **no source
+  debit and no funds check** — the fused unbounded-source fast path.
 
 ## Runtime (`internal/runtime/`)
 
