@@ -31,7 +31,7 @@ Three reference points per script:
 |---|---:|---:|---:|---:|
 | simple `send` (VM) | 302.5 ns | **156.2 ns** (opt) | **−48%** | 10 → **1** |
 | capped inorder (VM) | 853.3 ns | **531 ns** (opt) | **−38%** | 23 → **1** |
-| world → dest (VM) | ~queue, 10 allocs | **77.3 ns** (opt) | — | 10 → **1** |
+| world → dest (VM) | ~queue, 10 allocs | **44 ns** (opt, leaf) | — | 10 → **1** |
 
 The dominant win is **allocations → 1/op** on the warm path (runtime rewrite,
 always-on), compounded by the peepholes (opt-in) and the new unbounded-source
@@ -53,9 +53,13 @@ fast path.
 | CompiledVMOptCapped (peephole) | 531 | 32 | 1 |
 | **world → dest** | | | |
 | WorldNaive (VM, queue) | 149.0 | 32 | 1 |
-| **WorldOpt (VM, fused op)** | **77.3** | 32 | 1 |
+| **WorldOpt (VM, fused leaf op)** | **44** | 32 | 1 |
 | WorldBaselineTakePost (floor, debit kept) | 95.2 | 16 | 1 |
 | WorldBaselineDirectPost (floor, debit skipped) | 54.9 | 16 | 1 |
+
+The leaf op (`44 ns`) is below even the `DirectPost` floor (`54.9`, which still
+credits dst): eliding the destination credit removes the `entryFor` balance-map
+lookup entirely, so only the posting append and dispatch remain.
 
 For reference, the same three on the base branch `feat/exp/vm`:
 
@@ -111,13 +115,23 @@ unbounded source (`@world` or `allowing unbounded overdraft`), the fused
 |---|---:|---:|
 | WorldNaive (queue) | 149.0 | — |
 | WorldOpt, prior `take`+`post` bypass | 126.8 | −15% |
-| **WorldOpt, fused `Op_PostFromUnbounded`** | **77.3** | **−48%** |
+| WorldOpt, fused `Op_PostFromUnbounded` (credits dst) | 77.3 | −48% |
+| **WorldOpt, `Op_PostFromUnboundedLeaf` (leaf dst)** | **44** | **−70%** |
 
-`77.3 ns` decomposes as the `DirectPost` floor (`54.9`) + ~22 ns of VM dispatch
-for the 6 remaining instructions — it lands *below* the debit-keeping floor
-(`95.2`) precisely because the debit is elided. Bounded sources are ineligible
-(guarded) and unchanged. This matters because funding from `@world` is the most
-common numscript pattern.
+Two successive peephole wins on the same shape:
+
+- **`Op_PostFromUnbounded`** drops the always-true enough-funds check and the
+  (unobservable) source-balance debit: `126.8 → 77.3` (−39%).
+- **`Op_PostFromUnboundedLeaf`** additionally drops the *destination credit* when
+  dst is a **leaf** (never a later funding source, never saved, no `balance()`
+  read anywhere) — which removes the `entryFor` balance-map lookup, the single
+  most expensive operation left in the path (~40 ns): `77.3 → 44` (−43%).
+
+`44 ns` lands *below* the crediting `DirectPost` floor (`54.9`) exactly because
+that floor still does the credit's map lookup. Bounded sources and non-leaf /
+saved / balance-read destinations are ineligible (guarded) and unchanged. This
+matters because funding `@world → external leaf` is the most common numscript
+shape.
 
 ## Takeaways
 
@@ -127,9 +141,13 @@ common numscript pattern.
 2. **The VM front-end was never the bottleneck** — it's 33–78× lighter than the
    interpreter's. The runtime funds work (the floor) is where the time goes, and
    that's what the rewrite attacked.
-3. **Peepholes add a focused CPU layer on top:** ~9–13% general, up to **−48% for
-   unbounded single→single sends** via the fused direct-posting op.
-4. **Behavior is identical** — the whole script-test corpus passes in both naive
+3. **Peepholes add a focused CPU layer on top:** ~9–13% general, up to **−70% for
+   `@world → leaf` sends** via the fused direct-posting op + dead-credit elision.
+4. **The balance map is the next floor.** The `entryFor` map lookup is ~40 ns —
+   ~half a world send, more than all the big.Int arithmetic combined. Dead-credit
+   elision removes it *when provably dead*; removing it in general (integer
+   account slots) is the largest remaining structural lever.
+5. **Behavior is identical** — the whole script-test corpus passes in both naive
    and optimized modes (`internal/compiler/scripts_test.go`).
 
 ### Caveats

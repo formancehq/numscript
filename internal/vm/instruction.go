@@ -156,4 +156,12 @@ const (
 	// (no `balance` read; non-world source not re-pulled), so dropping the debit
 	// is unobservable.
 	Op_PostFromUnbounded
+
+	// Op_PostFromUnboundedLeaf is Op_PostFromUnbounded for a LEAF destination: it
+	// additionally skips crediting dst's balance. Emitted only when the peephole
+	// proves dst's balance is never observed (no `balance` read; dst never a later
+	// funding source; dst never saved), so the credit — and the balance-map lookup
+	// it entails, the dominant cost of the fused path — is dead. Same operand
+	// layout as Op_PostFromUnbounded (A=src, B=dst, C=cap).
+	Op_PostFromUnboundedLeaf
 )

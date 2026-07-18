@@ -254,7 +254,7 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankStr, instr.B)
 		read(bankInt, instr.C)
 		d.reads = append(d.reads, currentAssetRef)
-	case Op_PostFromUnbounded:
+	case Op_PostFromUnbounded, Op_PostFromUnboundedLeaf:
 		// same operand layout as Op_Post: src(A)->dst(B), amount is cap(C).
 		read(bankStr, instr.A)
 		read(bankStr, instr.B)

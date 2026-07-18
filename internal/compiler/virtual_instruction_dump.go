@@ -71,7 +71,11 @@ func (i postAccount) String() string {
 
 func (i postFromUnbounded) String() string {
 	opts := joinOpts(optLabel("color", i.color))
-	s := fmt.Sprintf("post_from_unbounded(src: %s, dst: %s, cap: %s", i.srcAccount, i.dstAccount, i.cap)
+	name := "post_from_unbounded"
+	if !i.credit {
+		name = "post_from_unbounded_leaf"
+	}
+	s := fmt.Sprintf("%s(src: %s, dst: %s, cap: %s", name, i.srcAccount, i.dstAccount, i.cap)
 	if opts != "" {
 		s += ", " + opts
 	}

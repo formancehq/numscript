@@ -286,6 +286,16 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
+		case Op_PostFromUnboundedLeaf:
+			// as Op_PostFromUnbounded, but dst is a leaf: its balance is never
+			// observed, so skip the credit (and its balance-map lookup) too.
+			src := stringsRegs[instr.A]
+			dst := stringsRegs[instr.B]
+			cap := &intsRegs[instr.C]
+			if err := runstate.PostDirectNoCredit(src, "", dst, "", "", cap); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
 		case Op_MkAllotment:
 			instrExt := instrs[pc]
 			pc++

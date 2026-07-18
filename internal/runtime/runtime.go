@@ -477,6 +477,29 @@ func (s *RunState) PostDirect(src, srcScope, dst, dstScope, color string, amount
 	return s.addPosting(src, srcScope, dst, dstScope, s.currentAsset, color, amount)
 }
 
+// PostDirectNoCredit is PostDirect that also skips crediting dst's balance. It is
+// sound only when dst's running balance is never observed (no balance() read, dst
+// never a later funding source, dst never saved) — the compiler's peephole proves
+// this and emits it for leaf destinations. It saves the balance-map entryFor hit,
+// which dominates the fused fast path. amount is cloned into the posting.
+func (s *RunState) PostDirectNoCredit(src, srcScope, dst, dstScope, color string, amount *big.Int) error {
+	if amount.Sign() <= 0 {
+		return nil
+	}
+	amt := s.takeBig()
+	amt.Set(amount)
+	s.postings = append(s.postings, Posting{
+		Source:           src,
+		SourceScope:      srcScope,
+		Destination:      dst,
+		DestinationScope: dstScope,
+		Asset:            s.currentAsset,
+		Color:            color,
+		Amount:           amt,
+	})
+	return nil
+}
+
 // Send mirrors the OCaml `send`, extended with a color filter. It drains queued
 // funding sources in FIFO order until cap is satisfied or eligible sources run
 // out, and each emitted posting carries the *consumed source's* own color.

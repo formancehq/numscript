@@ -76,6 +76,21 @@ fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`,
   **126.8 → 77.3 ns/op (−39%)** vs the plain `take`+`post` bypass, **−48%** vs
   naive; allocs unchanged at 1/op. Bounded sources are ineligible and
   unaffected.
+
+  **Dead-credit elision (leaf destination).** The pass runs only when there are
+  no `balance()` reads — under which the *destination credit* the emitted
+  posting performs (an `addToBalance(dst)`, i.e. a balance-map `entryFor`
+  lookup) is itself dead whenever `dst` is a **leaf**: never a later funding
+  source (a bounded pull would fold its balance) and never `save`d. When it
+  proves this (the dst account, a compile-time constant, is absent from every
+  pull/take account set and every `save`), it emits `Op_PostFromUnboundedLeaf`
+  instead — same posting, but `PostDirectNoCredit` skips the credit. That
+  removes the `entryFor` map lookup, the single most expensive operation left in
+  the fused path (~40 ns — ~half a world send, more than all the big.Int
+  arithmetic combined). Impact: `@world → @dest` goes **77.3 → 44 ns/op (−43%)**,
+  **−70% vs naive**; it lands *below* the crediting `DirectPost` floor (54.9)
+  precisely because that floor still does the credit's lookup. Non-leaf / saved
+  destinations keep the credit (plain `Op_PostFromUnbounded`).
 - **`deadCode`** — drops pure instructions (loads, arithmetic) whose result is
   never read. Cleans up after the others.
 
@@ -95,6 +110,10 @@ Compact / specialized forms to cut per-instruction work:
   (`A=src`, `B=dst`, `C=cap`, same layout as `Op_Post`): emits the posting
   `src → dst` of `cap` in the current asset and credits `dst`, with **no source
   debit and no funds check** — the fused unbounded-source fast path.
+- **`Op_PostFromUnboundedLeaf`** — same as `Op_PostFromUnbounded` but for a
+  **leaf** destination: also skips the `dst` credit (and its balance-map lookup)
+  via `runtime.PostDirectNoCredit`. Emitted only when the credit is provably
+  dead.
 
 ## Runtime (`internal/runtime/`)
 

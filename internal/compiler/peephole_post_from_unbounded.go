@@ -48,15 +48,28 @@ func (postFromUnboundedPass) run(instrs []vInstr) ([]vInstr, bool) {
 	// Count how many pulls/takes reference each compile-time-constant account, to
 	// enforce the "non-world source used once" guard.
 	pullCount := map[string]int{}
+	// nonLeaf = accounts whose balance is READ somewhere: a pull/take source (a
+	// later bounded pull folds in accumulated deltas) or a save target. A dst that
+	// is NONE of these is a leaf — its credit is never observed and can be dropped
+	// (balance() reads are already excluded wholesale above). Reads via balance()
+	// go through fetchBalance, handled by the guard; postings/sends only WRITE the
+	// destination balance, so they are not observers.
+	nonLeaf := map[string]bool{}
 	for _, in := range instrs {
 		switch v := in.(type) {
 		case pullAccount:
 			if acc, ok := constStrOf(instrs, v.account); ok {
 				pullCount[acc]++
+				nonLeaf[acc] = true
 			}
 		case takeAccount:
 			if acc, ok := constStrOf(instrs, v.account); ok {
 				pullCount[acc]++
+				nonLeaf[acc] = true
+			}
+		case save:
+			if acc, ok := constStrOf(instrs, v.account); ok {
+				nonLeaf[acc] = true
 			}
 		}
 	}
@@ -121,6 +134,14 @@ func (postFromUnboundedPass) run(instrs []vInstr) ([]vInstr, bool) {
 		}
 		post := instrs[postIdx].(postAccount)
 
+		// credit is droppable when dst is a compile-time-constant LEAF account: its
+		// balance is never read (no pull/take source, no save), and balance() reads
+		// are already excluded. A dynamic (non-const) dst can't be proven a leaf.
+		credit := true
+		if dst, ok := constStrOf(instrs, post.dstAccount); ok && !nonLeaf[dst] {
+			credit = false
+		}
+
 		edits[i] = nil        // drop the take
 		edits[checkIdx] = nil // drop the always-true funds check
 		edits[postIdx] = []vInstr{postFromUnbounded{
@@ -128,6 +149,7 @@ func (postFromUnboundedPass) run(instrs []vInstr) ([]vInstr, bool) {
 			dstAccount: post.dstAccount,
 			cap:        *t.cap,
 			color:      nil,
+			credit:     credit,
 		}}
 	}
 

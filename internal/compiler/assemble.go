@@ -585,7 +585,11 @@ func (i postFromUnbounded) assemble(a *assembler) error {
 	}
 	// color is currently always nil (colors unimplemented); the current asset is
 	// implicit, exactly as Op_Post.
-	a.emit(vm.Op_PostFromUnbounded, src, dst, cap)
+	op := vm.Op_PostFromUnbounded
+	if !i.credit {
+		op = vm.Op_PostFromUnboundedLeaf // leaf dst: skip the credit too
+	}
+	a.emit(op, src, dst, cap)
 	return nil
 }
 

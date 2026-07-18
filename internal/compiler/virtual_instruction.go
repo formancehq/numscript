@@ -103,6 +103,9 @@ type (
 		srcAccount, dstAccount reg  // str, str
 		cap                    reg  // int
 		color                  *reg // str
+		// credit is false when dst is a LEAF (its balance is never observed): the
+		// posting is emitted without crediting dst, saving the balance-map lookup.
+		credit bool
 	}
 	save struct {
 		account reg  // str

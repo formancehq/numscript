@@ -39,6 +39,38 @@ func TestPostFromUnbounded_UnboundedOverdraft(t *testing.T) {
 	}
 }
 
+func TestPostFromUnbounded_LeafDstSkipsCredit(t *testing.T) {
+	// @dest is a leaf (never a source, never saved): the credit is dead.
+	dump := optDump(t, `send [USD/2 42] (source = @world destination = @dest)`)
+	if !strings.Contains(dump, "post_from_unbounded_leaf") {
+		t.Fatalf("expected leaf (no-credit) variant, got:\n%s", dump)
+	}
+}
+
+func TestPostFromUnbounded_NonLeafDstKeepsCredit(t *testing.T) {
+	// @mid is credited then used as a source: its balance is observed, so the
+	// credit must stay (plain post_from_unbounded, not the leaf variant).
+	src := `send [USD/2 42] (source = @world destination = @mid)
+send [USD/2 10] (source = @mid destination = @dest)`
+	dump := optDump(t, src)
+	if !strings.Contains(dump, "post_from_unbounded(") {
+		t.Fatalf("expected crediting variant for non-leaf dst, got:\n%s", dump)
+	}
+	if strings.Contains(dump, "post_from_unbounded_leaf") {
+		t.Fatalf("non-leaf dst must keep its credit, got:\n%s", dump)
+	}
+}
+
+func TestPostFromUnbounded_SavedDstKeepsCredit(t *testing.T) {
+	// @dest is saved, so its balance is read: keep the credit.
+	src := `save [USD/2 1] from @dest
+send [USD/2 42] (source = @world destination = @dest)`
+	dump := optDump(t, src)
+	if strings.Contains(dump, "post_from_unbounded_leaf") {
+		t.Fatalf("saved dst must keep its credit, got:\n%s", dump)
+	}
+}
+
 func TestPostFromUnbounded_BoundedSourceIneligible(t *testing.T) {
 	// @src is a plain (bounded-zero) account, not unbounded.
 	dump := optDump(t, `send [USD/2 42] (source = @src destination = @dest)`)
