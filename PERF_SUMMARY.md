@@ -47,33 +47,49 @@ real time: `world → dest` 44 → 30 ns (−32%), simple send 119 → 103 ns (�
 
 ## VM vs interpreter vs floor — `feat/exp/optimize-vm`
 
+Current warm-path state (all figures post the balance-slots and store-adapter
+work). The `CompiledVM*` rows run through `Exec` and now allocate nothing; the
+hand-written `*Baseline` floors still box their own store adapter (1 alloc).
+
+**simple `send`**
+
 | Benchmark | ns/op | B/op | allocs/op |
 |---|---:|---:|---:|
-| **simple `send`** | | | |
 | TreeWalker (interpreter) | 1603 | 2705 | 47 |
 | RuntimeBaseline (map-based floor) | 143 | 16 | 1 |
-| CompiledVM (naive) | 181.0 | 32 | 1 |
-| CompiledVMOpt (peephole) | 156.2 | 32 | 1 |
-| **CompiledVMOpt + balance slots** | **119** | 32 | 1 |
+| CompiledVM (naive) | 166 | 0 | 0 |
+| **CompiledVMOpt (peephole + slots)** | **103** | **0** | **0** |
 
-The slotted opt (`119 ns`) runs *below* the `RuntimeBaseline` "floor" (`143 ns`) —
-because that floor still keys the balance map by a 4-string `PairKey`, while the
-slotted VM indexes a small array. Once you replace the map, the old floor stops
-being a floor.
-| **capped inorder** | | | |
+The slotted opt (`103 ns`) runs *below* the `RuntimeBaseline` "floor" (`143 ns`):
+that floor still keys the balance map by a 4-string `PairKey` and still boxes its
+own store adapter (1 alloc), while the optimized VM indexes a small array and
+reuses its adapter (0 alloc). Once you replace the map, the old floor stops being
+a floor.
+
+**capped inorder**
+
+| Benchmark | ns/op | B/op | allocs/op |
+|---|---:|---:|---:|
 | TreeWalkerCapped | 3812 | 6019 | 97 |
 | RuntimeBaselineCapped (floor) | 452.9 | 16 | 1 |
-| CompiledVMCapped (naive) | 554.9 | 32 | 1 |
-| CompiledVMOptCapped (peephole) | 531 | 32 | 1 |
-| **world → dest** | | | |
-| WorldNaive (VM, queue) | 149.0 | 32 | 1 |
-| **WorldOpt (VM, fused leaf op)** | **44** | 32 | 1 |
+| CompiledVMCapped (naive) | 534 | 0 | 0 |
+| **CompiledVMOptCapped (peephole)** | **510** | **0** | **0** |
+
+Capped still runs through the funds queue (`pull`/`send`), so it is not slotted
+yet — its win is the alloc removal and the peepholes, not slots.
+
+**world → dest**
+
+| Benchmark | ns/op | B/op | allocs/op |
+|---|---:|---:|---:|
+| WorldNaive (VM, queue) | 149.0 | 0 | 0 |
+| **WorldOpt (fused leaf op + slots + 0 alloc)** | **30** | **0** | **0** |
 | WorldBaselineTakePost (floor, debit kept) | 95.2 | 16 | 1 |
 | WorldBaselineDirectPost (floor, debit skipped) | 54.9 | 16 | 1 |
 
-The leaf op (`44 ns`) is below even the `DirectPost` floor (`54.9`, which still
-credits dst): eliding the destination credit removes the `entryFor` balance-map
-lookup entirely, so only the posting append and dispatch remain.
+`30 ns` is far below even the `DirectPost` floor (`54.9`): the leaf op elides the
+destination credit's balance-map lookup, and the reused store adapter drops the
+last allocation — so only the posting append and dispatch remain.
 
 For reference, the same three on the base branch `feat/exp/vm`:
 
@@ -91,32 +107,28 @@ For reference, the same three on the base branch `feat/exp/vm`:
 The interesting quantity is *front-end overhead* — the cost each engine adds on
 top of the shared funds-work floor. Subtract the floor from each engine:
 
-**Front-end cost = engine − floor** (simple `send`, this branch):
+**Front-end cost = engine − floor** (simple `send`, floor ≈ 143 ns):
 
-| Engine | total | − floor | front-end | allocs over floor |
-|---|---:|---:|---:|---:|
-| TreeWalker (interpreter) | 1603 | 137.5 | **1465.5 ns** | +46 |
-| CompiledVM (naive) | 181.0 | 137.5 | **43.5 ns** | +0 |
-| CompiledVMOpt | 156.2 | 137.5 | **18.7 ns** | +0 |
-
-So the VM's front-end (dispatch + registers) is **~34× lighter** than the
-interpreter's AST walk (naive), or **~78× lighter** optimized — and it does **0
-extra allocations** where the interpreter's front-end does **~46**.
-
-**VM-vs-interpreter speedup, floor removed** — `(interp − floor) / (vm − floor)`,
-i.e. how many times smaller the VM's own overhead is:
-
-| Script | interp − floor | vm − floor | **speedup** |
+| Engine | total | − floor | allocs over floor |
 |---|---:|---:|---:|
-| simple (base VM) | 1465.5 | 43.5 | **33.7×** |
-| simple (Opt VM) | 1465.5 | 18.7 | **78.4×** |
-| capped (base VM) | 3359.1 | 102.0 | **32.9×** |
-| capped (Opt VM) | 3359.1 | 78.1 | **43.0×** |
+| TreeWalker (interpreter) | 1603 | **~1460 ns** | +46 |
+| CompiledVM (naive) | 166 | **~20 ns** | +0 |
 
-Cross-branch, the front-end ratio itself barely moved (the VM was always cheap
-per instruction); what changed is the **floor** — the shared funds work — which
-the runtime rewrite roughly halved (simple `253.8 → 137.5`, capped
-`744.9 → 452.9`) while collapsing allocs `10 → 1` / `23 → 1`.
+The interpreter's AST walk adds **~1460 ns and ~46 allocations** per send; the
+VM's dispatch + registers add only **tens of ns and zero allocations** — roughly
+**two orders of magnitude** lighter per instruction. That gap is the whole reason
+to run bytecode instead of walking the tree.
+
+The optimized VM goes further still: with balance slots it now runs **below** the
+map-based floor (`103 < 143 ns`), because the floor itself still pays the balance
+map lookup *and* a store-adapter alloc that the optimized VM has eliminated. So
+`engine − floor` only characterizes the naive VM and the interpreter — once slots
+replace the map, the floor stops being a floor and the subtraction goes negative.
+
+Cross-branch, the per-instruction VM front-end barely moved (it was always cheap);
+what changed is the **floor** — the shared funds work — which the runtime rewrite
+roughly halved (simple `253.8 → 143`, capped `744.9 → 452.9`) and, with the reused
+store adapter, drove to **0 allocations** (`10 → 0` / `23 → 0`).
 
 ## The unbounded-source fast path (`postFromUnbounded`)
 
@@ -130,9 +142,10 @@ unbounded source (`@world` or `allowing unbounded overdraft`), the fused
 | WorldNaive (queue) | 149.0 | — |
 | WorldOpt, prior `take`+`post` bypass | 126.8 | −15% |
 | WorldOpt, fused `Op_PostFromUnbounded` (credits dst) | 77.3 | −48% |
-| **WorldOpt, `Op_PostFromUnboundedLeaf` (leaf dst)** | **44** | **−70%** |
+| WorldOpt, `Op_PostFromUnboundedLeaf` (leaf dst) | 44 | −70% |
+| **WorldOpt + reused store adapter (0 alloc)** | **30** | **−80%** |
 
-Two successive peephole wins on the same shape:
+Successive wins on the same shape:
 
 - **`Op_PostFromUnbounded`** drops the always-true enough-funds check and the
   (unobservable) source-balance debit: `126.8 → 77.3` (−39%).
@@ -140,9 +153,11 @@ Two successive peephole wins on the same shape:
   dst is a **leaf** (never a later funding source, never saved, no `balance()`
   read anywhere) — which removes the `entryFor` balance-map lookup, the single
   most expensive operation left in the path (~40 ns): `77.3 → 44` (−43%).
+- **Reused store adapter** removes the last allocation: `44 → 30` (−32%).
 
-`44 ns` lands *below* the crediting `DirectPost` floor (`54.9`) exactly because
-that floor still does the credit's map lookup. Bounded sources and non-leaf /
+`30 ns` is far *below* the crediting `DirectPost` floor (`54.9`): the leaf op
+skips the credit's map lookup and the VM no longer boxes a store adapter, so only
+the posting append and instruction dispatch remain. Bounded sources and non-leaf /
 saved / balance-read destinations are ineligible (guarded) and unchanged. This
 matters because funding `@world → external leaf` is the most common numscript
 shape.
@@ -159,12 +174,15 @@ hashing a 4-string `PairKey`.
 | simple `send` (warm VM) | ns/op |
 |---|---:|
 | CompiledVMOpt (map) | 156 |
-| **CompiledVMOpt + slots** | **119** |
+| CompiledVMOpt + slots | 119 |
+| **+ reused store adapter (0 alloc)** | **103** |
 
-`−24%` — the two map lookups (source read+debit, destination credit) drop to array
-indexes (~40 ns → ~6 ns, matching the isolated micro-benchmark: map ~28 ns/key vs
-slot ~7 ns/key). Capped (queue-based `pull`/`send`, not `take`/`post`) is not yet
-slotted and is unchanged; `@world → leaf` has no balance access and is unchanged.
+Slots: `−24%` — the two map lookups (source read+debit, destination credit) drop
+to array indexes (~40 ns → ~6 ns, matching the isolated micro-benchmark: map
+~28 ns/key vs slot ~7 ns/key). The reused store adapter then removes the last
+allocation (`119 → 103`). Capped (queue-based `pull`/`send`, not `take`/`post`)
+is not yet slotted; `@world → leaf` has no balance access and is unaffected by
+slots.
 
 **Coherence with variables (the subtle part).** Accounts can be resolved at
 runtime (from vars), so slots cannot simply *replace* the map. Instead each slot
@@ -178,12 +196,14 @@ corpus in both modes.
 
 ## Takeaways
 
-1. **Allocations are the story.** Warm path `10 → 1` (simple) and `23 → 1`
-   (capped); this is ~half the ns win by itself and is *always on* (naive or
-   optimized bytecode).
-2. **The VM front-end was never the bottleneck** — it's 33–78× lighter than the
-   interpreter's. The runtime funds work (the floor) is where the time goes, and
-   that's what the rewrite attacked.
+1. **Allocations are the story.** Warm path `10 → 0` (simple) and `23 → 0`
+   (capped): the pooling drove it to 1/op, and reusing the store adapter (passed
+   by pointer) removed the last one. This is ~half the ns win by itself and is
+   *always on* (naive or optimized bytecode).
+2. **The VM front-end was never the bottleneck** — it's ~two orders of magnitude
+   lighter than the interpreter's AST walk (which also does ~46 allocs/send). The
+   runtime funds work (the floor) is where the time goes, and that's what the
+   rewrite attacked.
 3. **Peepholes add a focused CPU layer on top:** ~9–13% general, up to **−70% for
    `@world → leaf` sends** (fused direct-posting + dead-credit elision) and
    **−24% for a plain `@src → @dest` send** (balance slots).
