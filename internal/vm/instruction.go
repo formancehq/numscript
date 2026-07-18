@@ -144,4 +144,16 @@ const (
 	Op_MkPortion
 	Op_MkMonetary
 	Op_Balance // reads the account balance from the run-state
+
+	// Op_PostFromUnbounded is the aggressive single->single fast path for an
+	// UNBOUNDED source (@world, or `allowing unbounded overdraft`). Because an
+	// unbounded pull makes exactly `cap` available regardless of balance, and can
+	// never be short, the source debit AND the enough-funds check are both
+	// elided: this one op emits the posting src->dst of `cap` (current asset) and
+	// credits dst, with no source debit and no funds queue. Single word:
+	// A=src(str), B=dst(str), C=cap(int). Emitted by the postFromUnbounded
+	// peephole only when the source balance is provably never observed afterward
+	// (no `balance` read; non-world source not re-pulled), so dropping the debit
+	// is unobservable.
+	Op_PostFromUnbounded
 )

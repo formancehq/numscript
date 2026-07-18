@@ -94,6 +94,16 @@ type (
 		amount                 reg  // int
 		color                  *reg // str
 	}
+	// postFromUnbounded is the fused single->single fast path for an unbounded
+	// source: it emits a direct posting src->dst of `cap` (the aggressive form of
+	// take+checkEnoughFunds+post, with the source debit and the funds check both
+	// elided). Produced only by the postFromUnbounded peephole, under a guard that
+	// the source balance is never observed afterward.
+	postFromUnbounded struct {
+		srcAccount, dstAccount reg  // str, str
+		cap                    reg  // int
+		color                  *reg // str
+	}
 	save struct {
 		account reg  // str
 		asset   reg  // str
@@ -176,6 +186,11 @@ func (i takeAccount) sources() []reg { return present(&i.account, i.cap, i.overd
 func (i postAccount) dests() []reg { return nil }
 func (i postAccount) sources() []reg {
 	return present(&i.srcAccount, &i.dstAccount, &i.amount, i.color)
+}
+
+func (i postFromUnbounded) dests() []reg { return nil }
+func (i postFromUnbounded) sources() []reg {
+	return present(&i.srcAccount, &i.dstAccount, &i.cap, i.color)
 }
 
 func (i makeAllotment) dests() []reg   { return i.dest }

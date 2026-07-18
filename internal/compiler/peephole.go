@@ -14,6 +14,7 @@ func defaultPeepholes() []peephole {
 	return []peephole{
 		monetaryFold{},
 		fundsBypass{},
+		postFromUnboundedPass{},
 		deadCode{},
 	}
 }

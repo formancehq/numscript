@@ -254,6 +254,12 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankStr, instr.B)
 		read(bankInt, instr.C)
 		d.reads = append(d.reads, currentAssetRef)
+	case Op_PostFromUnbounded:
+		// same operand layout as Op_Post: src(A)->dst(B), amount is cap(C).
+		read(bankStr, instr.A)
+		read(bankStr, instr.B)
+		read(bankInt, instr.C)
+		d.reads = append(d.reads, currentAssetRef)
 	case Op_LoadIntImm:
 		// immediate value in b_c; writes the int register, reads nothing.
 		write(bankInt, instr.A)

@@ -274,6 +274,18 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
+		case Op_PostFromUnbounded:
+			// unbounded source: available == cap, can't be short. Emit the posting
+			// directly with no source debit and no enough-funds check. addPosting
+			// (via PostDirect) ignores a non-positive amount, matching the take+post
+			// path (which would take/post 0).
+			src := stringsRegs[instr.A]
+			dst := stringsRegs[instr.B]
+			cap := &intsRegs[instr.C]
+			if err := runstate.PostDirect(src, "", dst, "", "", cap); err != nil {
+				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+			}
+
 		case Op_MkAllotment:
 			instrExt := instrs[pc]
 			pc++

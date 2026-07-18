@@ -69,6 +69,15 @@ func (i postAccount) String() string {
 	return s + ")"
 }
 
+func (i postFromUnbounded) String() string {
+	opts := joinOpts(optLabel("color", i.color))
+	s := fmt.Sprintf("post_from_unbounded(src: %s, dst: %s, cap: %s", i.srcAccount, i.dstAccount, i.cap)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
+}
+
 func (i makeAllotment) String() string {
 	return fmt.Sprintf("[%s] <- mk_allot(%s, [%s])", regList(i.dest), i.amount, regList(i.portions))
 }

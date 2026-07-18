@@ -570,6 +570,25 @@ func (i postAccount) assemble(a *assembler) error {
 	return nil
 }
 
+func (i postFromUnbounded) assemble(a *assembler) error {
+	src, err := a.strReg(i.srcAccount)
+	if err != nil {
+		return err
+	}
+	dst, err := a.strReg(i.dstAccount)
+	if err != nil {
+		return err
+	}
+	cap, err := a.intReg(i.cap)
+	if err != nil {
+		return err
+	}
+	// color is currently always nil (colors unimplemented); the current asset is
+	// implicit, exactly as Op_Post.
+	a.emit(vm.Op_PostFromUnbounded, src, dst, cap)
+	return nil
+}
+
 func (i sendToAccount) assemble(a *assembler) error {
 	account, err := a.optionalReg((*assembler).strReg, i.account)
 	if err != nil {

@@ -45,6 +45,14 @@ func (i postAccount) mapSources(f func(reg) reg) vInstr {
 	return i
 }
 
+func (i postFromUnbounded) mapSources(f func(reg) reg) vInstr {
+	i.srcAccount = f(i.srcAccount)
+	i.dstAccount = f(i.dstAccount)
+	i.cap = f(i.cap)
+	i.color = mapOptReg(f, i.color)
+	return i
+}
+
 func (i save) mapSources(f func(reg) reg) vInstr {
 	i.account = f(i.account)
 	i.asset = f(i.asset)
