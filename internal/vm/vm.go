@@ -78,7 +78,10 @@ func Exec[S Store](
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
 ) (runtime.ExecutionResult, ExecutionError) {
-	runtimeStore := runtimeStoreAdapter{store: store}
+	runtimeStore := runtimeStoreAdapter{
+		ctx:   ctx,
+		store: store,
+	}
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
 	if vm.runstate == nil {
