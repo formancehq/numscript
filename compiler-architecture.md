@@ -298,25 +298,25 @@ send_to_account(account: $dest)
 Let's compile the inorder source `<s1>, .., <sn>`, by storing the pulled amt in the `$pulled` register, bounded by the `$amount` cap.
 
 ```
-$total = 0
+$pulled = 0
 $remaining = int_copy($amount)
 
 // first source
 $pulled_s1 = <compile s1, capped by $remaining>
-$total += $pulled_s1
+$pulled += $pulled_s1
 $remaining -= $pulled_s1
 jmp_if_zero($remaining, #inorder_end)
 
 // second source
 $pulled_s2 = <compile s2, capped by $remaining>
-$total += $pulled_s2
+$pulled += $pulled_s2
 $remaining -= $pulled_s2
 jmp_if_zero($remaining, #inorder_end)
 
 ..
 
 $pulled_sn = <compile sn, capped by $remaining>
-$total += $pulled_sn
+$pulled += $pulled_sn
 // last one doesn't need jump
 
 #inorder_end
@@ -368,7 +368,7 @@ That's done by design: the compiler must be simple and declarative. We don't wan
 
 However, the `irInstr` layer allows us to easily rewrite the instructions so that we remove garbage instructions, precomputing more aggressively, rewrite them into more efficient code (this is called peephole optimisation)
 
-Each peephole is independent and is expressed as a `func(instr []vInstr) []vInstr`, which returns the new instructions set, or nil if it didn't change.
+Each peephole is independent and is expressed as a `func(instr []irInstr) []irInstr`, which returns the new instructions set, or nil if it didn't change.
 Each peephole is independently testable and reviewable.
 
 We apply each peephole optimisation sequentially, and repeat until we reach a fixed point for each peephole (the program `p` such that `f(p) == p`, where `f` is the peephole function).
