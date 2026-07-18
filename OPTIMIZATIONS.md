@@ -156,10 +156,26 @@ dynamic (map).
   step. Coherence is covered by `TestE2E_SlotCoherence` and the corpus in both
   modes.
 
+## Store adapter reuse (`internal/vm/vm.go`) — the last allocation
+
+The warm path sat at 1 alloc/op long after the funds work was pooled: `Exec`
+boxed a fresh `runtimeStoreAdapter` **value** into `RunState`'s `Store` interface
+field every call (that field outlives the call — the runstate fetches balances
+lazily through it, once per distinct account per run). The fix keeps one adapter
+on the `Vm` and hands it to the runstate **by pointer**: boxing a
+`*runtimeStoreAdapter` into an interface stores the pointer in the interface word
+(no heap copy), so a warm `Exec` allocates nothing for the store plumbing. The
+`ctx`/`store` fields are refreshed in place each call (safe for the
+single-threaded, one-`Exec`-at-a-time VM); this also wires `ctx` through, which
+was previously dropped. Impact: **1 → 0 alloc/op**, and removing even the 32 B
+malloc is worth real time (`world → dest` 44 → 30 ns, −32%; simple send
+119 → 103 ns, −13%).
+
 ## Runtime (`internal/runtime/`)
 
 The bulk of the win is here: driving per-run heap allocation on the hot (warm,
-reused-VM) path toward zero. Grouped by what they attack.
+reused-VM) path **to zero** (see the store-adapter fix above for the final
+alloc). Grouped by what they attack.
 
 ### Funds queue (`runtime.go`)
 
