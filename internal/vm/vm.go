@@ -19,17 +19,24 @@ type Vm struct {
 	program  Program
 	runstate *runtime.RunState
 
-	stringsRegs    [256]string // asset,string,account
-	intsRegs       [256]big.Int
-	portionsRegs   [256]big.Rat
-	monetariesRegs [256]monetary
+	stringsRegs    []string // asset,string,account
+	intsRegs       []big.Int
+	portionsRegs   []big.Rat
+	monetariesRegs []monetary
 }
 
+// NewVm allocates the register banks from the program's declared sizes. It does
+// not verify the program: run program.Verify() first if the bytecode is not
+// already trusted to be coherent with its declared counts.
 func NewVm(
 	program Program,
 ) *Vm {
 	return &Vm{
-		program: program,
+		program:        program,
+		intsRegs:       make([]big.Int, program.IntRegs),
+		stringsRegs:    make([]string, program.StrRegs),
+		portionsRegs:   make([]big.Rat, program.PortionRegs),
+		monetariesRegs: make([]monetary, program.MonetaryRegs),
 	}
 }
 
@@ -84,6 +91,17 @@ func Exec[S Store](
 	}
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
+	//
+	// Exec does not verify the program (that is program.Verify(), the caller's
+	// responsibility). The register banks are already sized to the declared
+	// counts by NewVm. Vars are separate caller-supplied input, so we still guard
+	// that enough were provided for what the program declares it reads.
+	if vm.program.IntVars > 0 || vm.program.StrVars > 0 {
+		if vars == nil || len(vars.IntsPool) < int(vm.program.IntVars) || len(vars.StringsPool) < int(vm.program.StrVars) {
+			return runtime.ExecutionResult{}, MalformedProgramError{Reason: "program reads more variables than were provided"}
+		}
+	}
+
 	if vm.runstate == nil {
 		vm.runstate = runtime.New(runtimeStore)
 	} else {
@@ -97,10 +115,10 @@ func Exec[S Store](
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
 	// access.
-	intsRegs := &vm.intsRegs
-	stringsRegs := &vm.stringsRegs
-	portionsRegs := &vm.portionsRegs
-	monetariesRegs := &vm.monetariesRegs
+	intsRegs := vm.intsRegs
+	stringsRegs := vm.stringsRegs
+	portionsRegs := vm.portionsRegs
+	monetariesRegs := vm.monetariesRegs
 	intsPool := vm.program.IntsPool
 	stringsPool := vm.program.StringsPool
 
@@ -117,9 +135,6 @@ func Exec[S Store](
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
 		case Op_PullAccount:
-			// TODO crashes if this is the last instruction (the ext word is
-			// missing): instrs[pc] reads past the end. e.g. a program ending in a
-			// lone Op_PullAccount word.
 			instrExt := instrs[pc]
 			pc++
 
@@ -182,15 +197,11 @@ func Exec[S Store](
 			}
 
 		case Op_MkAllotment:
-			// TODO crashes if this is the last instruction (missing ext word),
-			// same as Op_PullAccount.
 			instrExt := instrs[pc]
 			pc++
 
-			// TODO crashes when instr.A+instr.C > 256: the slice runs past the
-			// register bank. Both are bytes, so A+C can be up to 510.
-			destArrStartReg := intsRegs[instr.A : instr.A+instr.C]
-			inpArrStartReg := portionsRegs[instr.B : instr.B+instr.C]
+			destArrStartReg := intsRegs[instr.A : int(instr.A)+int(instr.C)]
+			inpArrStartReg := portionsRegs[instr.B : int(instr.B)+int(instr.C)]
 
 			amt := &intsRegs[instrExt.A]
 
@@ -323,9 +334,6 @@ func Exec[S Store](
 			dest.amount.Set(amount)
 
 			// --- Vars
-			// TODO both crash if vars is nil (Exec called with no vars for a
-			// program that reads them), or if GetBC() >= len(vars pool) (caller
-			// passed fewer vars than the program declares).
 		case Op_LoadVarInt:
 			intsRegs[instr.A].Set(&vars.IntsPool[instr.GetBC()])
 
@@ -340,8 +348,6 @@ func Exec[S Store](
 			}
 
 		// --- consts
-		// TODO both crash if GetBC() >= len(pool), e.g. an Op_LoadInt referring to
-		// pool index 5 in a program whose ints pool has 3 entries.
 		case Op_LoadInt:
 			const_ := &intsPool[instr.GetBC()]
 			intsRegs[instr.A].Set(const_)

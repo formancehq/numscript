@@ -27,6 +27,14 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
+	// declared var-pool sizes: how many int/str slots Encode will produce
+	prog.IntVars = uint16(compiled.varsEncoder.nInt)
+	prog.StrVars = uint16(compiled.varsEncoder.nStr)
+
+	// the compiler must never emit code the VM would reject
+	if err := prog.Verify(); err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
 
 	return compiled.varsEncoder, prog, nil
 }
