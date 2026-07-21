@@ -60,7 +60,7 @@ func (i save) String() string {
 
 func (i assertLeftover) String() string {
 	if i.exact {
-		return fmt.Sprintf("assert_leftover(%s, exact: true)", i.portion)
+		return fmt.Sprintf("assert_leftover_exact(%s)", i.portion)
 	}
 	return fmt.Sprintf("assert_leftover(%s)", i.portion)
 }
