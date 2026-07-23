@@ -29,6 +29,7 @@ func Execute(options CliOptions) {
 	rootCmd.AddCommand(getTestCmd())
 	rootCmd.AddCommand(getTestInitCmd())
 	rootCmd.AddCommand(getRunCmd())
+	rootCmd.AddCommand(getVerifyCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
