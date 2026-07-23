@@ -16,16 +16,7 @@ var fixtures = map[string]string{
 	"simple":  simple,
 	"world":   world,
 	"inorder": inorder,
-	"capped": `
-		send [USD/2 10] (
-			source = {
-				@a
-				max [USD/2 5] from @b
-				@c
-			}
-			destination = @dest
-		)
-	`,
+	"capped":  capped,
 }
 
 // The base encoding (no query appended) must be:
