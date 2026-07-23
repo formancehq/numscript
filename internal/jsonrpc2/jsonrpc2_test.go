@@ -67,6 +67,70 @@ func TestErrIvalidParam(t *testing.T) {
 	require.Equal(t, &jsonrpc2.ErrInvalidParams, err)
 }
 
+func TestPanickingRequestHandlerReturnsInternalError(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		strategy jsonrpc2.HandlingStrategy
+	}{
+		{name: "sync", strategy: jsonrpc2.SyncHandling},
+		{name: "async", strategy: jsonrpc2.AsyncHandling},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newClient(
+				jsonrpc2.NewRequestHandler("boom", tc.strategy, func(p struct{}, conn *jsonrpc2.Conn) any {
+					panic("handler exploded")
+				}),
+				jsonrpc2.NewRequestHandler("echo", tc.strategy, func(p string, conn *jsonrpc2.Conn) any {
+					return p
+				}),
+			)
+
+			// the panicking handler returns an internal error instead of killing the server
+			_, err := client.SendRequest("boom", struct{}{})
+			require.Equal(t, &jsonrpc2.ErrInternal, err)
+
+			// the connection survived the panic and still serves requests
+			raw, err := client.SendRequest("echo", "still alive")
+			require.Nil(t, err)
+
+			var res string
+			require.NoError(t, json.Unmarshal(raw, &res))
+			require.Equal(t, "still alive", res)
+		})
+	}
+}
+
+func TestPanickingNotificationHandlerKeepsConnAlive(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		strategy jsonrpc2.HandlingStrategy
+	}{
+		{name: "sync", strategy: jsonrpc2.SyncHandling},
+		{name: "async", strategy: jsonrpc2.AsyncHandling},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newClient(
+				jsonrpc2.NewNotificationHandler("boom", tc.strategy, func(p struct{}, conn *jsonrpc2.Conn) {
+					panic("handler exploded")
+				}),
+				jsonrpc2.NewRequestHandler("echo", tc.strategy, func(p string, conn *jsonrpc2.Conn) any {
+					return p
+				}),
+			)
+
+			require.NoError(t, client.SendNotification("boom", struct{}{}))
+
+			// the connection survived the panic and still serves requests
+			raw, err := client.SendRequest("echo", "still alive")
+			require.Nil(t, err)
+
+			var res string
+			require.NoError(t, json.Unmarshal(raw, &res))
+			require.Equal(t, "still alive", res)
+		})
+	}
+}
+
 func newClient(serverHandlers ...jsonrpc2.Handler) *jsonrpc2.Conn {
 	in := make(chan jsonrpc2.Message)
 	out := make(chan jsonrpc2.Message)

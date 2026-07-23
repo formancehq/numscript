@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 
@@ -50,6 +51,21 @@ func NewRequestHandler[Params any](method string, strategy HandlingStrategy, han
 	return Handler{
 		register: func(conn *Conn) {
 			requestHandler := func(id ID, raw json.RawMessage) {
+				// Recover from panics in the handler so that a single faulty
+				// request doesn't kill the whole server process. The client
+				// receives a JSON-RPC internal error instead.
+				defer func() {
+					if recovered := recover(); recovered != nil {
+						log.Printf("jsonrpc2: recovered from panic while handling request %q: %v\n%s", method, recovered, debug.Stack())
+						if err := conn.stream.WriteMessage(Response{
+							ID:    id,
+							Error: &ErrInternal,
+						}); err != nil {
+							log.Printf("jsonrpc2: error writing internal error response: %v", err)
+						}
+					}
+				}()
+
 				var payload Params
 				if raw != nil {
 					err := json.Unmarshal([]byte(raw), &payload)
@@ -102,6 +118,16 @@ func NewNotificationHandler[Params any](method string, strategy HandlingStrategy
 	return Handler{
 		register: func(conn *Conn) {
 			notificationHandler := func(raw json.RawMessage) {
+				// Recover from panics in the handler so that a single faulty
+				// notification doesn't kill the whole server process.
+				// As per the json-rpc2 specs, notifications never get a response,
+				// so we only log the panic.
+				defer func() {
+					if recovered := recover(); recovered != nil {
+						log.Printf("jsonrpc2: recovered from panic while handling notification %q: %v\n%s", method, recovered, debug.Stack())
+					}
+				}()
+
 				var payload Params
 				err := json.Unmarshal([]byte(raw), &payload)
 				if err != nil {
