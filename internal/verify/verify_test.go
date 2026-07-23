@@ -107,6 +107,30 @@ func TestInorderConservation(t *testing.T) {
 	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
 }
 
+const allot = `
+	send [USD/2 10] (
+		source = @world
+		destination = {
+			1/3 to @a
+			2/3 to @b
+		}
+	)
+`
+
+func TestAllotmentSplit(t *testing.T) {
+	requireZ3(t)
+	// floor(10/3)=3, +1 carry = 4 to @a; 2/3 = 6 to @b.
+	res := run(t, allot, `prove: received("a","USD/2") == 4 && received("b","USD/2") == 6`)
+	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
+}
+
+func TestAllotmentConserves(t *testing.T) {
+	requireZ3(t)
+	// A split never loses or invents money: the parts always sum to the whole.
+	res := run(t, allot, `prove: received("a","USD/2") + received("b","USD/2") == 10`)
+	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
+}
+
 func TestQueryTypeError(t *testing.T) {
 	// A non-boolean top-level query is a usage error (no z3 needed).
 	_, err := Verify(context.Background(), simple, `received("dest", "USD/2")`, Options{})

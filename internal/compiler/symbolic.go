@@ -15,10 +15,13 @@ package compiler
 // per-send drained amount — are bound to fresh declared constants, which keeps
 // the whole encoding linear in program size.
 //
-// Scope (v1): the "core scalar-send" opcode set exercised by the compiler
-// snapshot fixtures. Anything outside it returns an *UnsupportedOpError rather
-// than silently producing a wrong answer. See the deferred list in the switch
-// default and in the package docs.
+// Scope: scalar sends, inorder sources with caps, fractional allotments
+// (mk_allot), the live-balance builtin (balance()), and multi-statement
+// scripts — all validated against the real VM by the differential tests in the
+// verify package. Still deferred (returns an *UnsupportedOpError rather than
+// silently producing a wrong answer): colored/sub-asset sources, uncapped
+// pulls, symbolic (metadata/var-sourced) portions, string-typed vars, and the
+// save / set*meta statements.
 
 import (
 	"fmt"
@@ -153,6 +156,7 @@ type interp struct {
 
 	availCount int
 	sendCount  int
+	allotCount int
 }
 
 func simulate(instrs []irInstr) (*Encoding, error) {
@@ -318,6 +322,34 @@ func (it *interp) step(instr irInstr) error {
 		}
 		return nil
 
+	case assertLeftover:
+		return it.assertLeftover(in)
+
+	case makeAllotment:
+		return it.makeAllotment(in)
+
+	case fetchBalance:
+		acctT := it.regs[in.account]
+		assetT := it.regs[in.asset]
+		if acctT.kind != tStr || assetT.kind != tStr {
+			return &UnsupportedOpError{Op: "balance", Reason: "symbolic account/asset"}
+		}
+		account, asset := acctT.s, assetT.s
+		it.touchAccount(account, asset)
+		key := AccountAsset{account, asset}
+		// balance() reads the live balance at this point: start minus what has
+		// been pulled plus what has been received so far.
+		it.regs[in.dest] = term{kind: tMonetary, mAsset: asset, mAmt: it.curBalance[key]}
+		return nil
+
+	case assertNonNegativeBalance:
+		b := it.regs[in.balance]
+		if b.kind != tMonetary {
+			return &UnsupportedOpError{Op: "assert_non_negative_balance", Reason: "non-monetary balance"}
+		}
+		it.orFail(fmt.Sprintf("(< %s 0)", b.mAmt))
+		return nil
+
 	case jmpIfZero, labelMarker:
 		// Forward-only jumps. In compiled source blocks the only jump idiom is
 		// "sequential source, jump out once the remaining need hits zero". A
@@ -414,10 +446,97 @@ func (it *interp) binaryOp(in binaryOp) error {
 			return &UnsupportedOpError{Op: "mk_portion", Reason: "symbolic portion (num/den not literal)"}
 		}
 		it.regs[in.dest] = term{kind: tPortion, pNum: num, pDen: den}
+	case opSubPortion:
+		// exact rational subtraction: a/b - c/d = (a*d - c*b) / (b*d)
+		if l.kind != tPortion || r.kind != tPortion {
+			return &UnsupportedOpError{Op: "sub_portion", Reason: "symbolic portion"}
+		}
+		num := new(big.Int).Sub(
+			new(big.Int).Mul(l.pNum, r.pDen),
+			new(big.Int).Mul(r.pNum, l.pDen),
+		)
+		den := new(big.Int).Mul(l.pDen, r.pDen)
+		it.regs[in.dest] = term{kind: tPortion, pNum: num, pDen: den}
 	default:
 		return &UnsupportedOpError{Op: fmt.Sprintf("binary %s", in.op)}
 	}
 	return nil
+}
+
+// assertLeftover checks the allotment leftover portion (1 - sum of portions).
+// Portions are literals, so this folds to a static outcome: a negative leftover
+// (over-allocated) always aborts; with `exact` (no `remaining` clause) a
+// non-zero leftover (under-allocated) aborts too.
+func (it *interp) assertLeftover(in assertLeftover) error {
+	p := it.regs[in.portion]
+	if p.kind != tPortion {
+		return &UnsupportedOpError{Op: "assert_leftover", Reason: "symbolic portion"}
+	}
+	sign := p.pNum.Sign() * p.pDen.Sign()
+	if sign < 0 {
+		it.orFail("true") // over-allocated
+	} else if in.exact && p.pNum.Sign() != 0 {
+		it.orFail("true") // under-allocated with no remaining clause
+	}
+	return nil
+}
+
+// makeAllotment encodes runtime.MakeAllotment: two passes over literal portions
+// applied to an Int amount. Pass 1 floors each portion*amount; pass 2 hands out
+// the flooring remainder one unit at a time to the earliest portions until the
+// parts sum back to amount. The pass-2 carry is a genuine prefix dependency.
+func (it *interp) makeAllotment(in makeAllotment) error {
+	amount := it.regs[in.amount]
+	if amount.kind != tInt {
+		return &UnsupportedOpError{Op: "mk_allot", Reason: "non-int amount"}
+	}
+	n := len(in.dest)
+	k := it.allotCount
+	it.allotCount++
+
+	// Pass 1: floor_i = floor(amount * num_i / den_i) = (div (* amount num_i) den_i)
+	floors := make([]string, n)
+	for i := range n {
+		p := it.regs[in.portions[i]]
+		if p.kind != tPortion {
+			return &UnsupportedOpError{Op: "mk_allot", Reason: "symbolic portion"}
+		}
+		den := p.pDen
+		if den.Sign() == 0 {
+			it.orFail("true") // division by zero portion -> abort
+			den = big.NewInt(1)
+		}
+		name := fmt.Sprintf("allot_%d_f%d", k, i)
+		it.declareInt(name, fmt.Sprintf("(div (* %s %s) %s)", amount.i, p.pNum.String(), den.String()))
+		floors[i] = name
+	}
+
+	total := fmt.Sprintf("allot_%d_total", k)
+	it.declareInt(total, sumExpr(floors))
+
+	// Pass 2: forward carry. `allocated` is the running total already handed
+	// out; extra_i is +1 while allocated is still below amount.
+	allocated := total
+	for i := range n {
+		extra := fmt.Sprintf("allot_%d_e%d", k, i)
+		it.declareInt(extra, fmt.Sprintf("(ite (< %s %s) 1 0)", allocated, amount.i))
+		out := fmt.Sprintf("allot_%d_o%d", k, i)
+		it.declareInt(out, smtAdd(floors[i], extra))
+		it.regs[in.dest[i]] = term{kind: tInt, i: out}
+		allocated = smtAdd(allocated, extra)
+	}
+	return nil
+}
+
+func sumExpr(names []string) string {
+	if len(names) == 0 {
+		return "0"
+	}
+	acc := names[0]
+	for _, n := range names[1:] {
+		acc = smtAdd(acc, n)
+	}
+	return acc
 }
 
 func (it *interp) pullAccount(in pullAccount) error {
@@ -495,6 +614,10 @@ func (it *interp) sendToAccount(in sendToAccount) error {
 		it.touchAccount(account, asset)
 		key := AccountAsset{account, asset}
 		it.recvRaw[key] = addOrInit(it.recvRaw[key], amtName)
+		// Credit the destination's live balance too: a posting increases the
+		// account's balance, so a later statement can send funds it just
+		// received (confirmed against the VM).
+		it.curBalance[key] = smtAdd(it.curBalance[key], amtName)
 	}
 	// nil account => refund/keep path: funds leave the pool, credit no one.
 	return nil

@@ -65,12 +65,10 @@ func TestSymbolicSymbolTable(t *testing.T) {
 // a wrong encoding.
 func TestSymbolicUnsupported(t *testing.T) {
 	program := parser.Parse(`
-		send [USD/2 10] (
+		set_tx_meta("k", "v")
+		send [USD/2 1] (
 			source = @world
-			destination = {
-				1/2 to @a
-				1/2 to @b
-			}
+			destination = @a
 		)
 	`)
 	require.Empty(t, program.Errors)

@@ -14,6 +14,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// allotment fixtures exercise mk_allot (fractional splits).
+const allotThirds = `
+	send [USD/2 10] (
+		source = @world
+		destination = {
+			1/3 to @a
+			2/3 to @b
+		}
+	)
+`
+
+const allotRemaining = `
+	send [USD/2 10] (
+		source = @world
+		destination = {
+			1/2 to @a
+			1/4 to @b
+			remaining to @c
+		}
+	)
+`
+
+const allotFromSrc = `
+	send [USD/2 10] (
+		source = @src
+		destination = {
+			1/3 to @a
+			2/3 to @b
+		}
+	)
+`
+
+// multi-statement fixtures.
+const multiIndependent = `
+	send [USD/2 10] (source = @src1 destination = @d1)
+	send [USD/2 20] (source = @src2 destination = @d2)
+`
+
+// multiChained sends money into @mid, then tries to send some of it onward.
+// Whether the second statement can draw on the first's receipt is decided by
+// the VM (ground truth), not assumed here.
+const multiChained = `
+	send [USD/2 10] (source = @src destination = @mid)
+	send [USD/2 4] (source = @mid destination = @dest)
+`
+
+// balanceSendAll reads a live balance with balance() and sends it onward,
+// exercising fetchBalance + assert_non_negative_balance.
+const balanceSendAll = `
+	vars { monetary $b = balance(@treasury, USD/2) }
+	send $b (source = @treasury destination = @dest)
+`
+
 // capped exercises a mixed inorder source with a per-source cap.
 const capped = `
 	send [USD/2 10] (
@@ -97,6 +150,15 @@ func TestDifferentialAgainstVM(t *testing.T) {
 		{"capped/enough", capped, bals(kv("a", 2), kv("b", 100), kv("c", 100))},
 		{"capped/b-capped-at-5", capped, bals(kv("a", 0), kv("b", 100), kv("c", 100))},
 		{"capped/short", capped, bals(kv("a", 1), kv("b", 2), kv("c", 0))},
+		{"allot/thirds", allotThirds, bals()},
+		{"allot/remaining", allotRemaining, bals()},
+		{"allot/from-src", allotFromSrc, bals(kv("src", 10))},
+		{"allot/from-src-short", allotFromSrc, bals(kv("src", 3))},
+		{"multi/independent", multiIndependent, bals(kv("src1", 10), kv("src2", 20))},
+		{"multi/chained", multiChained, bals(kv("src", 10))},
+		{"multi/second-fails", multiChained, bals(kv("src", 3))},
+		{"balance/send-all", balanceSendAll, bals(kv("treasury", 42))},
+		{"balance/empty", balanceSendAll, bals(kv("treasury", 0))},
 	}
 
 	for _, tc := range cases {
