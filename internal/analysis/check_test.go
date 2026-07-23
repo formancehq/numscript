@@ -1193,3 +1193,26 @@ send [USD/2 100000] (
 	)
 
 }
+
+func TestIncompleteVarOriginDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	// regression test for EN-1116: these incomplete var declarations
+	// used to make CheckSource panic with a nil pointer dereference
+	inputs := []string{
+		`vars { number $n = `,
+		`vars { number $n = }`,
+		`vars { $x = }`,
+		`vars { $x = `,
+		`vars { number $n = ` + "\n" + `}`,
+	}
+
+	for _, input := range inputs {
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+
+			diagnostics := checkSource(input)
+			require.NotEmpty(t, diagnostics)
+		})
+	}
+}

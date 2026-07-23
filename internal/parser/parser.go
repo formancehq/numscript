@@ -139,7 +139,11 @@ func parseVarDeclaration(varDecl antlrParser.IVarDeclarationContext) *VarDeclara
 	var origin *ValueExpr
 	if varDecl.VarOrigin() != nil {
 		expr := parseValueExpr(varDecl.VarOrigin().ValueExpr())
-		origin = &expr
+		// when the origin expression is missing or malformed,
+		// parseValueExpr returns nil; do not wrap it in a non-nil pointer
+		if expr != nil {
+			origin = &expr
+		}
 	}
 
 	return &VarDeclaration{
