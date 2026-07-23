@@ -67,6 +67,15 @@ const balanceSendAll = `
 	send $b (source = @treasury destination = @dest)
 `
 
+// uncapped fixtures exercise `send [ASSET *]` (PullUncapped): take everything.
+const uncapped1 = `
+	send [USD/2 *] (source = @a destination = @dest)
+`
+
+const uncapped2 = `
+	send [USD/2 *] (source = { @a @b } destination = @dest)
+`
+
 // capped exercises a mixed inorder source with a per-source cap.
 const capped = `
 	send [USD/2 10] (
@@ -159,12 +168,15 @@ func TestDifferentialAgainstVM(t *testing.T) {
 		{"multi/second-fails", multiChained, bals(kv("src", 3))},
 		{"balance/send-all", balanceSendAll, bals(kv("treasury", 42))},
 		{"balance/empty", balanceSendAll, bals(kv("treasury", 0))},
+		{"uncapped/single", uncapped1, bals(kv("a", 37))},
+		{"uncapped/empty", uncapped1, bals()},
+		{"uncapped/two", uncapped2, bals(kv("a", 5), kv("b", 8))},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			vmFail, vmSent, vmRecv := runVM(t, tc.src, tc.balances)
-			symFail, symSent, symRecv := runSymbolic(t, tc.src, tc.balances)
+			vmFail, vmSent, vmRecv := runVM(t, tc.src, tc.balances, nil)
+			symFail, symSent, symRecv := runSymbolic(t, tc.src, tc.balances, nil)
 
 			require.Equal(t, vmFail, symFail, "fail flag disagrees (vm=%v sym=%v)", vmFail, symFail)
 			require.Equal(t, vmSent, symSent, "sent totals disagree")
@@ -173,13 +185,45 @@ func TestDifferentialAgainstVM(t *testing.T) {
 	}
 }
 
+const varAmount = `
+	vars { number $amt }
+	send [USD/2 $amt] (source = @src destination = @dest)
+`
+
+// Differential test for a script driven by a number var, over combinations of
+// starting balance and var value.
+func TestDifferentialVarsAgainstVM(t *testing.T) {
+	requireZ3(t)
+	type vcase struct {
+		name    string
+		balance int64
+		amt     string
+	}
+	for _, c := range []vcase{
+		{"covers", 100, "10"},
+		{"exact", 10, "10"},
+		{"short", 5, "10"},
+		{"zero-amount", 5, "0"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			bal := map[string]int64{balKey("src", "USD/2"): c.balance}
+			vars := map[string]string{"amt": c.amt}
+			vmFail, vmSent, vmRecv := runVM(t, varAmount, bal, vars)
+			symFail, symSent, symRecv := runSymbolic(t, varAmount, bal, vars)
+			require.Equal(t, vmFail, symFail, "fail disagrees (vm=%v sym=%v)", vmFail, symFail)
+			require.Equal(t, vmSent, symSent, "sent disagrees")
+			require.Equal(t, vmRecv, symRecv, "received disagrees")
+		})
+	}
+}
+
 // runVM executes the compiled program on the real VM and returns whether it
 // failed, plus per-(account,asset) sent/received totals from the postings.
-func runVM(t *testing.T, src string, balances map[string]int64) (failed bool, sent, recv map[string]int64) {
+func runVM(t *testing.T, src string, balances map[string]int64, vars map[string]string) (failed bool, sent, recv map[string]int64) {
 	t.Helper()
 	pr := nsparser.Parse(src)
 	require.Empty(t, pr.Errors)
-	_, prog, err := compiler.Compile(pr.Value)
+	encoder, prog, err := compiler.Compile(pr.Value)
 	require.NoError(t, err)
 
 	store := memStore{}
@@ -187,8 +231,11 @@ func runVM(t *testing.T, src string, balances map[string]int64) (failed bool, se
 		store[k] = big.NewInt(v)
 	}
 
+	vmVars, err := encoder.Encode(vars)
+	require.NoError(t, err)
+
 	machine := vm.NewVm(prog)
-	res, execErr := vm.Exec(context.Background(), machine, &vm.Vars{}, store)
+	res, execErr := vm.Exec(context.Background(), machine, &vmVars, store)
 
 	sent, recv = map[string]int64{}, map[string]int64{}
 	if execErr != nil {
@@ -203,7 +250,7 @@ func runVM(t *testing.T, src string, balances map[string]int64) (failed bool, se
 
 // runSymbolic evaluates the symbolic encoding with the given balances pinned,
 // returning the same shape as runVM by reading z3's model.
-func runSymbolic(t *testing.T, src string, balances map[string]int64) (failed bool, sent, recv map[string]int64) {
+func runSymbolic(t *testing.T, src string, balances map[string]int64, vars map[string]string) (failed bool, sent, recv map[string]int64) {
 	t.Helper()
 	enc, err := compiler.SymbolicEncodeSource(src)
 	require.NoError(t, err)
@@ -238,6 +285,16 @@ func runSymbolic(t *testing.T, src string, balances map[string]int64) (failed bo
 	pinned := make([]string, 0, len(enc.Symbols.Start))
 	for aa, symName := range enc.Symbols.Start {
 		pinned = append(pinned, fmt.Sprintf("(assert (= %s %d))", symName, balances[balKey(aa.Account, aa.Asset)]))
+	}
+	// pin each number var referenced in the script (`$name`) to its value
+	for id, symName := range enc.Symbols.Vars {
+		name, ok := strings.CutPrefix(id, "$")
+		if !ok {
+			continue
+		}
+		if v, ok := vars[name]; ok {
+			pinned = append(pinned, fmt.Sprintf("(assert (= %s %s))", symName, v))
+		}
 	}
 	sort.Strings(pinned) // deterministic
 	for _, p := range pinned {

@@ -124,7 +124,8 @@ func lexOp(s string) (string, int) {
 }
 
 func isIdentStart(c byte) bool {
-	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	// `$` leads a numscript var name, e.g. $amount.
+	return c == '_' || c == '$' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func isIdentPart(c byte) bool {
@@ -567,6 +568,18 @@ func resolveCall(v callNode, sym compiler.SymbolTable) (sExpr, error) {
 			return sExpr{}, fmt.Errorf("get_amount expects a monetary value")
 		}
 		return sExpr{kind: kindInt, smt: m.smt}, nil
+	case "meta":
+		// meta("account", "key") — a number-typed metadata read, as an unknown.
+		acct, key, err := twoStringArgs(v, sym)
+		if err != nil {
+			return sExpr{}, err
+		}
+		id := fmt.Sprintf("meta(%q,%q)", acct, key)
+		s, ok := sym.Vars[id]
+		if !ok {
+			return sExpr{}, fmt.Errorf("no number-typed meta(%q, %q) read in this script", acct, key)
+		}
+		return sExpr{kind: kindInt, smt: s}, nil
 	case "get_asset":
 		if len(v.args) != 1 {
 			return sExpr{}, fmt.Errorf("get_asset expects (monetary)")

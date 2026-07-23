@@ -14,7 +14,7 @@ func encode(t *testing.T, source string) *Encoding {
 	require.Empty(t, program.Errors)
 	compiled, cErr := compileProgramToIR(program.Value)
 	require.Nil(t, cErr)
-	enc, err := simulate(compiled.instructions)
+	enc, err := simulate(compiled.instructions, numberVarNames(program.Value))
 	require.NoError(t, err)
 	return enc
 }
@@ -74,7 +74,7 @@ func TestSymbolicUnsupported(t *testing.T) {
 	require.Empty(t, program.Errors)
 	compiled, cErr := compileProgramToIR(program.Value)
 	require.Nil(t, cErr)
-	_, err := simulate(compiled.instructions)
+	_, err := simulate(compiled.instructions, numberVarNames(program.Value))
 	require.Error(t, err)
 	_, ok := err.(*UnsupportedOpError)
 	require.True(t, ok, "expected *UnsupportedOpError, got %T: %v", err, err)

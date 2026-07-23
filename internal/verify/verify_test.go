@@ -131,6 +131,60 @@ func TestAllotmentConserves(t *testing.T) {
 	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
 }
 
+const varSend = `
+	vars { number $amt }
+	send [USD/2 $amt] (source = @src destination = @dest)
+`
+
+func TestVarAsUnknown(t *testing.T) {
+	requireZ3(t)
+	// For ANY non-negative requested amount, a successful run delivers exactly
+	// that amount to @dest.
+	res := run(t, varSend, `prove: ($amt >= 0 && !fail) => received("dest", "USD/2") == $amt`)
+	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
+}
+
+func TestVarWitness(t *testing.T) {
+	requireZ3(t)
+	// There is some (large) amount that succeeds and is fully delivered.
+	res := run(t, varSend, `find: $amt > 1000000 && !fail && received("dest", "USD/2") == $amt`)
+	require.Equal(t, Witness, res.Verdict, "raw: %s", res.Raw)
+}
+
+func TestUnknownVarReferenceErrors(t *testing.T) {
+	_, err := Verify(context.Background(), varSend, `prove: $nope == 0`, Options{})
+	require.Error(t, err)
+}
+
+const metaSend = `
+	vars { number $limit = meta(@config, "limit") }
+	send [USD/2 $limit] (source = @world destination = @dest)
+`
+
+func TestMetadataAsUnknown(t *testing.T) {
+	requireZ3(t)
+	// @world is infinite, so for any non-negative configured limit the whole
+	// limit is delivered.
+	res := run(t, metaSend,
+		`prove: meta("config", "limit") >= 0 => received("dest", "USD/2") == meta("config", "limit")`)
+	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
+}
+
+const uncappedSend = `
+	send [USD/2 *] (source = @a destination = @dest)
+`
+
+func TestUncappedSendsWholeBalance(t *testing.T) {
+	requireZ3(t)
+	// "send everything from @a": @dest receives exactly @a's starting balance,
+	// and it can never fail.
+	res := run(t, uncappedSend, `prove: received("dest", "USD/2") == start_balance("a", "USD/2")`)
+	require.Equal(t, Proved, res.Verdict, "raw: %s", res.Raw)
+
+	res = run(t, uncappedSend, `find: fail`)
+	require.Equal(t, Impossible, res.Verdict, "raw: %s", res.Raw)
+}
+
 func TestQueryTypeError(t *testing.T) {
 	// A non-boolean top-level query is a usage error (no z3 needed).
 	_, err := Verify(context.Background(), simple, `received("dest", "USD/2")`, Options{})

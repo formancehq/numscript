@@ -15,12 +15,14 @@ package compiler
 // per-send drained amount — are bound to fresh declared constants, which keeps
 // the whole encoding linear in program size.
 //
-// Scope: scalar sends, inorder sources with caps, fractional allotments
-// (mk_allot), the live-balance builtin (balance()), and multi-statement
-// scripts — all validated against the real VM by the differential tests in the
-// verify package. Still deferred (returns an *UnsupportedOpError rather than
-// silently producing a wrong answer): colored/sub-asset sources, uncapped
-// pulls, symbolic (metadata/var-sourced) portions, string-typed vars, and the
+// Scope: scalar sends, inorder sources with caps, uncapped sources
+// (send [ASSET *]), fractional allotments (mk_allot), the live-balance builtin
+// (balance()), number vars and number-typed metadata reads as unknowns, and
+// multi-statement scripts — all validated against the real VM by the
+// differential tests in the verify package. Still deferred (returns an
+// *UnsupportedOpError rather than silently producing a wrong answer):
+// colored/sub-asset sources, symbolic (metadata/var-sourced) portions,
+// string/asset/account and portion/monetary-typed vars, and the
 // save / set*meta statements.
 
 import (
@@ -29,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
 )
 
 // worldAccountName mirrors vm.worldAccount: an infinite source, never
@@ -102,7 +105,36 @@ func SymbolicEncodeSource(source string) (*Encoding, error) {
 	if cErr != nil {
 		return nil, fmt.Errorf("compile error: %v", cErr)
 	}
-	return simulate(compiled.instructions)
+	return simulate(compiled.instructions, numberVarNames(program.Value))
+}
+
+// numberVarNames maps each int-var slot index to the user-facing name of the
+// `number` var that owns it. It replays the compiler's slot assignment
+// (compileExternalVar): a number var takes one int slot, a portion two, a
+// monetary one (its amount); string/asset/account vars take a string slot. Only
+// number vars are exposed by name — the int pieces of portion/monetary vars are
+// left anonymous (portion vars are nonlinear and out of scope anyway).
+func numberVarNames(program parser.Program) map[uint16]string {
+	names := map[uint16]string{}
+	if program.Vars == nil {
+		return names
+	}
+	intIdx := 0
+	for _, decl := range program.Vars.Declarations {
+		if decl.Origin != nil || decl.Name == nil || decl.Type == nil {
+			continue // computed var (has its own instructions), not an input slot
+		}
+		switch typecheck.Type(decl.Type.Name) {
+		case typecheck.TypeNumber:
+			names[uint16(intIdx)] = decl.Name.Name
+			intIdx++
+		case typecheck.TypePortion:
+			intIdx += 2 // num, den
+		case typecheck.TypeMonetary:
+			intIdx++ // amount (asset takes a string slot)
+		}
+	}
+	return names
 }
 
 // termKind tags what a register currently holds.
@@ -157,9 +189,16 @@ type interp struct {
 	availCount int
 	sendCount  int
 	allotCount int
+
+	// numberVars maps an int-var slot index to the numscript `number` var that
+	// owns it, so loadVar can name the symbol after the var.
+	numberVars map[uint16]string
 }
 
-func simulate(instrs []irInstr) (*Encoding, error) {
+func simulate(instrs []irInstr, numberVars map[uint16]string) (*Encoding, error) {
+	if numberVars == nil {
+		numberVars = map[uint16]string{}
+	}
 	it := &interp{
 		regs:       map[reg]term{},
 		curBalance: map[AccountAsset]string{},
@@ -168,6 +207,7 @@ func simulate(instrs []irInstr) (*Encoding, error) {
 		pool:       "0",
 		failExpr:   "false",
 		seen:       map[AccountAsset]bool{},
+		numberVars: numberVars,
 		sym: SymbolTable{
 			Fail:     "fail",
 			Start:    map[AccountAsset]string{},
@@ -367,15 +407,24 @@ func (it *interp) step(instr irInstr) error {
 
 func (it *interp) loadVar(in loadVar) error {
 	if _, ok := in.typ.(varInt); !ok {
+		// string/asset/account vars would need string-theory reasoning.
 		return &UnsupportedOpError{Op: "load_var", Reason: fmt.Sprintf("non-int var type %s", in.typ)}
 	}
-	name := fmt.Sprintf("var_%d", in.index)
-	id := fmt.Sprintf("var(%d)", in.index)
-	if _, ok := it.sym.Vars[id]; !ok {
-		it.emit(fmt.Sprintf("(declare-const %s Int)", name))
-		it.sym.Vars[id] = name
+	// A `number` var is exposed to queries as `$name`; the anonymous int pieces
+	// of portion/monetary vars keep an index-based id.
+	var symName, id string
+	if varName, ok := it.numberVars[in.index]; ok {
+		symName = "var_" + sanitize(varName)
+		id = "$" + varName
+	} else {
+		symName = fmt.Sprintf("var_int_%d", in.index)
+		id = fmt.Sprintf("var_int(%d)", in.index)
 	}
-	it.regs[in.dest] = term{kind: tInt, i: name}
+	if _, ok := it.sym.Vars[id]; !ok {
+		it.emit(fmt.Sprintf("(declare-const %s Int)", symName))
+		it.sym.Vars[id] = symName
+	}
+	it.regs[in.dest] = term{kind: tInt, i: symName}
 	return nil
 }
 
@@ -552,29 +601,35 @@ func (it *interp) pullAccount(in pullAccount) error {
 	it.touchAccount(account, asset)
 	key := AccountAsset{account, asset}
 
-	if in.cap == nil {
-		// PullUncapped path (no cap register). Deferred in v1.
-		return &UnsupportedOpError{Op: "pull_account", Reason: "uncapped pull"}
-	}
-	capExpr := it.regs[*in.cap].i
-
 	availName := fmt.Sprintf("avail_%d", it.availCount)
 	it.availCount++
 
+	// max(0, overdraft) — the overdraft register is a literal 0 in ordinary
+	// compiled output, but a symbolic overdraft bound works here too.
+	od := "0"
+	if in.overdraft != nil {
+		od = it.regs[*in.overdraft].i
+	}
+	odClamped := fmt.Sprintf("(ite (> %s 0) %s 0)", od, od)
+
 	var availExpr string
-	if account == worldAccountName {
+	switch {
+	case account == worldAccountName && in.cap != nil:
 		// world: infinite source, available = max(0, cap), no balance consulted.
-		availExpr = smtMax0(capExpr)
-	} else {
-		curBal := it.curBalance[key]
-		od := "0"
-		if in.overdraft != nil {
-			od = it.regs[*in.overdraft].i
-		}
-		// eff = max(0, currentBal + max(0, overdraft)); avail = max(0, min(cap, eff))
-		eff0 := fmt.Sprintf("(+ %s (ite (> %s 0) %s 0))", curBal, od, od)
-		eff := smtMax0(eff0)
-		availExpr = smtMax0(smtMin(capExpr, eff))
+		availExpr = smtMax0(it.regs[*in.cap].i)
+	case account == worldAccountName:
+		// world + no cap: the VM has no bound and rejects it
+		// (InvalidUncappedSource) — model it as a guaranteed abort.
+		it.orFail("true")
+		availExpr = "0"
+	case in.cap != nil:
+		// capped: eff = max(0, bal + max(0, overdraft)); avail = max(0, min(cap, eff))
+		eff := smtMax0(fmt.Sprintf("(+ %s %s)", it.curBalance[key], odClamped))
+		availExpr = smtMax0(smtMin(it.regs[*in.cap].i, eff))
+	default:
+		// uncapped (send [ASSET *]): take everything available,
+		// available = max(0, bal + max(0, overdraft)). No check_enough_funds.
+		availExpr = smtMax0(fmt.Sprintf("(+ %s %s)", it.curBalance[key], odClamped))
 	}
 
 	it.declareInt(availName, availExpr)

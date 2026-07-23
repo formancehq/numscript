@@ -41,6 +41,17 @@ an **asset**, both in quotes.
 | `volumes("acc", "USD/2")`         | net change (`received - sent`)              |
 | `fail`                            | true if the script aborts (e.g. not enough funds) |
 
+You can also refer to the script's own **unknowns** — its inputs — and reason
+about them:
+
+| Reference              | Meaning                                             |
+|------------------------|-----------------------------------------------------|
+| `$name`                | a numscript `number` variable (e.g. `$amount`)      |
+| `meta("acc", "key")`   | a `number`-typed `meta(...)` read used by the script |
+
+These are treated as arbitrary unknowns, so `prove:` checks hold for *every*
+value of them — that's how you prove a property for any input amount.
+
 ## How to combine them
 
 Numbers:
@@ -82,6 +93,12 @@ prove: received("d1", "USD/2") == 4 && received("d2", "USD/2") == 6
 
 # When it fails, nothing moves:
 prove: fail => received("dest", "USD/2") == 0
+
+# For ANY requested amount, a successful run delivers exactly that amount:
+prove: ($amount >= 0 && !fail) => received("dest", "USD/2") == $amount
+
+# Whatever the configured limit, the destination never gets more than it:
+prove: received("dest", "USD/2") <= meta("config", "limit")
 ```
 
 ## A note on failing scripts
