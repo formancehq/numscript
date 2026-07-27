@@ -156,6 +156,11 @@ func (tc *bytecodeTypechecker) check(instr irInstr) error {
 	case labelMarker:
 		return nil
 
+	case snapshot:
+		return tc.def(i.dest, regInt)
+	case restore:
+		return tc.use(i.mark, regInt)
+
 	default:
 		return fmt.Errorf("bytecode typechecker: unhandled instruction %T", instr)
 	}

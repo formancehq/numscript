@@ -155,6 +155,9 @@ func (i unaryOp) String() string {
 
 func (i labelMarker) String() string { return i.label.String() }
 
+func (i snapshot) String() string { return fmt.Sprintf("%s = snapshot()", i.dest) }
+func (i restore) String() string  { return fmt.Sprintf("restore(%s)", i.mark) }
+
 // dump renders a program: labels flush-left, instructions indented.
 func dump(code []irInstr) string {
 	var b strings.Builder

@@ -726,3 +726,21 @@ func (i labelMarker) assemble(a *assembler) error {
 
 	return nil
 }
+
+func (i snapshot) assemble(a *assembler) error {
+	dest, err := a.intReg(i.dest)
+	if err != nil {
+		return err
+	}
+	a.emit(vm.Op_Snapshot, dest, maxReg, maxReg)
+	return nil
+}
+
+func (i restore) assemble(a *assembler) error {
+	mark, err := a.intReg(i.mark)
+	if err != nil {
+		return err
+	}
+	a.emit(vm.Op_Restore, mark, maxReg, maxReg)
+	return nil
+}

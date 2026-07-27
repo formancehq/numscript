@@ -127,6 +127,9 @@ type (
 		dest, arg reg
 	}
 	labelMarker struct{ label label }
+
+	snapshot struct{ dest reg } // int: the source-queue mark (for oneof backtracking)
+	restore  struct{ mark reg } // int: a mark produced by snapshot
 )
 
 type irInstr interface {
@@ -203,6 +206,12 @@ func (i unaryOp) sources() []reg { return []reg{i.arg} }
 
 func (i labelMarker) dests() []reg   { return nil }
 func (i labelMarker) sources() []reg { return nil }
+
+func (i snapshot) dests() []reg   { return []reg{i.dest} }
+func (i snapshot) sources() []reg { return nil }
+
+func (i restore) dests() []reg   { return nil }
+func (i restore) sources() []reg { return []reg{i.mark} }
 
 func present(regs ...*reg) []reg {
 	out := make([]reg, 0, len(regs))
