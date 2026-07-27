@@ -148,6 +148,11 @@ func assembleProgram(instrs []irInstr) (vm.Program, error) {
 		Instructions: a.instructions,
 		StringsPool:  a.stringsPool.items,
 		IntsPool:     a.intsPool.items,
+
+		MaxRegString:   byte(a.strings.next),
+		MaxRegPortion:  byte(a.portions.next),
+		MaxRegInt:      byte(a.ints.next),
+		MaxRegMonetary: byte(a.monetaries.next),
 	}, nil
 }
 
