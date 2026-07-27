@@ -300,7 +300,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x55..0x8F reserved (e.g. PULL_ACCOUNT specializations)</em></td>
+      <td>85</td><td><code>0x55</code></td><td><strong>SNAPSHOT</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>int_regs[A] =</code> current source-queue mark (<code>len(sources)</code>), for <code>oneof</code> backtracking</td>
+    </tr>
+    <tr>
+      <td>86</td><td><code>0x56</code></td><td><strong>RESTORE</strong></td>
+      <td>snap</td><td>-</td><td>-</td>
+      <td>Rolls the source queue back to the mark in <code>int_regs[A]</code> (repays debited balances, then truncates)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x57..0x8F reserved (e.g. PULL_ACCOUNT specializations)</em></td>
     </tr>
   </tbody>
 </table>

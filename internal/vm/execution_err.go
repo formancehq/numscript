@@ -55,11 +55,12 @@ type (
 	}
 
 	// InternalError signals a malformed program the VM cannot execute (e.g. an
-	// unknown opcode). It is a bug in whatever produced the bytecode, never a
-	// user-script error, but it is returned rather than panicked so the VM never
-	// crashes its host.
+	// unknown opcode, or an Op_Restore operand that isn't a usable snapshot id).
+	// It is a bug in whatever produced the bytecode, never a user-script error,
+	// but it is returned rather than panicked so the VM never crashes its host.
+	// These should never happen in practice, so a wrapped error is enough.
 	InternalError struct {
-		Opcode byte
+		Err error
 	}
 
 	// StoreError wraps an error returned by the host Store (balance or metadata
@@ -83,8 +84,10 @@ func (e InvalidUncappedSource) Error() string {
 }
 
 func (e InternalError) Error() string {
-	return fmt.Sprintf("internal error: unknown opcode %d", e.Opcode)
+	return "internal error: " + e.Err.Error()
 }
+
+func (e InternalError) Unwrap() error { return e.Err }
 
 func (e DivideByZeroError) Error() string {
 	return fmt.Sprintf("cannot divide by zero (in %s/0)", e.Numerator.String())

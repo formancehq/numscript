@@ -2,6 +2,7 @@ package vm
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/runtime"
@@ -222,6 +223,16 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
+		case Op_Snapshot:
+			intsRegs[instr.A].SetInt64(int64(runstate.Snapshot()))
+
+		case Op_Restore:
+			snap := &intsRegs[instr.A]
+			if !snap.IsInt64() {
+				return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("invalid snapshot id %s", snap.String())}
+			}
+			runstate.Restore(int(snap.Int64()))
+
 		case Op_AssertLeftover:
 			leftover := &portionsRegs[instr.A]
 			sign := leftover.Sign()
@@ -438,7 +449,7 @@ func Exec[S Store](
 			stringsRegs[instr.A] = mon.asset + " " + mon.amount.String()
 
 		default:
-			return runtime.ExecutionResult{}, InternalError{Opcode: instr.Opcode}
+			return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}
 		}
 	}
 

@@ -116,7 +116,14 @@ const (
 	// reads the account balance from the run-state
 	Op_Balance Opcode = 0x54
 
-	// reserved (0x55..0x8F) for PullAccount specializations, e.g.:
+	// A = dest int reg; int_regs[A] = current source-queue mark (len(sources)).
+	// Used for oneof backtracking.
+	Op_Snapshot Opcode = 0x55
+
+	// A = int reg holding a mark; rolls the source queue back to it.
+	Op_Restore Opcode = 0x56
+
+	// reserved (0x57..0x8F) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero
 	// Op_PullAccountBoundedZero
 	// // cap=None, overdraft=Bounded r
