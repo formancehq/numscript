@@ -11,6 +11,11 @@ type Program struct {
 
 	StringsPool []string
 	IntsPool    []big.Int
+
+	MaxRegString   byte
+	MaxRegInt      byte
+	MaxRegPortion  byte
+	MaxRegMonetary byte
 }
 
 var le = binary.LittleEndian
@@ -24,13 +29,36 @@ func (p Program) Encode() []byte {
 
 	strs := encodeStringsPool(p.StringsPool)
 	ints := encodeIntsPool(p.IntsPool)
+	maxRegs := encodeMaxRegs(p)
 
-	buf := make([]byte, 0, formatHeaderLen+3*6+len(instrs)+len(strs)+len(ints))
-	buf = appendFormatHeader(buf, "NUMB", 3)
+	buf := make([]byte, 0, formatHeaderLen+4*6+len(instrs)+len(strs)+len(ints)+len(maxRegs))
+	buf = appendFormatHeader(buf, "NUMB", 4)
 	buf = appendSection(buf, SectionInstructions, instrs)
 	buf = appendSection(buf, SectionStringsPool, strs)
 	buf = appendSection(buf, SectionIntsPool, ints)
+	buf = appendSection(buf, SectionMaxRegisters, maxRegs)
 	return buf
+}
+
+// 0xFF is the nil-register sentinel, so a real register index is at most 0xFE.
+// When the max-registers section is absent, we assume the program may use every
+// usable register, i.e. this default.
+const maxRegDefault byte = nilReg - 1
+
+func encodeMaxRegs(p Program) []byte {
+	return []byte{p.MaxRegString, p.MaxRegInt, p.MaxRegPortion, p.MaxRegMonetary}
+}
+
+// One byte per bank, positional. Banks missing from the section (absent or short)
+// default to maxRegDefault; extra bytes (future banks) are ignored.
+func parseMaxRegs(buf []byte) (str, i, portion, monetary byte) {
+	at := func(idx int) byte {
+		if idx < len(buf) {
+			return buf[idx]
+		}
+		return maxRegDefault
+	}
+	return at(0), at(1), at(2), at(3)
 }
 
 func encodeStringsPool(strings []string) []byte {
@@ -151,7 +179,7 @@ func parseIntsPool(buf []byte) ([]big.Int, error) {
 }
 
 func DecodeProgram(buf []byte) (Program, error) {
-	sections, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool)
+	sections, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool, SectionMaxRegisters)
 	if err != nil {
 		return Program{}, err
 	}
@@ -171,9 +199,15 @@ func DecodeProgram(buf []byte) (Program, error) {
 		return Program{}, err
 	}
 
+	maxStr, maxInt, maxPortion, maxMonetary := parseMaxRegs(sections[SectionMaxRegisters])
+
 	return Program{
-		Instructions: instructions,
-		StringsPool:  stringsPool,
-		IntsPool:     intsPool,
+		Instructions:   instructions,
+		StringsPool:    stringsPool,
+		IntsPool:       intsPool,
+		MaxRegString:   maxStr,
+		MaxRegInt:      maxInt,
+		MaxRegPortion:  maxPortion,
+		MaxRegMonetary: maxMonetary,
 	}, nil
 }

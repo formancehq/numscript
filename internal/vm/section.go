@@ -8,6 +8,7 @@ const (
 	SectionInstructions uint16 = 0x01 // NUMB only
 	SectionStringsPool  uint16 = 0x02
 	SectionIntsPool     uint16 = 0x03
+	SectionMaxRegisters uint16 = 0x04 // NUMB only; optional, absent => every bank defaults to maxRegDefault
 )
 
 // A section tag with this bit set must be understood by the decoder: an unknown

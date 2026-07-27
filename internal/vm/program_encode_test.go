@@ -91,6 +91,27 @@ func TestRoundTripEdgeValues(t *testing.T) {
 	}
 }
 
+func TestMaxRegRoundTrip(t *testing.T) {
+	prog := Program{MaxRegString: 3, MaxRegInt: 7, MaxRegPortion: 0, MaxRegMonetary: 12}
+	got, err := DecodeProgram(prog.Encode())
+	require.NoError(t, err)
+	require.Equal(t, prog.MaxRegString, got.MaxRegString)
+	require.Equal(t, prog.MaxRegInt, got.MaxRegInt)
+	require.Equal(t, prog.MaxRegPortion, got.MaxRegPortion)
+	require.Equal(t, prog.MaxRegMonetary, got.MaxRegMonetary)
+}
+
+func TestMaxRegDefaultsWhenAbsent(t *testing.T) {
+	var buf []byte
+	buf = appendFormatHeader(buf, "NUMB", 0) // no sections at all
+	got, err := DecodeProgram(buf)
+	require.NoError(t, err)
+	require.Equal(t, maxRegDefault, got.MaxRegString)
+	require.Equal(t, maxRegDefault, got.MaxRegInt)
+	require.Equal(t, maxRegDefault, got.MaxRegPortion)
+	require.Equal(t, maxRegDefault, got.MaxRegMonetary)
+}
+
 func TestDecodeMalformed(t *testing.T) {
 	u32 := func(v uint32) []byte {
 		b := make([]byte, 4)
