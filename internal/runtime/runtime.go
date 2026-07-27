@@ -447,15 +447,12 @@ func (s *RunState) Snapshot() int {
 // which is the only place backtracking happens — Send runs later, in the
 // destination phase. (compactAt may have folded same-(account,color) funds, but
 // the fold preserves both per the merge key, so the repay still lands correctly.)
-func (s *RunState) Restore(mark int) error {
+func (s *RunState) Restore(mark int) {
 	for i := mark; i < len(s.sources); i++ {
 		src := s.sources[i]
-		if err := s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount); err != nil {
-			return err
-		}
+		s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount)
 	}
 	s.sources = s.sources[:mark]
-	return nil
 }
 
 // GetPostings returns a copy of the recorded postings: a fresh slice, so callers

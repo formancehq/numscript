@@ -540,19 +540,6 @@ func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amo
 	return actuallySentAmt, nil
 }
 
-// cloneState returns an undo function for speculative source evaluation (oneof).
-// Backtracking is a cheap source-queue snapshot: on undo, the runtime repays the
-// funds pulled since the mark and truncates the queue — no map cloning.
-func (s *programState) cloneState() func() InterpreterError {
-	mark := s.rs.Snapshot()
-	return func() InterpreterError {
-		if err := s.rs.Restore(mark); err != nil {
-			return QueryBalanceError{WrappedError: err}
-		}
-		return nil
-	}
-}
-
 // Tries pulling up to "amount" and returns the actually pulled amt.
 // Doesn't fail (unless nested sources fail)
 func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*big.Int, InterpreterError) {
@@ -652,7 +639,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		for _, source := range leadingSources {
 			// do not move this line below (as .tryTakingUpTo() will mutate the source queue)
-			undo := s.cloneState()
+			backtrackId := s.rs.Snapshot()
 
 			sentAmt, err := s.tryTakingUpTo(source, amount)
 			if err != nil {
@@ -665,9 +652,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			}
 
 			// else, backtrack to remove this branch's sendings
-			if err := undo(); err != nil {
-				return nil, err
-			}
+			s.rs.Restore(backtrackId)
 		}
 
 		return s.tryTakingUpTo(source.Sources[len(source.Sources)-1], amount)
