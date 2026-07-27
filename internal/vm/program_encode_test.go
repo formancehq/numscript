@@ -112,6 +112,34 @@ func TestMaxRegDefaultsWhenAbsent(t *testing.T) {
 	require.Equal(t, maxRegDefault, got.MaxRegMonetary)
 }
 
+func TestMaxRegShortSectionDefaultsTrailingToZero(t *testing.T) {
+	// writer knew only 2 banks: string=3, int=7
+	var buf []byte
+	buf = appendFormatHeader(buf, "NUMB", 1)
+	buf = appendSection(buf, SectionMaxRegisters, []byte{3, 7})
+
+	got, err := DecodeProgram(buf)
+	require.NoError(t, err)
+	require.Equal(t, byte(3), got.MaxRegString)
+	require.Equal(t, byte(7), got.MaxRegInt)
+	require.Equal(t, byte(0), got.MaxRegPortion)  // beyond the writer's banks -> 0
+	require.Equal(t, byte(0), got.MaxRegMonetary) // beyond the writer's banks -> 0
+}
+
+func TestMaxRegExtraTrailingBytesIgnored(t *testing.T) {
+	// writer knew a 5th bank; this reader ignores the extra byte
+	var buf []byte
+	buf = appendFormatHeader(buf, "NUMB", 1)
+	buf = appendSection(buf, SectionMaxRegisters, []byte{1, 2, 3, 4, 99})
+
+	got, err := DecodeProgram(buf)
+	require.NoError(t, err)
+	require.Equal(t, byte(1), got.MaxRegString)
+	require.Equal(t, byte(2), got.MaxRegInt)
+	require.Equal(t, byte(3), got.MaxRegPortion)
+	require.Equal(t, byte(4), got.MaxRegMonetary)
+}
+
 func TestDecodeMalformed(t *testing.T) {
 	u32 := func(v uint32) []byte {
 		b := make([]byte, 4)

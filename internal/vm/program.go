@@ -40,23 +40,35 @@ func (p Program) Encode() []byte {
 	return buf
 }
 
-// 0xFF is the nil-register sentinel, so a real register index is at most 0xFE.
-// When the max-registers section is absent, we assume the program may use every
-// usable register, i.e. this default.
-const maxRegDefault byte = nilReg - 1
+// These fields hold the per-bank register *count* (== highest index + 1), as
+// emitted by the assembler. Real indices are 0..0xFE (0xFF is the nil sentinel),
+// so the largest possible count is 255. When the max-registers section is absent
+// we assume the bank uses every usable register, i.e. this default.
+const maxRegDefault byte = 255
 
 func encodeMaxRegs(p Program) []byte {
 	return []byte{p.MaxRegString, p.MaxRegInt, p.MaxRegPortion, p.MaxRegMonetary}
 }
 
-// One byte per bank, positional. Banks missing from the section (absent or short)
-// default to maxRegDefault; extra bytes (future banks) are ignored.
+// One byte per bank, positional, append-only order. The section length is the
+// number of banks the writer knew.
+//
+//   - absent (len 0): no info, so every bank defaults to maxRegDefault (safe).
+//   - present: bank i uses buf[i] when i < len; banks beyond len default to 0,
+//     since a bank the (older) writer didn't know is a type the program predates
+//     and provably uses none of.
+//
+// Extra trailing bytes (a newer writer) are ignored; a program that actually uses
+// such a bank is rejected later via its unknown opcodes.
 func parseMaxRegs(buf []byte) (str, i, portion, monetary byte) {
+	if len(buf) == 0 {
+		return maxRegDefault, maxRegDefault, maxRegDefault, maxRegDefault
+	}
 	at := func(idx int) byte {
 		if idx < len(buf) {
 			return buf[idx]
 		}
-		return maxRegDefault
+		return 0
 	}
 	return at(0), at(1), at(2), at(3)
 }
