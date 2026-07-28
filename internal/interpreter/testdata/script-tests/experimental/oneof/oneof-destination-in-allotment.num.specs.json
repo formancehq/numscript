@@ -1,0 +1,24 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "routes half to the oneof (capped) and half to @c",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "a",
+          "amount": 50,
+          "asset": "GEM"
+        },
+        {
+          "source": "world",
+          "destination": "c",
+          "amount": 50,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

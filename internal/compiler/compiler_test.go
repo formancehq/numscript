@@ -576,3 +576,45 @@ func TestSourceOneofBounded(t *testing.T) {
 `),
 	)
 }
+
+func TestDestOneof(t *testing.T) {
+	out := getCompiledOutput(t, `
+		send [USD/2 10] (
+			source = @world
+			destination = oneof {
+				max [USD/2 4] to @a
+				remaining to @b
+			}
+		)
+	`)
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = "USD/2"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_asset($r2)
+  set_current_asset($r3)
+  $r4 = get_amount($r2)
+  $r5 = "world"
+  $r6 = 0
+  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 = 0
+  $r9 = "USD/2"
+  $r10 = 4
+  $r11 = mk_monetary($r9, $r10)
+  $r12 = get_asset($r11)
+  assert_same_asset($r12, $r3)
+  $r13 = get_amount($r11)
+  $r14 = min_int($r7, $r13)
+  $r15 = $r7 - $r14
+  jmp_if_zero($r15, #oneof_dest_clause_1)
+  $r16 = "b"
+  send_to_account(account: $r16)
+  jmp_if_zero($r8, #oneof_dest_end_0)
+#oneof_dest_clause_1
+  $r17 = "a"
+  send_to_account(account: $r17)
+  jmp_if_zero($r8, #oneof_dest_end_0)
+#oneof_dest_end_0
+`))
+}

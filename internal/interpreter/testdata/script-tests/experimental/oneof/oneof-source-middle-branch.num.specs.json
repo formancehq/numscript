@@ -1,0 +1,30 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "commits the middle branch, rolling back the first and never pulling the third",
+      "balances": [
+        {
+          "account": "b",
+          "asset": "GEM",
+          "amount": 100
+        },
+        {
+          "account": "c",
+          "asset": "GEM",
+          "amount": 200
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

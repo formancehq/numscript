@@ -54,9 +54,6 @@ var scriptsBlacklist = []string{
 	"experimental/asset-scaling/scaling-with-oneof.num",
 	"experimental/asset-scaling/scaling.num",
 	"experimental/asset-scaling/update-swap-account-balance.num",
-	"experimental/oneof/oneof-destination-first-clause.num",
-	"experimental/oneof/oneof-destination-remaining-clause.num",
-	"experimental/oneof/oneof-destination-second-clause.num",
 	// unimplemented core features
 	"feature-flag-syntax.num",
 }

@@ -746,7 +746,45 @@ func (st *state) compileDestination(
 		return nil
 
 	case *parser.DestinationOneof:
-		return FeatureNotImplemented{Range: dest.GetRange(), Feature: "oneof"}
+
+		endLabel := st.getFreshLabel("oneof_dest_end")
+
+		zero := st.pushInstructionWithDest(func(dest reg) irInstr {
+			return loadInt{value: *big.NewInt(0), dest: dest}
+		})
+
+		clauseLabels := make([]label, len(dest.Clauses))
+		for i, clause := range dest.Clauses {
+			clauseLabels[i] = st.getFreshLabel("oneof_dest_clause")
+
+			capAmtReg, err := st.compileCapAmount(clause.Cap)
+			if err != nil {
+				return err
+			}
+			minReg := st.pushInstructionWithDest(func(dest reg) irInstr {
+				return binaryOp{op: opMinInt{}, left: currentCap, right: capAmtReg, dest: dest}
+			})
+			diff := st.pushInstructionWithDest(func(dest reg) irInstr {
+				return binaryOp{op: opSubInt{}, left: currentCap, right: minReg, dest: dest}
+			})
+			st.pushInstruction(jmpIfZero{cond: diff, target: clauseLabels[i]})
+		}
+
+		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, currentCap); err != nil {
+			return err
+		}
+		st.pushInstruction(jmpIfZero{cond: zero, target: endLabel})
+
+		for i, clause := range dest.Clauses {
+			st.pushInstruction(labelMarker{label: clauseLabels[i]})
+			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, currentCap); err != nil {
+				return err
+			}
+			st.pushInstruction(jmpIfZero{cond: zero, target: endLabel})
+		}
+
+		st.pushInstruction(labelMarker{label: endLabel})
+		return nil
 
 	case *parser.DestinationAccount:
 		accReg, err := st.compileExpr(dest.ValueExpr)
