@@ -1,336 +1,84 @@
-package compiler
+package ir
 
 import (
 	"testing"
 
-	"github.com/formancehq/numscript/internal/irparser"
 	"github.com/stretchr/testify/require"
 )
 
-// parseAndTransform parses an IR text and transforms it to irInstr.
-func parseAndTransform(t *testing.T, source string) ([]irInstr, string) {
+// parseAndDump parses an IR text and re-dumps it.
+func parseAndDump(t *testing.T, source string) ([]Instr, string) {
 	t.Helper()
-
-	result := irparser.Parse(source)
-	require.Empty(t, result.Errors, "IR parse errors: %v", result.Errors)
-
-	instrs, errs := Transform(result.Value)
-	require.Empty(t, errs, "transform errors: %v", errs)
-
-	dumped := "\n" + dump(instrs)
-	return instrs, dumped
+	instrs, errs := Parse(source)
+	require.Empty(t, errs, "IR errors: %v", errs)
+	return instrs, "\n" + Dump(instrs)
 }
 
-// TestRoundtripSimpleProgram verifies a simple program roundtrips.
-func TestRoundtripSimpleProgram(t *testing.T) {
-	// Compile numscript → IR text
-	compiledIR := getCompiledOutput(t, `
-		send [USD/2 10] (
-			source = @src
-			destination = @dest
-		)
-	`)
-
-	// Parse IR text → irInstr → dump again
-	_, roundtripped := parseAndTransform(t, compiledIR)
-
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripIntAddition verifies int addition roundtrips.
-func TestRoundtripIntAddition(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		send [USD/2 4 + 6] (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripMonetaryAddition verifies monetary addition roundtrips.
-func TestRoundtripMonetaryAddition(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $a = [USD/2 3]
-			monetary $b = [USD/2 7]
-		}
-		send $a + $b (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripPrefixMinusMonetary verifies monetary negation roundtrips.
-func TestRoundtripPrefixMinusMonetary(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $neg_mon = [USD/2 -10]
-			monetary $pos_mon = -$neg_mon
-		}
-		send $pos_mon (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripBalance verifies balance roundtrips.
-func TestRoundtripBalance(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $bal = balance(@src, USD/2)
-		}
-		send $bal (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripAccountInterpolation verifies account interpolation roundtrips.
-func TestRoundtripAccountInterpolation(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			string $id = "alice"
-		}
-		send [USD/2 10] (
-			source = @world
-			destination = @users:$id:wallet
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripInorder verifies inorder source roundtrips.
-func TestRoundtripInorder(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		send [USD/2 10] (
-			source = {
-				@a
-				@b
-				@c
-			}
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripInorderWithCap verifies inorder with cap roundtrips.
-func TestRoundtripInorderWithCap(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		send [USD/2 10] (
-			source = {
-				@a
-				max [USD/2 5] from @b
-				@c
-			}
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripDestInorder verifies destination inorder roundtrips.
-func TestRoundtripDestInorder(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		send [USD/2 10] (
-			source = @world
-			destination = {
-        max [USD/2 4] to @d1
-        remaining to @d2
-      }
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripGetAmount verifies get_amount roundtrips.
-func TestRoundtripGetAmount(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $m = [USD/2 42]
-			number $n = get_amount($m)
-		}
-		send [USD/2 $n] (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripGetAsset verifies get_asset roundtrips.
-func TestRoundtripGetAsset(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $m = [USD/2 42]
-			asset $a = get_asset($m)
-		}
-		send [$a 10] (
-			source = @src
-			destination = @dest
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripAccountInterpolationInt verifies account interpolation with int roundtrips.
-func TestRoundtripAccountInterpolationInt(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			number $n = 42
-		}
-		send [USD/2 10] (
-			source = @world
-			destination = @account:$n
-		)
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestRoundtripComplexProgram exercises the property the whole format rests on:
-// a dump names its registers in ascending order of first appearance, so parsing
-// one back binds every name to the register it already had. Labels, jumps,
-// allotment dest lists, interpolation and kept destinations all in one program.
-func TestRoundtripComplexProgram(t *testing.T) {
-	compiledIR := getCompiledOutput(t, `
-		vars {
-			monetary $bal = balance(@treasury, USD/2)
-			string $id = "alice"
-		}
-		send [USD/2 100] (
-			source = {
-				max [USD/2 20] from @world
-				@treasury
-				@users:$id
-			}
-			destination = { 1/2 to @d1 remaining kept }
-		)
-		send $bal (
-			source = { 1/3 from @a 2/3 from { @b @c } }
-			destination = @out
-		)
-		set_tx_meta("k", "v")
-	`)
-	_, roundtripped := parseAndTransform(t, compiledIR)
-	require.Equal(t, compiledIR, roundtripped)
-}
-
-// TestOneofDumpIsStableFromSecondPass documents the one place the round-trip is
-// only up to renumbering: compiling `oneof` allocates the register holding the
-// pulled amount before it emits the snapshot, so its dump doesn't name registers
-// in ascending order of first appearance. Re-parsing renumbers it into an
-// equivalent program, and from then on the text is stable.
-func TestOneofDumpIsStableFromSecondPass(t *testing.T) {
-	first := getCompiledOutput(t, `
-		send [USD/2 10] (
-			source = oneof { @a @b @c }
-			destination = @dest
-		)
-	`)
-	_, second := parseAndTransform(t, first)
-	require.NotEqual(t, first, second, "if this now matches, the compiler emits registers in order and this test can go")
-
-	_, third := parseAndTransform(t, second)
-	require.Equal(t, second, third)
-}
-
-// TestParseAndTransformErrors checks error handling.
-func TestParseAndTransformErrors(t *testing.T) {
+// TestParseErrors checks what Parse rejects.
+func TestParseErrors(t *testing.T) {
 	t.Run("unknown instruction", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   $r0 = no_such_instr($r1)
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "unknown instruction")
 	})
 
 	t.Run("invalid arg type", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   $r0 = get_asset(42)
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "expected register")
 	})
 
 	t.Run("unbound jmp label", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   jmp_if_zero($r0, #missing_label)
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "not defined")
 	})
 
 	t.Run("forward jmp", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   jmp_if_zero($r0, #my_label)
 #my_label
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.Empty(t, errs)
 	})
 
 	t.Run("backward jmp", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
 #my_label
   jmp_if_zero($r0, #my_label)
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "must go forward")
 	})
 
 	t.Run("duplicate labeled arg", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   $r0 = "acc"
   $r1 = 1
   $r2 = pull_account(account: $r0, cap: $r1, cap: $r1)
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "duplicate labeled argument")
 	})
 
 	t.Run("duplicate label", func(t *testing.T) {
-		result := irparser.Parse(`
+		_, errs := Parse(`
   jmp_if_zero($r0, #l)
 #l
 #l
 `)
-		require.Empty(t, result.Errors)
-		_, errs := Transform(result.Value)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "duplicate label")
 	})
 }
 
-// TestMalformedInputIsRejected checks that text → irInstr reports errors on
+// TestMalformedInputIsRejected checks that text → Instr reports errors on
 // invalid input rather than panicking. It doesn't typecheck: only syntax and
 // the structural rules (labels resolve, jumps go forward) are checked here.
 func TestMalformedInputIsRejected(t *testing.T) {
@@ -342,8 +90,8 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"no args at all", "  $r0 = get_asset()\n"},
 		{"too few args", "  $r0 = balance($r1)\n"},
 		{"too many args", "  $r0 = get_asset($r1, $r2)\n"},
-		{"missing required labeled arg", "  $r0 = pull_account(cap: $r1)\n"},
-		{"unknown labeled arg", "  $r0 = pull_account(account: $r1, nope: $r2)\n"},
+		{"missing required labeled arg", "  $r0 = pull_account(Cap: $r1)\n"},
+		{"unknown labeled arg", "  $r0 = pull_account(Account: $r1, nope: $r2)\n"},
 		{"load_var index out of range", "  $r0 = load_var<int>(70000)\n"},
 		{"load_var without type param", "  $r0 = load_var(0)\n"},
 		{"load_var with a type it doesn't have", "  $r0 = load_var<portion>(0)\n"},
@@ -364,12 +112,7 @@ func TestMalformedInputIsRejected(t *testing.T) {
 
 	for _, s := range sources {
 		t.Run(s.name, func(t *testing.T) {
-			result := irparser.Parse(s.ir)
-			if len(result.Errors) > 0 {
-				return // rejected at parse time
-			}
-			// otherwise it must be rejected by the transform, not accepted
-			instrs, errs := Transform(result.Value)
+			instrs, errs := Parse(s.ir)
 			require.NotEmpty(t, errs, "neither the parser nor the transform rejected it")
 			// and whatever it did return must be usable: a nil instruction in the
 			// stream would blow up in dump or assemble instead
@@ -384,7 +127,7 @@ func TestMalformedInputIsRejected(t *testing.T) {
 // first appearance allocates the next one, later appearances reuse it. The name
 // itself carries no meaning — `$r<N>` is a convention, not an index.
 func TestRegNamesBindInOrder(t *testing.T) {
-	_, dumped := parseAndTransform(t, `
+	_, dumped := parseAndDump(t, `
   $asset = "USD/2"
   $amount = 10
   $mon = mk_monetary($asset, $amount)
@@ -405,7 +148,7 @@ func TestRegNamesBindInOrder(t *testing.T) {
 // statement can name, and that two discards don't alias — otherwise they'd be
 // forced to share a type.
 func TestDiscardDestDesugarsToFreshReg(t *testing.T) {
-	instrs, dumped := parseAndTransform(t, `
+	instrs, dumped := parseAndDump(t, `
   $r0 = "acc"
   $r1 = "USD/2"
   _ = pull_account(account: $r0)
@@ -420,7 +163,7 @@ func TestDiscardDestDesugarsToFreshReg(t *testing.T) {
 	require.Greater(t, uint(balance), uint(1))
 
 	// so the typechecker doesn't see one register written with two types
-	require.NoError(t, typecheckInstructions(instrs))
+	require.NoError(t, Typecheck(instrs))
 
 	// the IR has no notion of a discard: it dumps as the register it desugared to
 	require.Equal(t, `
@@ -438,13 +181,13 @@ func TestRoundtripAllInstructions(t *testing.T) {
 		ir   string
 	}{
 		{
-			name: "loadStr",
+			name: "LoadStr",
 			ir: `
   $r0 = "hello"
 `,
 		},
 		{
-			name: "loadInt",
+			name: "LoadInt",
 			ir: `
   $r0 = 42
 `,
@@ -771,7 +514,7 @@ func TestRoundtripAllInstructions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// source already has leading newline and indentation
 			source := tt.ir
-			_, roundtripped := parseAndTransform(t, source)
+			_, roundtripped := parseAndDump(t, source)
 			require.Equal(t, source, roundtripped)
 		})
 	}

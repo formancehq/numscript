@@ -3,19 +3,28 @@ package compiler
 import (
 	"testing"
 
+	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
 
 func getCompiledOutput(t *testing.T, source string) string {
+	t.Helper()
 	program := parser.Parse(source)
 	require.Empty(t, program.Errors)
 	compiled, err := compileProgramToIR(program.Value)
 	require.Nil(t, err)
 
-	out := dump(compiled.instructions)
-	return "\n" + out
+	out := "\n" + ir.Dump(compiled.instructions)
+
+	// Whatever we dump has to be readable back as the same program: every
+	// snapshot below doubles as a round-trip test of the textual format.
+	instrs, errs := ir.Parse(out)
+	require.Empty(t, errs, "the dump does not parse back")
+	require.Equal(t, out, "\n"+ir.Dump(instrs), "the dump does not round-trip")
+
+	return out
 }
 
 func TestSimpleProgram(t *testing.T) {
@@ -513,27 +522,27 @@ func TestSourceOneofSimple(t *testing.T) {
   $r3 = get_asset($r2)
   set_current_asset($r3)
   $r4 = get_amount($r2)
-  $r6 = snapshot()
-  $r7 = "a"
-  $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r4, overdraft: $r8)
-  $r5 = int_copy($r9)
-  $r10 = $r4 - $r9
+  $r5 = snapshot()
+  $r6 = "a"
+  $r7 = 0
+  $r8 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+  $r9 = int_copy($r8)
+  $r10 = $r4 - $r8
   jmp_if_zero($r10, #oneof_end_0)
-  restore($r6)
+  restore($r5)
   $r11 = "b"
   $r12 = 0
   $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
-  $r5 = int_copy($r13)
+  $r9 = int_copy($r13)
   $r14 = $r4 - $r13
   jmp_if_zero($r14, #oneof_end_0)
-  restore($r6)
+  restore($r5)
   $r15 = "c"
   $r16 = 0
   $r17 = pull_account(account: $r15, cap: $r4, overdraft: $r16)
-  $r5 = int_copy($r17)
+  $r9 = int_copy($r17)
 #oneof_end_0
-  check_enough_funds($r5, $r4)
+  check_enough_funds($r9, $r4)
   $r18 = "dest"
   send_to_account(account: $r18)
 `))
@@ -557,20 +566,20 @@ func TestSourceOneofBounded(t *testing.T) {
   $r3 = get_asset($r2)
   set_current_asset($r3)
   $r4 = get_amount($r2)
-  $r6 = snapshot()
-  $r7 = "a"
-  $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r4, overdraft: $r8)
-  $r5 = int_copy($r9)
-  $r10 = $r4 - $r9
+  $r5 = snapshot()
+  $r6 = "a"
+  $r7 = 0
+  $r8 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+  $r9 = int_copy($r8)
+  $r10 = $r4 - $r8
   jmp_if_zero($r10, #oneof_end_0)
-  restore($r6)
+  restore($r5)
   $r11 = "b"
   $r12 = 0
   $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
-  $r5 = int_copy($r13)
+  $r9 = int_copy($r13)
 #oneof_end_0
-  check_enough_funds($r5, $r4)
+  check_enough_funds($r9, $r4)
   $r14 = "dest"
   send_to_account(account: $r14)
 `),

@@ -1,18 +1,23 @@
 # The IR textual format
 
-The compiler doesn't emit `vm.Instruction` directly: it emits a `[]compiler.irInstr` stream first (see [compiler-architecture.md](compiler-architecture.md)). This document specifies the **textual notation** for that stream — the thing you get when you dump a compiled program, and the thing you can write by hand to feed the assembler.
+The compiler doesn't emit `vm.Instruction` directly: it emits a `[]ir.Instr` stream first (see [compiler-architecture.md](compiler-architecture.md)). This document specifies the **textual notation** for that stream — the thing you get when you dump a compiled program, and the thing you can write by hand to feed the assembler.
 
 It is a real format, not just a pretty-printing convention: it has a grammar, a parser, and a round-trip guarantee.
 
+The whole IR layer lives in [internal/ir/](internal/ir/), and that package is the entire API:
+
 | what | where |
 | --- | --- |
-| grammar | [IR.g4](IR.g4) (ANTLR; generated code in [internal/irparser/antlrParser/](internal/irparser/antlrParser/)) |
-| text → AST | `irparser.Parse` in [internal/irparser/parser.go](internal/irparser/parser.go) |
-| AST → `[]irInstr` | `compiler.Transform` in [internal/compiler/ir_parser.go](internal/compiler/ir_parser.go) |
-| `[]irInstr` → text | `dump` in [internal/compiler/ir_instr_dump.go](internal/compiler/ir_instr_dump.go) |
-| round-trip tests | `TestRoundtripAllInstructions` in [internal/compiler/ir_parser_test.go](internal/compiler/ir_parser_test.go) |
+| grammar | [IR.g4](IR.g4) (ANTLR; generated into `internal/ir/internal/syntax/antlrParser/` by `just generate`) |
+| text → `[]ir.Instr` | `ir.Parse` in [internal/ir/parse.go](internal/ir/parse.go) |
+| `[]ir.Instr` → text | `ir.Dump` in [internal/ir/dump.go](internal/ir/dump.go) |
+| `[]ir.Instr` → `vm.Program` | `ir.Assemble` in [internal/ir/assemble.go](internal/ir/assemble.go) |
+| register typing | `ir.Typecheck` in [internal/ir/typecheck.go](internal/ir/typecheck.go) |
+| round-trip tests | `TestRoundtripAllInstructions` in [internal/ir/parse_test.go](internal/ir/parse_test.go) |
 
-**Round-trip property:** for every instruction, `dump(Transform(Parse(text))) == text`. This is what makes the format usable for snapshot tests and for hand-writing IR fixtures. See [Round-trip caveats](#round-trip-caveats) for the (few) inputs that don't survive it.
+`ir.Parse` is the only way in: the grammar's AST lives under `internal/ir/internal/syntax`, which Go's import rules make unreachable from anywhere outside `internal/ir`. Callers see instructions, never parse trees.
+
+**Round-trip property:** for every instruction, `ir.Dump` of what `ir.Parse` returns is the text it was given. This is what makes the format usable for snapshot tests and for hand-writing IR fixtures. See [Round-trip caveats](#round-trip-caveats) for the (few) inputs that don't survive it.
 
 ## Lexical structure
 
@@ -23,7 +28,6 @@ INT          [0-9]+                           42                (no sign, no sep
 STRING       '"' ('\"' | ~["\r\n])* '"'       "USD/2", "a\"b"
 IDENTIFIER   [a-z] [a-z0-9_]*                 mk_monetary, account
 TYPE_KEYWORD 'int' | 'str' | 'portion' | 'monetary'
-BOOL         'true' | 'false'
 ```
 
 * Spaces, tabs and newlines are **skipped**, not significant. Statements are delimited by the grammar, not by line breaks — `$r0 = 1 $r1 = 2` is two valid instructions. Newlines are pure convention (a very useful one).
@@ -40,7 +44,7 @@ A program is a flat sequence of two kinds of line: **label markers** and **instr
   set_current_asset($r3)          ← instruction, indented 2 spaces
 ```
 
-Indentation is cosmetic, but `dump` always emits labels at column 0 and instructions indented by two spaces.
+Indentation is cosmetic, but `ir.Dump` always emits labels at column 0 and instructions indented by two spaces.
 
 Instructions come in five shapes:
 
@@ -60,7 +64,7 @@ $r0                single register
 _                  discard
 ```
 
-`_` discards the result, and exists **only in the text**: there is no discard at the `irInstr` level. `Transform` desugars each occurrence to a fresh register — allocated from the same counter as named ones, but bound to no name, so nothing can refer to it and each `_` gets its own (two discards that aliased would be forced to share a type). The write is still a write: the assembler gives that register a slot in its bank, so a discard costs a register even though nothing reads it.
+`_` discards the result, and exists **only in the text**: there is no discard at the `ir.Instr` level. `ir.Parse` desugars each occurrence to a fresh register — allocated from the same counter as named ones, but bound to no name, so nothing can refer to it and each `_` gets its own (two discards that aliased would be forced to share a type). The write is still a write: the assembler gives that register a slot in its bank, so a discard costs a register even though nothing reads it.
 
 Because the desugaring happens on the way in, `_` doesn't survive a dump: `_ = int_copy($r0)` comes back as `$r1 = int_copy($r0)`.
 
@@ -82,20 +86,22 @@ $r0            register
 [$r0, $r1]     register list     (mk_allot portions only)
 ```
 
-Labeled arguments are looked up **by name**, so their order is free: `pull_account(cap: $c, account: $a)` is the same instruction as `pull_account(account: $a, cap: $c)`. `dump` always emits them in the canonical order given below.
+Labeled arguments are looked up **by name**, so their order is free: `pull_account(cap: $c, account: $a)` is the same instruction as `pull_account(account: $a, cap: $c)`. `ir.Dump` always emits them in the canonical order given below.
 
 ### Registers
 
-Registers in the IR are "logical": an unbounded stream of unsigned indices (`reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str`, `portion`, `monetary`), checked by `typecheckInstructions` — the type is never written in the text, it is inferred from the instruction that writes the register.
+Registers in the IR are "logical": an unbounded stream of unsigned indices (`ir.Reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str`, `portion`, `monetary`), checked by `ir.Typecheck` — the type is never written in the text, it is inferred from the instruction that writes the register.
 
-A register name is just a name: `Transform` keeps a symbol table and allocates registers in order of **first appearance**, reusing the same one every later time a name shows up. `$r<N>` is a convention, not an index — `$r7` is no more meaningful than `$src`.
+A register name is just a name: `ir.Parse` keeps a symbol table and allocates registers in order of **first appearance**, reusing the same one every later time a name shows up. `$r<N>` is a convention, not an index — `$r7` is no more meaningful than `$src`.
 
 ```
 $src = "acc"                        dumps back as    $r0 = "acc"
 $pulled = pull_account(account: $src)                $r1 = pull_account(account: $r0)
 ```
 
-This is why a dump round-trips: `dump` numbers registers `$r0`, `$r1`, … in the order they first appear, so re-parsing binds each name to the register it already had. Names of your own choosing are fine to write, they just come back as `$r<k>` in first-appearance order.
+This is why a dump round-trips: `ir.Dump` numbers registers `$r0`, `$r1`, … in the order they first appear, so re-parsing binds each name to the register it already had. Names of your own choosing are fine to write, they just come back as `$r<k>` in first-appearance order.
+
+The compiler holds up its end by allocating registers in the order it emits them — `getCompiledOutput` in the compiler tests asserts the round-trip on every snapshot, so a change that breaks the ordering fails there.
 
 ## Instruction reference
 
@@ -124,7 +130,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = mk_monetary($asset, $amt)` | `(str, int) -> monetary` |
 
-`add_int` and `sub_int` have infix sugar, which is what `dump` always prints:
+`add_int` and `sub_int` have infix sugar, which is what `ir.Dump` always prints:
 
 ```
   $r2 = $r0 + $r1        add_int
@@ -210,7 +216,7 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
   jmp_if_zero($cond, #my_label)
 ```
 
-`$cond` is `int`; the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `Transform` enforces all three rules, so a program that assembles can't loop:
+`$cond` is `int`; the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
 
 ```
 jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
@@ -250,15 +256,14 @@ jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
 
 ## Round-trip caveats
 
-Known asymmetries between what `dump` writes and what the parser accepts:
+Known asymmetries between what `ir.Dump` writes and what the parser accepts:
 
 * **Register names don't survive.** `$src` comes back as `$r<k>`, numbered by first appearance (see [Registers](#registers)).
 * **`_` doesn't survive.** It's desugared to a fresh register on the way in, so it dumps as that register (see [Destinations](#destinations)).
-* **A `oneof` dump renumbers on the first re-parse.** Compiling `oneof` allocates the register that holds the pulled amount before it emits the `snapshot`, so the dump doesn't introduce registers in ascending order and re-parsing renumbers them. The result is an equivalent program, and the text is stable from the second pass on.
-* **Negative int literals are not expressible.** `INT` has no sign, so `$r0 = -1` is a syntax error, while `dump` would happily print it for a negative `loadInt`. This is not reachable today — the compiler emits `neg_int` for negative literals rather than a negative constant — but a constant-folding peephole could produce a dump that no longer parses.
+* **Negative int literals are not expressible.** `INT` has no sign, so `$r0 = -1` is a syntax error, while `ir.Dump` would happily print it for a negative `ir.LoadInt`. This is not reachable today — the compiler emits `neg_int` for negative literals rather than a negative constant — but a constant-folding peephole could produce a dump that no longer parses.
 
 ## Error handling
 
-Text → `irInstr` never panics: it reports errors. `Parse` returns `ParserError`s for anything the grammar rejects and, since ANTLR's error recovery leaves partial nodes behind, does not build an AST at all when it found errors. `Transform` then reports `TransformError`s for what the grammar can't express: unknown instruction names, wrong argument kinds or counts, unknown or duplicate labeled arguments, duplicate labels, and jumps that don't resolve or don't go forward.
+Text → `irInstr` never panics: it reports errors. `ir.Parse` returns `ParserError`s for anything the grammar rejects and, since ANTLR's error recovery leaves partial nodes behind, does not build an AST at all when it found errors. `ir.Parse` then reports `TransformError`s for what the grammar can't express: unknown instruction names, wrong argument kinds or counts, unknown or duplicate labeled arguments, duplicate labels, and jumps that don't resolve or don't go forward.
 
-Type errors are **not** checked here: writing a `str` register where an `int` is expected transforms happily and is caught by `typecheckInstructions` afterwards.
+Type errors are **not** checked here: writing a `str` register where an `int` is expected transforms happily and is caught by `ir.Typecheck` afterwards.

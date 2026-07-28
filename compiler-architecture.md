@@ -227,11 +227,11 @@ Still, we can use this as a sanity-check right after program is compiled, or aft
 
 ## Compiler
 
-Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]compiler.irInstr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]irInstr` are assembled into `[]vm.Instruction`.
+Instead of emitting a `vm.Instruction{}` stream directly, the compiler emits a `[]ir.Instr` slice. That's an intermediate representation of the instruction which isn't strictly necessary, but allows us to dump, manipulate or analyse instruction without having to run a fully-fledged disassembler every time. After the compilation, the `[]ir.Instr` are assembled into `[]vm.Instruction`.
 The instruction set is mostly similar, but there are a few differences.
 The most crucial one is that instead of many separate pools of 256 registers, there's a single infinite stream of registers.
 We'll materialise those "logical" registers into actual physical registers during assembly, and perfom register allocation policies so that we'll be able to fit scripts within the 256 registers constraint.
-We are able to fully typecheck the `[]irInstr` program, so that we know that we aren't passing logical registers that were created with a different type.
+We are able to fully typecheck the `[]ir.Instr` program, so that we know that we aren't passing logical registers that were created with a different type.
 
 Other differences in the instruction set include:
 
@@ -257,7 +257,7 @@ $tot = $x + $y
 $tot += $x
 ```
 
-This notation is a real format: it has a grammar ([IR.g4](IR.g4)), a parser (`irparser.Parse` + `compiler.Transform`) and a dumper (`dump`), and instructions round-trip through it. It's fully specified in [ir-textual-format.md](ir-textual-format.md) — including the instruction reference, the argument conventions and the known round-trip caveats.
+This notation is a real format: it has a grammar ([IR.g4](IR.g4)), a parser (`ir.Parse`) and a dumper (`ir.Dump`), and instructions round-trip through it. It's fully specified in [ir-textual-format.md](ir-textual-format.md) — including the instruction reference, the argument conventions and the known round-trip caveats.
 
 In the sections below, a meta-notation is used for parametrized exprs/sources/dests
 

@@ -1,4 +1,4 @@
-package irparser
+package syntax
 
 import (
 	"strconv"
@@ -6,7 +6,7 @@ import (
 	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/antlr4-go/antlr/v4"
-	antlrParser "github.com/formancehq/numscript/internal/irparser/antlrParser"
+	antlrParser "github.com/formancehq/numscript/internal/ir/internal/syntax/antlrParser"
 )
 
 // ParserError is a parse error with range information.
@@ -20,7 +20,6 @@ func (e ParserError) Error() string {
 }
 
 type ParseResult struct {
-	Source string
 	Value  Program
 	Errors []ParserError
 }
@@ -69,14 +68,12 @@ func Parse(input string) ParseResult {
 	// what the caller needs anyway.
 	if len(listener.Errors) > 0 {
 		return ParseResult{
-			Source: input,
 			Errors: listener.Errors,
 		}
 	}
 
 	return ParseResult{
-		Source: input,
-		Value:  buildAST(tree),
+		Value: buildAST(tree),
 	}
 }
 

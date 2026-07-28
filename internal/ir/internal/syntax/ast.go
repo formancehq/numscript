@@ -1,4 +1,4 @@
-package irparser
+package syntax
 
 import (
 	"github.com/formancehq/numscript/internal/parser"

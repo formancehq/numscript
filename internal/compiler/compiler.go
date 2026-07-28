@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/builtins"
+	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
@@ -19,11 +20,11 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
 	}
 
-	if err := typecheckInstructions(compiled.instructions); err != nil {
+	if err := ir.Typecheck(compiled.instructions); err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
 
-	prog, err := assembleProgram(compiled.instructions)
+	prog, err := ir.Assemble(compiled.instructions)
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
@@ -32,52 +33,52 @@ func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
 }
 
 type compiledProgramIR struct {
-	instructions []irInstr
+	instructions []ir.Instr
 	varsEncoder  VarsEncoder
 }
 
 type state struct {
 	nextReg         int
 	nextLabelId     int
-	instructions    []irInstr
-	vars            map[string]reg
+	instructions    []ir.Instr
+	vars            map[string]ir.Reg
 	exprTypes       map[parser.ValueExpr]typecheck.Type
-	currentAssetReg reg
+	currentAssetReg ir.Reg
 
 	nextIntVar int
 	nextStrVar int
 	varDecls   []varDecl
 }
 
-func (st *state) getFreshReg() reg {
+func (st *state) getFreshReg() ir.Reg {
 	id := st.nextReg
 	st.nextReg++
-	return reg(id)
+	return ir.Reg(id)
 }
 
-func (st *state) pushInstruction(instr irInstr) {
+func (st *state) pushInstruction(instr ir.Instr) {
 	st.instructions = append(st.instructions, instr)
 }
 
-func (st *state) getFreshLabel(prefix string) label {
-	l := label(fmt.Sprintf("%s_%d", prefix, st.nextLabelId))
+func (st *state) getFreshLabel(prefix string) ir.Label {
+	l := ir.Label(fmt.Sprintf("%s_%d", prefix, st.nextLabelId))
 	st.nextLabelId++
 	return l
 }
 
-func (st *state) pushInstructionWithDest(getInstr func(dest reg) irInstr) reg {
+func (st *state) pushInstructionWithDest(getInstr func(dest ir.Reg) ir.Instr) ir.Reg {
 	dest := st.getFreshReg()
 	st.instructions = append(st.instructions, getInstr(dest))
 	return dest
 }
 
-func (st *state) pushInstructionWithDestErr(getInstr func(dest reg) irInstr) (reg, CompilerError) {
+func (st *state) pushInstructionWithDestErr(getInstr func(dest ir.Reg) ir.Instr) (ir.Reg, CompilerError) {
 	return st.pushInstructionWithDest(getInstr), nil
 }
 
-func (st *state) compileAllot(amount reg, allotments []parser.AllotmentValue) ([]reg, CompilerError) {
+func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue) ([]ir.Reg, CompilerError) {
 	n := len(allotments)
-	portions := make([]reg, n)
+	portions := make([]ir.Reg, n)
 	remainingIdx := -1
 	for i, al := range allotments {
 		switch al := al.(type) {
@@ -103,74 +104,74 @@ func (st *state) compileAllot(amount reg, allotments []parser.AllotmentValue) ([
 			continue
 		}
 		prev, pi := leftover, portions[i]
-		leftover = st.pushInstructionWithDest(func(dest reg) irInstr {
-			return binaryOp{op: opSubPortion{}, left: prev, right: pi, dest: dest}
+		leftover = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpSubPortion{}, Left: prev, Right: pi, Dest: dest}
 		})
 	}
 
-	st.pushInstruction(assertLeftover{portion: leftover, exact: remainingIdx == -1})
+	st.pushInstruction(ir.AssertLeftover{Portion: leftover, Exact: remainingIdx == -1})
 	if remainingIdx != -1 {
 		portions[remainingIdx] = leftover
 	}
 
-	dest := make([]reg, n)
+	dest := make([]ir.Reg, n)
 	for i := range dest {
 		dest[i] = st.getFreshReg()
 	}
-	st.pushInstruction(makeAllotment{
-		dest:     dest,
-		amount:   amount,
-		portions: portions,
+	st.pushInstruction(ir.MakeAllotment{
+		Dest:     dest,
+		Amount:   amount,
+		Portions: portions,
 	})
 	return dest, nil
 }
 
-func (st *state) compileCapAmount(monExpr parser.ValueExpr) (reg, CompilerError) {
+func (st *state) compileCapAmount(monExpr parser.ValueExpr) (ir.Reg, CompilerError) {
 	monReg, err := st.compileExpr(monExpr)
 	if err != nil {
 		return 0, err
 	}
-	assetReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-		return unaryOp{op: opGetAsset{}, arg: monReg, dest: dest}
+	assetReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: monReg, Dest: dest}
 	})
-	st.pushInstruction(assertSameAsset{left: assetReg, right: st.currentAssetReg})
-	return st.pushInstructionWithDest(func(dest reg) irInstr {
-		return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
+	st.pushInstruction(ir.AssertSameAsset{Left: assetReg, Right: st.currentAssetReg})
+	return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: monReg, Dest: dest}
 	}), nil
 }
 
-func (st *state) compilePortionOne() reg {
-	one := st.pushInstructionWithDest(func(dest reg) irInstr {
-		return loadInt{value: *big.NewInt(1), dest: dest}
+func (st *state) compilePortionOne() ir.Reg {
+	one := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.LoadInt{Value: *big.NewInt(1), Dest: dest}
 	})
-	return st.pushInstructionWithDest(func(dest reg) irInstr {
-		return binaryOp{op: opMakePortion{}, left: one, right: one, dest: dest}
+	return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.BinaryOp{Op: ir.OpMakePortion{}, Left: one, Right: one, Dest: dest}
 	})
 }
 
-func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
+func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
-		return st.pushInstructionWithDestErr(func(reg reg) irInstr {
-			return loadStr{
-				value: expr.Asset,
-				dest:  reg,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.LoadStr{
+				Value: expr.Asset,
+				Dest:  dest,
 			}
 		})
 
 	case *parser.StringLiteral:
-		return st.pushInstructionWithDestErr(func(reg reg) irInstr {
-			return loadStr{
-				value: expr.String,
-				dest:  reg,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.LoadStr{
+				Value: expr.String,
+				Dest:  dest,
 			}
 		})
 
 	case *parser.NumberLiteral:
-		return st.pushInstructionWithDestErr(func(reg reg) irInstr {
-			return loadInt{
-				value: *expr.Number,
-				dest:  reg,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{
+				Value: *expr.Number,
+				Dest:  dest,
 			}
 		})
 
@@ -185,25 +186,25 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			return 0, err
 		}
 
-		return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-			return binaryOp{
-				op:    opMakeMonetary{},
-				left:  assetReg,
-				right: amtReg,
-				dest:  dest,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{
+				Op:    ir.OpMakeMonetary{},
+				Left:  assetReg,
+				Right: amtReg,
+				Dest:  dest,
 			}
 		})
 
 	case *parser.AccountInterpLiteral:
-		var parts []reg
+		var parts []ir.Reg
 		hasVar := false
 		for _, part := range expr.Parts {
 			switch part := part.(type) {
 			case parser.AccountTextPart:
-				dest := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return loadStr{
-						value: part.Name,
-						dest:  dest,
+				dest := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.LoadStr{
+						Value: part.Name,
+						Dest:  dest,
 					}
 				})
 				parts = append(parts, dest)
@@ -217,8 +218,8 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 				case typecheck.TypeAccount, typecheck.TypeString:
 					parts = append(parts, r)
 				case typecheck.TypeNumber:
-					parts = append(parts, st.pushInstructionWithDest(func(dest reg) irInstr {
-						return unaryOp{op: opIntToString{}, arg: r, dest: dest}
+					parts = append(parts, st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+						return ir.UnaryOp{Op: ir.OpIntToString{}, Arg: r, Dest: dest}
 					}))
 				default:
 					return 0, CannotCastToString{Range: part.GetRange(), Type: t}
@@ -229,14 +230,14 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		acc := parts[0]
 		for _, part := range parts[1:] {
 			left, right := acc, part
-			acc = st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{op: opAddString{}, left: left, right: right, dest: dest}
+			acc = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpAddString{}, Left: left, Right: right, Dest: dest}
 			})
 		}
 		// an interpolated var can inject chars that make the name ill-formed;
 		// all-text literals are valid by construction, so skip the check
 		if hasVar {
-			st.pushInstruction(assertValidAccount{account: acc})
+			st.pushInstruction(ir.AssertValidAccount{Account: acc})
 		}
 		return acc, nil
 
@@ -250,14 +251,14 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 	case *parser.PercentageLiteral:
 		// e.g. 50% -> portion 50/100; mk_portion reduces via SetFrac
 		ratio := expr.ToRatio()
-		numReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return loadInt{value: *ratio.Num(), dest: dest}
+		numReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *ratio.Num(), Dest: dest}
 		})
-		denReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return loadInt{value: *ratio.Denom(), dest: dest}
+		denReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *ratio.Denom(), Dest: dest}
 		})
-		return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-			return binaryOp{op: opMakePortion{}, left: numReg, right: denReg, dest: dest}
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMakePortion{}, Left: numReg, Right: denReg, Dest: dest}
 		})
 
 	case *parser.BinaryInfix:
@@ -272,37 +273,37 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 
 		switch expr.Operator {
 		case parser.InfixOperatorDiv:
-			return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-				return binaryOp{op: opMakePortion{}, left: leftReg, right: rightReg, dest: dest}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpMakePortion{}, Left: leftReg, Right: rightReg, Dest: dest}
 			})
 
 		case parser.InfixOperatorPlus:
 			switch st.exprTypes[expr.Left] {
 			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return binaryOp{op: opAddInt{}, left: leftReg, right: rightReg, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpAddInt{}, Left: leftReg, Right: rightReg, Dest: dest}
 				})
 
 			case typecheck.TypeMonetary:
-				lAsset := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAsset{}, arg: leftReg, dest: dest}
+				lAsset := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: leftReg, Dest: dest}
 				})
-				rAsset := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAsset{}, arg: rightReg, dest: dest}
+				rAsset := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: rightReg, Dest: dest}
 				})
-				st.pushInstruction(assertSameAsset{left: lAsset, right: rAsset})
+				st.pushInstruction(ir.AssertSameAsset{Left: lAsset, Right: rAsset})
 
-				lAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAmount{}, arg: leftReg, dest: dest}
+				lAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: leftReg, Dest: dest}
 				})
-				rAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAmount{}, arg: rightReg, dest: dest}
+				rAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: rightReg, Dest: dest}
 				})
-				sum := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return binaryOp{op: opAddInt{}, left: lAmt, right: rAmt, dest: dest}
+				sum := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpAddInt{}, Left: lAmt, Right: rAmt, Dest: dest}
 				})
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return binaryOp{op: opMakeMonetary{}, left: lAsset, right: sum, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: lAsset, Right: sum, Dest: dest}
 				})
 
 			default:
@@ -313,30 +314,30 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		case parser.InfixOperatorMinus:
 			switch st.exprTypes[expr.Left] {
 			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return binaryOp{op: opSubInt{}, left: leftReg, right: rightReg, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpSubInt{}, Left: leftReg, Right: rightReg, Dest: dest}
 				})
 
 			case typecheck.TypeMonetary:
-				lAsset := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAsset{}, arg: leftReg, dest: dest}
+				lAsset := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: leftReg, Dest: dest}
 				})
-				rAsset := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAsset{}, arg: rightReg, dest: dest}
+				rAsset := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: rightReg, Dest: dest}
 				})
-				st.pushInstruction(assertSameAsset{left: lAsset, right: rAsset})
+				st.pushInstruction(ir.AssertSameAsset{Left: lAsset, Right: rAsset})
 
-				lAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAmount{}, arg: leftReg, dest: dest}
+				lAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: leftReg, Dest: dest}
 				})
-				rAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAmount{}, arg: rightReg, dest: dest}
+				rAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: rightReg, Dest: dest}
 				})
-				diff := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return binaryOp{op: opSubInt{}, left: lAmt, right: rAmt, dest: dest}
+				diff := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpSubInt{}, Left: lAmt, Right: rAmt, Dest: dest}
 				})
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return binaryOp{op: opMakeMonetary{}, left: lAsset, right: diff, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: lAsset, Right: diff, Dest: dest}
 				})
 
 			default:
@@ -357,22 +358,22 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			}
 			switch st.exprTypes[expr.Expr] {
 			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return unaryOp{op: opNegInt{}, arg: argReg, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: argReg, Dest: dest}
 				})
 
 			case typecheck.TypeMonetary:
-				amt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAmount{}, arg: argReg, dest: dest}
+				amt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
 				})
-				negAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opNegInt{}, arg: amt, dest: dest}
+				negAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: amt, Dest: dest}
 				})
-				asset := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return unaryOp{op: opGetAsset{}, arg: argReg, dest: dest}
+				asset := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
 				})
-				return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-					return binaryOp{op: opMakeMonetary{}, left: asset, right: negAmt, dest: dest}
+				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: asset, Right: negAmt, Dest: dest}
 				})
 
 			default:
@@ -390,8 +391,8 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-				return unaryOp{op: opGetAmount{}, arg: argReg, dest: dest}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
 			})
 
 		case builtins.GetAsset:
@@ -399,8 +400,8 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-				return unaryOp{op: opGetAsset{}, arg: argReg, dest: dest}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
 			})
 
 		case builtins.Balance:
@@ -412,10 +413,10 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			balReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
+			balReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
 			})
-			st.pushInstruction(assertNonNegativeBalance{balance: balReg, account: accountReg})
+			st.pushInstruction(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
 			return balReg, nil
 
 		case builtins.Overdraft:
@@ -427,24 +428,24 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			balReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return fetchBalance{dest: dest, account: accountReg, asset: assetReg}
+			balReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
 			})
-			amtReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return unaryOp{op: opGetAmount{}, arg: balReg, dest: dest}
+			amtReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: balReg, Dest: dest}
 			})
-			zeroReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return loadInt{value: *big.NewInt(0), dest: dest}
+			zeroReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
 			})
-			minReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{op: opMinInt{}, left: amtReg, right: zeroReg, dest: dest}
+			minReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: amtReg, Right: zeroReg, Dest: dest}
 			})
 			// overdraft = max(0, -balance) = -min(balance, 0)
-			negReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return unaryOp{op: opNegInt{}, arg: minReg, dest: dest}
+			negReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
 			})
-			return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-				return binaryOp{op: opMakeMonetary{}, left: assetReg, right: negReg, dest: dest}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: assetReg, Right: negReg, Dest: dest}
 			})
 
 		case builtins.Meta:
@@ -455,16 +456,16 @@ func (st *state) compileExpr(expr parser.ValueExpr) (reg, CompilerError) {
 		}
 
 	default:
-		return utils.NonExhaustiveMatchPanic[reg](expr), nil
+		return utils.NonExhaustiveMatchPanic[ir.Reg](expr), nil
 	}
 }
 
 // capReg is the register containing the current cap (or nil if context is uncapped)
 // returns (when there's no err) the register where we store the pulled amount of this source
 func (st *state) compileSource(
-	capReg *reg,
+	capReg *ir.Reg,
 	src parser.Source,
-) (reg, CompilerError) {
+) (ir.Reg, CompilerError) {
 	switch src := src.(type) {
 	case *parser.SourceAccount:
 		if src.Color != nil {
@@ -476,20 +477,20 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		overdraftReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return loadInt{
-				value: *big.NewInt(0),
-				dest:  dest,
+		overdraftReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{
+				Value: *big.NewInt(0),
+				Dest:  dest,
 			}
 		})
 
-		return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-			return pullAccount{
-				dest:      dest,
-				account:   accReg,
-				cap:       capReg,
-				overdraft: &overdraftReg,
-				color:     nil,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.PullAccount{
+				Dest:      dest,
+				Account:   accReg,
+				Cap:       capReg,
+				Overdraft: &overdraftReg,
+				Color:     nil,
 			}
 		})
 
@@ -509,7 +510,7 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		var overdraftReg *reg
+		var overdraftReg *ir.Reg
 		if src.Bounded != nil {
 			amtReg, err := st.compileCapAmount(*src.Bounded)
 			if err != nil {
@@ -518,13 +519,13 @@ func (st *state) compileSource(
 			overdraftReg = &amtReg
 		}
 
-		return st.pushInstructionWithDestErr(func(dest reg) irInstr {
-			return pullAccount{
-				dest:      dest,
-				account:   accReg,
-				cap:       capReg,
-				overdraft: overdraftReg,
-				color:     nil,
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.PullAccount{
+				Dest:      dest,
+				Account:   accReg,
+				Cap:       capReg,
+				Overdraft: overdraftReg,
+				Color:     nil,
 			}
 		})
 
@@ -534,16 +535,16 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		var innerCapReg reg
+		var innerCapReg ir.Reg
 		if capReg == nil {
 			innerCapReg = clauseCapIntReg
 		} else {
-			minReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{
-					op:    opMinInt{},
-					left:  clauseCapIntReg,
-					right: *capReg,
-					dest:  dest,
+			minReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{
+					Op:    ir.OpMinInt{},
+					Left:  clauseCapIntReg,
+					Right: *capReg,
+					Dest:  dest,
 				}
 			})
 			innerCapReg = minReg
@@ -553,10 +554,10 @@ func (st *state) compileSource(
 
 	case *parser.SourceInorder:
 		if capReg == nil {
-			inorderTotalReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return loadInt{
-					value: *big.NewInt(0),
-					dest:  dest,
+			inorderTotalReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.LoadInt{
+					Value: *big.NewInt(0),
+					Dest:  dest,
 				}
 			})
 			for _, subSrc := range src.Sources {
@@ -565,29 +566,29 @@ func (st *state) compileSource(
 					return 0, err
 				}
 				// inorderTotalReg += innerPulledAmtReg
-				st.pushInstruction(binaryOp{
-					op:    opAddInt{},
-					dest:  inorderTotalReg,
-					left:  inorderTotalReg,
-					right: innerPulledAmtReg,
+				st.pushInstruction(ir.BinaryOp{
+					Op:    ir.OpAddInt{},
+					Dest:  inorderTotalReg,
+					Left:  inorderTotalReg,
+					Right: innerPulledAmtReg,
 				})
 			}
 			return inorderTotalReg, nil
 		}
 
-		inorderTotalReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return loadInt{
-				value: *big.NewInt(0),
-				dest:  dest,
+		inorderTotalReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{
+				Value: *big.NewInt(0),
+				Dest:  dest,
 			}
 		})
 
 		endLabel := st.getFreshLabel("inorder_end")
-		inorderCap := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{
-				op:   opIntCopy{},
-				arg:  *capReg,
-				dest: dest,
+		inorderCap := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{
+				Op:   ir.OpIntCopy{},
+				Arg:  *capReg,
+				Dest: dest,
 			}
 		})
 
@@ -598,30 +599,30 @@ func (st *state) compileSource(
 			}
 
 			// inorderTotalReg += innerPulledAmtReg
-			st.pushInstruction(binaryOp{
-				op:    opAddInt{},
-				dest:  inorderTotalReg,
-				left:  inorderTotalReg,
-				right: innerPulledAmtReg,
+			st.pushInstruction(ir.BinaryOp{
+				Op:    ir.OpAddInt{},
+				Dest:  inorderTotalReg,
+				Left:  inorderTotalReg,
+				Right: innerPulledAmtReg,
 			})
 
 			isLast := idx == len(src.Sources)-1
 			if !isLast {
 				// inorderCap -= innerPulledAmtReg
-				st.pushInstruction(binaryOp{
-					op:    opSubInt{},
-					dest:  inorderCap,
-					left:  inorderCap,
-					right: innerPulledAmtReg,
+				st.pushInstruction(ir.BinaryOp{
+					Op:    ir.OpSubInt{},
+					Dest:  inorderCap,
+					Left:  inorderCap,
+					Right: innerPulledAmtReg,
 				})
-				st.pushInstruction(jmpIfZero{
-					cond:   inorderCap,
-					target: endLabel,
+				st.pushInstruction(ir.JmpIfZero{
+					Cond:   inorderCap,
+					Target: endLabel,
 				})
 			}
 		}
-		st.pushInstruction(labelMarker{
-			label: endLabel,
+		st.pushInstruction(ir.LabelMarker{
+			Label: endLabel,
 		})
 		return inorderTotalReg, nil
 
@@ -632,11 +633,14 @@ func (st *state) compileSource(
 
 		endLabel := st.getFreshLabel("oneof_end")
 
-		resultReg := st.getFreshReg()
-
-		snapshotReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return snapshot{dest: dest}
+		snapshotReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.Snapshot{Dest: dest}
 		})
+
+		// Allocated at its first use rather than up front: the first branch is
+		// compiled before this register is ever written, and numbering registers in
+		// the order they appear is what makes a dump re-parse to the same program.
+		var resultReg ir.Reg
 
 		for index, subSrc := range src.Sources {
 			subPulledAmtReg, err := st.compileSource(capReg, subSrc)
@@ -644,36 +648,40 @@ func (st *state) compileSource(
 				return 0, err
 			}
 
-			st.pushInstruction(unaryOp{
-				op:   opIntCopy{},
-				arg:  subPulledAmtReg,
-				dest: resultReg,
+			if index == 0 {
+				resultReg = st.getFreshReg()
+			}
+
+			st.pushInstruction(ir.UnaryOp{
+				Op:   ir.OpIntCopy{},
+				Arg:  subPulledAmtReg,
+				Dest: resultReg,
 			})
 
 			isLast := index == len(src.Sources)-1
 			if !isLast {
 				// PRE: bounded capReg
 				// $missing_amt = $cap - $pulled_amt
-				missingAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
-					return binaryOp{
-						op:    opSubInt{},
-						left:  *capReg,
-						right: subPulledAmtReg,
-						dest:  dest,
+				missingAmt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+					return ir.BinaryOp{
+						Op:    ir.OpSubInt{},
+						Left:  *capReg,
+						Right: subPulledAmtReg,
+						Dest:  dest,
 					}
 				})
 
-				st.pushInstruction(jmpIfZero{
-					cond:   missingAmt,
-					target: endLabel,
+				st.pushInstruction(ir.JmpIfZero{
+					Cond:   missingAmt,
+					Target: endLabel,
 				})
-				st.pushInstruction(restore{
-					mark: snapshotReg,
+				st.pushInstruction(ir.Restore{
+					Mark: snapshotReg,
 				})
 			}
 		}
 
-		st.pushInstruction(labelMarker{label: endLabel})
+		st.pushInstruction(ir.LabelMarker{Label: endLabel})
 
 		return resultReg, nil
 
@@ -702,28 +710,28 @@ func (st *state) compileSource(
 		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "scaling"}
 
 	default:
-		return utils.NonExhaustiveMatchPanic[reg](src), nil
+		return utils.NonExhaustiveMatchPanic[ir.Reg](src), nil
 	}
 }
 
 func (st *state) compileSourceWithRequiredAmount(
-	capReg reg,
+	capReg ir.Reg,
 	src parser.Source,
-) (reg, CompilerError) {
+) (ir.Reg, CompilerError) {
 	got, err := st.compileSource(&capReg, src)
 	if err != nil {
 		return 0, err
 	}
-	st.pushInstruction(checkEnoughFunds{
-		got:    got,
-		needed: capReg,
+	st.pushInstruction(ir.CheckEnoughFunds{
+		Got:    got,
+		Needed: capReg,
 	})
 	return got, nil
 }
 
 func (st *state) compileDestination(
-	pulledAmtReg reg,
-	currentCap reg,
+	pulledAmtReg ir.Reg,
+	currentCap ir.Reg,
 	dest parser.Destination,
 ) CompilerError {
 	switch dest := dest.(type) {
@@ -749,11 +757,11 @@ func (st *state) compileDestination(
 
 		endLabel := st.getFreshLabel("oneof_dest_end")
 
-		zero := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return loadInt{value: *big.NewInt(0), dest: dest}
+		zero := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
 		})
 
-		clauseLabels := make([]label, len(dest.Clauses))
+		clauseLabels := make([]ir.Label, len(dest.Clauses))
 		for i, clause := range dest.Clauses {
 			clauseLabels[i] = st.getFreshLabel("oneof_dest_clause")
 
@@ -761,29 +769,29 @@ func (st *state) compileDestination(
 			if err != nil {
 				return err
 			}
-			minReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{op: opMinInt{}, left: currentCap, right: capAmtReg, dest: dest}
+			minReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: currentCap, Right: capAmtReg, Dest: dest}
 			})
-			diff := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{op: opSubInt{}, left: currentCap, right: minReg, dest: dest}
+			diff := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpSubInt{}, Left: currentCap, Right: minReg, Dest: dest}
 			})
-			st.pushInstruction(jmpIfZero{cond: diff, target: clauseLabels[i]})
+			st.pushInstruction(ir.JmpIfZero{Cond: diff, Target: clauseLabels[i]})
 		}
 
 		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, currentCap); err != nil {
 			return err
 		}
-		st.pushInstruction(jmpIfZero{cond: zero, target: endLabel})
+		st.pushInstruction(ir.JmpIfZero{Cond: zero, Target: endLabel})
 
 		for i, clause := range dest.Clauses {
-			st.pushInstruction(labelMarker{label: clauseLabels[i]})
+			st.pushInstruction(ir.LabelMarker{Label: clauseLabels[i]})
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, currentCap); err != nil {
 				return err
 			}
-			st.pushInstruction(jmpIfZero{cond: zero, target: endLabel})
+			st.pushInstruction(ir.JmpIfZero{Cond: zero, Target: endLabel})
 		}
 
-		st.pushInstruction(labelMarker{label: endLabel})
+		st.pushInstruction(ir.LabelMarker{Label: endLabel})
 		return nil
 
 	case *parser.DestinationAccount:
@@ -792,31 +800,31 @@ func (st *state) compileDestination(
 			return err
 		}
 
-		var cap *reg
+		var cap *ir.Reg
 		if pulledAmtReg != currentCap {
 			cap = &currentCap
 		}
-		st.pushInstruction(sendToAccount{
-			account: &accReg,
-			cap:     cap,
+		st.pushInstruction(ir.SendToAccount{
+			Account: &accReg,
+			Cap:     cap,
 		})
 
 	case *parser.DestinationInorder:
-		remaining := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{op: opIntCopy{}, arg: currentCap, dest: dest}
+		remaining := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: currentCap, Dest: dest}
 		})
 		for _, clause := range dest.Clauses {
 			capAmtReg, err := st.compileCapAmount(clause.Cap)
 			if err != nil {
 				return err
 			}
-			amtReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return binaryOp{op: opMinInt{}, left: remaining, right: capAmtReg, dest: dest}
+			amtReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: remaining, Right: capAmtReg, Dest: dest}
 			})
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
 			}
-			st.pushInstruction(binaryOp{op: opSubInt{}, dest: remaining, left: remaining, right: amtReg})
+			st.pushInstruction(ir.BinaryOp{Op: ir.OpSubInt{}, Dest: remaining, Left: remaining, Right: amtReg})
 		}
 
 		return st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, remaining)
@@ -830,21 +838,21 @@ func (st *state) compileDestination(
 
 func (st *state) compileKeptOrDestination(
 	keptOrDest parser.KeptOrDestination,
-	pulledAmtReg reg,
-	currentCap reg,
+	pulledAmtReg ir.Reg,
+	currentCap ir.Reg,
 ) CompilerError {
 	switch keptOrDest := keptOrDest.(type) {
 	case *parser.DestinationTo:
 		return st.compileDestination(pulledAmtReg, currentCap, keptOrDest.Destination)
 
 	case *parser.DestinationKept:
-		var cap *reg
+		var cap *ir.Reg
 		if pulledAmtReg != currentCap {
 			cap = &currentCap
 		}
-		st.pushInstruction(sendToAccount{
-			account: nil,
-			cap:     cap,
+		st.pushInstruction(ir.SendToAccount{
+			Account: nil,
+			Cap:     cap,
 		})
 		return nil
 
@@ -858,29 +866,29 @@ func (st *state) compileKeptOrDestination(
 func (st *state) compileSentValue(
 	sentValue parser.SentValue,
 	source parser.Source,
-) (reg, CompilerError) {
+) (ir.Reg, CompilerError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueLiteral:
 		monetaryReg, err := st.compileExpr(sentValue.Monetary)
 		if err != nil {
 			return 0, err
 		}
-		assetReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{
-				op:   opGetAsset{},
-				arg:  monetaryReg,
-				dest: dest,
+		assetReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{
+				Op:   ir.OpGetAsset{},
+				Arg:  monetaryReg,
+				Dest: dest,
 			}
 		})
-		st.pushInstruction(setCurrentAsset{
-			asset: assetReg,
+		st.pushInstruction(ir.SetCurrentAsset{
+			Asset: assetReg,
 		})
 		st.currentAssetReg = assetReg
-		capReg := st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{
-				op:   opGetAmount{},
-				arg:  monetaryReg,
-				dest: dest,
+		capReg := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{
+				Op:   ir.OpGetAmount{},
+				Arg:  monetaryReg,
+				Dest: dest,
 			}
 		})
 
@@ -891,14 +899,14 @@ func (st *state) compileSentValue(
 		if err != nil {
 			return 0, err
 		}
-		st.pushInstruction(setCurrentAsset{
-			asset: assetReg,
+		st.pushInstruction(ir.SetCurrentAsset{
+			Asset: assetReg,
 		})
 		st.currentAssetReg = assetReg
 		return st.compileSource(nil, source)
 
 	default:
-		return utils.NonExhaustiveMatchPanic[reg](sentValue), nil
+		return utils.NonExhaustiveMatchPanic[ir.Reg](sentValue), nil
 	}
 
 }
@@ -919,19 +927,19 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 		return nil
 
 	case *parser.SaveStatement:
-		var assetReg reg
-		var amountReg *reg
+		var assetReg ir.Reg
+		var amountReg *ir.Reg
 		switch sv := stmt.SentValue.(type) {
 		case *parser.SentValueLiteral:
 			monReg, err := st.compileExpr(sv.Monetary)
 			if err != nil {
 				return err
 			}
-			assetReg = st.pushInstructionWithDest(func(dest reg) irInstr {
-				return unaryOp{op: opGetAsset{}, arg: monReg, dest: dest}
+			assetReg = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: monReg, Dest: dest}
 			})
-			amt := st.pushInstructionWithDest(func(dest reg) irInstr {
-				return unaryOp{op: opGetAmount{}, arg: monReg, dest: dest}
+			amt := st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: monReg, Dest: dest}
 			})
 			amountReg = &amt
 		case *parser.SentValueAll:
@@ -948,7 +956,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 		if err != nil {
 			return err
 		}
-		st.pushInstruction(save{account: accReg, asset: assetReg, amount: amountReg})
+		st.pushInstruction(ir.Save{Account: accReg, Asset: assetReg, Amount: amountReg})
 		return nil
 	case *parser.FnCall:
 		switch stmt.Caller.Name {
@@ -961,7 +969,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
-			st.pushInstruction(setTxMeta{key: key, value: value})
+			st.pushInstruction(ir.SetTxMeta{Key: key, Value: value})
 			return nil
 
 		case builtins.SetAccountMeta:
@@ -977,7 +985,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
-			st.pushInstruction(setAccountMeta{account: account, key: key, value: value})
+			st.pushInstruction(ir.SetAccountMeta{Account: account, Key: key, Value: value})
 			return nil
 
 		default:
@@ -992,7 +1000,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 // compileMetaValue compiles a value into a string register (metadata is stored
 // stringified). Strings/accounts/assets already live in string registers;
 // numbers go through int_to_string.
-func (st *state) compileMetaValue(expr parser.ValueExpr) (reg, CompilerError) {
+func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 	r, err := st.compileExpr(expr)
 	if err != nil {
 		return 0, err
@@ -1002,16 +1010,16 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (reg, CompilerError) {
 	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
 		return r, nil
 	case typecheck.TypeNumber:
-		return st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{op: opIntToString{}, arg: r, dest: dest}
+		return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpIntToString{}, Arg: r, Dest: dest}
 		}), nil
 	case typecheck.TypePortion:
-		return st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{op: opPortionToString{}, arg: r, dest: dest}
+		return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpPortionToString{}, Arg: r, Dest: dest}
 		}), nil
 	case typecheck.TypeMonetary:
-		return st.pushInstructionWithDest(func(dest reg) irInstr {
-			return unaryOp{op: opMonetaryToString{}, arg: r, dest: dest}
+		return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpMonetaryToString{}, Arg: r, Dest: dest}
 		}), nil
 	default:
 		panic("TODO meta value of type " + st.exprTypes[expr])
@@ -1024,7 +1032,7 @@ func compileProgramToIR(program parser.Program) (compiledProgramIR, CompilerErro
 		return compiledProgramIR{}, TypeError{Range: tc.Errors[0].Range, Kind: tc.Errors[0].Kind}
 	}
 
-	st := state{vars: map[string]reg{}, exprTypes: tc.ExprTypes}
+	st := state{vars: map[string]ir.Reg{}, exprTypes: tc.ExprTypes}
 
 	if program.Vars != nil {
 		for _, decl := range program.Vars.Declarations {
@@ -1078,22 +1086,22 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 		return err
 	}
 
-	var typ metaType
+	var typ ir.MetaType
 	switch decl.Type.Name {
 	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
-		typ = metaStr{}
+		typ = ir.MetaStr{}
 	case typecheck.TypeNumber:
-		typ = metaInt{}
+		typ = ir.MetaInt{}
 	case typecheck.TypePortion:
-		typ = metaPortion{}
+		typ = ir.MetaPortion{}
 	case typecheck.TypeMonetary:
-		typ = metaMonetary{}
+		typ = ir.MetaMonetary{}
 	default:
 		panic("unexpected meta var type: " + decl.Type.Name)
 	}
 
-	st.vars[decl.Name.Name] = st.pushInstructionWithDest(func(dest reg) irInstr {
-		return metaVar{dest: dest, account: account, key: key, typ: typ}
+	st.vars[decl.Name.Name] = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.MetaVar{Dest: dest, Account: account, Key: key, Typ: typ}
 	})
 	return nil
 }
@@ -1113,15 +1121,15 @@ func (st *state) compileExternalVar(decl parser.VarDeclaration) {
 	case typecheck.TypePortion:
 		num := st.loadIntVar()
 		den := st.loadIntVar()
-		st.vars[name] = st.pushInstructionWithDest(func(dest reg) irInstr {
-			return binaryOp{op: opMakePortion{}, left: num, right: den, dest: dest}
+		st.vars[name] = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMakePortion{}, Left: num, Right: den, Dest: dest}
 		})
 
 	case typecheck.TypeMonetary:
 		asset := st.loadStrVar()
 		amount := st.loadIntVar()
-		st.vars[name] = st.pushInstructionWithDest(func(dest reg) irInstr {
-			return binaryOp{op: opMakeMonetary{}, left: asset, right: amount, dest: dest}
+		st.vars[name] = st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: asset, Right: amount, Dest: dest}
 		})
 
 	default:
@@ -1129,18 +1137,18 @@ func (st *state) compileExternalVar(decl parser.VarDeclaration) {
 	}
 }
 
-func (st *state) loadIntVar() reg {
+func (st *state) loadIntVar() ir.Reg {
 	index := uint16(st.nextIntVar)
 	st.nextIntVar++
-	return st.pushInstructionWithDest(func(dest reg) irInstr {
-		return loadVar{dest: dest, typ: varInt{}, index: index}
+	return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.LoadVar{Dest: dest, Typ: ir.VarInt{}, Index: index}
 	})
 }
 
-func (st *state) loadStrVar() reg {
+func (st *state) loadStrVar() ir.Reg {
 	index := uint16(st.nextStrVar)
 	st.nextStrVar++
-	return st.pushInstructionWithDest(func(dest reg) irInstr {
-		return loadVar{dest: dest, typ: varStr{}, index: index}
+	return st.pushInstructionWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.LoadVar{Dest: dest, Typ: ir.VarStr{}, Index: index}
 	})
 }

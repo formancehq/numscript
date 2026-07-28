@@ -1,4 +1,4 @@
-package compiler
+package ir
 
 import "fmt"
 
@@ -34,15 +34,15 @@ func (t regType) String() string {
 // the code that produced the instructions. The state is updated as each
 // instruction checks out.
 type bytecodeTypechecker struct {
-	types map[reg]regType
+	types map[Reg]regType
 }
 
 func newBytecodeTypechecker() *bytecodeTypechecker {
-	return &bytecodeTypechecker{types: map[reg]regType{}}
+	return &bytecodeTypechecker{types: map[Reg]regType{}}
 }
 
 // use asserts r was already written with type want.
-func (tc *bytecodeTypechecker) use(r reg, want regType) error {
+func (tc *bytecodeTypechecker) use(r Reg, want regType) error {
 	got, ok := tc.types[r]
 	if !ok {
 		return fmt.Errorf("register %s read as %s before being written", r, want)
@@ -53,7 +53,7 @@ func (tc *bytecodeTypechecker) use(r reg, want regType) error {
 	return nil
 }
 
-func (tc *bytecodeTypechecker) useOpt(r *reg, want regType) error {
+func (tc *bytecodeTypechecker) useOpt(r *Reg, want regType) error {
 	if r == nil {
 		return nil
 	}
@@ -61,7 +61,7 @@ func (tc *bytecodeTypechecker) useOpt(r *reg, want regType) error {
 }
 
 // def records that r now holds type t, rejecting a write that changes its type.
-func (tc *bytecodeTypechecker) def(r reg, t regType) error {
+func (tc *bytecodeTypechecker) def(r Reg, t regType) error {
 	if got, ok := tc.types[r]; ok && got != t {
 		return fmt.Errorf("register %s written as %s but already holds %s", r, t, got)
 	}
@@ -70,103 +70,103 @@ func (tc *bytecodeTypechecker) def(r reg, t regType) error {
 }
 
 // check typechecks a single instruction, updating the state on success.
-func (tc *bytecodeTypechecker) check(instr irInstr) error {
+func (tc *bytecodeTypechecker) check(instr Instr) error {
 	switch i := instr.(type) {
-	case loadInt:
-		return tc.def(i.dest, regInt)
-	case loadStr:
-		return tc.def(i.dest, regStr)
-	case loadVar:
-		t, err := varRegType(i.typ)
+	case LoadInt:
+		return tc.def(i.Dest, regInt)
+	case LoadStr:
+		return tc.def(i.Dest, regStr)
+	case LoadVar:
+		t, err := varRegType(i.Typ)
 		if err != nil {
 			return err
 		}
-		return tc.def(i.dest, t)
+		return tc.def(i.Dest, t)
 
-	case unaryOp:
-		dest, arg, err := unOpRegTypes(i.op)
+	case UnaryOp:
+		dest, arg, err := unOpRegTypes(i.Op)
 		if err != nil {
 			return err
 		}
-		return firstErr(tc.use(i.arg, arg), tc.def(i.dest, dest))
-	case binaryOp:
-		dest, left, right, err := binOpRegTypes(i.op)
+		return firstErr(tc.use(i.Arg, arg), tc.def(i.Dest, dest))
+	case BinaryOp:
+		dest, left, right, err := binOpRegTypes(i.Op)
 		if err != nil {
 			return err
 		}
-		return firstErr(tc.use(i.left, left), tc.use(i.right, right), tc.def(i.dest, dest))
+		return firstErr(tc.use(i.Left, left), tc.use(i.Right, right), tc.def(i.Dest, dest))
 
-	case pullAccount:
+	case PullAccount:
 		return firstErr(
-			tc.use(i.account, regStr),
-			tc.useOpt(i.cap, regInt),
-			tc.useOpt(i.overdraft, regInt),
-			tc.useOpt(i.color, regStr),
-			tc.def(i.dest, regInt),
+			tc.use(i.Account, regStr),
+			tc.useOpt(i.Cap, regInt),
+			tc.useOpt(i.Overdraft, regInt),
+			tc.useOpt(i.Color, regStr),
+			tc.def(i.Dest, regInt),
 		)
-	case sendToAccount:
-		return firstErr(tc.useOpt(i.account, regStr), tc.useOpt(i.cap, regInt))
-	case save:
-		return firstErr(tc.use(i.account, regStr), tc.use(i.asset, regStr), tc.useOpt(i.amount, regInt))
+	case SendToAccount:
+		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt))
+	case Save:
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.useOpt(i.Amount, regInt))
 
-	case makeAllotment:
-		if err := tc.use(i.amount, regInt); err != nil {
+	case MakeAllotment:
+		if err := tc.use(i.Amount, regInt); err != nil {
 			return err
 		}
-		for _, p := range i.portions {
+		for _, p := range i.Portions {
 			if err := tc.use(p, regPortion); err != nil {
 				return err
 			}
 		}
-		for _, d := range i.dest {
+		for _, d := range i.Dest {
 			if err := tc.def(d, regInt); err != nil {
 				return err
 			}
 		}
 		return nil
 
-	case checkEnoughFunds:
-		return firstErr(tc.use(i.got, regInt), tc.use(i.needed, regInt))
-	case assertLeftover:
-		return tc.use(i.portion, regPortion)
-	case setCurrentAsset:
-		return tc.use(i.asset, regStr)
-	case assertSameAsset:
-		return firstErr(tc.use(i.left, regStr), tc.use(i.right, regStr))
-	case assertValidAccount:
-		return tc.use(i.account, regStr)
-	case assertNonNegativeBalance:
-		return firstErr(tc.use(i.balance, regMonetary), tc.use(i.account, regStr))
+	case CheckEnoughFunds:
+		return firstErr(tc.use(i.Got, regInt), tc.use(i.Needed, regInt))
+	case AssertLeftover:
+		return tc.use(i.Portion, regPortion)
+	case SetCurrentAsset:
+		return tc.use(i.Asset, regStr)
+	case AssertSameAsset:
+		return firstErr(tc.use(i.Left, regStr), tc.use(i.Right, regStr))
+	case AssertValidAccount:
+		return tc.use(i.Account, regStr)
+	case AssertNonNegativeBalance:
+		return firstErr(tc.use(i.Balance, regMonetary), tc.use(i.Account, regStr))
 
-	case setTxMeta:
-		return firstErr(tc.use(i.key, regStr), tc.use(i.value, regStr))
-	case setAccountMeta:
-		return firstErr(tc.use(i.account, regStr), tc.use(i.key, regStr), tc.use(i.value, regStr))
-	case metaVar:
-		t, err := metaRegType(i.typ)
+	case SetTxMeta:
+		return firstErr(tc.use(i.Key, regStr), tc.use(i.Value, regStr))
+	case SetAccountMeta:
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.use(i.Value, regStr))
+	case MetaVar:
+		t, err := metaRegType(i.Typ)
 		if err != nil {
 			return err
 		}
-		return firstErr(tc.use(i.account, regStr), tc.use(i.key, regStr), tc.def(i.dest, t))
-	case fetchBalance:
-		return firstErr(tc.use(i.account, regStr), tc.use(i.asset, regStr), tc.def(i.dest, regMonetary))
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.def(i.Dest, t))
+	case FetchBalance:
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.def(i.Dest, regMonetary))
 
-	case jmpIfZero:
-		return tc.use(i.cond, regInt)
-	case labelMarker:
+	case JmpIfZero:
+		return tc.use(i.Cond, regInt)
+	case LabelMarker:
 		return nil
 
-	case snapshot:
-		return tc.def(i.dest, regInt)
-	case restore:
-		return tc.use(i.mark, regInt)
+	case Snapshot:
+		return tc.def(i.Dest, regInt)
+	case Restore:
+		return tc.use(i.Mark, regInt)
 
 	default:
 		return fmt.Errorf("bytecode typechecker: unhandled instruction %T", instr)
 	}
 }
 
-func typecheckInstructions(instrs []irInstr) error {
+func Typecheck(instrs []Instr) error {
 	tc := newBytecodeTypechecker()
 	for pos, instr := range instrs {
 		if err := tc.check(instr); err != nil {
@@ -185,66 +185,66 @@ func firstErr(errs ...error) error {
 	return nil
 }
 
-func varRegType(t varType) (regType, error) {
+func varRegType(t VarType) (regType, error) {
 	switch t.(type) {
-	case varInt:
+	case VarInt:
 		return regInt, nil
-	case varStr:
+	case VarStr:
 		return regStr, nil
 	default:
 		return 0, fmt.Errorf("bytecode typechecker: unknown var type %T", t)
 	}
 }
 
-func metaRegType(t metaType) (regType, error) {
+func metaRegType(t MetaType) (regType, error) {
 	switch t.(type) {
-	case metaStr:
+	case MetaStr:
 		return regStr, nil
-	case metaInt:
+	case MetaInt:
 		return regInt, nil
-	case metaPortion:
+	case MetaPortion:
 		return regPortion, nil
-	case metaMonetary:
+	case MetaMonetary:
 		return regMonetary, nil
 	default:
 		return 0, fmt.Errorf("bytecode typechecker: unknown meta type %T", t)
 	}
 }
 
-func unOpRegTypes(op unKind) (dest, arg regType, err error) {
+func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 	switch op.(type) {
-	case opIntCopy:
+	case OpIntCopy:
 		return regInt, regInt, nil
-	case opPortionCopy:
+	case OpPortionCopy:
 		return regPortion, regPortion, nil
-	case opGetAsset:
+	case OpGetAsset:
 		return regStr, regMonetary, nil
-	case opGetAmount:
+	case OpGetAmount:
 		return regInt, regMonetary, nil
-	case opNegInt:
+	case OpNegInt:
 		return regInt, regInt, nil
-	case opIntToString:
+	case OpIntToString:
 		return regStr, regInt, nil
-	case opPortionToString:
+	case OpPortionToString:
 		return regStr, regPortion, nil
-	case opMonetaryToString:
+	case OpMonetaryToString:
 		return regStr, regMonetary, nil
 	default:
 		return 0, 0, fmt.Errorf("bytecode typechecker: unknown unary op %T", op)
 	}
 }
 
-func binOpRegTypes(op binKind) (dest, left, right regType, err error) {
+func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 	switch op.(type) {
-	case opMinInt, opAddInt, opSubInt:
+	case OpMinInt, OpAddInt, OpSubInt:
 		return regInt, regInt, regInt, nil
-	case opAddString:
+	case OpAddString:
 		return regStr, regStr, regStr, nil
-	case opSubPortion:
+	case OpSubPortion:
 		return regPortion, regPortion, regPortion, nil
-	case opMakePortion:
+	case OpMakePortion:
 		return regPortion, regInt, regInt, nil
-	case opMakeMonetary:
+	case OpMakeMonetary:
 		return regMonetary, regStr, regInt, nil
 	default:
 		return 0, 0, 0, fmt.Errorf("bytecode typechecker: unknown binary op %T", op)

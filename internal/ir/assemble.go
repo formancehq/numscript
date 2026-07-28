@@ -1,4 +1,4 @@
-package compiler
+package ir
 
 import (
 	"fmt"
@@ -11,13 +11,13 @@ import (
 const maxReg = 0xFF
 
 type regPool struct {
-	indexByReg map[reg]byte
+	indexByReg map[Reg]byte
 	next       int
 }
 
 func newRegPool() regPool {
 	return regPool{
-		indexByReg: map[reg]byte{},
+		indexByReg: map[Reg]byte{},
 	}
 }
 
@@ -50,7 +50,7 @@ func (p *constPool[T]) alloc(item T) (uint16, error) {
 	return index, nil
 }
 
-func (b *regPool) index(r reg) (byte, error) {
+func (b *regPool) Index(r Reg) (byte, error) {
 	if idx, ok := b.indexByReg[r]; ok {
 		return idx, nil
 	}
@@ -63,7 +63,7 @@ func (b *regPool) index(r reg) (byte, error) {
 	return idx, nil
 }
 
-// reserveContiguous reserves n consecutive slots (scratch, not bound to any reg)
+// reserveContiguous reserves n consecutive slots (scratch, not bound to any Reg)
 // and returns the first index. Used for the contiguous arrays Op_MkAllotment
 // requires (portionsRegs[B:B+C]).
 func (b *regPool) reserveContiguous(n int) (byte, error) {
@@ -75,10 +75,10 @@ func (b *regPool) reserveContiguous(n int) (byte, error) {
 	return start, nil
 }
 
-// bindContiguous reserves len(regs) consecutive slots and binds each reg to one,
+// bindContiguous reserves len(regs) consecutive slots and binds each Reg to one,
 // so later references to those regs resolve to the contiguous block. Used for
 // Op_MkAllotment's output array (intsRegs[A:A+C]), which the following sends read.
-func (b *regPool) bindContiguous(regs []reg) (byte, error) {
+func (b *regPool) bindContiguous(regs []Reg) (byte, error) {
 	start, err := b.reserveContiguous(len(regs))
 	if err != nil {
 		return 0, err
@@ -90,7 +90,7 @@ func (b *regPool) bindContiguous(regs []reg) (byte, error) {
 }
 
 type patch struct {
-	label          label
+	Label          Label
 	index          int
 	getInstruction func(labelIndex uint16) vm.Instruction
 }
@@ -100,26 +100,26 @@ type assembler struct {
 	instructions []vm.Instruction
 
 	patches []patch
-	labels  map[label]uint16
+	labels  map[Label]uint16
 
 	// one register bank per VM register bank
 	ints       regPool
 	strings    regPool
-	portions   regPool
+	Portions   regPool
 	monetaries regPool
 
 	intsPool    constPool[big.Int]
 	stringsPool constPool[string]
 }
 
-func assembleProgram(instrs []irInstr) (vm.Program, error) {
+func Assemble(instrs []Instr) (vm.Program, error) {
 	a := &assembler{
 		ints:       newRegPool(),
 		strings:    newRegPool(),
-		portions:   newRegPool(),
+		Portions:   newRegPool(),
 		monetaries: newRegPool(),
 
-		labels: map[label]uint16{},
+		labels: map[Label]uint16{},
 
 		intsPool: newConstPool(func(i big.Int) string {
 			return i.String()
@@ -136,9 +136,9 @@ func assembleProgram(instrs []irInstr) (vm.Program, error) {
 
 	// now we run the patches
 	for _, patch := range a.patches {
-		labelIndex, ok := a.labels[patch.label]
+		labelIndex, ok := a.labels[patch.Label]
 		if !ok {
-			return vm.Program{}, fmt.Errorf("Missing label declaration of `%s`", string(patch.label))
+			return vm.Program{}, fmt.Errorf("Missing label declaration of `%s`", string(patch.Label))
 		}
 
 		a.instructions[patch.index] = patch.getInstruction(labelIndex)
@@ -150,25 +150,25 @@ func assembleProgram(instrs []irInstr) (vm.Program, error) {
 		IntsPool:     a.intsPool.items,
 
 		MaxRegString:   byte(a.strings.next),
-		MaxRegPortion:  byte(a.portions.next),
+		MaxRegPortion:  byte(a.Portions.next),
 		MaxRegInt:      byte(a.ints.next),
 		MaxRegMonetary: byte(a.monetaries.next),
 	}, nil
 }
 
-func (as *assembler) intReg(r reg) (byte, error)      { return as.ints.index(r) }
-func (as *assembler) strReg(r reg) (byte, error)      { return as.strings.index(r) }
-func (as *assembler) portionReg(r reg) (byte, error)  { return as.portions.index(r) }
-func (as *assembler) monetaryReg(r reg) (byte, error) { return as.monetaries.index(r) }
+func (as *assembler) intReg(r Reg) (byte, error)      { return as.ints.Index(r) }
+func (as *assembler) strReg(r Reg) (byte, error)      { return as.strings.Index(r) }
+func (as *assembler) portionReg(r Reg) (byte, error)  { return as.Portions.Index(r) }
+func (as *assembler) monetaryReg(r Reg) (byte, error) { return as.monetaries.Index(r) }
 
 func (as *assembler) optionalReg(
-	regPool func(*assembler, reg) (byte, error),
-	reg *reg,
+	regPool func(*assembler, Reg) (byte, error),
+	Reg *Reg,
 ) (byte, error) {
-	if reg == nil {
+	if Reg == nil {
 		return maxReg, nil
 	} else {
-		reg_, err := regPool(as, *reg)
+		reg_, err := regPool(as, *Reg)
 		if err != nil {
 			return 0, err
 		}
@@ -190,10 +190,10 @@ func (as *assembler) emitBC(op vm.Opcode, a byte, bc uint16) {
 	as.instructions = append(as.instructions, vm.NewBC(op, a, bc))
 }
 
-// regResolver maps a virtual register to a concrete bank index. Op sigs hold
+// regResolver maps a virtual register to a concrete bank index. op sigs hold
 // these as method expressions ((*assembler).intReg, ...) so that a sig is a
 // static description of an op, independent of any assembler instance.
-type regResolver = func(*assembler, reg) (byte, error)
+type regResolver = func(*assembler, Reg) (byte, error)
 
 type unaryOpSig struct {
 	opcode vm.Opcode
@@ -201,56 +201,56 @@ type unaryOpSig struct {
 	arg    regResolver
 }
 
-func (opIntCopy) sig() unaryOpSig {
+func (OpIntCopy) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_IntCopy,
 		dest:   (*assembler).intReg,
 		arg:    (*assembler).intReg,
 	}
 }
-func (opPortionCopy) sig() unaryOpSig {
+func (OpPortionCopy) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_PortionCopy,
 		dest:   (*assembler).portionReg,
 		arg:    (*assembler).portionReg,
 	}
 }
-func (opGetAsset) sig() unaryOpSig {
+func (OpGetAsset) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_GetAsset,
 		dest:   (*assembler).strReg,
 		arg:    (*assembler).monetaryReg,
 	}
 }
-func (opGetAmount) sig() unaryOpSig {
+func (OpGetAmount) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_GetAmount,
 		dest:   (*assembler).intReg,
 		arg:    (*assembler).monetaryReg,
 	}
 }
-func (opNegInt) sig() unaryOpSig {
+func (OpNegInt) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_NegInt,
 		dest:   (*assembler).intReg,
 		arg:    (*assembler).intReg,
 	}
 }
-func (opIntToString) sig() unaryOpSig {
+func (OpIntToString) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_IntToString,
 		dest:   (*assembler).strReg,
 		arg:    (*assembler).intReg,
 	}
 }
-func (opPortionToString) sig() unaryOpSig {
+func (OpPortionToString) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_PortionToString,
 		dest:   (*assembler).strReg,
 		arg:    (*assembler).portionReg,
 	}
 }
-func (opMonetaryToString) sig() unaryOpSig {
+func (OpMonetaryToString) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_MonetaryToString,
 		dest:   (*assembler).strReg,
@@ -258,14 +258,14 @@ func (opMonetaryToString) sig() unaryOpSig {
 	}
 }
 
-func (i unaryOp) assemble(a *assembler) error {
-	sig := i.op.sig()
+func (i UnaryOp) assemble(a *assembler) error {
+	sig := i.Op.sig()
 
-	dest, err := sig.dest(a, i.dest)
+	dest, err := sig.dest(a, i.Dest)
 	if err != nil {
 		return err
 	}
-	arg, err := sig.arg(a, i.arg)
+	arg, err := sig.arg(a, i.Arg)
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ type binaryOpSig struct {
 	right  regResolver
 }
 
-func (opMinInt) sig() binaryOpSig {
+func (OpMinInt) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_MinInt,
 		dest:   (*assembler).intReg,
@@ -289,7 +289,7 @@ func (opMinInt) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
-func (opAddInt) sig() binaryOpSig {
+func (OpAddInt) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_AddInt,
 		dest:   (*assembler).intReg,
@@ -297,7 +297,7 @@ func (opAddInt) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
-func (opSubInt) sig() binaryOpSig {
+func (OpSubInt) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_SubInt,
 		dest:   (*assembler).intReg,
@@ -305,7 +305,7 @@ func (opSubInt) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
-func (opAddString) sig() binaryOpSig {
+func (OpAddString) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_AddString,
 		dest:   (*assembler).strReg,
@@ -313,7 +313,7 @@ func (opAddString) sig() binaryOpSig {
 		right:  (*assembler).strReg,
 	}
 }
-func (opSubPortion) sig() binaryOpSig {
+func (OpSubPortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_SubPortion,
 		dest:   (*assembler).portionReg,
@@ -321,7 +321,7 @@ func (opSubPortion) sig() binaryOpSig {
 		right:  (*assembler).portionReg,
 	}
 }
-func (opMakePortion) sig() binaryOpSig {
+func (OpMakePortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_MkPortion,
 		dest:   (*assembler).portionReg,
@@ -329,7 +329,7 @@ func (opMakePortion) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
-func (opMakeMonetary) sig() binaryOpSig {
+func (OpMakeMonetary) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_MkMonetary,
 		dest:   (*assembler).monetaryReg,
@@ -338,18 +338,18 @@ func (opMakeMonetary) sig() binaryOpSig {
 	}
 }
 
-func (i binaryOp) assemble(a *assembler) error {
-	sig := i.op.sig()
+func (i BinaryOp) assemble(a *assembler) error {
+	sig := i.Op.sig()
 
-	dest, err := sig.dest(a, i.dest)
+	dest, err := sig.dest(a, i.Dest)
 	if err != nil {
 		return err
 	}
-	left, err := sig.left(a, i.left)
+	left, err := sig.left(a, i.Left)
 	if err != nil {
 		return err
 	}
-	right, err := sig.right(a, i.right)
+	right, err := sig.right(a, i.Right)
 	if err != nil {
 		return err
 	}
@@ -358,13 +358,13 @@ func (i binaryOp) assemble(a *assembler) error {
 	return nil
 }
 
-func (i loadInt) assemble(a *assembler) error {
-	dest, err := a.intReg(i.dest)
+func (i LoadInt) assemble(a *assembler) error {
+	dest, err := a.intReg(i.Dest)
 	if err != nil {
 		return err
 	}
 
-	poolIndex, err := a.intsPool.alloc(i.value)
+	poolIndex, err := a.intsPool.alloc(i.Value)
 	if err != nil {
 		return err
 	}
@@ -373,13 +373,13 @@ func (i loadInt) assemble(a *assembler) error {
 	return nil
 }
 
-func (i loadStr) assemble(a *assembler) error {
-	dest, err := a.strReg(i.dest)
+func (i LoadStr) assemble(a *assembler) error {
+	dest, err := a.strReg(i.Dest)
 	if err != nil {
 		return err
 	}
 
-	poolIndex, err := a.stringsPool.alloc(i.value)
+	poolIndex, err := a.stringsPool.alloc(i.Value)
 	if err != nil {
 		return err
 	}
@@ -388,13 +388,13 @@ func (i loadStr) assemble(a *assembler) error {
 	return nil
 }
 
-func (i checkEnoughFunds) assemble(a *assembler) error {
-	got, err := a.intReg(i.got)
+func (i CheckEnoughFunds) assemble(a *assembler) error {
+	got, err := a.intReg(i.Got)
 	if err != nil {
 		return err
 	}
 
-	needed, err := a.intReg(i.needed)
+	needed, err := a.intReg(i.Needed)
 	if err != nil {
 		return err
 	}
@@ -403,16 +403,16 @@ func (i checkEnoughFunds) assemble(a *assembler) error {
 	return nil
 }
 
-func (i save) assemble(a *assembler) error {
-	account, err := a.strReg(i.account)
+func (i Save) assemble(a *assembler) error {
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
-	asset, err := a.strReg(i.asset)
+	asset, err := a.strReg(i.Asset)
 	if err != nil {
 		return err
 	}
-	amount, err := a.optionalReg((*assembler).intReg, i.amount)
+	amount, err := a.optionalReg((*assembler).intReg, i.Amount)
 	if err != nil {
 		return err
 	}
@@ -420,21 +420,21 @@ func (i save) assemble(a *assembler) error {
 	return nil
 }
 
-func (i assertLeftover) assemble(a *assembler) error {
-	portion, err := a.portionReg(i.portion)
+func (i AssertLeftover) assemble(a *assembler) error {
+	portion, err := a.portionReg(i.Portion)
 	if err != nil {
 		return err
 	}
 	var exact byte
-	if i.exact {
+	if i.Exact {
 		exact = 1
 	}
 	a.emit(vm.Op_AssertLeftover, portion, exact, maxReg)
 	return nil
 }
 
-func (i setCurrentAsset) assemble(a *assembler) error {
-	assetReg, err := a.strReg(i.asset)
+func (i SetCurrentAsset) assemble(a *assembler) error {
+	assetReg, err := a.strReg(i.Asset)
 	if err != nil {
 		return err
 	}
@@ -443,28 +443,28 @@ func (i setCurrentAsset) assemble(a *assembler) error {
 	return nil
 }
 
-func (i pullAccount) assemble(a *assembler) error {
-	dest, err := a.intReg(i.dest)
+func (i PullAccount) assemble(a *assembler) error {
+	dest, err := a.intReg(i.Dest)
 	if err != nil {
 		return err
 	}
 
-	account, err := a.strReg(i.account)
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
 
-	cap, err := a.optionalReg((*assembler).intReg, i.cap)
+	cap, err := a.optionalReg((*assembler).intReg, i.Cap)
 	if err != nil {
 		return err
 	}
 
-	overdraft, err := a.optionalReg((*assembler).intReg, i.overdraft)
+	overdraft, err := a.optionalReg((*assembler).intReg, i.Overdraft)
 	if err != nil {
 		return err
 	}
 
-	color, err := a.optionalReg((*assembler).strReg, i.color)
+	color, err := a.optionalReg((*assembler).strReg, i.Color)
 	if err != nil {
 		return err
 	}
@@ -481,13 +481,13 @@ func (i pullAccount) assemble(a *assembler) error {
 	return nil
 }
 
-func (i sendToAccount) assemble(a *assembler) error {
-	account, err := a.optionalReg((*assembler).strReg, i.account)
+func (i SendToAccount) assemble(a *assembler) error {
+	account, err := a.optionalReg((*assembler).strReg, i.Account)
 	if err != nil {
 		return err
 	}
 
-	cap, err := a.optionalReg((*assembler).intReg, i.cap)
+	cap, err := a.optionalReg((*assembler).intReg, i.Cap)
 	if err != nil {
 		return err
 	}
@@ -496,12 +496,12 @@ func (i sendToAccount) assemble(a *assembler) error {
 	return nil
 }
 
-func (i assertSameAsset) assemble(a *assembler) error {
-	left, err := a.strReg(i.left)
+func (i AssertSameAsset) assemble(a *assembler) error {
+	left, err := a.strReg(i.Left)
 	if err != nil {
 		return err
 	}
-	right, err := a.strReg(i.right)
+	right, err := a.strReg(i.Right)
 	if err != nil {
 		return err
 	}
@@ -511,8 +511,8 @@ func (i assertSameAsset) assemble(a *assembler) error {
 	return nil
 }
 
-func (i assertValidAccount) assemble(a *assembler) error {
-	account, err := a.strReg(i.account)
+func (i AssertValidAccount) assemble(a *assembler) error {
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
@@ -522,12 +522,12 @@ func (i assertValidAccount) assemble(a *assembler) error {
 	return nil
 }
 
-func (i assertNonNegativeBalance) assemble(a *assembler) error {
-	balance, err := a.monetaryReg(i.balance)
+func (i AssertNonNegativeBalance) assemble(a *assembler) error {
+	balance, err := a.monetaryReg(i.Balance)
 	if err != nil {
 		return err
 	}
-	account, err := a.strReg(i.account)
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
@@ -537,12 +537,12 @@ func (i assertNonNegativeBalance) assemble(a *assembler) error {
 	return nil
 }
 
-func (i setTxMeta) assemble(a *assembler) error {
-	key, err := a.strReg(i.key)
+func (i SetTxMeta) assemble(a *assembler) error {
+	key, err := a.strReg(i.Key)
 	if err != nil {
 		return err
 	}
-	value, err := a.strReg(i.value)
+	value, err := a.strReg(i.Value)
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (i setTxMeta) assemble(a *assembler) error {
 	return nil
 }
 
-func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key reg) error {
+func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key Reg) error {
 	acc, err := a.strReg(account)
 	if err != nil {
 		return err
@@ -565,7 +565,7 @@ func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key reg) erro
 	return nil
 }
 
-func (metaStr) assembleMeta(a *assembler, dest, account, key reg) error {
+func (MetaStr) assembleMeta(a *assembler, dest, account, key Reg) error {
 	d, err := a.strReg(dest)
 	if err != nil {
 		return err
@@ -573,7 +573,7 @@ func (metaStr) assembleMeta(a *assembler, dest, account, key reg) error {
 	return a.emitMeta(vm.Op_MetaStr, d, account, key)
 }
 
-func (metaInt) assembleMeta(a *assembler, dest, account, key reg) error {
+func (MetaInt) assembleMeta(a *assembler, dest, account, key Reg) error {
 	d, err := a.intReg(dest)
 	if err != nil {
 		return err
@@ -581,7 +581,7 @@ func (metaInt) assembleMeta(a *assembler, dest, account, key reg) error {
 	return a.emitMeta(vm.Op_MetaInt, d, account, key)
 }
 
-func (metaPortion) assembleMeta(a *assembler, dest, account, key reg) error {
+func (MetaPortion) assembleMeta(a *assembler, dest, account, key Reg) error {
 	d, err := a.portionReg(dest)
 	if err != nil {
 		return err
@@ -589,7 +589,7 @@ func (metaPortion) assembleMeta(a *assembler, dest, account, key reg) error {
 	return a.emitMeta(vm.Op_MetaPortion, d, account, key)
 }
 
-func (metaMonetary) assembleMeta(a *assembler, dest, account, key reg) error {
+func (MetaMonetary) assembleMeta(a *assembler, dest, account, key Reg) error {
 	d, err := a.monetaryReg(dest)
 	if err != nil {
 		return err
@@ -597,20 +597,20 @@ func (metaMonetary) assembleMeta(a *assembler, dest, account, key reg) error {
 	return a.emitMeta(vm.Op_MetaMonetary, d, account, key)
 }
 
-func (i metaVar) assemble(a *assembler) error {
-	return i.typ.assembleMeta(a, i.dest, i.account, i.key)
+func (i MetaVar) assemble(a *assembler) error {
+	return i.Typ.assembleMeta(a, i.Dest, i.Account, i.Key)
 }
 
-func (i setAccountMeta) assemble(a *assembler) error {
-	account, err := a.strReg(i.account)
+func (i SetAccountMeta) assemble(a *assembler) error {
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
-	key, err := a.strReg(i.key)
+	key, err := a.strReg(i.Key)
 	if err != nil {
 		return err
 	}
-	value, err := a.strReg(i.value)
+	value, err := a.strReg(i.Value)
 	if err != nil {
 		return err
 	}
@@ -620,16 +620,16 @@ func (i setAccountMeta) assemble(a *assembler) error {
 	return nil
 }
 
-func (i fetchBalance) assemble(a *assembler) error {
-	dest, err := a.monetaryReg(i.dest)
+func (i FetchBalance) assemble(a *assembler) error {
+	dest, err := a.monetaryReg(i.Dest)
 	if err != nil {
 		return err
 	}
-	account, err := a.strReg(i.account)
+	account, err := a.strReg(i.Account)
 	if err != nil {
 		return err
 	}
-	asset, err := a.strReg(i.asset)
+	asset, err := a.strReg(i.Asset)
 	if err != nil {
 		return err
 	}
@@ -639,14 +639,14 @@ func (i fetchBalance) assemble(a *assembler) error {
 	return nil
 }
 
-func (i jmpIfZero) assemble(a *assembler) error {
-	cond, err := a.intReg(i.cond)
+func (i JmpIfZero) assemble(a *assembler) error {
+	cond, err := a.intReg(i.Cond)
 	if err != nil {
 		return err
 	}
 
 	a.patches = append(a.patches, patch{
-		label: i.target,
+		Label: i.Target,
 		index: len(a.instructions),
 		getInstruction: func(labelIndex uint16) vm.Instruction {
 			return vm.NewBC(vm.Op_JmpIfZero, cond, labelIndex)
@@ -659,27 +659,27 @@ func (i jmpIfZero) assemble(a *assembler) error {
 	return nil
 }
 
-func (i makeAllotment) assemble(a *assembler) error {
-	n := len(i.portions) // == len(i.dest)
+func (i MakeAllotment) assemble(a *assembler) error {
+	n := len(i.Portions) // == len(i.dest)
 
-	amt, err := a.intReg(i.amount)
+	amt, err := a.intReg(i.Amount)
 	if err != nil {
 		return err
 	}
 
-	portionStart, err := a.portions.reserveContiguous(n)
+	portionStart, err := a.Portions.reserveContiguous(n)
 	if err != nil {
 		return err
 	}
-	for j, p := range i.portions {
-		src, err := a.portions.index(p)
+	for j, p := range i.Portions {
+		src, err := a.Portions.Index(p)
 		if err != nil {
 			return err
 		}
 		a.emit(vm.Op_PortionCopy, portionStart+byte(j), src, maxReg)
 	}
 
-	destStart, err := a.ints.bindContiguous(i.dest)
+	destStart, err := a.ints.bindContiguous(i.Dest)
 	if err != nil {
 		return err
 	}
@@ -694,7 +694,7 @@ func (i makeAllotment) assemble(a *assembler) error {
 	return nil
 }
 
-func (varInt) assembleLoad(a *assembler, dest reg, index uint16) error {
+func (VarInt) assembleLoad(a *assembler, dest Reg, index uint16) error {
 	d, err := a.intReg(dest)
 	if err != nil {
 		return err
@@ -703,7 +703,7 @@ func (varInt) assembleLoad(a *assembler, dest reg, index uint16) error {
 	return nil
 }
 
-func (varStr) assembleLoad(a *assembler, dest reg, index uint16) error {
+func (VarStr) assembleLoad(a *assembler, dest Reg, index uint16) error {
 	d, err := a.strReg(dest)
 	if err != nil {
 		return err
@@ -712,23 +712,23 @@ func (varStr) assembleLoad(a *assembler, dest reg, index uint16) error {
 	return nil
 }
 
-func (i loadVar) assemble(a *assembler) error {
-	return i.typ.assembleLoad(a, i.dest, i.index)
+func (i LoadVar) assemble(a *assembler) error {
+	return i.Typ.assembleLoad(a, i.Dest, i.Index)
 }
 
-func (i labelMarker) assemble(a *assembler) error {
+func (i LabelMarker) assemble(a *assembler) error {
 	l := len(a.instructions)
 	if l > math.MaxUint16 {
 		return fmt.Errorf("too many labels: overflown max safe uint16")
 	}
 
-	a.labels[i.label] = uint16(l)
+	a.labels[i.Label] = uint16(l)
 
 	return nil
 }
 
-func (i snapshot) assemble(a *assembler) error {
-	dest, err := a.intReg(i.dest)
+func (i Snapshot) assemble(a *assembler) error {
+	dest, err := a.intReg(i.Dest)
 	if err != nil {
 		return err
 	}
@@ -736,8 +736,8 @@ func (i snapshot) assemble(a *assembler) error {
 	return nil
 }
 
-func (i restore) assemble(a *assembler) error {
-	mark, err := a.intReg(i.mark)
+func (i Restore) assemble(a *assembler) error {
+	mark, err := a.intReg(i.Mark)
 	if err != nil {
 		return err
 	}
