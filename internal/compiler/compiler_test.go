@@ -494,3 +494,85 @@ func TestDestInorder(t *testing.T) {
   send_to_account(account: $r16, cap: $r8)
 `))
 }
+
+func TestSourceOneofSimple(t *testing.T) {
+	out := getCompiledOutput(t, `
+		send [USD/2 10] (
+			source = oneof {
+        @a
+        @b
+				@c
+			}
+			destination = @dest
+		)
+	`)
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = "USD/2"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_asset($r2)
+  set_current_asset($r3)
+  $r4 = get_amount($r2)
+  $r6 = snapshot()
+  $r7 = "a"
+  $r8 = 0
+  $r9 = pull_account(account: $r7, cap: $r4, overdraft: $r8)
+  $r5 = int_copy($r9)
+  $r10 = $r4 - $r9
+  jmp_if_zero($r10, #oneof_end_0)
+  restore($r6)
+  $r11 = "b"
+  $r12 = 0
+  $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
+  $r5 = int_copy($r13)
+  $r14 = $r4 - $r13
+  jmp_if_zero($r14, #oneof_end_0)
+  restore($r6)
+  $r15 = "c"
+  $r16 = 0
+  $r17 = pull_account(account: $r15, cap: $r4, overdraft: $r16)
+  $r5 = int_copy($r17)
+#oneof_end_0
+  check_enough_funds($r5, $r4)
+  $r18 = "dest"
+  send_to_account(account: $r18)
+`))
+}
+
+func TestSourceOneofBounded(t *testing.T) {
+
+	out := getCompiledOutput(t, `
+		send [USD/2 10] (
+			source = oneof {
+				@a
+				@b
+			}
+			destination = @dest
+		)
+	`)
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = "USD/2"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_asset($r2)
+  set_current_asset($r3)
+  $r4 = get_amount($r2)
+  $r6 = snapshot()
+  $r7 = "a"
+  $r8 = 0
+  $r9 = pull_account(account: $r7, cap: $r4, overdraft: $r8)
+  $r5 = int_copy($r9)
+  $r10 = $r4 - $r9
+  jmp_if_zero($r10, #oneof_end_0)
+  restore($r6)
+  $r11 = "b"
+  $r12 = 0
+  $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
+  $r5 = int_copy($r13)
+#oneof_end_0
+  check_enough_funds($r5, $r4)
+  $r14 = "dest"
+  send_to_account(account: $r14)
+`),
+	)
+}

@@ -626,7 +626,56 @@ func (st *state) compileSource(
 		return inorderTotalReg, nil
 
 	case *parser.SourceOneof:
-		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "oneof"}
+		if capReg == nil || len(src.Sources) == 1 {
+			return st.compileSource(capReg, src.Sources[0])
+		}
+
+		endLabel := st.getFreshLabel("oneof_end")
+
+		resultReg := st.getFreshReg()
+
+		snapshotReg := st.pushInstructionWithDest(func(dest reg) irInstr {
+			return snapshot{dest: dest}
+		})
+
+		for index, subSrc := range src.Sources {
+			subPulledAmtReg, err := st.compileSource(capReg, subSrc)
+			if err != nil {
+				return 0, err
+			}
+
+			st.pushInstruction(unaryOp{
+				op:   opIntCopy{},
+				arg:  subPulledAmtReg,
+				dest: resultReg,
+			})
+
+			isLast := index == len(src.Sources)-1
+			if !isLast {
+				// PRE: bounded capReg
+				// $missing_amt = $cap - $pulled_amt
+				missingAmt := st.pushInstructionWithDest(func(dest reg) irInstr {
+					return binaryOp{
+						op:    opSubInt{},
+						left:  *capReg,
+						right: subPulledAmtReg,
+						dest:  dest,
+					}
+				})
+
+				st.pushInstruction(jmpIfZero{
+					cond:   missingAmt,
+					target: endLabel,
+				})
+				st.pushInstruction(restore{
+					mark: snapshotReg,
+				})
+			}
+		}
+
+		st.pushInstruction(labelMarker{label: endLabel})
+
+		return resultReg, nil
 
 	case *parser.SourceAllotment:
 		// an allotment source splits the cap among sub-sources, so it needs one
