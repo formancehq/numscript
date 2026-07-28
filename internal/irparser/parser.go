@@ -62,19 +62,22 @@ func Parse(input string) ParseResult {
 	p.RemoveErrorListeners()
 	p.AddErrorListener(listener)
 
-	ast := buildAST(p.Program())
+	tree := p.Program()
 
+	// On a syntax error ANTLR's recovery leaves partial nodes behind (a call
+	// without its parens, an assignment without its rhs). Walking those means
+	// dereferencing tokens that were never matched, so don't: the errors are
+	// what the caller needs anyway.
 	if len(listener.Errors) > 0 {
 		return ParseResult{
 			Source: input,
-			Value:  ast,
 			Errors: listener.Errors,
 		}
 	}
 
 	return ParseResult{
 		Source: input,
-		Value:  ast,
+		Value:  buildAST(tree),
 	}
 }
 

@@ -60,7 +60,7 @@ $r0                single register
 _                  discard
 ```
 
-`_` discards the result, and exists **only in the text**: there is no discard at the `irInstr` level. `Transform` desugars each occurrence to a fresh register — one above every register the program refers to, so no statement can name it and each `_` gets its own (two discards that aliased would be forced to share a type). The write is still a write: the assembler gives that register a slot in its bank, so a discard costs a register even though nothing reads it.
+`_` discards the result, and exists **only in the text**: there is no discard at the `irInstr` level. `Transform` desugars each occurrence to a fresh register — allocated from the same counter as named ones, but bound to no name, so nothing can refer to it and each `_` gets its own (two discards that aliased would be forced to share a type). The write is still a write: the assembler gives that register a slot in its bank, so a discard costs a register even though nothing reads it.
 
 Because the desugaring happens on the way in, `_` doesn't survive a dump: `_ = int_copy($r0)` comes back as `$r1 = int_copy($r0)`.
 
@@ -89,16 +89,14 @@ Labeled arguments are looked up **by name**, so their order is free: `pull_accou
 
 Registers in the IR are "logical": an unbounded stream of unsigned indices (`reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str`, `portion`, `monetary`), checked by `typecheckInstructions` — the type is never written in the text, it is inferred from the instruction that writes the register.
 
-`$r<N>` is the canonical spelling and maps to logical register `N`. Any other name (`$pulled`, `$src`) parses, but is **hashed** to an index — convenient for hand-written examples, but names are lost on dump and distinct names can collide:
+A register name is just a name: `Transform` keeps a symbol table and allocates registers in order of **first appearance**, reusing the same one every later time a name shows up. `$r<N>` is a convention, not an index — `$r7` is no more meaningful than `$src`.
 
 ```
-$src = "acc"                        dumps back as    $r1186624 = "acc"
-$pulled = pull_account(account: $src)                $r2265800 = pull_account(account: $r1186624)
+$src = "acc"                        dumps back as    $r0 = "acc"
+$pulled = pull_account(account: $src)                $r1 = pull_account(account: $r0)
 ```
 
-Either way the index a name resolves to stays under `maxRegIndex` (`1 << 24`): `$r<N>` above that bound is hashed like any other name, and the hash is reduced into range. That's what guarantees room above the named registers for the fresh ones `_` desugars to.
-
-Use `$r<N>` for anything that must round-trip.
+This is why a dump round-trips: `dump` numbers registers `$r0`, `$r1`, … in the order they first appear, so re-parsing binds each name to the register it already had. Names of your own choosing are fine to write, they just come back as `$r<k>` in first-appearance order.
 
 ## Instruction reference
 
@@ -213,7 +211,13 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
   jmp_if_zero($cond, #my_label)
 ```
 
-`$cond` is `int`; the target must be a label defined somewhere in the program (checked by `Transform`) and unique (duplicates are an error). The VM only permits **forward** jumps — that's what guarantees termination — but note that `Transform` itself does not enforce direction; a backward jump is caught later, so don't rely on the IR layer to reject it.
+`$cond` is `int`; the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `Transform` enforces all three rules, so a program that assembles can't loop:
+
+```
+jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
+#back                       → label #back is behind the jump (jumps must go forward)
+  jmp_if_zero($r0, #back)
+```
 
 `labelMarker` is a pseudo-instruction: it emits no bytecode, it only feeds the assembler's symbol table.
 
@@ -251,8 +255,12 @@ They are syntactically valid (`snapshot()` is just a call with no arguments), bu
 
 Known asymmetries between what `dump` writes and what the parser accepts:
 
-* **Named registers don't survive.** `$src` comes back as `$r<hash>` (see [Registers](#registers)).
+* **Register names don't survive.** `$src` comes back as `$r<k>`, numbered by first appearance (see [Registers](#registers)).
 * **`_` doesn't survive.** It's desugared to a fresh register on the way in, so it dumps as that register (see [Destinations](#destinations)).
 * **Negative int literals are not expressible.** `INT` has no sign, so `$r0 = -1` is a syntax error, while `dump` would happily print it for a negative `loadInt`. This is not reachable today — the compiler emits `neg_int` for negative literals rather than a negative constant — but a constant-folding peephole could produce a dump that no longer parses.
-* **Duplicate labeled arguments are silently ignored.** In `pull_account(account: $a, cap: $c1, cap: $c2)` the first `cap` wins and the second is dropped without an error.
-* **`Parse` panics on some malformed input** instead of returning `ParserError`s: when ANTLR's error recovery yields a partial `instrCall` node, the AST builder dereferences a nil token (`buildInstrCall`, [internal/irparser/parser.go:257](internal/irparser/parser.go#L257)). A comment line (`// x`) and a bare `$r0 = $r1` both reproduce it. Well-formed input is unaffected; hand-written IR is worth double-checking.
+
+## Error handling
+
+Text → `irInstr` never panics: it reports errors. `Parse` returns `ParserError`s for anything the grammar rejects and, since ANTLR's error recovery leaves partial nodes behind, does not build an AST at all when it found errors. `Transform` then reports `TransformError`s for what the grammar can't express: unknown instruction names, wrong argument kinds or counts, unknown or duplicate labeled arguments, duplicate labels, and jumps that don't resolve or don't go forward.
+
+Type errors are **not** checked here: writing a `str` register where an `int` is expected transforms happily and is caught by `typecheckInstructions` afterwards.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 
 	"github.com/formancehq/numscript/internal/irparser"
 	"github.com/formancehq/numscript/internal/parser"
@@ -22,17 +21,32 @@ func (e TransformError) Error() string {
 
 // transformer carries the state shared by the whole transformation.
 type transformer struct {
-	// labels defined in the program, for jmp validation.
-	labels map[string]bool
-	// nextFresh is the next register not used by the text, so writes the text
-	// doesn't name (a `_` dest) can be given one.
-	nextFresh reg
+	// labelPos maps each label defined in the program to its position, so a jump
+	// can be checked to both resolve and go forward.
+	labelPos map[string]int
+	// stmtPos is the position of the statement being transformed.
+	stmtPos int
+	// regByName binds each register name to the logical register it got on its
+	// first appearance.
+	regByName map[string]reg
+	nextReg   reg
 }
 
-// freshReg returns a register no statement in the program refers to.
+// freshReg allocates a register bound to no name.
 func (t *transformer) freshReg() reg {
-	r := t.nextFresh
-	t.nextFresh++
+	r := t.nextReg
+	t.nextReg++
+	return r
+}
+
+// resolveReg returns the logical register a name refers to, allocating one on
+// the name's first appearance.
+func (t *transformer) resolveReg(rr irparser.RegRef) reg {
+	if r, ok := t.regByName[rr.Name]; ok {
+		return r
+	}
+	r := t.freshReg()
+	t.regByName[rr.Name] = r
 	return r
 }
 
@@ -42,22 +56,23 @@ func Transform(prog irparser.Program) ([]irInstr, []TransformError) {
 	var instrs []irInstr
 	var errs []TransformError
 
-	t := &transformer{labels: map[string]bool{}, nextFresh: maxUsedReg(prog) + 1}
-	// First pass: collect labels.
-	for _, stmt := range prog.Stmts {
+	t := &transformer{labelPos: map[string]int{}, regByName: map[string]reg{}}
+	// First pass: collect the labels and where they sit.
+	for pos, stmt := range prog.Stmts {
 		if ls, ok := stmt.(*irparser.LabelStmt); ok {
-			if t.labels[ls.Name] {
+			if _, seen := t.labelPos[ls.Name]; seen {
 				errs = append(errs, TransformError{Range: ls.Range, Msg: fmt.Sprintf("duplicate label #%s", ls.Name)})
 			}
-			t.labels[ls.Name] = true
+			t.labelPos[ls.Name] = pos
 		}
 	}
 
-	for _, stmt := range prog.Stmts {
+	for pos, stmt := range prog.Stmts {
 		switch s := stmt.(type) {
 		case *irparser.LabelStmt:
 			instrs = append(instrs, labelMarker{label: label(s.Name)})
 		case *irparser.InstrStmt:
+			t.stmtPos = pos
 			instr, err := t.transformInstr(s)
 			if err != nil {
 				errs = append(errs, *err)
@@ -76,13 +91,13 @@ func Transform(prog irparser.Program) ([]irInstr, []TransformError) {
 func (t *transformer) transformInstr(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	switch {
 	case s.Const != nil:
-		return transformConst(s)
+		return t.transformConst(s)
 	case s.Call != nil:
 		return t.transformCall(s)
 	case s.Infix != nil:
-		return transformInfix(s)
+		return t.transformInfix(s)
 	case s.CompoundAssign != nil:
-		return transformCompoundAssign(s)
+		return t.transformCompoundAssign(s)
 	default:
 		return nil, &TransformError{Range: s.Range, Msg: "empty instruction"}
 	}
@@ -90,11 +105,11 @@ func (t *transformer) transformInstr(s *irparser.InstrStmt) (irInstr, *Transform
 
 // ---- const assignment ----
 
-func transformConst(s *irparser.InstrStmt) (irInstr, *TransformError) {
+func (t *transformer) transformConst(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	if s.Dest == nil || s.Dest.Kind != irparser.DestReg {
 		return nil, &TransformError{Range: s.Range, Msg: "const assignment requires a single register dest"}
 	}
-	dest := regRefToReg(s.Dest.Regs[0])
+	dest := t.resolveReg(s.Dest.Regs[0])
 
 	switch s.Const.Kind {
 	case irparser.ConstString:
@@ -112,13 +127,13 @@ func transformConst(s *irparser.InstrStmt) (irInstr, *TransformError) {
 
 // ---- infix / compound assign ----
 
-func transformInfix(s *irparser.InstrStmt) (irInstr, *TransformError) {
+func (t *transformer) transformInfix(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	if s.Dest == nil || s.Dest.Kind != irparser.DestReg {
 		return nil, &TransformError{Range: s.Range, Msg: "infix requires a single register dest"}
 	}
-	dest := regRefToReg(s.Dest.Regs[0])
-	left := regRefToReg(s.Infix.Left)
-	right := regRefToReg(s.Infix.Right)
+	dest := t.resolveReg(s.Dest.Regs[0])
+	left := t.resolveReg(s.Infix.Left)
+	right := t.resolveReg(s.Infix.Right)
 
 	op, err := infixOp(s.Infix.Op)
 	if err != nil {
@@ -127,13 +142,13 @@ func transformInfix(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	return binaryOp{op: op, dest: dest, left: left, right: right}, nil
 }
 
-func transformCompoundAssign(s *irparser.InstrStmt) (irInstr, *TransformError) {
+func (t *transformer) transformCompoundAssign(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	if s.Dest == nil || s.Dest.Kind != irparser.DestReg {
 		return nil, &TransformError{Range: s.Range, Msg: "compound assign requires a single register dest"}
 	}
-	dest := regRefToReg(s.Dest.Regs[0])
-	left := regRefToReg(s.CompoundAssign.Left)
-	right := regRefToReg(s.CompoundAssign.Right)
+	dest := t.resolveReg(s.Dest.Regs[0])
+	left := t.resolveReg(s.CompoundAssign.Left)
+	right := t.resolveReg(s.CompoundAssign.Right)
 
 	op, err := infixOp(s.CompoundAssign.Op)
 	if err != nil {
@@ -157,14 +172,16 @@ func infixOp(op string) (binKind, error) {
 
 // argParser helps validate and extract args for a specific instruction.
 type argParser struct {
+	t         *transformer
 	args      []irparser.Arg
 	pos       int
 	seenLabel map[string]bool
 	errs      *[]TransformError
 }
 
-func newArgParser(args []irparser.Arg, errs *[]TransformError) *argParser {
+func (t *transformer) newArgParser(args []irparser.Arg, errs *[]TransformError) *argParser {
 	return &argParser{
+		t:         t,
 		args:      args,
 		seenLabel: map[string]bool{},
 		errs:      errs,
@@ -182,7 +199,7 @@ func (ap *argParser) nextReg() (reg, bool) {
 		ap.addErr(a.Range, "expected register, got %s", valueKindStr(a.Value.Kind))
 		return 0, false
 	}
-	return regRefToReg(*a.Value.Reg), true
+	return ap.t.resolveReg(*a.Value.Reg), true
 }
 
 // optLabeledReg consumes an optional labeled arg with the given label as a register.
@@ -195,7 +212,7 @@ func (ap *argParser) optLabeledReg(label string) *reg {
 		ap.addErr(a.Range, "labeled arg %q: expected register, got %s", label, valueKindStr(a.Value.Kind))
 		return nil
 	}
-	r := regRefToReg(*a.Value.Reg)
+	r := ap.t.resolveReg(*a.Value.Reg)
 	return &r
 }
 
@@ -266,7 +283,7 @@ func (ap *argParser) nextRegList() ([]reg, bool) {
 	}
 	regs := make([]reg, len(*a.Value.Regs))
 	for i, r := range *a.Value.Regs {
-		regs[i] = regRefToReg(r)
+		regs[i] = ap.t.resolveReg(r)
 	}
 	return regs, true
 }
@@ -294,7 +311,20 @@ func valueKindStr(k irparser.ValueKind) string {
 
 func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	var errs []TransformError
-	ap := newArgParser(s.Call.Args, &errs)
+	ap := t.newArgParser(s.Call.Args, &errs)
+
+	// A labeled arg is looked up by name, so a repeated one would silently lose
+	// every occurrence but the first.
+	seen := map[string]bool{}
+	for _, a := range s.Call.Args {
+		if a.Label == "" {
+			continue
+		}
+		if seen[a.Label] {
+			ap.addErr(a.Range, "duplicate labeled argument %q", a.Label)
+		}
+		seen[a.Label] = true
+	}
 
 	// Resolve dest
 	var dest reg
@@ -303,7 +333,7 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 	if hasDest {
 		switch s.Dest.Kind {
 		case irparser.DestReg:
-			dest = regRefToReg(s.Dest.Regs[0])
+			dest = t.resolveReg(s.Dest.Regs[0])
 		case irparser.DestDiscard:
 			// `_` only exists in the text: desugar it to a fresh register, which
 			// no other statement can name and nothing reads back.
@@ -311,7 +341,7 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 		case irparser.DestList:
 			dests = make([]reg, len(s.Dest.Regs))
 			for i, r := range s.Dest.Regs {
-				dests[i] = regRefToReg(r)
+				dests[i] = t.resolveReg(r)
 			}
 		}
 	}
@@ -393,7 +423,7 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 	case instrKey{"set_account_meta", ""}:
 		instr, err = parseSetAccountMeta(ap, s.Range)
 	case instrKey{"jmp_if_zero", ""}:
-		instr, err = parseJmpIfZero(ap, t.labels, s.Range)
+		instr, err = t.parseJmpIfZero(ap, s.Range)
 	default:
 		return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("unknown instruction: %s", key)}
 	}
@@ -621,7 +651,7 @@ func parseSetAccountMeta(ap *argParser, rng parser.Range) (irInstr, *TransformEr
 	return setAccountMeta{account: account, key: key, value: value}, nil
 }
 
-func parseJmpIfZero(ap *argParser, labels map[string]bool, rng parser.Range) (irInstr, *TransformError) {
+func (t *transformer) parseJmpIfZero(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
 	cond, ok := ap.nextReg()
 	if !ok {
 		return nil, firstTransformErr(ap.errs)
@@ -630,8 +660,14 @@ func parseJmpIfZero(ap *argParser, labels map[string]bool, rng parser.Range) (ir
 	if !ok {
 		return nil, firstTransformErr(ap.errs)
 	}
-	if !labels[string(target)] {
-		return nil, &TransformError{Range: rng, Msg: fmt.Sprintf("jmp_if_zero: label #%s is not defined in the program", target)}
+	labelPos, ok := t.labelPos[string(target)]
+	if !ok {
+		return nil, &TransformError{Range: rng, Msg: fmt.Sprintf("jmp_if_zero: label %s is not defined in the program", target)}
+	}
+	// The VM only allows jumping forward: that's what makes every program
+	// terminate, so a backward jump is rejected here rather than assembled.
+	if labelPos < t.stmtPos {
+		return nil, &TransformError{Range: rng, Msg: fmt.Sprintf("jmp_if_zero: label %s is behind the jump (jumps must go forward)", target)}
 	}
 	return jmpIfZero{cond: cond, target: target}, nil
 }
@@ -642,70 +678,4 @@ func firstTransformErr(errs *[]TransformError) *TransformError {
 	}
 	e := (*errs)[0]
 	return &e
-}
-
-// maxRegIndex bounds the register a name can resolve to, so that fresh
-// registers (see transformer.freshReg) always have room above the ones the text
-// uses, whatever the width of a reg.
-const maxRegIndex = 1 << 24
-
-// regRefToReg converts a RegRef to a compiler reg.
-// Names like $r0, $r1, ... are parsed as integer indices.
-// Other names (e.g. $my_reg) are hashed to an index.
-func regRefToReg(rr irparser.RegRef) reg {
-	name := rr.Name
-	// $r<N> convention: strip "$r" prefix and parse the number
-	if strings.HasPrefix(name, "$r") {
-		if n, err := strconv.ParseUint(name[2:], 10, 32); err == nil && n < maxRegIndex {
-			return reg(n)
-		}
-	}
-	// Named register fallback. The hash is computed at a fixed width, so the
-	// index a name resolves to doesn't depend on the size of an int.
-	var h uint32
-	for _, c := range name {
-		h = h*31 + uint32(c)
-	}
-	return reg(h % maxRegIndex)
-}
-
-// maxUsedReg is the highest register any statement in the program refers to.
-func maxUsedReg(prog irparser.Program) reg {
-	var max reg
-	track := func(rr irparser.RegRef) {
-		if r := regRefToReg(rr); r > max {
-			max = r
-		}
-	}
-
-	for _, stmt := range prog.Stmts {
-		s, ok := stmt.(*irparser.InstrStmt)
-		if !ok {
-			continue
-		}
-		if s.Dest != nil {
-			for _, r := range s.Dest.Regs {
-				track(r)
-			}
-		}
-		for _, infix := range []*irparser.Infix{s.Infix, s.CompoundAssign} {
-			if infix != nil {
-				track(infix.Left)
-				track(infix.Right)
-			}
-		}
-		if s.Call != nil {
-			for _, a := range s.Call.Args {
-				if a.Value.Reg != nil {
-					track(*a.Value.Reg)
-				}
-				if a.Value.Regs != nil {
-					for _, r := range *a.Value.Regs {
-						track(r)
-					}
-				}
-			}
-		}
-	}
-	return max
 }

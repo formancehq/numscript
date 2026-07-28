@@ -205,6 +205,34 @@ func TestRoundtripAccountInterpolationInt(t *testing.T) {
 	require.Equal(t, compiledIR, roundtripped)
 }
 
+// TestRoundtripComplexProgram exercises the property the whole format rests on:
+// a dump names its registers in ascending order of first appearance, so parsing
+// one back binds every name to the register it already had. Labels, jumps,
+// allotment dest lists, interpolation and kept destinations all in one program.
+func TestRoundtripComplexProgram(t *testing.T) {
+	compiledIR := getCompiledOutput(t, `
+		vars {
+			monetary $bal = balance(@treasury, USD/2)
+			string $id = "alice"
+		}
+		send [USD/2 100] (
+			source = {
+				max [USD/2 20] from @world
+				@treasury
+				@users:$id
+			}
+			destination = { 1/2 to @d1 remaining kept }
+		)
+		send $bal (
+			source = { 1/3 from @a 2/3 from { @b @c } }
+			destination = @out
+		)
+		set_tx_meta("k", "v")
+	`)
+	_, roundtripped := parseAndTransform(t, compiledIR)
+	require.Equal(t, compiledIR, roundtripped)
+}
+
 // TestParseAndTransformErrors checks error handling.
 func TestParseAndTransformErrors(t *testing.T) {
 	t.Run("unknown instruction", func(t *testing.T) {
@@ -237,32 +265,106 @@ func TestParseAndTransformErrors(t *testing.T) {
 		require.Contains(t, errs[0].Msg, "not defined")
 	})
 
-	t.Run("jmp with valid label", func(t *testing.T) {
+	t.Run("forward jmp", func(t *testing.T) {
+		result := irparser.Parse(`
+  jmp_if_zero($r0, #my_label)
+#my_label
+`)
+		require.Empty(t, result.Errors)
+		_, errs := Transform(result.Value)
+		require.Empty(t, errs)
+	})
+
+	t.Run("backward jmp", func(t *testing.T) {
 		result := irparser.Parse(`
 #my_label
   jmp_if_zero($r0, #my_label)
 `)
 		require.Empty(t, result.Errors)
 		_, errs := Transform(result.Value)
-		require.Empty(t, errs)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "must go forward")
+	})
+
+	t.Run("duplicate labeled arg", func(t *testing.T) {
+		result := irparser.Parse(`
+  $r0 = "acc"
+  $r1 = 1
+  $r2 = pull_account(account: $r0, cap: $r1, cap: $r1)
+`)
+		require.Empty(t, result.Errors)
+		_, errs := Transform(result.Value)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "duplicate labeled argument")
+	})
+
+	t.Run("duplicate label", func(t *testing.T) {
+		result := irparser.Parse(`
+  jmp_if_zero($r0, #l)
+#l
+#l
+`)
+		require.Empty(t, result.Errors)
+		_, errs := Transform(result.Value)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "duplicate label")
 	})
 }
 
-// TestRegNamesAreBounded checks that no name the grammar accepts resolves past
-// maxRegIndex, which is what leaves room for the fresh registers `_` desugars to.
-func TestRegNamesAreBounded(t *testing.T) {
-	names := []string{
-		"$r0", "$r255",
-		"$r16777215",             // last index spelled as-is
-		"$r16777216",             // first index past the bound: falls back to hashing
-		"$r99999999999999999999", // overflows uint32
-		"$a", "$my_reg", "$_", "$int",
-		"$zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", // hash overflows uint32
+// TestMalformedInputIsRejected checks that text → irInstr reports errors on
+// invalid input rather than panicking. It doesn't typecheck: only syntax and
+// the structural rules (labels resolve, jumps go forward) are checked here.
+func TestMalformedInputIsRejected(t *testing.T) {
+	sources := []struct {
+		name string
+		ir   string
+	}{
+		{"comment", "// not a comment in this format\n  $r0 = 1\n"},
+		{"reg to reg copy", "  $r0 = $r1\n"},
+		{"garbage", "$$$ !!!"},
+		{"unclosed paren", "  $r0 = get_asset($r1"},
+		{"uppercase instr name", "  $r0 = GET_ASSET($r1)"},
+		{"negative int literal", "  $r0 = -1\n"},
+		{"empty dest list", "  [] = mk_allot($r0, [$r1])\n"},
+		{"missing dest", "  = get_asset($r0)\n"},
+		{"unterminated string", "  $r0 = \"oops\n"},
+		{"stray operator", "  $r0 = $r1 * $r2\n"},
+		{"type param on plain instr", "  $r0 = get_asset<int>($r1)\n"},
+		{"label as instr arg", "  set_current_asset(#lbl)\n"},
 	}
-	for _, name := range names {
-		r := regRefToReg(irparser.RegRef{Name: name})
-		require.Less(t, uint(r), uint(maxRegIndex), "%s resolved past the bound", name)
+
+	for _, s := range sources {
+		t.Run(s.name, func(t *testing.T) {
+			result := irparser.Parse(s.ir)
+			if len(result.Errors) > 0 {
+				return // rejected at parse time
+			}
+			// otherwise it must be rejected by the transform, not accepted
+			_, errs := Transform(result.Value)
+			require.NotEmpty(t, errs, "neither the parser nor the transform rejected it")
+		})
 	}
+}
+
+// TestRegNamesBindInOrder checks how a name becomes a logical register: the
+// first appearance allocates the next one, later appearances reuse it. The name
+// itself carries no meaning — `$r<N>` is a convention, not an index.
+func TestRegNamesBindInOrder(t *testing.T) {
+	_, dumped := parseAndTransform(t, `
+  $asset = "USD/2"
+  $amount = 10
+  $mon = mk_monetary($asset, $amount)
+  $same = get_amount($mon)
+  $r99 = add_int($same, $amount)
+`)
+
+	require.Equal(t, `
+  $r0 = "USD/2"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_amount($r2)
+  $r4 = $r3 + $r1
+`, dumped)
 }
 
 // TestDiscardDestDesugarsToFreshReg checks that `_` becomes a register no
@@ -566,9 +668,9 @@ func TestRoundtripAllInstructions(t *testing.T) {
 		{
 			name: "jmp_if_zero and label",
 			ir: `
-#my_label
   $r0 = 0
   jmp_if_zero($r0, #my_label)
+#my_label
 `,
 		},
 		{
