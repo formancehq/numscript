@@ -264,6 +264,18 @@ Known asymmetries between what `ir.Dump` writes and what the parser accepts:
 
 ## Error handling
 
-Text → `irInstr` never panics: it reports errors. `ir.Parse` returns `ParserError`s for anything the grammar rejects and, since ANTLR's error recovery leaves partial nodes behind, does not build an AST at all when it found errors. `ir.Parse` then reports `TransformError`s for what the grammar can't express: unknown instruction names, wrong argument kinds or counts, unknown or duplicate labeled arguments, duplicate labels, and jumps that don't resolve or don't go forward.
+Text → `[]ir.Instr` never panics: it reports `ir.Error`s. Anything the grammar rejects comes back as a syntax error (and since ANTLR's error recovery leaves partial nodes behind, no AST is built at all in that case). On top of that, `ir.Parse` reports what the grammar can't express:
 
-Type errors are **not** checked here: writing a `str` register where an `int` is expected transforms happily and is caught by `ir.Typecheck` afterwards.
+* unknown instruction names, and a type parameter on an instruction that doesn't take one
+* wrong argument kinds or counts, unknown or duplicate labeled arguments
+* duplicate labels, and jumps that don't resolve or don't go forward
+* **a register that is read but never written**, reported under the name the text used:
+
+```
+  $a = 42
+  $y = min_int($a, $b)      →  3:3: register $b is read but never written
+```
+
+Since jumps only go forward, text order is execution order, so a read with no earlier write can't be reached by any path — it would hand the VM whatever that register happens to hold. Note this is a linear check: a register written only inside a branch that may be skipped and read afterwards is *not* caught here, which is the job of the path-sensitive bytecode verifier.
+
+Type errors are **not** checked by `ir.Parse`: writing a `str` register where an `int` is expected parses happily and is caught by `ir.Typecheck` afterwards.

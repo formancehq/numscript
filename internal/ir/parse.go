@@ -46,9 +46,21 @@ type transformer struct {
 	// stmtPos is the position of the statement being transformed.
 	stmtPos int
 	// regByName binds each register name to the logical register it got on its
-	// first appearance.
+	// first appearance, and nameByReg maps it back for error messages.
 	regByName map[string]Reg
+	nameByReg map[Reg]string
 	nextReg   Reg
+	// written records the registers an instruction has assigned to so far, so a
+	// read of one that was never written can be reported.
+	written map[Reg]bool
+}
+
+// regName spells a register the way the text did.
+func (t *transformer) regName(r Reg) string {
+	if name, ok := t.nameByReg[r]; ok {
+		return name
+	}
+	return r.String()
 }
 
 // freshReg allocates a register bound to no name.
@@ -66,6 +78,7 @@ func (t *transformer) resolveReg(rr syntax.RegRef) Reg {
 	}
 	r := t.freshReg()
 	t.regByName[rr.Name] = r
+	t.nameByReg[r] = rr.Name
 	return r
 }
 
@@ -75,7 +88,12 @@ func transform(prog syntax.Program) ([]Instr, []Error) {
 	var instrs []Instr
 	var errs []Error
 
-	t := &transformer{labelPos: map[string]int{}, regByName: map[string]Reg{}}
+	t := &transformer{
+		labelPos:  map[string]int{},
+		regByName: map[string]Reg{},
+		nameByReg: map[Reg]string{},
+		written:   map[Reg]bool{},
+	}
 	// First pass: collect the labels and where they sit.
 	for pos, stmt := range prog.Stmts {
 		if ls, ok := stmt.(*syntax.LabelStmt); ok {
@@ -97,6 +115,23 @@ func transform(prog syntax.Program) ([]Instr, []Error) {
 				errs = append(errs, *err)
 				continue
 			}
+
+			// Reading a register nothing has assigned to yet is undefined: the
+			// VM would hand back whatever that register happens to hold. Since
+			// jumps only go forward, text order is execution order, so a read
+			// with no earlier write can't be reached by any path.
+			for _, r := range instr.sources() {
+				if !t.written[r] {
+					errs = append(errs, Error{
+						Range: s.Range,
+						Msg:   fmt.Sprintf("register %s is read but never written", t.regName(r)),
+					})
+				}
+			}
+			for _, r := range instr.dests() {
+				t.written[r] = true
+			}
+
 			instrs = append(instrs, instr)
 		}
 	}

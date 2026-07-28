@@ -42,6 +42,7 @@ func TestParseErrors(t *testing.T) {
 
 	t.Run("forward jmp", func(t *testing.T) {
 		_, errs := Parse(`
+  $r0 = 0
   jmp_if_zero($r0, #my_label)
 #my_label
 `)
@@ -75,6 +76,69 @@ func TestParseErrors(t *testing.T) {
 `)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "duplicate label")
+	})
+}
+
+// TestReadBeforeWrite checks that reading a register nothing ever assigned to is
+// rejected, and reported under the name the text used.
+func TestReadBeforeWrite(t *testing.T) {
+	t.Run("never written at all", func(t *testing.T) {
+		_, errs := Parse(`
+  $a = 42
+  $y = min_int($a, $b)
+`)
+		require.Len(t, errs, 1)
+		require.Contains(t, errs[0].Msg, "$b is read but never written")
+	})
+
+	t.Run("written only after the read", func(t *testing.T) {
+		_, errs := Parse(`
+  $a = 42
+  $y = min_int($a, $b)
+  $b = 1
+`)
+		require.Len(t, errs, 1)
+		require.Contains(t, errs[0].Msg, "$b is read but never written")
+	})
+
+	t.Run("compound assign reads its own dest", func(t *testing.T) {
+		_, errs := Parse(`
+  $b = 1
+  $acc += $b
+`)
+		require.Len(t, errs, 1)
+		require.Contains(t, errs[0].Msg, "$acc is read but never written")
+	})
+
+	t.Run("labeled args are reads too", func(t *testing.T) {
+		_, errs := Parse(`
+  $acc = "src"
+  $pulled = pull_account(account: $acc, cap: $missing)
+`)
+		require.Len(t, errs, 1)
+		require.Contains(t, errs[0].Msg, "$missing is read but never written")
+	})
+
+	t.Run("a dest is written for later instructions", func(t *testing.T) {
+		_, errs := Parse(`
+  $a = 1
+  $b = 2
+  $sum = $a + $b
+  $twice = $sum + $sum
+`)
+		require.Empty(t, errs)
+	})
+
+	t.Run("mk_allot dests count as written", func(t *testing.T) {
+		_, errs := Parse(`
+  $amount = 100
+  $num = 1
+  $den = 2
+  $half = mk_portion($num, $den)
+  [$first, $second] = mk_allot($amount, [$half, $half])
+  check_enough_funds($first, $second)
+`)
+		require.Empty(t, errs)
 	})
 }
 
