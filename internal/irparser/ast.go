@@ -64,9 +64,9 @@ type RegRef struct {
 // InstrCall is a function-call instruction: name(args).
 type InstrCall struct {
 	Range     parser.Range
-	Name      string   // e.g. "mk_monetary", "pull_account"
-	TypeParam string   // "" if none, else "int", "str", etc.
-	Args      []Arg    // may be empty
+	Name      string // e.g. "mk_monetary", "pull_account"
+	TypeParam string // "" if none, else "int", "str", etc.
+	Args      []Arg  // may be empty
 }
 
 // Arg is a single argument to an instruction.

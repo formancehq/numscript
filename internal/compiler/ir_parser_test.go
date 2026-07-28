@@ -248,6 +248,53 @@ func TestParseAndTransformErrors(t *testing.T) {
 	})
 }
 
+// TestRegNamesAreBounded checks that no name the grammar accepts resolves past
+// maxRegIndex, which is what leaves room for the fresh registers `_` desugars to.
+func TestRegNamesAreBounded(t *testing.T) {
+	names := []string{
+		"$r0", "$r255",
+		"$r16777215",             // last index spelled as-is
+		"$r16777216",             // first index past the bound: falls back to hashing
+		"$r99999999999999999999", // overflows uint32
+		"$a", "$my_reg", "$_", "$int",
+		"$zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", // hash overflows uint32
+	}
+	for _, name := range names {
+		r := regRefToReg(irparser.RegRef{Name: name})
+		require.Less(t, uint(r), uint(maxRegIndex), "%s resolved past the bound", name)
+	}
+}
+
+// TestDiscardDestDesugarsToFreshReg checks that `_` becomes a register no
+// statement can name, and that two discards don't alias — otherwise they'd be
+// forced to share a type.
+func TestDiscardDestDesugarsToFreshReg(t *testing.T) {
+	instrs, dumped := parseAndTransform(t, `
+  $r0 = "acc"
+  $r1 = "USD/2"
+  _ = pull_account(account: $r0)
+  _ = balance($r0, $r1)
+`)
+
+	pulled := instrs[2].dests()[0]
+	balance := instrs[3].dests()[0]
+	require.NotEqual(t, pulled, balance)
+	// above every register the text refers to ($r0, $r1)
+	require.Greater(t, uint(pulled), uint(1))
+	require.Greater(t, uint(balance), uint(1))
+
+	// so the typechecker doesn't see one register written with two types
+	require.NoError(t, typecheckInstructions(instrs))
+
+	// the IR has no notion of a discard: it dumps as the register it desugared to
+	require.Equal(t, `
+  $r0 = "acc"
+  $r1 = "USD/2"
+  $r2 = pull_account(account: $r0)
+  $r3 = balance($r0, $r1)
+`, dumped)
+}
+
 // TestRoundtripAllInstructions tests every instruction in isolation for roundtrip.
 func TestRoundtripAllInstructions(t *testing.T) {
 	tests := []struct {

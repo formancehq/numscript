@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (r reg) String() string   { return fmt.Sprintf("$r%d", int(r)) }
+func (r reg) String() string   { return fmt.Sprintf("$r%d", uint(r)) }
 func (l label) String() string { return fmt.Sprintf("#%s", string(l)) }
 
 func (opMinInt) String() string       { return "min_int" }

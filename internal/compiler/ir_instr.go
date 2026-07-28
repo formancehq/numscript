@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-type reg int
+type reg uint
 
 type label string
 
