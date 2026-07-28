@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (r reg) String() string   { return fmt.Sprintf("$r%d", int(r)) }
+func (r reg) String() string   { return fmt.Sprintf("$r%d", uint(r)) }
 func (l label) String() string { return fmt.Sprintf("#%s", string(l)) }
 
 func (opMinInt) String() string       { return "min_int" }
@@ -60,7 +60,7 @@ func (i save) String() string {
 
 func (i assertLeftover) String() string {
 	if i.exact {
-		return fmt.Sprintf("assert_leftover(%s, exact: true)", i.portion)
+		return fmt.Sprintf("assert_leftover_exact(%s)", i.portion)
 	}
 	return fmt.Sprintf("assert_leftover(%s)", i.portion)
 }
@@ -121,32 +121,30 @@ func (i loadStr) String() string {
 	return fmt.Sprintf("%s = %q", i.dest, i.value)
 }
 
-// returns "" when there's no alias
-func getAliasSyntax(k binKind) string {
+// infixAlias returns the infix spelling of an op, for the two that have one.
+func infixAlias(k binKind) (string, bool) {
 	switch k.(type) {
 	case opAddInt:
-		return "+"
+		return "+", true
 	case opSubInt:
-		return "-"
+		return "-", true
 	default:
-		return ""
+		return "", false
 	}
 }
 
 func (i binaryOp) String() string {
-	aliasSyntax := getAliasSyntax(i.op)
-
-	if aliasSyntax == "" {
+	alias, hasAlias := infixAlias(i.op)
+	switch {
+	case !hasAlias:
 		return fmt.Sprintf("%s = %s(%s, %s)", i.dest, i.op, i.left, i.right)
-	}
-
-	if i.dest == i.left {
+	case i.dest == i.left:
 		// e.g. $acc += $reg
-		return fmt.Sprintf("%s %s= %s", i.dest, aliasSyntax, i.right)
+		return fmt.Sprintf("%s %s= %s", i.dest, alias, i.right)
+	default:
+		// e.g. $tot = $l + $r
+		return fmt.Sprintf("%s = %s %s %s", i.dest, i.left, alias, i.right)
 	}
-
-	// e.g. $tot = $l + $r
-	return fmt.Sprintf("%s = %s %s %s", i.dest, i.left, aliasSyntax, i.right)
 }
 
 func (i unaryOp) String() string {

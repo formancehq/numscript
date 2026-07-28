@@ -257,7 +257,9 @@ $tot = $x + $y
 $tot += $x
 ```
 
-a meta-notation is used for parametrized exprs/sources/dests
+This notation is a real format: it has a grammar ([IR.g4](IR.g4)), a parser (`irparser.Parse` + `compiler.Transform`) and a dumper (`dump`), and instructions round-trip through it. It's fully specified in [ir-textual-format.md](ir-textual-format.md) — including the instruction reference, the argument conventions and the known round-trip caveats.
+
+In the sections below, a meta-notation is used for parametrized exprs/sources/dests
 
 #### Bounded send statement
 
@@ -383,7 +385,7 @@ Note that an allotment source is always bounded.
 ```
 // portions must cover exactly 1 (no `remaining` clause here)
 $leftover = 1 - <p1> - .. - <pn>
-assert_leftover($leftover, exact: true) // "exact: false" if there's a remaining
+assert_leftover_exact($leftover) // plain "assert_leftover" if there's a remaining clause
 
 // evaluate each clause's portion
 // arrays are eventually assembled into contiguous registers
