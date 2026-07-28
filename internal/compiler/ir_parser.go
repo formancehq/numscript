@@ -95,9 +95,9 @@ func (t *transformer) transformInstr(s *irparser.InstrStmt) (irInstr, *Transform
 	case s.Call != nil:
 		return t.transformCall(s)
 	case s.Infix != nil:
-		return t.transformInfix(s)
+		return t.transformInfix(s, s.Infix, "infix")
 	case s.CompoundAssign != nil:
-		return t.transformCompoundAssign(s)
+		return t.transformInfix(s, s.CompoundAssign, "compound assign")
 	default:
 		return nil, &TransformError{Range: s.Range, Msg: "empty instruction"}
 	}
@@ -127,79 +127,80 @@ func (t *transformer) transformConst(s *irparser.InstrStmt) (irInstr, *Transform
 
 // ---- infix / compound assign ----
 
-func (t *transformer) transformInfix(s *irparser.InstrStmt) (irInstr, *TransformError) {
+// transformInfix handles both `$d = $l + $r` and `$d += $r`: the parser gives
+// the compound form the same shape, with Left repeated as the dest.
+func (t *transformer) transformInfix(s *irparser.InstrStmt, infix *irparser.Infix, what string) (irInstr, *TransformError) {
 	if s.Dest == nil || s.Dest.Kind != irparser.DestReg {
-		return nil, &TransformError{Range: s.Range, Msg: "infix requires a single register dest"}
+		return nil, &TransformError{Range: s.Range, Msg: what + " requires a single register dest"}
 	}
 	dest := t.resolveReg(s.Dest.Regs[0])
-	left := t.resolveReg(s.Infix.Left)
-	right := t.resolveReg(s.Infix.Right)
+	left := t.resolveReg(infix.Left)
+	right := t.resolveReg(infix.Right)
 
-	op, err := infixOp(s.Infix.Op)
-	if err != nil {
-		return nil, &TransformError{Range: s.Infix.Range, Msg: err.Error()}
-	}
-	return binaryOp{op: op, dest: dest, left: left, right: right}, nil
-}
-
-func (t *transformer) transformCompoundAssign(s *irparser.InstrStmt) (irInstr, *TransformError) {
-	if s.Dest == nil || s.Dest.Kind != irparser.DestReg {
-		return nil, &TransformError{Range: s.Range, Msg: "compound assign requires a single register dest"}
-	}
-	dest := t.resolveReg(s.Dest.Regs[0])
-	left := t.resolveReg(s.CompoundAssign.Left)
-	right := t.resolveReg(s.CompoundAssign.Right)
-
-	op, err := infixOp(s.CompoundAssign.Op)
-	if err != nil {
-		return nil, &TransformError{Range: s.CompoundAssign.Range, Msg: err.Error()}
-	}
-	return binaryOp{op: op, dest: dest, left: left, right: right}, nil
-}
-
-func infixOp(op string) (binKind, error) {
-	switch op {
+	var op binKind
+	switch infix.Op {
 	case "+":
-		return opAddInt{}, nil
+		op = opAddInt{}
 	case "-":
-		return opSubInt{}, nil
+		op = opSubInt{}
 	default:
-		return nil, fmt.Errorf("unknown infix operator: %q", op)
+		return nil, &TransformError{Range: infix.Range, Msg: fmt.Sprintf("unknown infix operator: %q", infix.Op)}
 	}
+	return binaryOp{op: op, dest: dest, left: left, right: right}, nil
 }
 
 // ---- call instructions ----
 
-// argParser helps validate and extract args for a specific instruction.
+// argParser reads the args of one instruction call. Every accessor reports what
+// is wrong with the arg it wanted and returns a zero value, so a caller can read
+// its args straight into an irInstr literal and let transformCall check ap.errs
+// once at the end. Positional accessors consume in call order: composite literal
+// operands are evaluated left to right, so `f{a: ap.reg(), b: ap.reg()}` reads
+// the args in that order.
 type argParser struct {
 	t         *transformer
 	args      []irparser.Arg
 	pos       int
 	seenLabel map[string]bool
 	errs      *[]TransformError
+	// callRange is where to point an error about an arg that isn't there.
+	callRange parser.Range
 }
 
-func (t *transformer) newArgParser(args []irparser.Arg, errs *[]TransformError) *argParser {
+func (t *transformer) newArgParser(call *irparser.InstrCall, errs *[]TransformError) *argParser {
 	return &argParser{
 		t:         t,
-		args:      args,
+		args:      call.Args,
 		seenLabel: map[string]bool{},
 		errs:      errs,
+		callRange: call.Range,
 	}
 }
 
-// nextReg consumes the next positional arg as a register.
-func (ap *argParser) nextReg() (reg, bool) {
+// next consumes the next positional arg, checking it holds the expected kind. It
+// reports missing and mistyped args itself and returns nil in both cases, so a
+// caller only reads what it needs and the error shows up in ap.errs.
+func (ap *argParser) next(want irparser.ValueKind) *irparser.Value {
 	if ap.pos >= len(ap.args) {
-		return 0, false
+		ap.addErr(ap.callRange, "missing %s argument", valueKindStr(want))
+		return nil
 	}
 	a := ap.args[ap.pos]
 	ap.pos++
-	if a.Value.Kind != irparser.ValReg {
-		ap.addErr(a.Range, "expected register, got %s", valueKindStr(a.Value.Kind))
-		return 0, false
+	if a.Value.Kind != want {
+		ap.addErr(a.Range, "expected %s, got %s", valueKindStr(want), valueKindStr(a.Value.Kind))
+		return nil
 	}
-	return ap.t.resolveReg(*a.Value.Reg), true
+	return &a.Value
+}
+
+// reg consumes the next positional arg as a register.
+func (ap *argParser) reg() reg {
+	v := ap.next(irparser.ValReg)
+	if v == nil {
+		return 0
+	}
+	return ap.t.resolveReg(*v.Reg)
 }
 
 // optLabeledReg consumes an optional labeled arg with the given label as a register.
@@ -214,6 +215,16 @@ func (ap *argParser) optLabeledReg(label string) *reg {
 	}
 	r := ap.t.resolveReg(*a.Value.Reg)
 	return &r
+}
+
+// reqLabeledReg is optLabeledReg for a label the instruction can't do without.
+func (ap *argParser) reqLabeledReg(label string) reg {
+	r := ap.optLabeledReg(label)
+	if r == nil {
+		ap.addErr(ap.callRange, "missing labeled argument %q", label)
+		return 0
+	}
+	return *r
 }
 
 // labeledArg finds a labeled arg by name. Returns nil if not found.
@@ -237,58 +248,44 @@ func (ap *argParser) labeledArg(label string) (*irparser.Arg, bool) {
 	return nil, false
 }
 
-// nextLabel consumes the next positional arg as a label reference.
-func (ap *argParser) nextLabel() (label, bool) {
-	if ap.pos >= len(ap.args) {
-		return "", false
+// labelRef consumes the next positional arg as a label reference. It returns ""
+// when the arg is missing or isn't one.
+func (ap *argParser) labelRef() label {
+	v := ap.next(irparser.ValLabel)
+	if v == nil {
+		return ""
 	}
-	a := ap.args[ap.pos]
-	ap.pos++
-	if a.Value.Kind != irparser.ValLabel {
-		ap.addErr(a.Range, "expected label reference, got %s", valueKindStr(a.Value.Kind))
-		return "", false
-	}
-	return label(*a.Value.Label), true
+	return label(*v.Label)
 }
 
-// nextIntLit consumes the next positional arg as an integer literal.
-func (ap *argParser) nextIntLit() (uint16, bool) {
-	if ap.pos >= len(ap.args) {
-		return 0, false
+// intLit consumes the next positional arg as an integer literal.
+func (ap *argParser) intLit() uint16 {
+	v := ap.next(irparser.ValInt)
+	if v == nil {
+		return 0
 	}
-	a := ap.args[ap.pos]
-	ap.pos++
-	if a.Value.Kind != irparser.ValInt {
-		ap.addErr(a.Range, "expected integer literal, got %s", valueKindStr(a.Value.Kind))
-		return 0, false
-	}
-	n, err := strconv.ParseUint(*a.Value.Int, 10, 16)
+	n, err := strconv.ParseUint(*v.Int, 10, 16)
 	if err != nil {
-		ap.addErr(a.Range, "integer literal out of range (0-65535): %s", *a.Value.Int)
-		return 0, false
+		ap.addErr(v.Range, "integer literal out of range (0-65535): %s", *v.Int)
+		return 0
 	}
-	return uint16(n), true
+	return uint16(n)
 }
 
-// nextRegList consumes the next positional arg as a register list.
-func (ap *argParser) nextRegList() ([]reg, bool) {
-	if ap.pos >= len(ap.args) {
-		return nil, false
+// regList consumes the next positional arg as a register list.
+func (ap *argParser) regList() []reg {
+	v := ap.next(irparser.ValRegList)
+	if v == nil {
+		return nil
 	}
-	a := ap.args[ap.pos]
-	ap.pos++
-	if a.Value.Kind != irparser.ValRegList {
-		ap.addErr(a.Range, "expected register list, got %s", valueKindStr(a.Value.Kind))
-		return nil, false
-	}
-	regs := make([]reg, len(*a.Value.Regs))
-	for i, r := range *a.Value.Regs {
+	regs := make([]reg, len(*v.Regs))
+	for i, r := range *v.Regs {
 		regs[i] = ap.t.resolveReg(r)
 	}
-	return regs, true
+	return regs
 }
 
-func (ap *argParser) addErr(rng parser.Range, format string, args ...interface{}) {
+func (ap *argParser) addErr(rng parser.Range, format string, args ...any) {
 	*ap.errs = append(*ap.errs, TransformError{Range: rng, Msg: fmt.Sprintf(format, args...)})
 }
 
@@ -300,8 +297,6 @@ func valueKindStr(k irparser.ValueKind) string {
 		return "label"
 	case irparser.ValInt:
 		return "integer literal"
-	case irparser.ValBool:
-		return "boolean"
 	case irparser.ValRegList:
 		return "register list"
 	default:
@@ -311,7 +306,7 @@ func valueKindStr(k irparser.ValueKind) string {
 
 func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformError) {
 	var errs []TransformError
-	ap := t.newArgParser(s.Call.Args, &errs)
+	ap := t.newArgParser(s.Call, &errs)
 
 	// A labeled arg is looked up by name, so a repeated one would silently lose
 	// every occurrence but the first.
@@ -329,8 +324,7 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 	// Resolve dest
 	var dest reg
 	var dests []reg
-	hasDest := s.Dest != nil
-	if hasDest {
+	if s.Dest != nil {
 		switch s.Dest.Kind {
 		case irparser.DestReg:
 			dest = t.resolveReg(s.Dest.Regs[0])
@@ -346,90 +340,146 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 		}
 	}
 
-	key := instrKey{s.Call.Name, s.Call.TypeParam}
+	name, typeParam := s.Call.Name, s.Call.TypeParam
 
-	var instr irInstr
-	var err *TransformError
-
-	switch key {
-	case instrKey{"load_var", "int"}:
-		instr, err = parseLoadVar(ap, dest, varInt{}, s.Range)
-	case instrKey{"load_var", "str"}:
-		instr, err = parseLoadVar(ap, dest, varStr{}, s.Range)
-	case instrKey{"meta", "str"}:
-		instr, err = parseMetaVar(ap, dest, metaStr{}, s.Range)
-	case instrKey{"meta", "int"}:
-		instr, err = parseMetaVar(ap, dest, metaInt{}, s.Range)
-	case instrKey{"meta", "portion"}:
-		instr, err = parseMetaVar(ap, dest, metaPortion{}, s.Range)
-	case instrKey{"meta", "monetary"}:
-		instr, err = parseMetaVar(ap, dest, metaMonetary{}, s.Range)
-	case instrKey{"balance", ""}:
-		instr, err = parseFetchBalance(ap, dest, s.Range)
-	case instrKey{"mk_monetary", ""}:
-		instr, err = parseBinaryCall(ap, dest, opMakeMonetary{}, s.Range)
-	case instrKey{"mk_portion", ""}:
-		instr, err = parseBinaryCall(ap, dest, opMakePortion{}, s.Range)
-	case instrKey{"add_int", ""}:
-		instr, err = parseBinaryCall(ap, dest, opAddInt{}, s.Range)
-	case instrKey{"sub_int", ""}:
-		instr, err = parseBinaryCall(ap, dest, opSubInt{}, s.Range)
-	case instrKey{"add_string", ""}:
-		instr, err = parseBinaryCall(ap, dest, opAddString{}, s.Range)
-	case instrKey{"sub_portion", ""}:
-		instr, err = parseBinaryCall(ap, dest, opSubPortion{}, s.Range)
-	case instrKey{"min_int", ""}:
-		instr, err = parseBinaryCall(ap, dest, opMinInt{}, s.Range)
-	case instrKey{"int_copy", ""}:
-		instr, err = parseUnaryCall(ap, dest, opIntCopy{}, s.Range)
-	case instrKey{"portion_copy", ""}:
-		instr, err = parseUnaryCall(ap, dest, opPortionCopy{}, s.Range)
-	case instrKey{"get_asset", ""}:
-		instr, err = parseUnaryCall(ap, dest, opGetAsset{}, s.Range)
-	case instrKey{"get_amount", ""}:
-		instr, err = parseUnaryCall(ap, dest, opGetAmount{}, s.Range)
-	case instrKey{"neg_int", ""}:
-		instr, err = parseUnaryCall(ap, dest, opNegInt{}, s.Range)
-	case instrKey{"int_to_string", ""}:
-		instr, err = parseUnaryCall(ap, dest, opIntToString{}, s.Range)
-	case instrKey{"portion_to_string", ""}:
-		instr, err = parseUnaryCall(ap, dest, opPortionToString{}, s.Range)
-	case instrKey{"monetary_to_string", ""}:
-		instr, err = parseUnaryCall(ap, dest, opMonetaryToString{}, s.Range)
-	case instrKey{"pull_account", ""}:
-		instr, err = parsePullAccount(ap, dest, s.Range)
-	case instrKey{"send_to_account", ""}:
-		instr, err = parseSendToAccount(ap, s.Range)
-	case instrKey{"mk_allot", ""}:
-		instr, err = parseMakeAllotment(ap, dests, s.Range)
-	case instrKey{"check_enough_funds", ""}:
-		instr, err = parseCheckEnoughFunds(ap, s.Range)
-	case instrKey{"save", ""}:
-		instr, err = parseSave(ap, s.Range)
-	case instrKey{"assert_leftover", ""}:
-		instr, err = parseAssertLeftover(ap, false, s.Range)
-	case instrKey{"assert_leftover_exact", ""}:
-		instr, err = parseAssertLeftover(ap, true, s.Range)
-	case instrKey{"set_current_asset", ""}:
-		instr, err = parseSetCurrentAsset(ap, s.Range)
-	case instrKey{"assert_same_asset", ""}:
-		instr, err = parseAssertSameAsset(ap, s.Range)
-	case instrKey{"assert_valid_account", ""}:
-		instr, err = parseAssertValidAccount(ap, s.Range)
-	case instrKey{"assert_non_negative_balance", ""}:
-		instr, err = parseAssertNonNegativeBalance(ap, s.Range)
-	case instrKey{"set_tx_meta", ""}:
-		instr, err = parseSetTxMeta(ap, s.Range)
-	case instrKey{"set_account_meta", ""}:
-		instr, err = parseSetAccountMeta(ap, s.Range)
-	case instrKey{"jmp_if_zero", ""}:
-		instr, err = t.parseJmpIfZero(ap, s.Range)
-	default:
-		return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("unknown instruction: %s", key)}
+	// load_var and meta are the only instructions parameterized by a type.
+	if typeParam != "" && name != "load_var" && name != "meta" {
+		return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("%s doesn't take a type parameter", name)}
 	}
 
-	if err != nil {
-		return nil, err
+	var instr irInstr
+
+	switch name {
+	case "load_var":
+		var typ varType
+		switch typeParam {
+		case "int":
+			typ = varInt{}
+		case "str":
+			typ = varStr{}
+		default:
+			return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("load_var: expected type parameter int or str, got %q", typeParam)}
+		}
+		instr = loadVar{dest: dest, typ: typ, index: ap.intLit()}
+
+	case "meta":
+		var typ metaType
+		switch typeParam {
+		case "str":
+			typ = metaStr{}
+		case "int":
+			typ = metaInt{}
+		case "portion":
+			typ = metaPortion{}
+		case "monetary":
+			typ = metaMonetary{}
+		default:
+			return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("meta: expected type parameter str, int, portion or monetary, got %q", typeParam)}
+		}
+		instr = metaVar{dest: dest, typ: typ, account: ap.reg(), key: ap.reg()}
+
+	case "balance":
+		instr = fetchBalance{dest: dest, account: ap.reg(), asset: ap.reg()}
+
+	case "mk_monetary":
+		instr = ap.binaryOp(dest, opMakeMonetary{})
+	case "mk_portion":
+		instr = ap.binaryOp(dest, opMakePortion{})
+	case "add_int":
+		instr = ap.binaryOp(dest, opAddInt{})
+	case "sub_int":
+		instr = ap.binaryOp(dest, opSubInt{})
+	case "add_string":
+		instr = ap.binaryOp(dest, opAddString{})
+	case "sub_portion":
+		instr = ap.binaryOp(dest, opSubPortion{})
+	case "min_int":
+		instr = ap.binaryOp(dest, opMinInt{})
+
+	case "int_copy":
+		instr = unaryOp{dest: dest, op: opIntCopy{}, arg: ap.reg()}
+	case "portion_copy":
+		instr = unaryOp{dest: dest, op: opPortionCopy{}, arg: ap.reg()}
+	case "get_asset":
+		instr = unaryOp{dest: dest, op: opGetAsset{}, arg: ap.reg()}
+	case "get_amount":
+		instr = unaryOp{dest: dest, op: opGetAmount{}, arg: ap.reg()}
+	case "neg_int":
+		instr = unaryOp{dest: dest, op: opNegInt{}, arg: ap.reg()}
+	case "int_to_string":
+		instr = unaryOp{dest: dest, op: opIntToString{}, arg: ap.reg()}
+	case "portion_to_string":
+		instr = unaryOp{dest: dest, op: opPortionToString{}, arg: ap.reg()}
+	case "monetary_to_string":
+		instr = unaryOp{dest: dest, op: opMonetaryToString{}, arg: ap.reg()}
+
+	case "pull_account":
+		instr = pullAccount{
+			dest:      dest,
+			account:   ap.reqLabeledReg("account"),
+			cap:       ap.optLabeledReg("cap"),
+			overdraft: ap.optLabeledReg("overdraft"),
+			color:     ap.optLabeledReg("color"),
+		}
+	case "send_to_account":
+		instr = sendToAccount{account: ap.optLabeledReg("account"), cap: ap.optLabeledReg("cap")}
+	case "save":
+		instr = save{
+			account: ap.reqLabeledReg("account"),
+			asset:   ap.reqLabeledReg("asset"),
+			amount:  ap.optLabeledReg("amount"),
+		}
+
+	case "mk_allot":
+		if len(dests) == 0 {
+			ap.addErr(s.Range, "mk_allot requires a dest list")
+			break
+		}
+		instr = makeAllotment{dest: dests, amount: ap.reg(), portions: ap.regList()}
+
+	case "check_enough_funds":
+		instr = checkEnoughFunds{got: ap.reg(), needed: ap.reg()}
+	case "assert_leftover":
+		instr = assertLeftover{portion: ap.reg(), exact: false}
+	case "assert_leftover_exact":
+		instr = assertLeftover{portion: ap.reg(), exact: true}
+	case "set_current_asset":
+		instr = setCurrentAsset{asset: ap.reg()}
+	case "assert_same_asset":
+		instr = assertSameAsset{left: ap.reg(), right: ap.reg()}
+	case "assert_valid_account":
+		instr = assertValidAccount{account: ap.reg()}
+	case "assert_non_negative_balance":
+		instr = assertNonNegativeBalance{balance: ap.reg(), account: ap.reg()}
+
+	case "snapshot":
+		instr = snapshot{dest: dest}
+	case "restore":
+		instr = restore{mark: ap.reg()}
+
+	case "set_tx_meta":
+		instr = setTxMeta{key: ap.reg(), value: ap.reg()}
+	case "set_account_meta":
+		instr = setAccountMeta{account: ap.reg(), key: ap.reg(), value: ap.reg()}
+
+	case "jmp_if_zero":
+		cond, target := ap.reg(), ap.labelRef()
+		labelPos, defined := t.labelPos[string(target)]
+		switch {
+		case target == "":
+			// labelRef already said what was wrong
+		case !defined:
+			ap.addErr(s.Range, "jmp_if_zero: label %s is not defined in the program", target)
+		case labelPos < t.stmtPos:
+			// The VM only allows jumping forward: that's what makes every program
+			// terminate, so a backward jump is rejected here rather than assembled.
+			ap.addErr(s.Range, "jmp_if_zero: label %s is behind the jump (jumps must go forward)", target)
+		default:
+			instr = jmpIfZero{cond: cond, target: target}
+		}
+
+	default:
+		return nil, &TransformError{Range: s.Call.Range, Msg: fmt.Sprintf("unknown instruction: %s", name)}
 	}
 
 	// Check for unconsumed args (skip labeled args that were already seen)
@@ -456,226 +506,7 @@ func (t *transformer) transformCall(s *irparser.InstrStmt) (irInstr, *TransformE
 	return instr, nil
 }
 
-type instrKey struct {
-	name, typeParam string
-}
-
-func (k instrKey) String() string {
-	if k.typeParam == "" {
-		return k.name
-	}
-	return fmt.Sprintf("%s<%s>", k.name, k.typeParam)
-}
-
-// ---- individual instruction parsers ----
-
-func parseLoadVar(ap *argParser, dest reg, typ varType, rng parser.Range) (irInstr, *TransformError) {
-	index, ok := ap.nextIntLit()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return loadVar{dest: dest, typ: typ, index: index}, nil
-}
-
-func parseMetaVar(ap *argParser, dest reg, typ metaType, rng parser.Range) (irInstr, *TransformError) {
-	account, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	key, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return metaVar{dest: dest, typ: typ, account: account, key: key}, nil
-}
-
-func parseFetchBalance(ap *argParser, dest reg, rng parser.Range) (irInstr, *TransformError) {
-	account, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	asset, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return fetchBalance{dest: dest, account: account, asset: asset}, nil
-}
-
-func parseBinaryCall(ap *argParser, dest reg, op binKind, rng parser.Range) (irInstr, *TransformError) {
-	left, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	right, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return binaryOp{op: op, dest: dest, left: left, right: right}, nil
-}
-
-func parseUnaryCall(ap *argParser, dest reg, op unKind, rng parser.Range) (irInstr, *TransformError) {
-	arg, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return unaryOp{op: op, dest: dest, arg: arg}, nil
-}
-
-func parsePullAccount(ap *argParser, dest reg, rng parser.Range) (irInstr, *TransformError) {
-	account := ap.optLabeledReg("account")
-	if account == nil {
-		return nil, &TransformError{Range: rng, Msg: "pull_account requires labeled arg 'account'"}
-	}
-	cap := ap.optLabeledReg("cap")
-	overdraft := ap.optLabeledReg("overdraft")
-	color := ap.optLabeledReg("color")
-	return pullAccount{dest: dest, account: *account, cap: cap, overdraft: overdraft, color: color}, nil
-}
-
-func parseSendToAccount(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	account := ap.optLabeledReg("account")
-	cap := ap.optLabeledReg("cap")
-	return sendToAccount{account: account, cap: cap}, nil
-}
-
-func parseMakeAllotment(ap *argParser, dests []reg, rng parser.Range) (irInstr, *TransformError) {
-	if len(dests) == 0 {
-		return nil, &TransformError{Range: rng, Msg: "mk_allot requires a dest list"}
-	}
-	amount, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	portions, ok := ap.nextRegList()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return makeAllotment{dest: dests, amount: amount, portions: portions}, nil
-}
-
-func parseCheckEnoughFunds(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	got, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	needed, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return checkEnoughFunds{got: got, needed: needed}, nil
-}
-
-func parseSave(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	account := ap.optLabeledReg("account")
-	asset := ap.optLabeledReg("asset")
-	amount := ap.optLabeledReg("amount")
-	if account == nil || asset == nil {
-		return nil, &TransformError{Range: rng, Msg: "save requires labeled args 'account' and 'asset'"}
-	}
-	return save{account: *account, asset: *asset, amount: amount}, nil
-}
-
-func parseAssertLeftover(ap *argParser, exact bool, rng parser.Range) (irInstr, *TransformError) {
-	portion, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return assertLeftover{portion: portion, exact: exact}, nil
-}
-
-func parseSetCurrentAsset(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	asset, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return setCurrentAsset{asset: asset}, nil
-}
-
-func parseAssertSameAsset(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	left, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	right, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return assertSameAsset{left: left, right: right}, nil
-}
-
-func parseAssertValidAccount(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	account, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return assertValidAccount{account: account}, nil
-}
-
-func parseAssertNonNegativeBalance(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	balance, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	account, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return assertNonNegativeBalance{balance: balance, account: account}, nil
-}
-
-func parseSetTxMeta(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	key, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	value, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return setTxMeta{key: key, value: value}, nil
-}
-
-func parseSetAccountMeta(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	account, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	key, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	value, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	return setAccountMeta{account: account, key: key, value: value}, nil
-}
-
-func (t *transformer) parseJmpIfZero(ap *argParser, rng parser.Range) (irInstr, *TransformError) {
-	cond, ok := ap.nextReg()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	target, ok := ap.nextLabel()
-	if !ok {
-		return nil, firstTransformErr(ap.errs)
-	}
-	labelPos, ok := t.labelPos[string(target)]
-	if !ok {
-		return nil, &TransformError{Range: rng, Msg: fmt.Sprintf("jmp_if_zero: label %s is not defined in the program", target)}
-	}
-	// The VM only allows jumping forward: that's what makes every program
-	// terminate, so a backward jump is rejected here rather than assembled.
-	if labelPos < t.stmtPos {
-		return nil, &TransformError{Range: rng, Msg: fmt.Sprintf("jmp_if_zero: label %s is behind the jump (jumps must go forward)", target)}
-	}
-	return jmpIfZero{cond: cond, target: target}, nil
-}
-
-func firstTransformErr(errs *[]TransformError) *TransformError {
-	if errs == nil || len(*errs) == 0 {
-		return nil
-	}
-	e := (*errs)[0]
-	return &e
+// binaryOp reads the two register args every binary instruction takes.
+func (ap *argParser) binaryOp(dest reg, op binKind) binaryOp {
+	return binaryOp{dest: dest, op: op, left: ap.reg(), right: ap.reg()}
 }

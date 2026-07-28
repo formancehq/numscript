@@ -1,7 +1,6 @@
 package irparser
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/formancehq/numscript/internal/parser"
@@ -31,7 +30,7 @@ type errorListener struct {
 	Errors []ParserError
 }
 
-func (l *errorListener) SyntaxError(_ antlr.Recognizer, offendingSymbol interface{}, startL, startC int, msg string, _ antlr.RecognitionException) {
+func (l *errorListener) SyntaxError(_ antlr.Recognizer, offendingSymbol any, startL, startC int, msg string, _ antlr.RecognitionException) {
 	length := 1
 	if token, ok := offendingSymbol.(antlr.Token); ok {
 		length = len(token.GetText())
@@ -314,10 +313,6 @@ func buildValue(ctx antlrParser.IValueContext) Value {
 		tok := v.INT().GetSymbol()
 		s := tok.GetText()
 		return Value{Range: tokenToRange(tok), Kind: ValInt, Int: &s}
-	case *antlrParser.ValBoolContext:
-		tok := v.BOOL().GetSymbol()
-		b := tok.GetText() == "true"
-		return Value{Range: tokenToRange(tok), Kind: ValBool, Bool: &b}
 	case *antlrParser.ValRegListContext:
 		regs := buildRegList(v.RegList())
 		lTok := v.LBRACKET().GetSymbol()
@@ -355,32 +350,4 @@ func buildRegRef(ctx antlrParser.IRegContext) RegRef {
 
 func mergeRanges(a, b parser.Range) parser.Range {
 	return parser.Range{Start: a.Start, End: b.End}
-}
-
-// Check validates the AST semantically, returning the first error found.
-// It's useful as a quick sanity check without full transformation.
-func Check(prog Program) error {
-	labels := map[string]bool{}
-	for _, stmt := range prog.Stmts {
-		switch s := stmt.(type) {
-		case *LabelStmt:
-			if labels[s.Name] {
-				return fmt.Errorf("%s: duplicate label #%s", rangeStr(s.Range), s.Name)
-			}
-			labels[s.Name] = true
-		case *InstrStmt:
-			// basic structural validation
-			if s.Dest != nil && s.Dest.Kind == DestList && (s.Call == nil) {
-				return fmt.Errorf("%s: multi-register dest only valid with instruction call", rangeStr(s.Range))
-			}
-			if s.CompoundAssign != nil && (s.Dest == nil || s.Dest.Kind != DestReg) {
-				return fmt.Errorf("%s: compound assign requires a single register dest", rangeStr(s.Range))
-			}
-		}
-	}
-	return nil
-}
-
-func rangeStr(r parser.Range) string {
-	return fmt.Sprintf("%d:%d", r.Start.Line+1, r.Start.Character+1)
 }

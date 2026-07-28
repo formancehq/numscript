@@ -85,7 +85,6 @@ type Value struct {
 	Reg   *RegRef   // ValReg
 	Label *string   // ValLabel: the label name without '#'
 	Int   *string   // ValInt: raw numeric string
-	Bool  *bool     // ValBool
 	Regs  *[]RegRef // ValRegList
 }
 
@@ -95,7 +94,6 @@ const (
 	ValReg     ValueKind = iota // $r0
 	ValLabel                    // #my_label
 	ValInt                      // 42
-	ValBool                     // true / false
 	ValRegList                  // [$r0, $r1]
 )
 

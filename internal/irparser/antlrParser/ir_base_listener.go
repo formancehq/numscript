@@ -146,12 +146,6 @@ func (s *BaseIRListener) EnterValInt(ctx *ValIntContext) {}
 // ExitValInt is called when production valInt is exited.
 func (s *BaseIRListener) ExitValInt(ctx *ValIntContext) {}
 
-// EnterValBool is called when production valBool is entered.
-func (s *BaseIRListener) EnterValBool(ctx *ValBoolContext) {}
-
-// ExitValBool is called when production valBool is exited.
-func (s *BaseIRListener) ExitValBool(ctx *ValBoolContext) {}
-
 // EnterValRegList is called when production valRegList is entered.
 func (s *BaseIRListener) EnterValRegList(ctx *ValRegListContext) {}
 

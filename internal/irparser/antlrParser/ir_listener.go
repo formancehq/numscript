@@ -70,9 +70,6 @@ type IRListener interface {
 	// EnterValInt is called when entering the valInt production.
 	EnterValInt(c *ValIntContext)
 
-	// EnterValBool is called when entering the valBool production.
-	EnterValBool(c *ValBoolContext)
-
 	// EnterValRegList is called when entering the valRegList production.
 	EnterValRegList(c *ValRegListContext)
 
@@ -147,9 +144,6 @@ type IRListener interface {
 
 	// ExitValInt is called when exiting the valInt production.
 	ExitValInt(c *ValIntContext)
-
-	// ExitValBool is called when exiting the valBool production.
-	ExitValBool(c *ValBoolContext)
 
 	// ExitValRegList is called when exiting the valRegList production.
 	ExitValRegList(c *ValRegListContext)

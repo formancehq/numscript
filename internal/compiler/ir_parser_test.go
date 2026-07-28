@@ -233,6 +233,25 @@ func TestRoundtripComplexProgram(t *testing.T) {
 	require.Equal(t, compiledIR, roundtripped)
 }
 
+// TestOneofDumpIsStableFromSecondPass documents the one place the round-trip is
+// only up to renumbering: compiling `oneof` allocates the register holding the
+// pulled amount before it emits the snapshot, so its dump doesn't name registers
+// in ascending order of first appearance. Re-parsing renumbers it into an
+// equivalent program, and from then on the text is stable.
+func TestOneofDumpIsStableFromSecondPass(t *testing.T) {
+	first := getCompiledOutput(t, `
+		send [USD/2 10] (
+			source = oneof { @a @b @c }
+			destination = @dest
+		)
+	`)
+	_, second := parseAndTransform(t, first)
+	require.NotEqual(t, first, second, "if this now matches, the compiler emits registers in order and this test can go")
+
+	_, third := parseAndTransform(t, second)
+	require.Equal(t, second, third)
+}
+
 // TestParseAndTransformErrors checks error handling.
 func TestParseAndTransformErrors(t *testing.T) {
 	t.Run("unknown instruction", func(t *testing.T) {
@@ -320,6 +339,16 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		ir   string
 	}{
 		{"comment", "// not a comment in this format\n  $r0 = 1\n"},
+		{"no args at all", "  $r0 = get_asset()\n"},
+		{"too few args", "  $r0 = balance($r1)\n"},
+		{"too many args", "  $r0 = get_asset($r1, $r2)\n"},
+		{"missing required labeled arg", "  $r0 = pull_account(cap: $r1)\n"},
+		{"unknown labeled arg", "  $r0 = pull_account(account: $r1, nope: $r2)\n"},
+		{"load_var index out of range", "  $r0 = load_var<int>(70000)\n"},
+		{"load_var without type param", "  $r0 = load_var(0)\n"},
+		{"load_var with a type it doesn't have", "  $r0 = load_var<portion>(0)\n"},
+		{"meta without type param", "  $r0 = meta($r1, $r2)\n"},
+		{"mk_allot without dest list", "  $r0 = mk_allot($r1, [$r2])\n"},
 		{"reg to reg copy", "  $r0 = $r1\n"},
 		{"garbage", "$$$ !!!"},
 		{"unclosed paren", "  $r0 = get_asset($r1"},
@@ -340,8 +369,13 @@ func TestMalformedInputIsRejected(t *testing.T) {
 				return // rejected at parse time
 			}
 			// otherwise it must be rejected by the transform, not accepted
-			_, errs := Transform(result.Value)
+			instrs, errs := Transform(result.Value)
 			require.NotEmpty(t, errs, "neither the parser nor the transform rejected it")
+			// and whatever it did return must be usable: a nil instruction in the
+			// stream would blow up in dump or assemble instead
+			for _, instr := range instrs {
+				require.NotNil(t, instr)
+			}
 		})
 	}
 }
@@ -663,6 +697,13 @@ func TestRoundtripAllInstructions(t *testing.T) {
 			name: "load_var str",
 			ir: `
   $r0 = load_var<str>(1)
+`,
+		},
+		{
+			name: "snapshot and restore",
+			ir: `
+  $r0 = snapshot()
+  restore($r0)
 `,
 		},
 		{

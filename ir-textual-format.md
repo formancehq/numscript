@@ -12,7 +12,7 @@ It is a real format, not just a pretty-printing convention: it has a grammar, a 
 | `[]irInstr` → text | `dump` in [internal/compiler/ir_instr_dump.go](internal/compiler/ir_instr_dump.go) |
 | round-trip tests | `TestRoundtripAllInstructions` in [internal/compiler/ir_parser_test.go](internal/compiler/ir_parser_test.go) |
 
-**Round-trip property:** for every instruction the parser supports, `dump(Transform(Parse(text))) == text`. This is what makes the format usable for snapshot tests and for hand-writing IR fixtures. See [`snapshot` / `restore`](#not-yet-parseable-snapshot--restore) for the two instructions not yet covered, and [Round-trip caveats](#round-trip-caveats) for the (few) inputs that don't survive it.
+**Round-trip property:** for every instruction, `dump(Transform(Parse(text))) == text`. This is what makes the format usable for snapshot tests and for hand-writing IR fixtures. See [Round-trip caveats](#round-trip-caveats) for the (few) inputs that don't survive it.
 
 ## Lexical structure
 
@@ -80,7 +80,6 @@ $r0            register
 #my_label      label reference   (jmp_if_zero only)
 42             int literal       (load_var index only)
 [$r0, $r1]     register list     (mk_allot portions only)
-true / false   boolean           — parseable, but no instruction currently takes one
 ```
 
 Labeled arguments are looked up **by name**, so their order is free: `pull_account(cap: $c, account: $a)` is the same instruction as `pull_account(account: $a, cap: $c)`. `dump` always emits them in the canonical order given below.
@@ -221,16 +220,14 @@ jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
 
 `labelMarker` is a pseudo-instruction: it emits no bytecode, it only feeds the assembler's symbol table.
 
-### Not yet parseable: `snapshot` / `restore`
-
-The `oneof` support added two instructions that `dump` prints but `Transform` does **not** accept yet:
+### Backtracking (`oneof`)
 
 ```
-  $mark = snapshot()      // int: marks the current source-queue position
+  $mark = snapshot()      // int: marks the current position of the source queue
   restore($mark)          // rewinds the source queue to a mark
 ```
 
-They are syntactically valid (`snapshot()` is just a call with no arguments), but `Transform` rejects both names with `unknown instruction`. So a dump of a script using `oneof` does not currently round-trip. Adding them is two entries in the `transformCall` switch plus a parser function each.
+`snapshot` takes no arguments and writes an `int` mark; `restore` reads one back. A `oneof` source compiles to a `snapshot` before the first branch and a `restore` before each retry.
 
 ## A full example
 
@@ -257,6 +254,7 @@ Known asymmetries between what `dump` writes and what the parser accepts:
 
 * **Register names don't survive.** `$src` comes back as `$r<k>`, numbered by first appearance (see [Registers](#registers)).
 * **`_` doesn't survive.** It's desugared to a fresh register on the way in, so it dumps as that register (see [Destinations](#destinations)).
+* **A `oneof` dump renumbers on the first re-parse.** Compiling `oneof` allocates the register that holds the pulled amount before it emits the `snapshot`, so the dump doesn't introduce registers in ascending order and re-parsing renumbers them. The result is an equivalent program, and the text is stable from the second pass on.
 * **Negative int literals are not expressible.** `INT` has no sign, so `$r0 = -1` is a syntax error, while `dump` would happily print it for a negative `loadInt`. This is not reachable today — the compiler emits `neg_int` for negative literals rather than a negative constant — but a constant-folding peephole could produce a dump that no longer parses.
 
 ## Error handling
