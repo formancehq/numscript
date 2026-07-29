@@ -82,11 +82,11 @@ func (i AssertNonNegativeBalance) String() string {
 }
 
 func (i SetTxMeta) String() string {
-	return fmt.Sprintf("set_tx_meta(%s, %s)", i.Key, i.Value)
+	return fmt.Sprintf("set_tx_meta<%s>(%s, %s)", i.Typ, i.Key, i.Value)
 }
 
 func (i SetAccountMeta) String() string {
-	return fmt.Sprintf("set_account_meta(%s, %s, %s)", i.Account, i.Key, i.Value)
+	return fmt.Sprintf("set_account_meta<%s>(%s, %s, %s)", i.Typ, i.Account, i.Key, i.Value)
 }
 
 func (i MetaVar) String() string {

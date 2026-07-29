@@ -322,14 +322,19 @@ func TestIRMetadata(t *testing.T) {
   $account = "acc"
   $key = "k"
   $value = "v"
-  set_account_meta($account, $key, $value)
+  set_account_meta<str>($account, $key, $value)
   $tx_key = "tx"
-  $tx_value = "yes"
-  set_tx_meta($tx_key, $tx_value)
+  $tx_value = 42
+  set_tx_meta<int>($tx_key, $tx_value)
 `, balances(nil), nil)
 
-	require.Equal(t, map[string]string{"tx": "yes"}, res.Metadata)
-	require.Equal(t, runtime.AccountsMetadata{"acc": {"k": "v"}}, res.AccountsMetadata)
+	// the type param rides through to the result, so a host can rebuild a typed value
+	require.Equal(t, map[string]runtime.MetaValue{
+		"tx": {Value: "42", Typ: runtime.MetaValueInt},
+	}, res.Metadata)
+	require.Equal(t, runtime.AccountsMetadata{
+		"acc": {"k": {Value: "v", Typ: runtime.MetaValueStr}},
+	}, res.AccountsMetadata)
 }
 
 func TestIRReadsMetadataFromStore(t *testing.T) {

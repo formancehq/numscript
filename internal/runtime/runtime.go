@@ -63,9 +63,9 @@ type Posting struct {
 }
 
 type ExecutionResult struct {
-	Postings         []Posting         `json:"postings"`
-	Metadata         map[string]string `json:"txMeta"`
-	AccountsMetadata AccountsMetadata  `json:"accountsMeta"`
+	Postings         []Posting            `json:"postings"`
+	Metadata         map[string]MetaValue `json:"txMeta"`
+	AccountsMetadata AccountsMetadata     `json:"accountsMeta"`
 }
 
 // PairKey identifies a balance slot: an (account, scope, asset, color) tuple.

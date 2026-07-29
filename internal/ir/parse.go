@@ -7,6 +7,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/ir/internal/syntax"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 )
 
 // Error is something wrong with an IR text: either the grammar rejected it, or
@@ -354,6 +355,31 @@ func valueKindStr(k syntax.ValueKind) string {
 	}
 }
 
+// the instructions parameterized by a type, e.g. meta<str> or set_tx_meta<int>
+var takesTypeParam = map[string]bool{
+	"load_var":         true,
+	"meta":             true,
+	"set_tx_meta":      true,
+	"set_account_meta": true,
+}
+
+func parseMetaValueType(name, typeParam string, rng parser.Range) (runtime.MetaValueType, *Error) {
+	for _, typ := range []runtime.MetaValueType{
+		runtime.MetaValueStr,
+		runtime.MetaValueAccount,
+		runtime.MetaValueAsset,
+		runtime.MetaValueInt,
+		runtime.MetaValuePortion,
+		runtime.MetaValueMonetary,
+	} {
+		if typeParam == typ.String() {
+			return typ, nil
+		}
+	}
+	return 0, &Error{Range: rng, Msg: fmt.Sprintf(
+		"%s: expected type parameter str, account, asset, int, portion or monetary, got %q", name, typeParam)}
+}
+
 func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 	var errs []Error
 	ap := t.newArgParser(s.Call, &errs)
@@ -392,8 +418,7 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 
 	name, typeParam := s.Call.Name, s.Call.TypeParam
 
-	// load_var and meta are the only instructions parameterized by a type.
-	if typeParam != "" && name != "load_var" && name != "meta" {
+	if typeParam != "" && !takesTypeParam[name] {
 		return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("%s doesn't take a type parameter", name)}
 	}
 
@@ -508,9 +533,17 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = Restore{Mark: ap.reg()}
 
 	case "set_tx_meta":
-		instr = SetTxMeta{Key: ap.reg(), Value: ap.reg()}
+		typ, err := parseMetaValueType(name, typeParam, s.Call.Range)
+		if err != nil {
+			return nil, err
+		}
+		instr = SetTxMeta{Typ: typ, Key: ap.reg(), Value: ap.reg()}
 	case "set_account_meta":
-		instr = SetAccountMeta{Account: ap.reg(), Key: ap.reg(), Value: ap.reg()}
+		typ, err := parseMetaValueType(name, typeParam, s.Call.Range)
+		if err != nil {
+			return nil, err
+		}
+		instr = SetAccountMeta{Typ: typ, Account: ap.reg(), Key: ap.reg(), Value: ap.reg()}
 
 	case "jmp_if_zero":
 		cond, target := ap.reg(), ap.labelRef()

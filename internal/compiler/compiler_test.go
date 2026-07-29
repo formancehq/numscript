@@ -633,3 +633,47 @@ func TestDestOneof(t *testing.T) {
 #oneof_dest_end_0
 `))
 }
+
+// pins which meta type the compiler picks per source type — the tag is what lets
+// the execution result carry a typed value back out of the VM
+func TestMetadataWrites(t *testing.T) {
+	out := getCompiledOutput(t, `
+		vars {
+			monetary $m
+			portion $p
+		}
+		set_tx_meta("str", "abc")
+		set_tx_meta("account", @acc)
+		set_tx_meta("asset", COIN)
+		set_tx_meta("int", 42)
+		set_tx_meta("portion", $p)
+		set_account_meta(@acc, "monetary", $m)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = load_var<str>(0)
+  $r1 = load_var<int>(0)
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = load_var<int>(1)
+  $r4 = load_var<int>(2)
+  $r5 = mk_portion($r3, $r4)
+  $r6 = "str"
+  $r7 = "abc"
+  set_tx_meta<str>($r6, $r7)
+  $r8 = "account"
+  $r9 = "acc"
+  set_tx_meta<account>($r8, $r9)
+  $r10 = "asset"
+  $r11 = "COIN"
+  set_tx_meta<asset>($r10, $r11)
+  $r12 = "int"
+  $r13 = 42
+  set_tx_meta<int>($r12, $r13)
+  $r14 = "portion"
+  set_tx_meta<portion>($r14, $r5)
+  $r15 = "acc"
+  $r16 = "monetary"
+  set_account_meta<monetary>($r15, $r16, $r2)
+`),
+	)
+}

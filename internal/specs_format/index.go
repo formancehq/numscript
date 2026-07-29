@@ -41,6 +41,13 @@ func (r *TxMetadataRow) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// CheckTxMeta reports whether the transaction metadata a run produced satisfies a
+// test case's expect.txMetadata. Exported so every engine's spec runner (tree
+// walker, compiler+VM) is held to the same comparison.
+func CheckTxMeta(expected ExpectedTxMeta, got interpreter.Metadata) bool {
+	return compareTxMeta(expected, txMetaToRows(got))
+}
+
 // compareTxMeta reports whether two lists hold the same rows, ignoring order but
 // respecting multiplicity (so [x, x] != [x, y]). Values are compared on their
 // canonical source form, so a string "42" and the number 42 are not conflated.

@@ -115,13 +115,13 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
   <tbody>
     <tr>
       <td>32</td><td><code>0x20</code></td><td><strong>SET_TX_META</strong></td>
-      <td>key</td><td>val</td><td>-</td>
-      <td>Sets transaction metadata <code>str_regs[A] = str_regs[B]</code></td>
+      <td>key</td><td>val</td><td>typ</td>
+      <td>Sets transaction metadata under key <code>str_regs[A]</code>. <code>C</code> is the value's meta type, which selects the bank <code>B</code> indexes (see below)</td>
     </tr>
     <tr>
       <td>33</td><td><code>0x21</code></td><td><strong>SET_ACCOUNT_META</strong></td>
       <td>acc</td><td>key</td><td>val</td>
-      <td>Sets account metadata: account <code>A</code>, key <code>B</code>, value <code>C</code></td>
+      <td>Sets account metadata: account <code>str_regs[A]</code>, key <code>str_regs[B]</code>, value <code>C</code>. <strong>+1 ext word</strong>: <code>A</code> = the value's meta type, which selects the bank <code>C</code> indexes</td>
     </tr>
     <tr>
       <td>34</td><td><code>0x22</code></td><td><strong>META_STR</strong></td>
@@ -148,6 +148,33 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
   </tbody>
 </table>
+
+### Meta value types
+
+The **meta type** byte on `SET_TX_META` / `SET_ACCOUNT_META` does two things: it
+says which register bank the value operand is read from, and it is reported in the
+execution result so a host can rebuild the typed value the tree-walking interpreter
+would have produced. Without the latter, the string `"42"` and the number `42` are
+indistinguishable in the result.
+
+| value | type | bank | text the VM stores |
+| --- | --- | --- | --- |
+| 0 | `str` | str | the string as-is (no quotes) |
+| 1 | `account` | str | the account name (no leading `@`) |
+| 2 | `asset` | str | the asset name |
+| 3 | `int` | int | the `big.Int` decimal form |
+| 4 | `portion` | portion | the `big.Rat` form, e.g. `2/7` |
+| 5 | `monetary` | monetary | `"<asset> <amount>"`, e.g. `USD/2 100` |
+
+Metadata is stored as text, and the VM does that stringification when it executes
+the instruction — there is no conversion opcode on this path. The alternative,
+converting to a string in the compiler and passing a str reg, would state the type
+twice (once as the choice of conversion op, once as this byte) and cost an extra
+instruction plus a str register per write.
+
+`SET_TX_META` has a spare `C` byte and carries the type there. `SET_ACCOUNT_META`
+already spends A/B/C on its three str regs, so its type byte rides in an ext word
+(as `PULL_ACCOUNT` does for its overflow operands).
 
 ## 4. Arithmetic & Constructors (binary)
 

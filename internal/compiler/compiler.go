@@ -10,6 +10,7 @@ import (
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
 	"github.com/formancehq/numscript/internal/vm"
@@ -1002,11 +1003,11 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
-			value, err := st.compileMetaValue(stmt.Args[1])
+			value, typ, err := st.compileMetaValue(stmt.Args[1])
 			if err != nil {
 				return err
 			}
-			st.Push(ir.SetTxMeta{Key: key, Value: value})
+			st.Push(ir.SetTxMeta{Key: key, Value: value, Typ: typ})
 			return nil
 
 		case builtins.SetAccountMeta:
@@ -1018,11 +1019,11 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
-			value, err := st.compileMetaValue(stmt.Args[2])
+			value, typ, err := st.compileMetaValue(stmt.Args[2])
 			if err != nil {
 				return err
 			}
-			st.Push(ir.SetAccountMeta{Account: account, Key: key, Value: value})
+			st.Push(ir.SetAccountMeta{Account: account, Key: key, Value: value, Typ: typ})
 			return nil
 
 		default:
@@ -1034,32 +1035,32 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 	}
 }
 
-// compileMetaValue compiles a value into a string register (metadata is stored
-// stringified). Strings/accounts/assets already live in string registers;
-// numbers go through int_to_string.
-func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError) {
+// compileMetaValue compiles a metadata value, returning its register and the meta
+// type that goes on the instruction. No conversion is emitted: the value stays in
+// the register its own type lives in, and the VM stringifies it when it stores it
+// (see Vm.metaValue) — so the type is stated once, on the instruction, instead of
+// being implied by a conversion op and then restated.
+func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, runtime.MetaValueType, CompilerError) {
 	r, err := st.compileExpr(expr)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	switch st.exprTypes[expr] {
-	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
-		return r, nil
+	switch t := st.exprTypes[expr]; t {
+	case typecheck.TypeString:
+		return r, runtime.MetaValueStr, nil
+	case typecheck.TypeAccount:
+		return r, runtime.MetaValueAccount, nil
+	case typecheck.TypeAsset:
+		return r, runtime.MetaValueAsset, nil
 	case typecheck.TypeNumber:
-		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpIntToString{}, Arg: r, Dest: dest}
-		}), nil
+		return r, runtime.MetaValueInt, nil
 	case typecheck.TypePortion:
-		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpPortionToString{}, Arg: r, Dest: dest}
-		}), nil
+		return r, runtime.MetaValuePortion, nil
 	case typecheck.TypeMonetary:
-		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpMonetaryToString{}, Arg: r, Dest: dest}
-		}), nil
+		return r, runtime.MetaValueMonetary, nil
 	default:
-		panic("TODO meta value of type " + st.exprTypes[expr])
+		panic("TODO meta value of type " + t)
 	}
 }
 

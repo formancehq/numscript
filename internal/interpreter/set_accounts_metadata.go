@@ -3,7 +3,79 @@ package interpreter
 import (
 	"encoding/json"
 	"sort"
+
+	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 )
+
+// MetaValueToValue rebuilds the typed Value behind a metadata entry the VM
+// produced. The VM stores metadata stringified, plus the type it was stringified
+// from; this is the inverse of that stringification, so a compiled run can report
+// the same typed values a tree-walking run does.
+func MetaValueToValue(mv runtime.MetaValue) (Value, InterpreterError) {
+	var typ string
+	switch mv.Typ {
+	case runtime.MetaValueStr:
+		typ = analysis.TypeString
+	case runtime.MetaValueAccount:
+		typ = analysis.TypeAccount
+	case runtime.MetaValueAsset:
+		typ = analysis.TypeAsset
+	case runtime.MetaValueInt:
+		typ = analysis.TypeNumber
+	case runtime.MetaValuePortion:
+		typ = analysis.TypePortion
+	case runtime.MetaValueMonetary:
+		typ = analysis.TypeMonetary
+	default:
+		return nil, InvalidTypeErr{Name: mv.Typ.String()}
+	}
+	return parseVar(typ, mv.Value, parser.Range{})
+}
+
+// MetadataFromVM converts the VM's transaction metadata into the typed Metadata
+// the execution result exposes.
+func MetadataFromVM(m map[string]runtime.MetaValue) (Metadata, InterpreterError) {
+	if m == nil {
+		return nil, nil
+	}
+	out := make(Metadata, len(m))
+	for key, mv := range m {
+		value, err := MetaValueToValue(mv)
+		if err != nil {
+			return nil, err
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+// SetAccountsMetadataFromVM converts the VM's account metadata into the typed
+// row form, sorted by (account, key) to match internalSetAccountsMeta.toRows.
+// Scope is left empty: the VM has no scopes yet.
+func SetAccountsMetadataFromVM(m runtime.AccountsMetadata) (SetAccountsMetadata, InterpreterError) {
+	if m == nil {
+		return nil, nil
+	}
+	rows := make(SetAccountsMetadata, 0, len(m))
+	for account, accMeta := range m {
+		for key, mv := range accMeta {
+			value, err := MetaValueToValue(mv)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, SetAccountMetadataRow{Account: account, Key: key, Value: value})
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Account != rows[j].Account {
+			return rows[i].Account < rows[j].Account
+		}
+		return rows[i].Key < rows[j].Key
+	})
+	return rows, nil
+}
 
 // SetAccountMetadataRow is a single piece of account metadata set by the script
 // during execution. Unlike the input metadata (which is opaque and string-valued,

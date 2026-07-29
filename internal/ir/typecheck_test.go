@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,4 +42,27 @@ func TestBytecodeTypecheck_RedefinedWithDifferentType(t *testing.T) {
 		LoadStr{Dest: 0, Value: "x"},
 	}
 	require.Error(t, Typecheck(instrs))
+}
+
+func TestBytecodeTypecheck_MetaValueBankMatchesType(t *testing.T) {
+	// the meta type selects which bank the value is read from, so it has to agree
+	// with the register's own type
+	t.Run("agrees", func(t *testing.T) {
+		instrs := []Instr{
+			LoadStr{Dest: 0, Value: "k"},
+			LoadInt{Dest: 1, Value: *big.NewInt(42)},
+			SetTxMeta{Typ: runtime.MetaValueInt, Key: 0, Value: 1},
+		}
+		require.NoError(t, Typecheck(instrs))
+	})
+
+	t.Run("disagrees", func(t *testing.T) {
+		// <int> but the value register holds a string
+		instrs := []Instr{
+			LoadStr{Dest: 0, Value: "k"},
+			LoadStr{Dest: 1, Value: "42"},
+			SetTxMeta{Typ: runtime.MetaValueInt, Key: 0, Value: 1},
+		}
+		require.ErrorContains(t, Typecheck(instrs), "read as int but holds string")
+	})
 }

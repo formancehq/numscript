@@ -7,6 +7,8 @@ package ir
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/formancehq/numscript/internal/runtime"
 )
 
 type Reg uint
@@ -90,13 +92,21 @@ type (
 		Portion Reg  // the allotment leftover (1 - sum of the given Portions)
 		Exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
 	}
-	SetCurrentAsset          struct{ Asset Reg }               // str
-	AssertSameAsset          struct{ Left, Right Reg }         // str, str
-	AssertValidAccount       struct{ Account Reg }             // str
-	AssertNonNegativeBalance struct{ Balance, Account Reg }    // monetary, str
-	SetTxMeta                struct{ Key, Value Reg }          // str, str
-	SetAccountMeta           struct{ Account, Key, Value Reg } // str, str, str
-	MetaVar                  struct {
+	SetCurrentAsset          struct{ Asset Reg }            // str
+	AssertSameAsset          struct{ Left, Right Reg }      // str, str
+	AssertValidAccount       struct{ Account Reg }          // str
+	AssertNonNegativeBalance struct{ Balance, Account Reg } // monetary, str
+	// Value is always a str reg (the compiler stringifies), and Typ records what
+	// it was stringified from, so the execution result can carry a typed value.
+	SetTxMeta struct {
+		Key, Value Reg // str, str
+		Typ        runtime.MetaValueType
+	}
+	SetAccountMeta struct {
+		Account, Key, Value Reg // str, str, str
+		Typ                 runtime.MetaValueType
+	}
+	MetaVar struct {
 		Dest         Reg
 		Account, Key Reg // str, str
 		Typ          MetaType

@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -537,17 +538,35 @@ func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 	return nil
 }
 
+// metaValueReg resolves the value operand against the bank its meta type implies,
+// so the VM reads it from there and stringifies it itself.
+func (a *assembler) metaValueReg(typ runtime.MetaValueType, r Reg) (byte, error) {
+	switch typ {
+	case runtime.MetaValueStr, runtime.MetaValueAccount, runtime.MetaValueAsset:
+		return a.strReg(r)
+	case runtime.MetaValueInt:
+		return a.intReg(r)
+	case runtime.MetaValuePortion:
+		return a.portionReg(r)
+	case runtime.MetaValueMonetary:
+		return a.monetaryReg(r)
+	default:
+		return 0, fmt.Errorf("assembler: unknown meta value type %d", typ)
+	}
+}
+
 func (i SetTxMeta) assemble(a *assembler) error {
 	key, err := a.strReg(i.Key)
 	if err != nil {
 		return err
 	}
-	value, err := a.strReg(i.Value)
+	value, err := a.metaValueReg(i.Typ, i.Value)
 	if err != nil {
 		return err
 	}
 
-	a.emit(vm.Op_SetTxMeta, key, value, maxReg)
+	// the value's type rides in the free C byte
+	a.emit(vm.Op_SetTxMeta, key, value, byte(i.Typ))
 
 	return nil
 }
@@ -610,12 +629,21 @@ func (i SetAccountMeta) assemble(a *assembler) error {
 	if err != nil {
 		return err
 	}
-	value, err := a.strReg(i.Value)
+	value, err := a.metaValueReg(i.Typ, i.Value)
 	if err != nil {
 		return err
 	}
 
+	// A/B/C are all taken, so the value's type goes in an ext word (as
+	// Op_PullAccount does for its overflow operands)
 	a.emit(vm.Op_SetAccountMeta, account, key, value)
+
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,      // <- UNUSED
+		A:      byte(i.Typ), // the value's meta type
+		B:      maxReg,      // <- UNUSED
+		C:      maxReg,      // <- UNUSED
+	})
 
 	return nil
 }

@@ -28,7 +28,11 @@ instrCall: instrName '(' args ')';
 
 instrName: IDENTIFIER ('<' typeName '>')?;
 
-typeName: TYPE_KEYWORD;
+// IDENTIFIER too, so a type name doesn't have to be a reserved word: `account`
+// and `asset` are meta types but also appear as labeled arg names (e.g.
+// `pull_account(account: $r)`). Which names an instruction accepts is checked when
+// the parse tree is transformed, not by the grammar.
+typeName: TYPE_KEYWORD | IDENTIFIER;
 
 args: (arg (',' arg)*)?;
 

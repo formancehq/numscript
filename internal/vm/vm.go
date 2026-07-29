@@ -73,6 +73,27 @@ func (s runtimeStoreAdapter) GetBalance(
 	return s.store.GetBalance(s.ctx, account, asset, color)
 }
 
+// metaValue reads a metadata value out of the register bank its type implies and
+// stringifies it. Metadata is stored as text, so the stringification has to happen
+// somewhere; doing it here rather than in the compiler keeps the type in exactly
+// one place (the instruction's type operand) and mirrors the read side, where
+// Op_MetaStr/Int/Portion/Monetary likewise pick the bank from the type.
+func (vm *Vm) metaValue(typ runtime.MetaValueType, reg byte) runtime.MetaValue {
+	var value string
+	switch typ {
+	case runtime.MetaValueStr, runtime.MetaValueAccount, runtime.MetaValueAsset:
+		value = vm.stringsRegs[reg]
+	case runtime.MetaValueInt:
+		value = vm.intsRegs[reg].String()
+	case runtime.MetaValuePortion:
+		value = vm.portionsRegs[reg].String()
+	case runtime.MetaValueMonetary:
+		m := &vm.monetariesRegs[reg]
+		value = m.asset + " " + m.amount.String()
+	}
+	return runtime.MetaValue{Value: value, Typ: typ}
+}
+
 func Exec[S Store](
 	ctx context.Context,
 	vm *Vm,
@@ -92,7 +113,7 @@ func Exec[S Store](
 	}
 	runstate := vm.runstate
 
-	var txMeta map[string]string
+	var txMeta map[string]runtime.MetaValue
 	var accountsMeta runtime.AccountsMetadata
 
 	// Hoist register banks and constant pools into locals so the hot loop indexes
@@ -272,11 +293,14 @@ func Exec[S Store](
 
 		case Op_SetTxMeta:
 			if txMeta == nil {
-				txMeta = map[string]string{}
+				txMeta = map[string]runtime.MetaValue{}
 			}
-			txMeta[stringsRegs[instr.A]] = stringsRegs[instr.B]
+			txMeta[stringsRegs[instr.A]] = vm.metaValue(runtime.MetaValueType(instr.C), instr.B)
 
 		case Op_SetAccountMeta:
+			instrExt := instrs[pc]
+			pc++
+
 			if accountsMeta == nil {
 				accountsMeta = runtime.AccountsMetadata{}
 			}
@@ -286,7 +310,7 @@ func Exec[S Store](
 				accMeta = runtime.AccountMetadata{}
 				accountsMeta[account] = accMeta
 			}
-			accMeta[stringsRegs[instr.B]] = stringsRegs[instr.C]
+			accMeta[stringsRegs[instr.B]] = vm.metaValue(runtime.MetaValueType(instrExt.A), instr.C)
 
 		case Op_MetaStr:
 			v, err := lookupMeta(ctx, store, stringsRegs[instr.B], stringsRegs[instr.C])

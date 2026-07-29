@@ -476,7 +476,7 @@ func TestRoundtripAllInstructions(t *testing.T) {
 			ir: `
   $r0 = "key"
   $r1 = "value"
-  set_tx_meta($r0, $r1)
+  set_tx_meta<str>($r0, $r1)
 `,
 		},
 		{
@@ -484,8 +484,10 @@ func TestRoundtripAllInstructions(t *testing.T) {
 			ir: `
   $r0 = "acct"
   $r1 = "key"
-  $r2 = "value"
-  set_account_meta($r0, $r1, $r2)
+  $r2 = "USD/2"
+  $r3 = 100
+  $r4 = mk_monetary($r2, $r3)
+  set_account_meta<monetary>($r0, $r1, $r4)
 `,
 		},
 		{

@@ -266,7 +266,8 @@ func buildInstrCall(ctx antlrParser.IInstrCallContext) InstrCall {
 func buildInstrName(ctx antlrParser.IInstrNameContext) (name string, typeParam string) {
 	name = ctx.IDENTIFIER().GetText()
 	if tn := ctx.TypeName(); tn != nil {
-		typeParam = tn.(*antlrParser.TypeNameContext).TYPE_KEYWORD().GetText()
+		// a type name is either a TYPE_KEYWORD or a plain IDENTIFIER (see IR.g4)
+		typeParam = tn.GetText()
 	}
 	return
 }

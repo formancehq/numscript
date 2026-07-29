@@ -206,8 +206,26 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 
 | syntax | operands |
 | --- | --- |
-| `set_tx_meta($key, $value)` | `str, str` |
-| `set_account_meta($account, $key, $value)` | `str, str, str` |
+| `set_tx_meta<str>($key, $value)` | `str, str` |
+| `set_tx_meta<int>($key, $value)` | `str, int` |
+| `set_account_meta<monetary>($account, $key, $value)` | `str, str, monetary` |
+
+Both take a required type parameter — one of `str`, `account`, `asset`, `int`,
+`portion`, `monetary` — and it does two jobs at once:
+
+* it selects the register bank `$value` is read from, exactly as it does on the
+  read side (`meta<int>` writes an int reg, `set_tx_meta<int>` reads one). `str`,
+  `account` and `asset` all read the string bank; they differ only in the type
+  reported in the result. `Typecheck` enforces the agreement, so
+  `set_tx_meta<int>($k, $v)` with a string `$v` is rejected.
+* it is reported in the execution result, so a host can rebuild the typed value.
+  Metadata is stored as text and the VM stringifies the value when it stores it —
+  without the type, the string `"42"` and the number `42` would be
+  indistinguishable in the output.
+
+There is deliberately no conversion instruction on this path: stating the type on
+the instruction and letting the VM stringify keeps it in one place, instead of
+implying it with an `int_to_string` and then restating it.
 
 ### Control flow
 

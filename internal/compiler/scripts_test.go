@@ -127,8 +127,29 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 			}
 			require.Equal(t, tc.ExpectPostings, got, "case %q", tc.It)
 		}
-		// VM metadata output is stringified and not yet mapped to the typed spec
-		// contract, so metadata assertions are covered by the vm package tests.
+
+		if tc.ExpectTxMeta != nil {
+			gotMeta, err := interpreter.MetadataFromVM(res.Metadata)
+			require.NoError(t, err, "case %q: tx metadata", tc.It)
+			require.True(t,
+				specs_format.CheckTxMeta(tc.ExpectTxMeta, gotMeta),
+				"case %q: expect.txMetadata: expected %v, got %v", tc.It, tc.ExpectTxMeta, gotMeta)
+		}
+
+		if tc.ExpectAccountsMeta != nil {
+			gotMeta, err := interpreter.SetAccountsMetadataFromVM(res.AccountsMetadata)
+			require.NoError(t, err, "case %q: account metadata", tc.It)
+			require.True(t,
+				interpreter.CompareSetAccountsMetadata(tc.ExpectAccountsMeta, gotMeta),
+				"case %q: expect.metadata: expected %v, got %v", tc.It, tc.ExpectAccountsMeta, gotMeta)
+		}
+
+		// Assertions this runner can't evaluate yet. Failing loudly beats skipping
+		// them silently, which reads as coverage the spec isn't actually getting.
+		require.Nil(t, tc.ExpectEndBalances, "case %q: expect.endBalances not supported by the compiler runner", tc.It)
+		require.Nil(t, tc.ExpectEndBalancesInclude, "case %q: expect.endBalances.include not supported by the compiler runner", tc.It)
+		require.Nil(t, tc.ExpectMovements, "case %q: expect.movements not supported by the compiler runner", tc.It)
+		require.False(t, tc.ExpectNegativeAmount, "case %q: expect.error.negativeAmount not supported by the compiler runner", tc.It)
 	}
 }
 

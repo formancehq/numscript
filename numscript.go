@@ -175,7 +175,20 @@ func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (E
 	}
 
 	// Postings share one type now (runtime.Posting); the VM leaves scope fields
-	// empty. TODO map VM tx/account metadata (stringified) onto the typed
-	// contract; deferred together with scopes/colors in the VM.
-	return ExecutionResult{Postings: res.Postings}, nil
+	// empty. Metadata is stored stringified plus the type it was stringified from,
+	// so it maps back onto the typed contract here.
+	txMeta, err := interpreter.MetadataFromVM(res.Metadata)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+	accountsMeta, err := interpreter.SetAccountsMetadataFromVM(res.AccountsMetadata)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+
+	return ExecutionResult{
+		Postings:         res.Postings,
+		Metadata:         txMeta,
+		AccountsMetadata: accountsMeta,
+	}, nil
 }

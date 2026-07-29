@@ -1,6 +1,10 @@
 package ir
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/formancehq/numscript/internal/runtime"
+)
 
 // regType is the type of a virtual register. It mirrors the four VM register
 // banks; every register has exactly one type for its whole life.
@@ -139,9 +143,17 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 		return firstErr(tc.use(i.Balance, regMonetary), tc.use(i.Account, regStr))
 
 	case SetTxMeta:
-		return firstErr(tc.use(i.Key, regStr), tc.use(i.Value, regStr))
+		t, err := metaValueRegType(i.Typ)
+		if err != nil {
+			return err
+		}
+		return firstErr(tc.use(i.Key, regStr), tc.use(i.Value, t))
 	case SetAccountMeta:
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.use(i.Value, regStr))
+		t, err := metaValueRegType(i.Typ)
+		if err != nil {
+			return err
+		}
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.use(i.Value, t))
 	case MetaVar:
 		t, err := metaRegType(i.Typ)
 		if err != nil {
@@ -193,6 +205,25 @@ func varRegType(t VarType) (regType, error) {
 		return regStr, nil
 	default:
 		return 0, fmt.Errorf("bytecode typechecker: unknown var type %T", t)
+	}
+}
+
+// metaValueRegType is the write-side counterpart of metaRegType: the type
+// parameter on set_tx_meta / set_account_meta selects which bank the value is read
+// from, and the VM stringifies it there. str/account/asset all live in the string
+// bank — they differ only in the type reported in the result.
+func metaValueRegType(t runtime.MetaValueType) (regType, error) {
+	switch t {
+	case runtime.MetaValueStr, runtime.MetaValueAccount, runtime.MetaValueAsset:
+		return regStr, nil
+	case runtime.MetaValueInt:
+		return regInt, nil
+	case runtime.MetaValuePortion:
+		return regPortion, nil
+	case runtime.MetaValueMonetary:
+		return regMonetary, nil
+	default:
+		return 0, fmt.Errorf("bytecode typechecker: unknown meta value type %d", t)
 	}
 }
 
