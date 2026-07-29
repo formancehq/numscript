@@ -22,7 +22,7 @@ func TestBytecodeTypecheck_UseBeforeWrite(t *testing.T) {
 	instrs := []Instr{
 		UnaryOp{Op: OpNegInt{}, Dest: 1, Arg: 0},
 	}
-	require.Error(t, Typecheck(instrs))
+	require.ErrorContains(t, Typecheck(instrs), "read as int before being written")
 }
 
 func TestBytecodeTypecheck_WrongType(t *testing.T) {
@@ -31,7 +31,7 @@ func TestBytecodeTypecheck_WrongType(t *testing.T) {
 		LoadStr{Dest: 0, Value: "USD/2"},
 		UnaryOp{Op: OpNegInt{}, Dest: 1, Arg: 0},
 	}
-	require.Error(t, Typecheck(instrs))
+	require.ErrorContains(t, Typecheck(instrs), "read as int but holds string")
 }
 
 func TestBytecodeTypecheck_RedefinedWithDifferentType(t *testing.T) {
@@ -40,5 +40,176 @@ func TestBytecodeTypecheck_RedefinedWithDifferentType(t *testing.T) {
 		LoadInt{Dest: 0, Value: *big.NewInt(1)},
 		LoadStr{Dest: 0, Value: "x"},
 	}
-	require.Error(t, Typecheck(instrs))
+	require.ErrorContains(t, Typecheck(instrs), "written as string but already holds int")
+}
+
+func TestBytecodeTypecheck_ErrorLocatesTheInstruction(t *testing.T) {
+	instrs := []Instr{
+		LoadStr{Dest: 0, Value: "src"},
+		LoadStr{Dest: 1, Value: "dest"},
+		CheckEnoughFunds{Got: 0, Needed: 1},
+	}
+	err := Typecheck(instrs)
+	require.ErrorContains(t, err, "at instruction 2")
+	require.ErrorContains(t, err, "check_enough_funds($r0, $r1)")
+}
+
+// Every register operand must be rejected when it names a register of the wrong
+// bank. Each case is the prelude plus one instruction with exactly one bad operand.
+func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
+	intReg, strReg, portionReg, monReg := Reg(0), Reg(1), Reg(2), Reg(3)
+	prelude := []Instr{
+		LoadInt{Dest: intReg, Value: *big.NewInt(1)},
+		LoadStr{Dest: strReg, Value: "USD/2"},
+		BinaryOp{Op: OpMakePortion{}, Dest: portionReg, Left: intReg, Right: intReg},
+		BinaryOp{Op: OpMakeMonetary{}, Dest: monReg, Left: strReg, Right: intReg},
+	}
+
+	testCases := []struct {
+		name  string
+		instr Instr
+	}{
+		{"pull_account account", PullAccount{Dest: 9, Account: intReg}},
+		{"pull_account cap", PullAccount{Dest: 9, Account: strReg, Cap: &strReg}},
+		{"pull_account overdraft", PullAccount{Dest: 9, Account: strReg, Overdraft: &strReg}},
+		{"pull_account color", PullAccount{Dest: 9, Account: strReg, Color: &intReg}},
+		{"send_to_account account", SendToAccount{Account: &intReg}},
+		{"send_to_account cap", SendToAccount{Account: &strReg, Cap: &strReg}},
+		{"save account", Save{Account: intReg, Asset: strReg}},
+		{"save asset", Save{Account: strReg, Asset: intReg}},
+		{"save amount", Save{Account: strReg, Asset: strReg, Amount: &strReg}},
+		{"mk_allot amount", MakeAllotment{Dest: []Reg{9}, Amount: strReg, Portions: []Reg{portionReg}}},
+		{"mk_allot portion", MakeAllotment{Dest: []Reg{9}, Amount: intReg, Portions: []Reg{intReg}}},
+		{"mk_allot dest", MakeAllotment{Dest: []Reg{strReg}, Amount: intReg, Portions: []Reg{portionReg}}},
+		{"check_enough_funds got", CheckEnoughFunds{Got: strReg, Needed: intReg}},
+		{"check_enough_funds needed", CheckEnoughFunds{Got: intReg, Needed: strReg}},
+		{"assert_leftover", AssertLeftover{Portion: intReg}},
+		{"set_current_asset", SetCurrentAsset{Asset: intReg}},
+		{"assert_same_asset left", AssertSameAsset{Left: intReg, Right: strReg}},
+		{"assert_same_asset right", AssertSameAsset{Left: strReg, Right: intReg}},
+		{"assert_valid_account", AssertValidAccount{Account: intReg}},
+		{"assert_valid_color", AssertValidColor{Color: intReg}},
+		{"assert_non_negative_balance balance", AssertNonNegativeBalance{Balance: intReg, Account: strReg}},
+		{"assert_non_negative_balance account", AssertNonNegativeBalance{Balance: monReg, Account: intReg}},
+		{"set_tx_meta key", SetTxMeta{Key: intReg, Value: strReg}},
+		{"set_tx_meta value", SetTxMeta{Key: strReg, Value: intReg}},
+		{"set_account_meta account", SetAccountMeta{Account: intReg, Key: strReg, Value: strReg}},
+		{"set_account_meta key", SetAccountMeta{Account: strReg, Key: intReg, Value: strReg}},
+		{"set_account_meta value", SetAccountMeta{Account: strReg, Key: strReg, Value: intReg}},
+		{"meta account", MetaVar{Dest: 9, Account: intReg, Key: strReg, Typ: MetaStr{}}},
+		{"meta key", MetaVar{Dest: 9, Account: strReg, Key: intReg, Typ: MetaStr{}}},
+		{"balance account", FetchBalance{Dest: 9, Account: intReg, Asset: strReg}},
+		{"balance asset", FetchBalance{Dest: 9, Account: strReg, Asset: intReg}},
+		{"jmp_if_zero cond", JmpIfZero{Cond: strReg, Target: "end"}},
+		{"restore mark", Restore{Mark: strReg}},
+		{"unary arg", UnaryOp{Op: OpGetAmount{}, Dest: 9, Arg: intReg}},
+		{"binary left", BinaryOp{Op: OpAddString{}, Dest: 9, Left: intReg, Right: strReg}},
+		{"binary right", BinaryOp{Op: OpAddString{}, Dest: 9, Left: strReg, Right: intReg}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Error(t, Typecheck(append(append([]Instr{}, prelude...), tc.instr)))
+		})
+	}
+}
+
+// The dest bank of these instructions comes from a type tag, not from an operand.
+// Reading the dest back as an int is what tells the two apart.
+func TestBytecodeTypecheck_TaggedDests(t *testing.T) {
+	str := Reg(0)
+	prelude := []Instr{LoadStr{Dest: str, Value: "k"}}
+
+	testCases := []struct {
+		name      string
+		instr     Instr
+		destIsInt bool
+	}{
+		{"load_var<int>", LoadVar{Dest: 9, Typ: VarInt{}}, true},
+		{"load_var<str>", LoadVar{Dest: 9, Typ: VarStr{}}, false},
+		{"meta<str>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaStr{}}, false},
+		{"meta<int>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaInt{}}, true},
+		{"meta<portion>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaPortion{}}, false},
+		{"meta<monetary>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaMonetary{}}, false},
+		{"snapshot", Snapshot{Dest: 9}, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// restore only accepts an int register
+			instrs := append(append([]Instr{}, prelude...), tc.instr, Restore{Mark: 9})
+			if tc.destIsInt {
+				require.NoError(t, Typecheck(instrs))
+			} else {
+				require.Error(t, Typecheck(instrs))
+			}
+		})
+	}
+}
+
+func TestBytecodeTypecheck_LabelMarker(t *testing.T) {
+	require.NoError(t, Typecheck([]Instr{LabelMarker{Label: "end"}}))
+	require.Empty(t, LabelMarker{Label: "end"}.dests())
+	require.Empty(t, LabelMarker{Label: "end"}.sources())
+}
+
+// --- An unknown instruction or type tag is a bug in whatever built the stream:
+// reported as an error, never panicked.
+
+type unknownInstr struct{}
+
+func (unknownInstr) dests() []Reg              { return nil }
+func (unknownInstr) sources() []Reg            { return nil }
+func (unknownInstr) assemble(*assembler) error { return nil }
+func (unknownInstr) String() string            { return "unknown_instr" }
+
+type unknownUnOp struct{}
+
+func (unknownUnOp) String() string  { return "unknown_un_op" }
+func (unknownUnOp) sig() unaryOpSig { return unaryOpSig{} }
+
+type unknownBinOp struct{}
+
+func (unknownBinOp) String() string   { return "unknown_bin_op" }
+func (unknownBinOp) sig() binaryOpSig { return binaryOpSig{} }
+
+type unknownVarType struct{}
+
+func (unknownVarType) String() string                             { return "unknown_var_type" }
+func (unknownVarType) assembleLoad(*assembler, Reg, uint16) error { return nil }
+
+type unknownMetaType struct{}
+
+func (unknownMetaType) String() string                               { return "unknown_meta_type" }
+func (unknownMetaType) assembleMeta(*assembler, Reg, Reg, Reg) error { return nil }
+
+func TestBytecodeTypecheck_UnknownTags(t *testing.T) {
+	str := Reg(0)
+	prelude := []Instr{LoadStr{Dest: str, Value: "k"}}
+
+	testCases := []struct {
+		name  string
+		instr Instr
+		msg   string
+	}{
+		{"instruction", unknownInstr{}, "unhandled instruction"},
+		{"unary op", UnaryOp{Op: unknownUnOp{}, Dest: 9, Arg: str}, "unknown unary op"},
+		{"binary op", BinaryOp{Op: unknownBinOp{}, Dest: 9, Left: str, Right: str}, "unknown binary op"},
+		{"var type", LoadVar{Dest: 9, Typ: unknownVarType{}}, "unknown var type"},
+		{"meta type", MetaVar{Dest: 9, Account: str, Key: str, Typ: unknownMetaType{}}, "unknown meta type"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorContains(t, Typecheck(append(append([]Instr{}, prelude...), tc.instr)), tc.msg)
+		})
+	}
+}
+
+func TestRegTypeString(t *testing.T) {
+	require.Equal(t, "int", regInt.String())
+	require.Equal(t, "string", regStr.String())
+	require.Equal(t, "portion", regPortion.String())
+	require.Equal(t, "monetary", regMonetary.String())
+	require.Equal(t, "?", regType(42).String())
 }

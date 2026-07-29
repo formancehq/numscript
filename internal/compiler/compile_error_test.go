@@ -212,3 +212,32 @@ func TestInSourceFeatureDeclarationRejectsUnknownFlag(t *testing.T) {
 	require.IsType(t, InvalidFeature{}, cErr)
 	require.Equal(t, "not-a-flag", cErr.(InvalidFeature).Feature)
 }
+
+// Every CompilerError must carry a human-readable message: CompilerError is
+// parser.Ranged + compileError(), so a type missing Error() still satisfies the
+// interface and Compile's fmt.Errorf("%v") would print the raw struct instead.
+func TestCompilerErrorMessages(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  CompilerError
+		msg  string
+	}{
+		{"UnboundVar", UnboundVar{Var: "x"}, "the variable '$x' was not declared"},
+		{"TypeError", TypeError{Kind: typecheck.UnboundVariable{Name: "x"}}, "The variable '$x' was not declared"},
+		{"InvalidUncappedSource", InvalidUncappedSource{}, "cannot take all balance of an unbounded source"},
+		{"DuplicateRemaining", DuplicateRemaining{}, "a 'remaining' clause should be the last in an allotment expression"},
+		{"InvalidMetaPosition", InvalidMetaPosition{}, "meta() is only allowed as a variable origin"},
+		{"CannotCastToString", CannotCastToString{Type: typecheck.TypeMonetary}, "cannot cast a value of type monetary to string"},
+		{"FeatureNotImplemented", FeatureNotImplemented{Feature: "scaling"}, "internal error: feature not implemented: scaling"},
+		{"ExperimentalFeature", ExperimentalFeature{FlagName: flags.ExperimentalAssetColors}, "You need the 'experimental-asset-colors' feature flag to enable it"},
+		{"InvalidFeature", InvalidFeature{Feature: "nope"}, "Invalid feature: nope"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err, ok := tc.err.(error)
+			require.True(t, ok, "%T does not implement error", tc.err)
+			require.Contains(t, err.Error(), tc.msg)
+		})
+	}
+}

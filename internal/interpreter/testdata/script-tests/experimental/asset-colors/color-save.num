@@ -1,0 +1,8 @@
+// `save` is colorless: it only reduces the uncolored balance, so the colored
+// send still sees its own funds.
+save [COIN *] from @src
+
+send [COIN 50] (
+  source = @src \ "RED"
+  destination = @dest
+)

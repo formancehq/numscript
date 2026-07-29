@@ -117,6 +117,100 @@ func TestParseErrors(t *testing.T) {
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "duplicate label")
 	})
+
+	t.Run("const assigned to a dest list", func(t *testing.T) {
+		_, errs := Parse(`
+  [$r0, $r1] = 1
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "const assignment requires a single register dest")
+	})
+
+	t.Run("infix assigned to a dest list", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = 1
+  [$r1, $r2] = $r0 + $r0
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "infix requires a single register dest")
+	})
+
+	t.Run("compound assign to a dest list", func(t *testing.T) {
+		// the grammar only allows a single register left of `+=`, so this one is
+		// rejected before the transform sees it
+		_, errs := Parse(`
+  $r0 = 1
+  [$r1, $r2] += $r0
+`)
+		require.NotEmpty(t, errs)
+	})
+
+	t.Run("labeled arg of the wrong kind", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = pull_account(account: 42)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, `labeled arg "account": expected register, got integer literal`)
+	})
+
+	t.Run("register where a label is expected", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = 1
+  jmp_if_zero($r0, $r0)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "expected label, got register")
+	})
+
+	t.Run("register where a register list is expected", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = 1
+  [$r1] = mk_allot($r0, $r0)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "expected register list, got register")
+	})
+
+	t.Run("register list where a register is expected", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = "USD/2"
+  set_current_asset([$r0, $r0])
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "expected register, got register list")
+	})
+}
+
+// The infix forms are sugar: the call form of every binary op parses too, even
+// though ir.Dump never prints it for add_int / sub_int.
+func TestBinaryOpCallForms(t *testing.T) {
+	instrs, errs := Parse(`
+  $i = 1
+  $s = "x"
+  $p = mk_portion($i, $i)
+  $sum = add_int($i, $i)
+  $diff = sub_int($i, $i)
+  $cat = add_string($s, $s)
+  $rest = sub_portion($p, $p)
+  $mon = mk_monetary($s, $i)
+`)
+	require.Empty(t, errs)
+	require.NoError(t, Typecheck(instrs))
+
+	// the dump switches the two int ops back to their infix spelling
+	require.Contains(t, Dump(instrs), "$r3 = $r0 + $r0")
+	require.Contains(t, Dump(instrs), "$r4 = $r0 - $r0")
+	require.Contains(t, Dump(instrs), "$r5 = add_string($r1, $r1)")
+	require.Contains(t, Dump(instrs), "$r6 = sub_portion($r2, $r2)")
+}
+
+func TestParseErrorMessageFormat(t *testing.T) {
+	_, errs := Parse(`
+  $r0 = no_such_instr($r1)
+`)
+	require.NotEmpty(t, errs)
+	// 1-based line:character, then the reason
+	require.Regexp(t, `^\d+:\d+: .*unknown instruction`, errs[0].Error())
 }
 
 // TestReadBeforeWrite checks that reading a register nothing ever assigned to is

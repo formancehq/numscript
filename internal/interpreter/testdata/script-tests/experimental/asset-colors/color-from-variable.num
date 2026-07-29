@@ -1,0 +1,6 @@
+vars { string $color }
+
+send [COIN 30] (
+  source = @src \ $color
+  destination = @dest
+)

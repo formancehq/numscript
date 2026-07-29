@@ -1,0 +1,54 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors",
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "rolls the short branch back to its own color and commits the next one",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 10
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "BLUE",
+          "amount": 50
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "BLUE"
+        }
+      ],
+      "expect.endBalances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 10
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "BLUE",
+          "amount": 0
+        },
+        {
+          "account": "dest",
+          "asset": "COIN",
+          "color": "BLUE",
+          "amount": 50
+        }
+      ]
+    }
+  ]
+}

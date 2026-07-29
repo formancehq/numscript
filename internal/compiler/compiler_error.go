@@ -82,6 +82,15 @@ func (InvalidFeature) compileError()        {}
 func (e FeatureNotImplemented) Error() string {
 	return "internal error: feature not implemented: " + e.Feature
 }
+func (e UnboundVar) Error() string {
+	return fmt.Sprintf("the variable '$%s' was not declared", e.Var)
+}
+func (InvalidUncappedSource) Error() string {
+	return "cannot take all balance of an unbounded source"
+}
+func (DuplicateRemaining) Error() string {
+	return "a 'remaining' clause should be the last in an allotment expression"
+}
 func (e TypeError) Error() string { return e.Kind.Message() }
 func (InvalidMetaPosition) Error() string {
 	return "meta() is only allowed as a variable origin"

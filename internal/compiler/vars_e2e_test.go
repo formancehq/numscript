@@ -118,3 +118,37 @@ func TestVarsEncoder_Errors(t *testing.T) {
 	_, err = enc.Encode(map[string]string{"n": "not-a-number", "acc": "alice"})
 	require.ErrorContains(t, err, "variable $n")
 }
+
+// Every var type validates its raw value, and the error names the variable.
+func TestVarsEncoder_ErrorsPerType(t *testing.T) {
+	testCases := []struct {
+		typ string
+		raw string
+		msg string
+	}{
+		{"number", "4.2", `invalid number: "4.2"`},
+		{"account", "not an account", `invalid account: "not an account"`},
+		{"asset", "usd", `invalid asset: "usd"`},
+		{"portion", "nope", "invalid format"},
+		{"portion", "200%", "between 0% and 100%"},
+		{"monetary", "USD/2", `invalid monetary: "USD/2"`},
+		{"monetary", "usd 1", `invalid asset: "usd"`},
+		{"string", "anything goes", ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.typ+" "+tc.raw, func(t *testing.T) {
+			enc := compileEncoder(t, `
+				vars { `+tc.typ+` $v }
+				send [COIN 0] (source = @world destination = @world)
+			`)
+			_, err := enc.Encode(map[string]string{"v": tc.raw})
+			if tc.msg == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, "variable $v")
+			require.ErrorContains(t, err, tc.msg)
+		})
+	}
+}

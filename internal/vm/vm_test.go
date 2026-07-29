@@ -6,10 +6,12 @@ package vm
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/stretchr/testify/require"
 )
 
 // --- register allocation: one $rN namespace -> typed banks ----------------
@@ -124,4 +126,48 @@ func TestAssertValidAccount(t *testing.T) {
 	if _, ok := err.(InvalidAccountName); !ok {
 		t.Fatalf("expected InvalidAccountName, got %v", err)
 	}
+}
+
+func TestExecutionErrorMessages(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  ExecutionError
+		msg  string
+	}{
+		{"MissingFundsError", MissingFundsError{Asset: "USD/2", Needed: big.NewInt(10), Got: big.NewInt(4)},
+			"missing funds for asset USD/2: needed 10, got 4"},
+		{"AssetMismatchError", AssetMismatchError{Expected: "USD/2", Got: "EUR/2"},
+			"asset mismatch: expected USD/2, got EUR/2"},
+		{"InvalidUncappedSource", InvalidUncappedSource{Account: "src"},
+			"unbounded source is not allowed here: @src"},
+		{"InvalidAllotmentSum", InvalidAllotmentSum{ActualSum: *big.NewRat(3, 2)},
+			"invalid allotment: portions must sum to 1, got 3/2"},
+		{"MetadataNotFoundError", MetadataNotFoundError{Account: "acc", Key: "k"},
+			`metadata not found: acc["k"]`},
+		{"BadMetaValueError", BadMetaValueError{Account: "acc", Key: "k", Raw: "oops"},
+			`invalid metadata value for acc["k"]: "oops"`},
+		{"InvalidAccountName", InvalidAccountName{Name: "not an account"},
+			`invalid account name: "not an account"`},
+		{"InvalidColor", InvalidColor{Color: "red"},
+			`invalid color name: "red"`},
+		{"NegativeBalanceError", NegativeBalanceError{Account: "src", Amount: *big.NewInt(-1)},
+			"cannot fetch negative balance from account @src"},
+		{"DivideByZeroError", DivideByZeroError{Numerator: *big.NewInt(7)},
+			"cannot divide by zero (in 7/0)"},
+		{"InternalError", InternalError{Err: errors.New("boom")}, "internal error: boom"},
+		{"StoreError", StoreError{Wrapped: errors.New("store is down")}, "store error: store is down"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.msg, tc.err.Error())
+		})
+	}
+}
+
+// The two wrapping errors must stay unwrappable, so hosts can inspect the cause.
+func TestExecutionErrorsUnwrap(t *testing.T) {
+	cause := errors.New("cause")
+	require.ErrorIs(t, InternalError{Err: cause}, cause)
+	require.ErrorIs(t, StoreError{Wrapped: cause}, cause)
 }

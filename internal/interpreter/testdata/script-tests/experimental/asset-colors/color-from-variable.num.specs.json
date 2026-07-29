@@ -1,0 +1,49 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "balances": [
+    {
+      "account": "src",
+      "asset": "COIN",
+      "amount": 40
+    },
+    {
+      "account": "src",
+      "asset": "COIN",
+      "color": "RED",
+      "amount": 50
+    }
+  ],
+  "testCases": [
+    {
+      "it": "pulls the colored balance",
+      "variables": {
+        "color": "RED"
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ]
+    },
+    {
+      "it": "an empty color pulls the uncolored balance",
+      "variables": {
+        "color": ""
+      },
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

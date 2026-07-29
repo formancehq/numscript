@@ -1,0 +1,32 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "saving the uncolored balance leaves the colored one spendable",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 100
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 50
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ]
+    }
+  ]
+}

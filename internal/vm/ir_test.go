@@ -605,12 +605,50 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
 	})
 
 	t.Run("on a metadata read", func(t *testing.T) {
-		execErr := runIRExpectingError(t, `
+		for _, typ := range []string{"str", "int", "portion", "monetary"} {
+			execErr := runIRExpectingError(t, `
   $acc = "acc"
   $key = "k"
-  $v = meta<str>($acc, $key)
+  $v = meta<`+typ+`>($acc, $key)
+`, failing, nil)
+			require.IsType(t, vm.StoreError{}, execErr, "meta<%s>", typ)
+		}
+	})
+
+	t.Run("on an uncapped pull", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $overdraft = 0
+  $pulled = pull_account(account: $src, overdraft: $overdraft)
 `, failing, nil)
 		require.IsType(t, vm.StoreError{}, execErr)
+	})
+
+	t.Run("on a save", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $acc = "acc"
+  $asset = "USD/2"
+  $amount = 10
+  save(account: $acc, asset: $asset, amount: $amount)
+`, failing, nil)
+		require.IsType(t, vm.StoreError{}, execErr)
+	})
+
+	t.Run("but not on a send: crediting a destination reads nothing", func(t *testing.T) {
+		// @world is unbounded, so the pull reads no balance either — the whole send
+		// runs against a store that fails every call
+		res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $world = "world"
+  $amount = 10
+  $pulled = pull_account(account: $world, cap: $amount)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, failing, nil)
+		requirePostings(t, []runtime.Posting{posting("world", "dest", 10)}, res.Postings)
 	})
 }
 
