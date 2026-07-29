@@ -522,6 +522,17 @@ func (i AssertValidAccount) assemble(a *assembler) error {
 	return nil
 }
 
+func (i AssertValidColor) assemble(a *assembler) error {
+	color, err := a.strReg(i.Color)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertValidColor, color, maxReg, maxReg)
+
+	return nil
+}
+
 func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 	balance, err := a.monetaryReg(i.Balance)
 	if err != nil {

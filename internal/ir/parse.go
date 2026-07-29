@@ -499,6 +499,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = AssertSameAsset{Left: ap.reg(), Right: ap.reg()}
 	case "assert_valid_account":
 		instr = AssertValidAccount{Account: ap.reg()}
+	case "assert_valid_color":
+		instr = AssertValidColor{Color: ap.reg()}
 	case "assert_non_negative_balance":
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
 

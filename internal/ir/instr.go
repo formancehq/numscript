@@ -93,6 +93,7 @@ type (
 	SetCurrentAsset          struct{ Asset Reg }               // str
 	AssertSameAsset          struct{ Left, Right Reg }         // str, str
 	AssertValidAccount       struct{ Account Reg }             // str
+	AssertValidColor         struct{ Color Reg }               // str
 	AssertNonNegativeBalance struct{ Balance, Account Reg }    // monetary, str
 	SetTxMeta                struct{ Key, Value Reg }          // str, str
 	SetAccountMeta           struct{ Account, Key, Value Reg } // str, str, str
@@ -174,6 +175,9 @@ func (i AssertSameAsset) sources() []Reg { return []Reg{i.Left, i.Right} }
 
 func (i AssertValidAccount) dests() []Reg   { return nil }
 func (i AssertValidAccount) sources() []Reg { return []Reg{i.Account} }
+
+func (i AssertValidColor) dests() []Reg   { return nil }
+func (i AssertValidColor) sources() []Reg { return []Reg{i.Color} }
 
 func (i AssertNonNegativeBalance) dests() []Reg   { return nil }
 func (i AssertNonNegativeBalance) sources() []Reg { return []Reg{i.Balance, i.Account} }

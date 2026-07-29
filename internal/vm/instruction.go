@@ -54,6 +54,9 @@ const (
 
 	Op_CheckEnoughFunds Opcode = 0x05
 
+	// errors if the color in str reg A is not well-formed
+	Op_AssertValidColor Opcode = 0x06
+
 	// --- constants & variables (0x10) ---
 	// may split into one opcode per expr_typ later
 	Op_LoadInt Opcode = 0x10 // LoadConst (`Int)    -> b_c = const-pool index

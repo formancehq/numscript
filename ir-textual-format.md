@@ -197,6 +197,7 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 | `assert_leftover_exact($portion)` | `portion` — leftover must be exactly `0` |
 | `assert_same_asset($l, $r)` | `str, str` |
 | `assert_valid_account($a)` | `str` |
+| `assert_valid_color($c)` | `str` |
 | `assert_non_negative_balance($bal, $account)` | `monetary, str` |
 | `set_current_asset($asset)` | `str` — required before `pull_account` / `send_to_account` |
 

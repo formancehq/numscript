@@ -943,6 +943,46 @@ func TestE2E_DivideByZero(t *testing.T) {
 	require.IsType(t, vm.DivideByZeroError{}, execErr)
 }
 
+func TestE2E_ColoredSource(t *testing.T) {
+	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "COIN", Color: ""}:    big.NewInt(100),
+		{Account: "src", Asset: "COIN", Color: "RED"}: big.NewInt(30),
+	}}
+
+	got := runE2E(t, `
+		#![feature("experimental-asset-colors")]
+		send [COIN 10] (
+			source = @src \ "RED"
+			destination = @dest
+		)
+	`, store)
+
+	want := []runtime.Posting{
+		{Source: "src", Destination: "dest", Asset: "COIN", Color: "RED", Amount: big.NewInt(10)},
+	}
+	requirePostingsEqual(t, want, got)
+}
+
+func TestE2E_InvalidColor(t *testing.T) {
+	src := `
+		#![feature("experimental-asset-colors")]
+		send [COIN 10] (
+			source = @src \ "not a color"
+			destination = @dest
+		)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{})
+	require.IsType(t, vm.InvalidColor{}, execErr)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

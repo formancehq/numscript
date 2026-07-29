@@ -55,7 +55,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Traps if <code>int_regs[A] &lt; int_regs[B]</code> (missing funds)</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x06..0x0F reserved</em></td>
+      <td>6</td><td><code>0x06</code></td><td><strong>ASSERT_VALID_COLOR</strong></td>
+      <td>color</td><td>-</td><td>-</td>
+      <td>Traps if the color in <code>str_regs[A]</code> is malformed (only uppercase letters; the empty string is valid)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x07..0x0F reserved</em></td>
     </tr>
   </tbody>
 </table>

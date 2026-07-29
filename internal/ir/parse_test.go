@@ -462,6 +462,13 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "assert_valid_color",
+			ir: `
+  $r0 = "RED"
+  assert_valid_color($r0)
+`,
+		},
+		{
 			name: "assert_non_negative_balance",
 			ir: `
   $r0 = "USD/2"

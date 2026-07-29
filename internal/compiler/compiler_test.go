@@ -633,3 +633,56 @@ func TestDestOneof(t *testing.T) {
 #oneof_dest_end_0
 `))
 }
+
+func TestColoredSource(t *testing.T) {
+	out := getCompiledOutput(t, `
+		#![feature("experimental-asset-colors")]
+		send [COIN 10] (
+			source = @src \ "RED"
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = "COIN"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_asset($r2)
+  set_current_asset($r3)
+  $r4 = get_amount($r2)
+  $r5 = "src"
+  $r6 = "RED"
+  assert_valid_color($r6)
+  $r7 = 0
+  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r7, color: $r6)
+  check_enough_funds($r8, $r4)
+  $r9 = "dest"
+  send_to_account(account: $r9)
+`))
+}
+
+func TestColoredOverdraftSource(t *testing.T) {
+	out := getCompiledOutput(t, `
+		#![feature("experimental-asset-colors")]
+		send [COIN 10] (
+			source = @src \ "RED" allowing unbounded overdraft
+			destination = @dest
+		)
+	`)
+
+	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
+  $r0 = "COIN"
+  $r1 = 10
+  $r2 = mk_monetary($r0, $r1)
+  $r3 = get_asset($r2)
+  set_current_asset($r3)
+  $r4 = get_amount($r2)
+  $r5 = "src"
+  $r6 = "RED"
+  assert_valid_color($r6)
+  $r7 = pull_account(account: $r5, cap: $r4, color: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 = "dest"
+  send_to_account(account: $r8)
+`))
+}

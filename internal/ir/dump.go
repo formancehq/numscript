@@ -77,6 +77,10 @@ func (i AssertValidAccount) String() string {
 	return fmt.Sprintf("assert_valid_account(%s)", i.Account)
 }
 
+func (i AssertValidColor) String() string {
+	return fmt.Sprintf("assert_valid_color(%s)", i.Color)
+}
+
 func (i AssertNonNegativeBalance) String() string {
 	return fmt.Sprintf("assert_non_negative_balance(%s, %s)", i.Balance, i.Account)
 }

@@ -135,6 +135,8 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 		return firstErr(tc.use(i.Left, regStr), tc.use(i.Right, regStr))
 	case AssertValidAccount:
 		return tc.use(i.Account, regStr)
+	case AssertValidColor:
+		return tc.use(i.Color, regStr)
 	case AssertNonNegativeBalance:
 		return firstErr(tc.use(i.Balance, regMonetary), tc.use(i.Account, regStr))
 

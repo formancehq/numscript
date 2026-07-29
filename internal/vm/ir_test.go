@@ -400,6 +400,22 @@ func TestIRAssertions(t *testing.T) {
 		require.IsType(t, vm.InvalidAccountName{}, execErr)
 	})
 
+	t.Run("invalid color", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $color = "not a color"
+  assert_valid_color($color)
+`, balances(nil), nil)
+		require.IsType(t, vm.InvalidColor{}, execErr)
+	})
+
+	t.Run("empty color is valid", func(t *testing.T) {
+		res := runIR(t, `
+  $color = ""
+  assert_valid_color($color)
+`, balances(nil), nil)
+		require.Empty(t, res.Postings)
+	})
+
 	t.Run("mismatched assets", func(t *testing.T) {
 		execErr := runIRExpectingError(t, `
   $usd = "USD/2"

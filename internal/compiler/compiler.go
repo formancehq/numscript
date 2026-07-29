@@ -482,6 +482,23 @@ func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, C
 	}
 }
 
+// compileColor returns nil when the source has no color clause: PullAccount with
+// no color pulls the uncolored balance, same as an empty color string.
+func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerError) {
+	if colorExpr == nil {
+		return nil, nil
+	}
+	if err := st.checkFeatureFlag(colorExpr.GetRange(), flags.ExperimentalAssetColors); err != nil {
+		return nil, err
+	}
+	reg, err := st.compileExpr(colorExpr)
+	if err != nil {
+		return nil, err
+	}
+	st.Push(ir.AssertValidColor{Color: reg})
+	return &reg, nil
+}
+
 // capReg is the register containing the current cap (or nil if context is uncapped)
 // returns (when there's no err) the register where we store the pulled amount of this source
 func (st *state) compileSource(
@@ -490,14 +507,12 @@ func (st *state) compileSource(
 ) (ir.Reg, CompilerError) {
 	switch src := src.(type) {
 	case *parser.SourceAccount:
-		if src.Color != nil {
-			if err := st.checkFeatureFlag(src.Color.GetRange(), flags.ExperimentalAssetColors); err != nil {
-				return 0, err
-			}
-			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
+		accReg, err := st.compileExpr(src.ValueExpr)
+		if err != nil {
+			return 0, err
 		}
 
-		accReg, err := st.compileExpr(src.ValueExpr)
+		colorReg, err := st.compileColor(src.Color)
 		if err != nil {
 			return 0, err
 		}
@@ -515,18 +530,11 @@ func (st *state) compileSource(
 				Account:   accReg,
 				Cap:       capReg,
 				Overdraft: &overdraftReg,
-				Color:     nil,
+				Color:     colorReg,
 			}
 		})
 
 	case *parser.SourceOverdraft:
-		if src.Color != nil {
-			if err := st.checkFeatureFlag(src.Color.GetRange(), flags.ExperimentalAssetColors); err != nil {
-				return 0, err
-			}
-			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
-		}
-
 		if src.Bounded == nil && capReg == nil {
 			return 0, InvalidUncappedSource{
 				Range: src.GetRange(),
@@ -534,6 +542,11 @@ func (st *state) compileSource(
 		}
 
 		accReg, err := st.compileExpr(src.Address)
+		if err != nil {
+			return 0, err
+		}
+
+		colorReg, err := st.compileColor(src.Color)
 		if err != nil {
 			return 0, err
 		}
@@ -553,7 +566,7 @@ func (st *state) compileSource(
 				Account:   accReg,
 				Cap:       capReg,
 				Overdraft: overdraftReg,
-				Color:     nil,
+				Color:     colorReg,
 			}
 		})
 

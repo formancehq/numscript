@@ -261,6 +261,12 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, InvalidAccountName{Name: account}
 			}
 
+		case Op_AssertValidColor:
+			color := stringsRegs[instr.A]
+			if !runtime.ValidateColor(color) {
+				return runtime.ExecutionResult{}, InvalidColor{Color: color}
+			}
+
 		case Op_AssertNonNegativeBalance:
 			m := &monetariesRegs[instr.A]
 			if m.amount.Sign() < 0 {
