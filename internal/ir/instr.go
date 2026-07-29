@@ -1,12 +1,7 @@
-// Package ir is the compiler's intermediate representation: the instruction
-// stream the compiler emits on its way to vm bytecode, plus everything that
-// operates on it.
-//
-// Parse reads the textual format into instructions and Dump writes it back (see
-// ir-textual-format.md), Typecheck checks that registers are used at one type,
-// and Assemble lowers the stream to a vm.Program. The grammar's AST is not part
-// of this API: it lives in an internal package, so a caller only ever sees
-// instructions.
+// Package ir is the compiler's intermediate representation, and everything that
+// operates on it: Parse and Dump convert to and from the textual format (see
+// ir-textual-format.md), Typecheck checks register types, Assemble lowers to a
+// vm.Program. The grammar's AST is internal, so callers only see instructions.
 package ir
 
 import (

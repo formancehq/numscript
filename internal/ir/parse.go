@@ -116,10 +116,8 @@ func transform(prog syntax.Program) ([]Instr, []Error) {
 				continue
 			}
 
-			// Reading a register nothing has assigned to yet is undefined: the
-			// VM would hand back whatever that register happens to hold. Since
-			// jumps only go forward, text order is execution order, so a read
-			// with no earlier write can't be reached by any path.
+			// Jumps only go forward, so text order is execution order: a read with
+			// no earlier write can't be reached by any path.
 			for _, r := range instr.sources() {
 				if !t.written[r] {
 					errs = append(errs, Error{
@@ -205,12 +203,10 @@ func (t *transformer) transformInfix(s *syntax.InstrStmt, infix *syntax.Infix, w
 
 // ---- call instructions ----
 
-// argParser reads the args of one instruction call. Every accessor reports what
-// is wrong with the arg it wanted and returns a zero value, so a caller can read
-// its args straight into an Instr literal and let transformCall check ap.errs
-// once at the end. Positional accessors consume in call order: composite literal
-// operands are evaluated left to right, so `f{a: ap.reg(), b: ap.reg()}` reads
-// the args in that order.
+// argParser reads the args of one instruction call. Accessors report a bad arg
+// themselves and return a zero value, so callers read args straight into an Instr
+// literal and transformCall checks ap.errs once at the end. Composite literal
+// operands evaluate left to right, so `f{a: ap.reg(), b: ap.reg()}` reads in order.
 type argParser struct {
 	t         *transformer
 	args      []syntax.Arg

@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -11,18 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// These tests drive the VM directly from the IR textual format: no numscript, no
-// compiler. That keeps them honest about what the VM itself does — the bytecode
-// under test is written out instruction by instruction — and it makes it possible
-// to exercise instruction sequences the compiler doesn't currently emit.
+// These tests drive the VM from the IR textual format, without the compiler, so
+// they can also cover instruction sequences the compiler doesn't emit.
 
-// irStore is a vm.Store backed by plain maps.
+// irStore is a vm.Store backed by plain maps. A non-nil err fails every lookup.
 type irStore struct {
 	balances map[runtime.PairKey]*big.Int
 	metadata map[string]map[string]string
+	err      error
 }
 
 func (s irStore) GetBalance(_ context.Context, account, asset, color string) (*big.Int, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
 		return new(big.Int).Set(v), nil
 	}
@@ -30,8 +33,15 @@ func (s irStore) GetBalance(_ context.Context, account, asset, color string) (*b
 }
 
 func (s irStore) GetMetadata(_ context.Context, account, key string) (string, bool, error) {
+	if s.err != nil {
+		return "", false, s.err
+	}
 	v, ok := s.metadata[account][key]
 	return v, ok, nil
+}
+
+func meta(rows map[string]map[string]string) irStore {
+	return irStore{metadata: rows}
 }
 
 func balances(pairs map[string]int64) irStore {
@@ -424,4 +434,263 @@ func TestIRAssertions(t *testing.T) {
 `, balances(nil), nil)
 		require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
 	})
+}
+
+func TestIRUncappedPull(t *testing.T) {
+	// no cap: the pull is bounded only by the overdraft, i.e. `send *`
+	t.Run("with an overdraft", func(t *testing.T) {
+		res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $overdraft = 0
+  $pulled = pull_account(account: $src, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances(map[string]int64{"src": 70}), nil)
+
+		requirePostings(t, []runtime.Posting{posting("src", "dest", 70)}, res.Postings)
+	})
+
+	t.Run("without one it is unbounded and rejected", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $pulled = pull_account(account: $src)
+`, balances(map[string]int64{"src": 70}), nil)
+
+		require.IsType(t, vm.InvalidUncappedSource{}, execErr)
+	})
+}
+
+func TestIRSaveAll(t *testing.T) {
+	// save with no amount withholds the whole balance, so the pull finds nothing
+	res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  save(account: $src, asset: $asset)
+  $amount = 100
+  $overdraft = 0
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances(map[string]int64{"src": 100}), nil)
+
+	require.Empty(t, res.Postings)
+}
+
+func TestIRAssertLeftoverExact(t *testing.T) {
+	// the no-`remaining` form: portions must cover exactly 1
+	execErr := runIRExpectingError(t, `
+  $one = 1
+  $two = 2
+  $half = mk_portion($one, $two)
+  $whole = mk_portion($one, $one)
+  $leftover = sub_portion($whole, $half)
+  assert_leftover_exact($leftover)
+`, balances(nil), nil)
+
+	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
+}
+
+func TestIRMetaTypes(t *testing.T) {
+	store := meta(map[string]map[string]string{
+		"acc": {
+			"portion":  "1/4",
+			"monetary": "USD/2 250",
+			"oops":     "not a number",
+		},
+	})
+
+	t.Run("portion", func(t *testing.T) {
+		// the portion drives an allotment, so the split proves it parsed
+		res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 100
+  $world = "world"
+  $overdraft = 100
+  $pulled = pull_account(account: $world, cap: $amount, overdraft: $overdraft)
+  $acc = "acc"
+  $key = "portion"
+  $quarter = meta<portion>($acc, $key)
+  $one = 1
+  $whole = mk_portion($one, $one)
+  $rest = sub_portion($whole, $quarter)
+  assert_leftover($rest)
+  [$a_share, $b_share] = mk_allot($amount, [$quarter, $rest])
+  $a = "a"
+  send_to_account(account: $a, cap: $a_share)
+  $b = "b"
+  send_to_account(account: $b, cap: $b_share)
+`, store, nil)
+
+		requirePostings(t, []runtime.Posting{
+			posting("world", "a", 25),
+			posting("world", "b", 75),
+		}, res.Postings)
+	})
+
+	t.Run("monetary", func(t *testing.T) {
+		res := runIR(t, `
+  $acc = "acc"
+  $key = "monetary"
+  $mon = meta<monetary>($acc, $key)
+  $asset = get_asset($mon)
+  set_current_asset($asset)
+  $amount = get_amount($mon)
+  $overdraft = 300
+  $pulled = pull_account(account: $acc, cap: $amount, overdraft: $overdraft)
+  check_enough_funds($pulled, $amount)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, store, nil)
+
+		requirePostings(t, []runtime.Posting{posting("acc", "dest", 250)}, res.Postings)
+	})
+
+	t.Run("a value of the wrong shape is an error", func(t *testing.T) {
+		for _, typ := range []string{"int", "portion", "monetary"} {
+			execErr := runIRExpectingError(t, `
+  $acc = "acc"
+  $key = "oops"
+  $v = meta<`+typ+`>($acc, $key)
+`, store, nil)
+			require.IsType(t, vm.BadMetaValueError{}, execErr, "meta<%s>", typ)
+		}
+	})
+}
+
+func TestIRStoreErrorsPropagate(t *testing.T) {
+	failing := irStore{err: errors.New("store is down")}
+
+	t.Run("on a balance read", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $src = "src"
+  $asset = "USD/2"
+  $bal = balance($src, $asset)
+`, failing, nil)
+		require.IsType(t, vm.StoreError{}, execErr)
+		require.ErrorContains(t, execErr, "store is down")
+	})
+
+	t.Run("on a pull", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 10
+  $src = "src"
+  $overdraft = 0
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+`, failing, nil)
+		require.IsType(t, vm.StoreError{}, execErr)
+	})
+
+	t.Run("on a metadata read", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $acc = "acc"
+  $key = "k"
+  $v = meta<str>($acc, $key)
+`, failing, nil)
+		require.IsType(t, vm.StoreError{}, execErr)
+	})
+}
+
+func TestIRRestoreRejectsABogusMark(t *testing.T) {
+	// a mark is a queue position, so one that can't fit an int64 is not one
+	execErr := runIRExpectingError(t, `
+  $mark = 99999999999999999999999999
+  restore($mark)
+`, balances(nil), nil)
+
+	require.IsType(t, vm.InternalError{}, execErr)
+	require.ErrorContains(t, execErr, "invalid snapshot id")
+}
+
+func TestIRVmIsReusableAcrossRuns(t *testing.T) {
+	// a second run must not see the first one's funds or postings
+	program := assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 10
+  $src = "src"
+  $overdraft = 0
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  check_enough_funds($pulled, $amount)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`)
+	machine := vm.NewVm(program)
+	store := balances(map[string]int64{"src": 100})
+
+	want := []runtime.Posting{posting("src", "dest", 10)}
+	for run := 1; run <= 3; run++ {
+		res, execErr := vm.Exec(context.Background(), machine, nil, store)
+		require.Nil(t, execErr, "run %d", run)
+		requirePostings(t, want, res.Postings)
+	}
+}
+
+// TestIRSurvivesTheWireFormat runs one program in memory and again after a trip
+// through Encode/DecodeProgram. Nothing else ties the encoder to the VM.
+func TestIRSurvivesTheWireFormat(t *testing.T) {
+	program := assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 100
+  $src = "src"
+  $overdraft = 0
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  check_enough_funds($pulled, $amount)
+  $one = 1
+  $two = 2
+  $half = mk_portion($one, $two)
+  $whole = mk_portion($one, $one)
+  $rest = sub_portion($whole, $half)
+  assert_leftover($rest)
+  [$a_share, $b_share] = mk_allot($amount, [$half, $rest])
+  $a = "a"
+  send_to_account(account: $a, cap: $a_share)
+  $b = "b"
+  send_to_account(account: $b, cap: $b_share)
+`)
+
+	decoded, err := vm.DecodeProgram(program.Encode())
+	require.NoError(t, err)
+	require.Equal(t, program, decoded, "the program changed shape on the way through")
+
+	want := []runtime.Posting{posting("src", "a", 50), posting("src", "b", 50)}
+	for name, prog := range map[string]vm.Program{"in memory": program, "decoded": decoded} {
+		res, execErr := vm.Exec(context.Background(), vm.NewVm(prog), nil, balances(map[string]int64{"src": 100}))
+		require.Nil(t, execErr, "%s: %v", name, execErr)
+		requirePostings(t, want, res.Postings)
+	}
+}
+
+// TestIRVarsSurviveTheWireFormat is the same for the vars payload.
+func TestIRVarsSurviveTheWireFormat(t *testing.T) {
+	vars := vm.Vars{
+		StringsPool: []string{"USD/2", "src", "dest"},
+		IntsPool:    []big.Int{*big.NewInt(10), *big.NewInt(0)},
+	}
+	decoded, err := vm.DecodeVars(vars.Encode())
+	require.NoError(t, err)
+
+	program := assembleIR(t, `
+  $asset = load_var<str>(0)
+  set_current_asset($asset)
+  $amount = load_var<int>(0)
+  $src = load_var<str>(1)
+  $overdraft = load_var<int>(1)
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  check_enough_funds($pulled, $amount)
+  $dest = load_var<str>(2)
+  send_to_account(account: $dest)
+`)
+
+	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), &decoded, balances(map[string]int64{"src": 100}))
+	require.Nil(t, execErr)
+	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
 }

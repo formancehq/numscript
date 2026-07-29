@@ -18,8 +18,7 @@ func getCompiledOutput(t *testing.T, source string) string {
 
 	out := "\n" + ir.Dump(compiled.instructions)
 
-	// Whatever we dump has to be readable back as the same program: every
-	// snapshot below doubles as a round-trip test of the textual format.
+	// every snapshot below doubles as a round-trip test of the textual format
 	instrs, errs := ir.Parse(out)
 	require.Empty(t, errs, "the dump does not parse back")
 	require.Equal(t, out, "\n"+ir.Dump(instrs), "the dump does not round-trip")

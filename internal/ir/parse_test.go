@@ -58,6 +58,46 @@ func TestParseErrors(t *testing.T) {
 		require.Contains(t, errs[0].Msg, "must go forward")
 	})
 
+	t.Run("missing required labeled arg", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = "acc"
+  $r1 = 1
+  $r2 = pull_account(cap: $r1)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, `missing labeled argument "account"`)
+	})
+
+	t.Run("labeled arg no instruction takes", func(t *testing.T) {
+		// a stray label on an arg that was consumed positionally: the extra-args
+		// loop can't see it, so it's the leftover-label check that reports it
+		_, errs := Parse(`
+  $r0 = 1
+  $r1 = 2
+  check_enough_funds(foo: $r0, $r1)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, `unknown labeled argument "foo"`)
+	})
+
+	t.Run("labeled arg an instruction can't place", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = "acc"
+  $r1 = pull_account(account: $r0, nope: $r0)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "unexpected extra argument")
+	})
+
+	t.Run("labels are case sensitive", func(t *testing.T) {
+		// IDENTIFIER is lowercase-only, so this doesn't even lex
+		_, errs := Parse(`
+  $r0 = "acc"
+  $r1 = pull_account(Account: $r0)
+`)
+		require.NotEmpty(t, errs)
+	})
+
 	t.Run("duplicate labeled arg", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = "acc"
@@ -154,8 +194,9 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"no args at all", "  $r0 = get_asset()\n"},
 		{"too few args", "  $r0 = balance($r1)\n"},
 		{"too many args", "  $r0 = get_asset($r1, $r2)\n"},
-		{"missing required labeled arg", "  $r0 = pull_account(Cap: $r1)\n"},
-		{"unknown labeled arg", "  $r0 = pull_account(Account: $r1, nope: $r2)\n"},
+		{"missing required labeled arg", "  $r0 = pull_account(cap: $r1)\n"},
+		{"unknown labeled arg", "  $r0 = pull_account(account: $r1, nope: $r2)\n"},
+		{"capitalised label", "  $r0 = pull_account(Account: $r1)\n"},
 		{"load_var index out of range", "  $r0 = load_var<int>(70000)\n"},
 		{"load_var without type param", "  $r0 = load_var(0)\n"},
 		{"load_var with a type it doesn't have", "  $r0 = load_var<portion>(0)\n"},
