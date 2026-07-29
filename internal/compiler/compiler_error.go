@@ -1,6 +1,9 @@
 package compiler
 
 import (
+	"fmt"
+
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
 )
@@ -49,6 +52,21 @@ type (
 		parser.Range
 		Feature string
 	}
+
+	// ExperimentalFeature is reported when the script uses a construct gated
+	// behind a feature flag that wasn't enabled. Mirrors the interpreter's
+	// interpreter.ExperimentalFeature.
+	ExperimentalFeature struct {
+		parser.Range
+		FlagName flags.FeatureFlag
+	}
+
+	// InvalidFeature is reported when a #![feature(..)] declaration names a flag
+	// that doesn't exist.
+	InvalidFeature struct {
+		parser.Range
+		Feature string
+	}
 )
 
 func (UnboundVar) compileError()            {}
@@ -58,6 +76,8 @@ func (DuplicateRemaining) compileError()    {}
 func (InvalidMetaPosition) compileError()   {}
 func (CannotCastToString) compileError()    {}
 func (FeatureNotImplemented) compileError() {}
+func (ExperimentalFeature) compileError()   {}
+func (InvalidFeature) compileError()        {}
 
 func (e FeatureNotImplemented) Error() string {
 	return "internal error: feature not implemented: " + e.Feature
@@ -69,6 +89,12 @@ func (InvalidMetaPosition) Error() string {
 func (e CannotCastToString) Error() string {
 	return "cannot cast a value of type " + string(e.Type) + " to string"
 }
+func (e ExperimentalFeature) Error() string {
+	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
+}
+func (e InvalidFeature) Error() string {
+	return fmt.Sprintf("Invalid feature: %s", e.Feature)
+}
 
 var (
 	_ CompilerError = (*UnboundVar)(nil)
@@ -78,4 +104,6 @@ var (
 	_ CompilerError = (*InvalidMetaPosition)(nil)
 	_ CompilerError = (*CannotCastToString)(nil)
 	_ CompilerError = (*FeatureNotImplemented)(nil)
+	_ CompilerError = (*ExperimentalFeature)(nil)
+	_ CompilerError = (*InvalidFeature)(nil)
 )

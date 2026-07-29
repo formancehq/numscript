@@ -2,9 +2,12 @@ package compiler
 
 import (
 	"fmt"
+	"maps"
 	"math/big"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/builtins"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
@@ -14,8 +17,13 @@ import (
 
 // Compile lowers a parsed program to the VarsEncoder that turns a json var
 // payload into the vm.Vars the program expects, plus the vm.Program itself.
-func Compile(program parser.Program) (VarsEncoder, vm.Program, error) {
-	compiled, cErr := compileProgramToIR(program)
+//
+// featureFlags is the set of experimental features the host allows; a construct
+// gated behind a flag that isn't in the set fails compilation. As in
+// interpreter.RunProgram, the script's own #![feature(..)] declarations are
+// unioned in.
+func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, vm.Program, error) {
+	compiled, cErr := compileProgramToIR(program, featureFlags)
 	if cErr != nil {
 		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
 	}
@@ -42,11 +50,22 @@ type state struct {
 
 	vars            map[string]ir.Reg
 	exprTypes       map[parser.ValueExpr]typecheck.Type
+	featureFlags    map[string]struct{}
 	currentAssetReg ir.Reg
 
 	nextIntVar int
 	nextStrVar int
 	varDecls   []varDecl
+}
+
+// Every flag in flags.AllFlags has a check site below except
+// ExperimentalScopedFunction: scoped() isn't in typecheck's builtin table, so a
+// call to it is already rejected as an unknown function.
+func (st *state) checkFeatureFlag(rng parser.Range, flag flags.FeatureFlag) CompilerError {
+	if _, ok := st.featureFlags[flag]; ok {
+		return nil
+	}
+	return ExperimentalFeature{Range: rng, FlagName: flag}
 }
 
 // pushInstructionWithDestErr is PushWithDest in the shape compileExpr returns.
@@ -187,6 +206,9 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
+				if err := st.checkFeatureFlag(part.Range, flags.ExperimentalAccountInterpolationFlag); err != nil {
+					return 0, err
+				}
 				hasVar = true
 				r, err := st.compileExpr(part)
 				if err != nil {
@@ -363,78 +385,100 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 		}
 
 	case *parser.FnCall:
-		switch expr.Caller.Name {
-		case builtins.GetAmount:
-			argReg, err := st.compileExpr(expr.Args[0])
-			if err != nil {
-				return 0, err
-			}
-			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
-			})
-
-		case builtins.GetAsset:
-			argReg, err := st.compileExpr(expr.Args[0])
-			if err != nil {
-				return 0, err
-			}
-			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
-			})
-
-		case builtins.Balance:
-			accountReg, err := st.compileExpr(expr.Args[0])
-			if err != nil {
-				return 0, err
-			}
-			assetReg, err := st.compileExpr(expr.Args[1])
-			if err != nil {
-				return 0, err
-			}
-			balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
-			})
-			st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
-			return balReg, nil
-
-		case builtins.Overdraft:
-			accountReg, err := st.compileExpr(expr.Args[0])
-			if err != nil {
-				return 0, err
-			}
-			assetReg, err := st.compileExpr(expr.Args[1])
-			if err != nil {
-				return 0, err
-			}
-			balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
-			})
-			amtReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: balReg, Dest: dest}
-			})
-			zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
-			})
-			minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: amtReg, Right: zeroReg, Dest: dest}
-			})
-			// overdraft = max(0, -balance) = -min(balance, 0)
-			negReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
-			})
-			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-				return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: assetReg, Right: negReg, Dest: dest}
-			})
-
-		case builtins.Meta:
-			return 0, InvalidMetaPosition{Range: expr.Range}
-
-		default:
-			panic("TODO compileExpr fn call " + expr.Caller.Name)
-		}
+		return st.compileFnCall(expr, false)
 
 	default:
 		return utils.NonExhaustiveMatchPanic[ir.Reg](expr), nil
+	}
+}
+
+// compileFnCall takes isVarOrigin to tell apart the two positions the interpreter
+// distinguishes: a call that *is* a variable's origin expression, versus one
+// nested anywhere else (which needs the mid-script-function-call flag).
+func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, CompilerError) {
+	if !isVarOrigin {
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
+			return 0, err
+		}
+	}
+
+	switch expr.Caller.Name {
+	case builtins.GetAmount:
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAmountFunctionFeatureFlag); err != nil {
+			return 0, err
+		}
+		argReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return 0, err
+		}
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
+		})
+
+	case builtins.GetAsset:
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAssetFunctionFeatureFlag); err != nil {
+			return 0, err
+		}
+		argReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return 0, err
+		}
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
+		})
+
+	case builtins.Balance:
+		accountReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return 0, err
+		}
+		assetReg, err := st.compileExpr(expr.Args[1])
+		if err != nil {
+			return 0, err
+		}
+		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+		})
+		st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
+		return balReg, nil
+
+	case builtins.Overdraft:
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalOverdraftFunctionFeatureFlag); err != nil {
+			return 0, err
+		}
+		accountReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return 0, err
+		}
+		assetReg, err := st.compileExpr(expr.Args[1])
+		if err != nil {
+			return 0, err
+		}
+		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+		})
+		amtReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: balReg, Dest: dest}
+		})
+		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
+		})
+		minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMinInt{}, Left: amtReg, Right: zeroReg, Dest: dest}
+		})
+		// overdraft = max(0, -balance) = -min(balance, 0)
+		negReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
+		})
+		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: assetReg, Right: negReg, Dest: dest}
+		})
+
+	case builtins.Meta:
+		return 0, InvalidMetaPosition{Range: expr.Range}
+
+	default:
+		panic("TODO compileExpr fn call " + expr.Caller.Name)
 	}
 }
 
@@ -447,6 +491,9 @@ func (st *state) compileSource(
 	switch src := src.(type) {
 	case *parser.SourceAccount:
 		if src.Color != nil {
+			if err := st.checkFeatureFlag(src.Color.GetRange(), flags.ExperimentalAssetColors); err != nil {
+				return 0, err
+			}
 			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
 		}
 
@@ -474,6 +521,9 @@ func (st *state) compileSource(
 
 	case *parser.SourceOverdraft:
 		if src.Color != nil {
+			if err := st.checkFeatureFlag(src.Color.GetRange(), flags.ExperimentalAssetColors); err != nil {
+				return 0, err
+			}
 			return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "colors"}
 		}
 
@@ -605,6 +655,10 @@ func (st *state) compileSource(
 		return inorderTotalReg, nil
 
 	case *parser.SourceOneof:
+		if err := st.checkFeatureFlag(src.GetRange(), flags.ExperimentalOneofFeatureFlag); err != nil {
+			return 0, err
+		}
+
 		if capReg == nil || len(src.Sources) == 1 {
 			return st.compileSource(capReg, src.Sources[0])
 		}
@@ -684,6 +738,9 @@ func (st *state) compileSource(
 		return *capReg, nil
 
 	case *parser.SourceWithScaling:
+		if err := st.checkFeatureFlag(src.GetRange(), flags.AssetScaling); err != nil {
+			return 0, err
+		}
 		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "scaling"}
 
 	default:
@@ -731,6 +788,9 @@ func (st *state) compileDestination(
 		return nil
 
 	case *parser.DestinationOneof:
+		if err := st.checkFeatureFlag(dest.GetRange(), flags.ExperimentalOneofFeatureFlag); err != nil {
+			return err
+		}
 
 		endLabel := st.FreshLabel("oneof_dest_end")
 
@@ -1003,13 +1063,24 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError)
 	}
 }
 
-func compileProgramToIR(program parser.Program) (compiledProgramIR, CompilerError) {
+func compileProgramToIR(program parser.Program, featureFlags map[string]struct{}) (compiledProgramIR, CompilerError) {
 	tc := typecheck.Check(program)
 	if len(tc.Errors) > 0 {
 		return compiledProgramIR{}, TypeError{Range: tc.Errors[0].Range, Kind: tc.Errors[0].Kind}
 	}
 
-	st := state{vars: map[string]ir.Reg{}, exprTypes: tc.ExprTypes}
+	flagSet := maps.Clone(featureFlags)
+	if flagSet == nil {
+		flagSet = make(map[string]struct{}, len(program.Flags))
+	}
+	for _, flag := range program.Flags {
+		if !slices.Contains(flags.AllFlags, flag.String) {
+			return compiledProgramIR{}, InvalidFeature{Range: flag.Range, Feature: flag.String}
+		}
+		flagSet[flag.String] = struct{}{}
+	}
+
+	st := state{vars: map[string]ir.Reg{}, exprTypes: tc.ExprTypes, featureFlags: flagSet}
 
 	if program.Vars != nil {
 		for _, decl := range program.Vars.Declarations {
@@ -1040,12 +1111,19 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 		st.compileExternalVar(decl)
 		return nil
 	}
-	// meta() is only supported as a variable origin, statically dispatched on
-	// the declared type; elsewhere compileExpr reports InvalidMetaPosition.
-	if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok && fnCall.Caller.Name == builtins.Meta {
-		return st.compileMetaVar(decl, fnCall)
+	var r ir.Reg
+	var err CompilerError
+	if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
+		// meta() is only supported as a variable origin, statically dispatched on
+		// the declared type; elsewhere compileFnCall reports InvalidMetaPosition.
+		if fnCall.Caller.Name == builtins.Meta {
+			return st.compileMetaVar(decl, fnCall)
+		}
+		// a call that is the whole origin expression isn't a mid-script call
+		r, err = st.compileFnCall(fnCall, true)
+	} else {
+		r, err = st.compileExpr(*decl.Origin)
 	}
-	r, err := st.compileExpr(*decl.Origin)
 	if err != nil {
 		return err
 	}

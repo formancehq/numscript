@@ -43,7 +43,7 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -78,7 +78,7 @@ func TestE2E_Inorder(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -116,7 +116,7 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -150,7 +150,7 @@ func TestE2E_InsufficientFunds(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	// src only has 4, but 10 is required.
@@ -180,7 +180,7 @@ func TestE2E_DestinationInorder(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
@@ -212,7 +212,7 @@ func TestE2E_DestinationKept(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
@@ -330,7 +330,7 @@ func TestE2E_SourceAllotmentInsufficient(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
 		{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(10),
@@ -354,7 +354,7 @@ func TestE2E_AllotmentOverSum(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
@@ -378,7 +378,7 @@ func TestE2E_AllotmentUnderSum(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
@@ -432,7 +432,7 @@ func TestE2E_IntAddition(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -458,7 +458,7 @@ func TestE2E_IntSubtraction(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -488,7 +488,7 @@ func TestE2E_MonetaryAddition(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -535,7 +535,7 @@ func TestE2E_MonetarySubtractionAssetMismatch(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
@@ -558,7 +558,7 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -571,6 +571,7 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 
 func TestE2E_GetAmount(t *testing.T) {
 	src := `
+		#![feature("experimental-get-amount-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			number $n = get_amount($m)
@@ -584,7 +585,7 @@ func TestE2E_GetAmount(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -601,6 +602,7 @@ func TestE2E_GetAmount(t *testing.T) {
 
 func TestE2E_GetAsset(t *testing.T) {
 	src := `
+		#![feature("experimental-get-asset-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			asset $a = get_asset($m)
@@ -614,7 +616,7 @@ func TestE2E_GetAsset(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
 	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -691,6 +693,7 @@ func TestE2E_Balance(t *testing.T) {
 func TestE2E_AccountInterpolation(t *testing.T) {
 	// destination = @users:<$id>:wallet, with $id = "alice"
 	src := `
+		#![feature("experimental-account-interpolation")]
 		vars {
 			string $id = "alice"
 		}
@@ -708,6 +711,7 @@ func TestE2E_AccountInterpolation(t *testing.T) {
 func TestE2E_AccountInterpolationInt(t *testing.T) {
 	// destination = @account:<$n>, with $n = 42
 	src := `
+		#![feature("experimental-account-interpolation")]
 		vars {
 			number $n = 42
 		}
@@ -833,7 +837,7 @@ func TestE2E_CapAssetMismatch(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
@@ -849,7 +853,7 @@ func TestE2E_OverdraftAssetMismatch(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
@@ -885,6 +889,7 @@ func TestE2E_InternalVar(t *testing.T) {
 
 func TestE2E_OverdraftFunction(t *testing.T) {
 	src := `
+		#![feature("experimental-overdraft-function")]
 		vars { monetary $od = overdraft(@acc, USD/2) }
 		send $od (source = @world destination = @dest)
 	`
@@ -910,7 +915,7 @@ func TestE2E_BalanceNegativeErrors(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
@@ -931,7 +936,7 @@ func TestE2E_DivideByZero(t *testing.T) {
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
@@ -942,7 +947,7 @@ func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	_, program, cErr := compiler.Compile(parsed.Value)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)

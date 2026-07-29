@@ -141,14 +141,29 @@ var NewVm = vm.NewVm
 var DecodeVars = vm.DecodeVars
 
 func (p ParseResult) Compile() (VarsEncoder, CompiledProgram, error) {
+	return p.CompileWithFeatureFlags(nil)
+}
+
+// CompileWithFeatureFlags compiles the program, rejecting any construct gated
+// behind an experimental feature flag that isn't in featureFlags.
+func (p ParseResult) CompileWithFeatureFlags(featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
 	if len(p.parseResult.Errors) != 0 {
 		return VarsEncoder{}, CompiledProgram{}, p.parseResult.Errors[0]
 	}
-	return compiler.Compile(p.parseResult.Value)
+
+	if featureFlags == nil {
+		featureFlags = make(map[string]struct{})
+	}
+
+	return compiler.Compile(p.parseResult.Value, featureFlags)
 }
 
 func Compile(source string) (VarsEncoder, CompiledProgram, error) {
 	return Parse(source).Compile()
+}
+
+func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).CompileWithFeatureFlags(featureFlags)
 }
 
 var DecodeCompiledProgram = vm.DecodeProgram

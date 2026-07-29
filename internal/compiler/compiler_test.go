@@ -13,7 +13,7 @@ func getCompiledOutput(t *testing.T, source string) string {
 	t.Helper()
 	program := parser.Parse(source)
 	require.Empty(t, program.Errors)
-	compiled, err := compileProgramToIR(program.Value)
+	compiled, err := compileProgramToIR(program.Value, nil)
 	require.Nil(t, err)
 
 	out := "\n" + ir.Dump(compiled.instructions)
@@ -180,6 +180,7 @@ func TestMonetarySubtraction(t *testing.T) {
 
 func TestGetAmount(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-get-amount-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			number $n = get_amount($m)
@@ -211,6 +212,7 @@ func TestGetAmount(t *testing.T) {
 
 func TestGetAsset(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-get-asset-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			asset $a = get_asset($m)
@@ -303,6 +305,7 @@ func TestBalance(t *testing.T) {
 
 func TestAccountInterpolation(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-account-interpolation")]
 		vars {
 			string $id = "alice"
 		}
@@ -339,6 +342,7 @@ func TestAccountInterpolation(t *testing.T) {
 
 func TestAccountInterpolationInt(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-account-interpolation")]
 		vars {
 			number $n = 42
 		}
@@ -505,6 +509,7 @@ func TestDestInorder(t *testing.T) {
 
 func TestSourceOneofSimple(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-oneof")]
 		send [USD/2 10] (
 			source = oneof {
         @a
@@ -550,6 +555,7 @@ func TestSourceOneofSimple(t *testing.T) {
 func TestSourceOneofBounded(t *testing.T) {
 
 	out := getCompiledOutput(t, `
+		#![feature("experimental-oneof")]
 		send [USD/2 10] (
 			source = oneof {
 				@a
@@ -587,6 +593,7 @@ func TestSourceOneofBounded(t *testing.T) {
 
 func TestDestOneof(t *testing.T) {
 	out := getCompiledOutput(t, `
+		#![feature("experimental-oneof")]
 		send [USD/2 10] (
 			source = @world
 			destination = oneof {

@@ -27,7 +27,7 @@ func TestE2E_ExternalVars(t *testing.T) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	enc, program, err := compiler.Compile(parsed.Value)
+	enc, program, err := compiler.Compile(parsed.Value, nil)
 	require.NoError(t, err)
 
 	vars, err := enc.Encode(map[string]string{
@@ -48,13 +48,14 @@ func TestE2E_ExternalVars(t *testing.T) {
 
 func TestE2E_InvalidInterpolatedAccount(t *testing.T) {
 	src := `
+		#![feature("experimental-account-interpolation")]
 		vars { string $status }
 		set_tx_meta("k", @user:$status)
 	`
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	enc, program, err := compiler.Compile(parsed.Value)
+	enc, program, err := compiler.Compile(parsed.Value, nil)
 	require.NoError(t, err)
 
 	vars, err := enc.Encode(map[string]string{"status": "!invalid acc.."})
@@ -69,7 +70,7 @@ func compileEncoder(t *testing.T, src string) compiler.VarsEncoder {
 	t.Helper()
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
-	enc, _, err := compiler.Compile(parsed.Value)
+	enc, _, err := compiler.Compile(parsed.Value, nil)
 	require.NoError(t, err)
 	return enc
 }

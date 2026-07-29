@@ -21,11 +21,10 @@ import (
 
 const scriptsFolder = "../interpreter/testdata/script-tests"
 
-// scriptsBlacklist lists spec files the compiler+VM can't run yet: unimplemented
-// core features (variables, metadata, ...) and everything under a feature flag
-// (all in experimental/). Delete entries as features land, until it's empty.
+// scriptsBlacklist lists spec files the compiler+VM can't run yet. What's left is
+// the three experimental features the compiler has no lowering for: scopes,
+// colors and scaling. Delete entries as features land, until it's empty.
 var scriptsBlacklist = []string{
-	// feature-flagged (experimental) — not core numscript
 	"experimental/scoped-function/allotment.num",
 	"experimental/scoped-function/balance.num",
 	"experimental/scoped-function/capped.num",
@@ -54,8 +53,6 @@ var scriptsBlacklist = []string{
 	"experimental/asset-scaling/scaling-with-oneof.num",
 	"experimental/asset-scaling/scaling.num",
 	"experimental/asset-scaling/update-swap-account-balance.num",
-	// unimplemented core features
-	"feature-flag-syntax.num",
 }
 
 func TestCompilerScripts(t *testing.T) {
@@ -89,7 +86,12 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
 
-	enc, program, cErr := compiler.Compile(parsed.Value)
+	featureFlags := make(map[string]struct{}, len(specs.FeatureFlags))
+	for _, flag := range specs.FeatureFlags {
+		featureFlags[flag] = struct{}{}
+	}
+
+	enc, program, cErr := compiler.Compile(parsed.Value, featureFlags)
 	require.Nil(t, cErr)
 
 	for _, tc := range specs.TestCases {
