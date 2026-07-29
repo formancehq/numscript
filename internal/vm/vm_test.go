@@ -28,12 +28,6 @@ const (
 	mMon                                = 0
 )
 
-// pool indices
-const (
-	pUSD, pS1, pS2, pDest = 0, 1, 2, 3 // strings pool
-	cTen, cZero           = 0, 1       // ints pool
-)
-
 func abc(op Opcode, a, b, c byte) Instruction {
 	return Instruction{Opcode: byte(op), A: a, B: b, C: c}
 }

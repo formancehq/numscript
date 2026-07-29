@@ -95,9 +95,9 @@ func BenchmarkRuntimeBaseline(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		rs.Reset(store)
 		rs.SetCurrentAsset("USD/2")
-		rs.Pull(pulled, "src", "", ten, zero, "")
+		_ = rs.Pull(pulled, "src", "", ten, zero, "")
 		_ = pulled.Cmp(ten) // CheckEnoughFunds
-		rs.SendUncapped(&dest, "", nil)
+		_ = rs.SendUncapped(&dest, "", nil)
 		_ = rs.GetPostings()
 	}
 }
@@ -200,7 +200,7 @@ func BenchmarkRuntimeBaselineCapped(b *testing.B) {
 		remaining.Set(ten) // inorder cap = copy(amount)
 
 		// @a (cap = remaining)
-		rs.Pull(pulled, "a", "", remaining, zero, "")
+		_ = rs.Pull(pulled, "a", "", remaining, zero, "")
 		total.Add(total, pulled)
 		remaining.Sub(remaining, pulled)
 
@@ -211,18 +211,18 @@ func BenchmarkRuntimeBaselineCapped(b *testing.B) {
 			} else {
 				capB.Set(remaining)
 			}
-			rs.Pull(pulled, "b", "", capB, zero, "")
+			_ = rs.Pull(pulled, "b", "", capB, zero, "")
 			total.Add(total, pulled)
 			remaining.Sub(remaining, pulled)
 
 			if remaining.Sign() != 0 {
-				rs.Pull(pulled, "c", "", remaining, zero, "") // @c (cap = remaining)
+				_ = rs.Pull(pulled, "c", "", remaining, zero, "") // @c (cap = remaining)
 				total.Add(total, pulled)
 			}
 		}
 
 		_ = total.Cmp(ten) // check_enough_funds
-		rs.SendUncapped(&dest, "", nil)
+		_ = rs.SendUncapped(&dest, "", nil)
 		_ = rs.GetPostings()
 	}
 }

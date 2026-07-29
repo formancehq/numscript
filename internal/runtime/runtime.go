@@ -450,7 +450,7 @@ func (s *RunState) Snapshot() int {
 func (s *RunState) Restore(mark int) {
 	for i := mark; i < len(s.sources); i++ {
 		src := s.sources[i]
-		s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount)
+		_ = s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount)
 	}
 	s.sources = s.sources[:mark]
 }

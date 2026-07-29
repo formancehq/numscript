@@ -138,7 +138,7 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 	for _, patch := range a.patches {
 		labelIndex, ok := a.labels[patch.Label]
 		if !ok {
-			return vm.Program{}, fmt.Errorf("Missing label declaration of `%s`", string(patch.Label))
+			return vm.Program{}, fmt.Errorf("missing label declaration of `%s`", string(patch.Label))
 		}
 
 		a.instructions[patch.index] = patch.getInstruction(labelIndex)
