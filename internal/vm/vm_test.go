@@ -149,6 +149,73 @@ func TestConstBool(t *testing.T) {
 	require.False(t, vm.boolsRegs[3], "untouched registers stay false")
 }
 
+// is_zero is the only projection from a quantity to a condition, so it has to
+// agree with what Op_JmpIfZero used to test: sign, not magnitude.
+func TestIsZero(t *testing.T) {
+	testCases := []struct {
+		name  string
+		value int64
+		want  bool
+	}{
+		{"zero", 0, true},
+		{"positive", 7, false},
+		{"negative", -7, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prog := Program{
+				Instructions: []Instruction{
+					bc(Op_LoadInt, 0, 0),
+					abc(Op_IsZero, 0, 0, nilReg),
+				},
+				IntsPool: []big.Int{*big.NewInt(tc.value)},
+			}
+
+			vm := NewVm(prog)
+			_, err := Exec(context.Background(), vm, nil, mockStore{})
+			require.Nil(t, err)
+			require.Equal(t, tc.want, vm.boolsRegs[0])
+		})
+	}
+}
+
+// The two conditional jumps are duals: each takes the edge the other doesn't.
+func TestConditionalJumps(t *testing.T) {
+	// jump over a CONST_TRUE writing bool reg 1, so reg 1 reports whether the
+	// jump was taken
+	prog := func(jmp Opcode, cond Opcode) Program {
+		return Program{
+			Instructions: []Instruction{
+				abc(cond, 0, nilReg, nilReg),
+				bc(jmp, 0, 1),
+				abc(Op_ConstTrue, 1, nilReg, nilReg),
+			},
+		}
+	}
+
+	testCases := []struct {
+		name  string
+		jmp   Opcode
+		cond  Opcode
+		taken bool
+	}{
+		{"jmp_if_false on false", Op_JmpIfFalse, Op_ConstFalse, true},
+		{"jmp_if_false on true", Op_JmpIfFalse, Op_ConstTrue, false},
+		{"jmp_if_true on true", Op_JmpIfTrue, Op_ConstTrue, true},
+		{"jmp_if_true on false", Op_JmpIfTrue, Op_ConstFalse, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vm := NewVm(prog(tc.jmp, tc.cond))
+			_, err := Exec(context.Background(), vm, nil, mockStore{})
+			require.Nil(t, err)
+			require.Equal(t, tc.taken, !vm.boolsRegs[1], "jump taken")
+		})
+	}
+}
+
 func TestExecutionErrorMessages(t *testing.T) {
 	testCases := []struct {
 		name string

@@ -34,7 +34,7 @@ func TestParseErrors(t *testing.T) {
 
 	t.Run("unbound jmp label", func(t *testing.T) {
 		_, errs := Parse(`
-  jmp_if_zero($r0, #missing_label)
+  jmp_if_false($r0, #missing_label)
 `)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "not defined")
@@ -43,7 +43,7 @@ func TestParseErrors(t *testing.T) {
 	t.Run("forward jmp", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = 0
-  jmp_if_zero($r0, #my_label)
+  jmp_if_false($r0, #my_label)
 #my_label
 `)
 		require.Empty(t, errs)
@@ -52,7 +52,7 @@ func TestParseErrors(t *testing.T) {
 	t.Run("backward jmp", func(t *testing.T) {
 		_, errs := Parse(`
 #my_label
-  jmp_if_zero($r0, #my_label)
+  jmp_if_false($r0, #my_label)
 `)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "must go forward")
@@ -135,7 +135,7 @@ func TestParseErrors(t *testing.T) {
 
 	t.Run("duplicate label", func(t *testing.T) {
 		_, errs := Parse(`
-  jmp_if_zero($r0, #l)
+  jmp_if_false($r0, #l)
 #l
 #l
 `)
@@ -181,7 +181,7 @@ func TestParseErrors(t *testing.T) {
 	t.Run("register where a label is expected", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = 1
-  jmp_if_zero($r0, $r0)
+  jmp_if_false($r0, $r0)
 `)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "expected label, got register")
@@ -680,11 +680,26 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "jmp_if_zero and label",
+			name: "jmp_if_false and label",
 			ir: `
-  $r0 = 0
-  jmp_if_zero($r0, #my_label)
+  $r0 = true
+  jmp_if_false($r0, #my_label)
 #my_label
+`,
+		},
+		{
+			name: "jmp_if_true and label",
+			ir: `
+  $r0 = false
+  jmp_if_true($r0, #my_label)
+#my_label
+`,
+		},
+		{
+			name: "is_zero",
+			ir: `
+  $r0 = 1
+  $r1 = is_zero($r0)
 `,
 		},
 		{

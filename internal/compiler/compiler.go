@@ -506,7 +506,7 @@ func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerErro
 // metadata — so the check cannot be decided here and becomes a run-time branch:
 //
 //	$eq = str_eq($account, $world)
-//	jmp_if_zero($eq, #not_world)
+//	jmp_if_false($eq, #not_world)
 //	  $pulled = pull_account(...)              // no overdraft operand: unbounded
 //	  jmp(#pull_end)
 //	#not_world
@@ -541,7 +541,7 @@ func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *
 	notWorldLabel := st.FreshLabel("not_world")
 	endLabel := st.FreshLabel("pull_end")
 
-	st.Push(ir.JmpIfZero{Cond: isWorld, Target: notWorldLabel})
+	st.Push(ir.JmpIfFalse{Cond: isWorld, Target: notWorldLabel})
 	// an uncapped context reaches this arm with no cap and no overdraft, which is
 	// the InvalidUncappedSource case: taking *all* of an unbounded source
 	pulledReg := st.PushWithDest(func(dest ir.Reg) ir.Instr { return pull(dest, nil) })
@@ -552,6 +552,18 @@ func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *
 	st.Push(ir.LabelMarker{Label: endLabel})
 
 	return pulledReg
+}
+
+// jmpIfAmountZero jumps to target when the quantity in amountReg is zero.
+//
+// The conditional jumps take a bool, so a quantity has to be projected onto one
+// first: that costs an instruction, and is exactly what stops a monetary amount
+// from being used as a condition by accident (ir.Typecheck rejects it).
+func (st *state) jmpIfAmountZero(amountReg ir.Reg, target ir.Label) {
+	isZero := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpIsZero{}, Arg: amountReg, Dest: dest}
+	})
+	st.Push(ir.JmpIfTrue{Cond: isZero, Target: target})
 }
 
 // capReg is the register containing the current cap (or nil if context is uncapped)
@@ -695,10 +707,7 @@ func (st *state) compileSource(
 					Left:  inorderCap,
 					Right: innerPulledAmtReg,
 				})
-				st.Push(ir.JmpIfZero{
-					Cond:   inorderCap,
-					Target: endLabel,
-				})
+				st.jmpIfAmountZero(inorderCap, endLabel)
 			}
 		}
 		st.Push(ir.LabelMarker{
@@ -754,10 +763,7 @@ func (st *state) compileSource(
 					}
 				})
 
-				st.Push(ir.JmpIfZero{
-					Cond:   missingAmt,
-					Target: endLabel,
-				})
+				st.jmpIfAmountZero(missingAmt, endLabel)
 				st.Push(ir.Restore{
 					Mark: snapshotReg,
 				})
@@ -846,10 +852,6 @@ func (st *state) compileDestination(
 
 		endLabel := st.FreshLabel("oneof_dest_end")
 
-		zero := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
-		})
-
 		clauseLabels := make([]ir.Label, len(dest.Clauses))
 		for i, clause := range dest.Clauses {
 			clauseLabels[i] = st.FreshLabel("oneof_dest_clause")
@@ -864,20 +866,20 @@ func (st *state) compileDestination(
 			diff := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 				return ir.BinaryOp{Op: ir.OpSubInt{}, Left: currentCap, Right: minReg, Dest: dest}
 			})
-			st.Push(ir.JmpIfZero{Cond: diff, Target: clauseLabels[i]})
+			st.jmpIfAmountZero(diff, clauseLabels[i])
 		}
 
 		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, currentCap); err != nil {
 			return err
 		}
-		st.Push(ir.JmpIfZero{Cond: zero, Target: endLabel})
+		st.Push(ir.Jmp{Target: endLabel})
 
 		for i, clause := range dest.Clauses {
 			st.Push(ir.LabelMarker{Label: clauseLabels[i]})
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, currentCap); err != nil {
 				return err
 			}
-			st.Push(ir.JmpIfZero{Cond: zero, Target: endLabel})
+			st.Push(ir.Jmp{Target: endLabel})
 		}
 
 		st.Push(ir.LabelMarker{Label: endLabel})

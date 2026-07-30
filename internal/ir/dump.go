@@ -21,6 +21,7 @@ func (OpIntCopy) String() string         { return "int_copy" }
 func (OpPortionCopy) String() string     { return "portion_copy" }
 func (OpNegInt) String() string          { return "neg_int" }
 func (OpIntToString) String() string     { return "int_to_string" }
+func (OpIsZero) String() string          { return "is_zero" }
 func (OpPortionToString) String() string { return "portion_to_string" }
 
 func (i PullAccount) String() string {
@@ -114,8 +115,12 @@ func (i LoadVar) String() string {
 func (VarInt) String() string { return "int" }
 func (VarStr) String() string { return "str" }
 
-func (i JmpIfZero) String() string {
-	return fmt.Sprintf("jmp_if_zero(%s, %s)", i.Cond, i.Target)
+func (i JmpIfFalse) String() string {
+	return fmt.Sprintf("jmp_if_false(%s, %s)", i.Cond, i.Target)
+}
+
+func (i JmpIfTrue) String() string {
+	return fmt.Sprintf("jmp_if_true(%s, %s)", i.Cond, i.Target)
 }
 
 func (i Jmp) String() string {

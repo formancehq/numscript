@@ -131,46 +131,59 @@ func TestAssemble_RegisterBankOverflow(t *testing.T) {
 	})
 }
 
-func TestAssemble_JmpIfZeroDelta(t *testing.T) {
+func TestAssemble_JmpDelta(t *testing.T) {
 	t.Run("delta counts the instructions skipped", func(t *testing.T) {
 		prog, err := Assemble([]Instr{
-			LoadInt{Dest: 0, Value: *big.NewInt(0)}, // 0
-			JmpIfZero{Cond: 0, Target: "end"},       // 1
+			ConstBool{Dest: 0, Value: true},         // 0
+			JmpIfFalse{Cond: 0, Target: "end"},      // 1
 			LoadInt{Dest: 1, Value: *big.NewInt(1)}, // 2
 			LoadInt{Dest: 2, Value: *big.NewInt(2)}, // 3
 			LabelMarker{Label: "end"},               // -> 4
 		})
 		require.NoError(t, err)
 
-		require.Equal(t, vm.NewBC(vm.Op_JmpIfZero, 0, 2), prog.Instructions[1])
+		require.Equal(t, vm.NewBC(vm.Op_JmpIfFalse, 0, 2), prog.Instructions[1])
+	})
+
+	// the two conditional jumps differ only in the opcode
+	t.Run("jmp_if_true emits its own opcode", func(t *testing.T) {
+		prog, err := Assemble([]Instr{
+			ConstBool{Dest: 0, Value: true},
+			JmpIfTrue{Cond: 0, Target: "end"},
+			LoadInt{Dest: 1, Value: *big.NewInt(1)},
+			LabelMarker{Label: "end"},
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, vm.NewBC(vm.Op_JmpIfTrue, 0, 1), prog.Instructions[1])
 	})
 
 	t.Run("jump to the immediately following instruction has delta 0", func(t *testing.T) {
 		prog, err := Assemble([]Instr{
-			LoadInt{Dest: 0, Value: *big.NewInt(0)},
-			JmpIfZero{Cond: 0, Target: "end"},
+			ConstBool{Dest: 0, Value: true},
+			JmpIfFalse{Cond: 0, Target: "end"},
 			LabelMarker{Label: "end"},
 			LoadInt{Dest: 1, Value: *big.NewInt(1)},
 		})
 		require.NoError(t, err)
 
-		require.Equal(t, vm.NewBC(vm.Op_JmpIfZero, 0, 0), prog.Instructions[1])
+		require.Equal(t, vm.NewBC(vm.Op_JmpIfFalse, 0, 0), prog.Instructions[1])
 	})
 
 	t.Run("backward jump is rejected", func(t *testing.T) {
 		_, err := Assemble([]Instr{
 			LabelMarker{Label: "start"},
-			LoadInt{Dest: 0, Value: *big.NewInt(0)},
-			JmpIfZero{Cond: 0, Target: "start"},
+			ConstBool{Dest: 0, Value: true},
+			JmpIfFalse{Cond: 0, Target: "start"},
 		})
 		require.ErrorContains(t, err, "backward jump")
 	})
 
 	t.Run("jump to itself is rejected", func(t *testing.T) {
 		_, err := Assemble([]Instr{
-			LoadInt{Dest: 0, Value: *big.NewInt(0)},
+			ConstBool{Dest: 0, Value: true},
 			LabelMarker{Label: "self"},
-			JmpIfZero{Cond: 0, Target: "self"},
+			JmpIfTrue{Cond: 0, Target: "self"},
 		})
 		require.ErrorContains(t, err, "backward jump")
 	})

@@ -104,7 +104,11 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"balance account", FetchBalance{Dest: 9, Account: intReg, Asset: strReg}},
 		{"balance asset", FetchBalance{Dest: 9, Account: strReg, Asset: intReg}},
 		{"balance dest", FetchBalance{Dest: strReg, Account: strReg, Asset: strReg}},
-		{"jmp_if_zero cond", JmpIfZero{Cond: strReg, Target: "end"}},
+		// a quantity is not a condition: that's the guarantee the bool bank buys
+		{"jmp_if_false cond", JmpIfFalse{Cond: intReg, Target: "end"}},
+		{"jmp_if_true cond", JmpIfTrue{Cond: strReg, Target: "end"}},
+		{"is_zero arg", UnaryOp{Op: OpIsZero{}, Dest: 9, Arg: strReg}},
+		{"str_eq left", BinaryOp{Op: OpStrEq{}, Dest: 9, Left: intReg, Right: strReg}},
 		{"restore mark", Restore{Mark: strReg}},
 		{"unary arg", UnaryOp{Op: OpPortionToString{}, Dest: 9, Arg: intReg}},
 		{"binary left", BinaryOp{Op: OpAddString{}, Dest: 9, Left: intReg, Right: strReg}},

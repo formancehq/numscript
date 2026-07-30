@@ -204,7 +204,7 @@ func BenchmarkRuntimeBaselineCapped(b *testing.B) {
 		total.Add(total, pulled)
 		remaining.Sub(remaining, pulled)
 
-		if remaining.Sign() != 0 { // jmp_if_zero(remaining)
+		if remaining.Sign() != 0 { // is_zero(remaining) + jmp_if_true
 			// max [USD/2 5] from @b  ->  cap = min(5, remaining)
 			if five.Cmp(remaining) < 0 {
 				capB.Set(five)

@@ -96,7 +96,7 @@ If an instruction doesn't fit the 4 bytes limit, we simply extend it with the `I
 
 Instructions are fetched and evaluated one at the time until they are finished (no HALT instructions to stop, so that bytecode always terminates by design).
 
-Instructions can move data by manipulating registers. Registers banks are separated by type (so that we don't have to have a single heap-allocated value, nor unsafe pointers or manually handled unsafe memory). With "type" here we mean the internal representation of data, which isn't the same as numscript types (there isn't necessarily a 1-1 relationship). For example, both strings, assets and accounts are represented via the golang `string` type.
+Instructions can move data by manipulating registers. Registers banks are separated by type (so that we don't have to have a single heap-allocated value, nor unsafe pointers or manually handled unsafe memory). With "type" here we mean the internal representation of data, which isn't the same as numscript types (there isn't necessarily a 1-1 relationship). For example, both strings, assets and accounts are represented via the golang `string` type. The `bool` bank is the other direction: it has no numscript counterpart at all, and exists so that a branch condition can't be a monetary quantity.
 
 > Note: we'll probably change accounts' representation when adding scopes
 
@@ -294,7 +294,7 @@ It'll write pulled amount into the `$pulled` reg:
 $src = "src"
 $overdraft = 0
 $eq = str_eq($src, $world)
-jmp_if_zero($eq, #not_world)
+jmp_if_false($eq, #not_world)
   $pulled = pull_account(account: $src, cap: $amount)
   jmp(#pull_end)
 #not_world
@@ -344,7 +344,7 @@ set_current_asset($asset)
 $src = "src"
 $overdraft = 0
 $eq = str_eq($src, $world)
-jmp_if_zero($eq, #not_world)
+jmp_if_false($eq, #not_world)
   $pulled = pull_account(account: $src, cap: $amount)
   jmp(#pull_end)
 #not_world
@@ -367,13 +367,15 @@ $remaining = int_copy($amount)
 $pulled_s1 = <compile s1, capped by $remaining>
 $pulled += $pulled_s1
 $remaining -= $pulled_s1
-jmp_if_zero($remaining, #inorder_end)
+$exhausted = is_zero($remaining)
+jmp_if_true($exhausted, #inorder_end)
 
 // second source
 $pulled_s2 = <compile s2, capped by $remaining>
 $pulled += $pulled_s2
 $remaining -= $pulled_s2
-jmp_if_zero($remaining, #inorder_end)
+$exhausted = is_zero($remaining)
+jmp_if_true($exhausted, #inorder_end)
 
 ..
 
@@ -448,10 +450,11 @@ The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-
 the clearest case to date, and it needs two passes that compose:
 
 1. **Const-fold `str_eq`** — when both operands trace back to `load_str` constants, the
-   comparison is statically decidable: replace it with `load_int 0` or `load_int 1`.
-2. **Dead-branch elimination** — a `jmp_if_zero` on a register holding a known constant
+   comparison is statically decidable: replace it with `true` or `false`.
+2. **Dead-branch elimination** — a conditional jump on a register holding a known bool
    is either a no-op or an unconditional `jmp`; then everything between a `jmp` and the
-   next reachable label is unreachable.
+   next reachable label is unreachable. `is_zero` over a `load_int` folds the same way,
+   which is what makes the quantity branches reachable for this pass too.
 
 Together they collapse a literal `@world` source back to a single unbounded
 `pull_account`, and any other literal account back to a single bounded one — i.e. to

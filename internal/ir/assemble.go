@@ -235,6 +235,13 @@ func (OpIntToString) sig() unaryOpSig {
 		arg:    (*assembler).intReg,
 	}
 }
+func (OpIsZero) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_IsZero,
+		dest:   (*assembler).boolReg,
+		arg:    (*assembler).intReg,
+	}
+}
 func (OpPortionToString) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_PortionToString,
@@ -300,7 +307,7 @@ func (OpAddString) sig() binaryOpSig {
 func (OpStrEq) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_StrEq,
-		dest:   (*assembler).intReg,
+		dest:   (*assembler).boolReg,
 		left:   (*assembler).strReg,
 		right:  (*assembler).strReg,
 	}
@@ -673,17 +680,18 @@ func (i FetchBalance) assemble(a *assembler) error {
 	return nil
 }
 
-func (i JmpIfZero) assemble(a *assembler) error {
-	cond, err := a.intReg(i.Cond)
+// assembleCondJmp emits either conditional jump: they differ only in the opcode.
+func (a *assembler) assembleCondJmp(opcode vm.Opcode, cond Reg, target Label) error {
+	condReg, err := a.boolReg(cond)
 	if err != nil {
 		return err
 	}
 
 	a.patches = append(a.patches, patch{
-		Label: i.Target,
+		Label: target,
 		index: len(a.instructions),
 		getInstruction: func(delta uint16) vm.Instruction {
-			return vm.NewBC(vm.Op_JmpIfZero, cond, delta)
+			return vm.NewBC(opcode, condReg, delta)
 		},
 	})
 
@@ -691,6 +699,14 @@ func (i JmpIfZero) assemble(a *assembler) error {
 	a.emit(0, 0, 0, 0)
 
 	return nil
+}
+
+func (i JmpIfFalse) assemble(a *assembler) error {
+	return a.assembleCondJmp(vm.Op_JmpIfFalse, i.Cond, i.Target)
+}
+
+func (i JmpIfTrue) assemble(a *assembler) error {
+	return a.assembleCondJmp(vm.Op_JmpIfTrue, i.Cond, i.Target)
 }
 
 func (i Jmp) assemble(a *assembler) error {

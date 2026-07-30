@@ -350,9 +350,13 @@ func Exec[S Store](
 			stringsRegs[instr.A] = vars.StringsPool[instr.GetBC()]
 
 		// --- Jumps
-		case Op_JmpIfZero:
-			arg := &intsRegs[instr.A]
-			if arg.Sign() == 0 {
+		case Op_JmpIfFalse:
+			if !boolsRegs[instr.A] {
+				pc += int(instr.GetBC())
+			}
+
+		case Op_JmpIfTrue:
+			if boolsRegs[instr.A] {
 				pc += int(instr.GetBC())
 			}
 
@@ -400,11 +404,7 @@ func Exec[S Store](
 			stringsRegs[instr.A] = stringsRegs[instr.B] + stringsRegs[instr.C]
 
 		case Op_StrEq:
-			var eq int64
-			if stringsRegs[instr.B] == stringsRegs[instr.C] {
-				eq = 1
-			}
-			intsRegs[instr.A].SetInt64(eq)
+			boolsRegs[instr.A] = stringsRegs[instr.B] == stringsRegs[instr.C]
 
 		case Op_SubPortion:
 			left := &portionsRegs[instr.B]
@@ -452,6 +452,9 @@ func Exec[S Store](
 
 		case Op_MonetaryToString:
 			stringsRegs[instr.A] = stringsRegs[instr.B] + " " + intsRegs[instr.C].String()
+
+		case Op_IsZero:
+			boolsRegs[instr.A] = intsRegs[instr.B].Sign() == 0
 
 		default:
 			return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}

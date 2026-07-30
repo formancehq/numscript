@@ -83,7 +83,7 @@ Which form an argument takes is fixed per instruction (see the reference below) 
 
 ```
 $r0            register
-#my_label      label reference   (jmp_if_zero and jmp only)
+#my_label      label reference   (the jumps only)
 42             int literal       (load_var index only)
 [$r0, $r1]     register list     (mk_allot portions only)
 ```
@@ -134,7 +134,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_int($l, $r)` | `(int, int) -> int` |
 | `$d = sub_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
-| `$d = str_eq($l, $r)` | `(str, str) -> int` — `1` if equal, else `0` |
+| `$d = str_eq($l, $r)` | `(str, str) -> bool` |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
@@ -159,6 +159,7 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | `$d = neg_int($a)` | `int -> int` |
 | `$d = int_to_string($a)` | `int -> str` |
 | `$d = portion_to_string($a)` | `portion -> str` |
+| `$d = is_zero($a)` | `int -> bool` — tests the *sign*, so a negative amount is not zero |
 
 There is no register-to-register move: use `int_copy` / `portion_copy`. `$r0 = $r1` is not valid syntax.
 
@@ -223,24 +224,32 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 ### Control flow
 
 ```
-  jmp_if_zero($cond, #my_label)
+  jmp_if_false($cond, #my_label)
+  jmp_if_true($cond, #my_label)
   jmp(#my_label)
 #my_label
 ```
 
-`$cond` is `int`: a zero/non-zero int *is* the predicate, and `str_eq` is how a string comparison becomes one. There is a `bool` register type, but no instruction consumes one yet — jumps and `str_eq` still work in the int bank. For both instructions the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
+`$cond` is `bool`, so a quantity can't be a condition — that is the point of the bool bank, and `ir.Typecheck` rejects `jmp_if_false($some_amount, ..)` where it used to accept it. The two conditional forms are duals, so either edge of a condition is one instruction and there is no negation op. A bool comes from `true`/`false`, from `str_eq`, or from `is_zero` — the last being how a quantity reaches a branch:
 
 ```
-jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
-#back                       → label #back is behind the jump (jumps must go forward)
-  jmp_if_zero($r0, #back)
+  $exhausted = is_zero($remaining_cap)
+  jmp_if_true($exhausted, #end)
+```
+
+For all three the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
+
+```
+jmp_if_false($r0, #nope)     → label #nope is not defined in the program
+#back                        → label #back is behind the jump (jumps must go forward)
+  jmp_if_false($r0, #back)
 ```
 
 Together they express an if/else, which is how `@world`'s unboundedness is compiled (see `compiler-architecture.md`):
 
 ```
   $eq = str_eq($account, $world)
-  jmp_if_zero($eq, #not_world)
+  jmp_if_false($eq, #not_world)
   ; then arm
   jmp(#end)
 #not_world

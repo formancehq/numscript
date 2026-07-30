@@ -163,8 +163,10 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 	case FetchBalance:
 		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.def(i.Dest, regInt))
 
-	case JmpIfZero:
-		return tc.use(i.Cond, regInt)
+	case JmpIfFalse:
+		return tc.use(i.Cond, regBool)
+	case JmpIfTrue:
+		return tc.use(i.Cond, regBool)
 	case Jmp:
 		return nil
 	case LabelMarker:
@@ -233,6 +235,8 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 		return regInt, regInt, nil
 	case OpIntToString:
 		return regStr, regInt, nil
+	case OpIsZero:
+		return regBool, regInt, nil
 	case OpPortionToString:
 		return regStr, regPortion, nil
 	default:
@@ -247,7 +251,7 @@ func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 	case OpAddString:
 		return regStr, regStr, regStr, nil
 	case OpStrEq:
-		return regInt, regStr, regStr, nil
+		return regBool, regStr, regStr, nil
 	case OpSubPortion:
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:

@@ -23,8 +23,8 @@ type (
 	OpAddInt    struct{}
 	OpSubInt    struct{}
 	OpAddString struct{}
-	// OpStrEq yields 1 or 0 in an int register: there is no boolean type, and
-	// JmpIfZero branches on an int.
+	// OpStrEq yields a bool: it is the one comparison that produces a value
+	// rather than trapping, and what the jumps branch on.
 	OpStrEq       struct{}
 	OpSubPortion  struct{}
 	OpMakePortion struct{}
@@ -39,10 +39,13 @@ type UnKind interface {
 }
 
 type (
-	OpIntCopy         struct{}
-	OpPortionCopy     struct{}
-	OpNegInt          struct{}
-	OpIntToString     struct{}
+	OpIntCopy     struct{}
+	OpPortionCopy struct{}
+	OpNegInt      struct{}
+	OpIntToString struct{}
+	// OpIsZero projects an int onto a bool, which is how a quantity reaches a
+	// jump: the jumps take a bool, so the projection has to be explicit.
+	OpIsZero          struct{}
 	OpPortionToString struct{}
 )
 
@@ -120,8 +123,14 @@ type (
 		Typ   VarType
 		Index uint16
 	}
-	JmpIfZero struct {
-		Cond   Reg // int
+	// The two conditional jumps differ only in which edge of the bool jumps, so
+	// either branch of a condition is one instruction and no negation is needed.
+	JmpIfFalse struct {
+		Cond   Reg // bool
+		Target Label
+	}
+	JmpIfTrue struct {
+		Cond   Reg // bool
 		Target Label
 	}
 	Jmp struct {
@@ -218,8 +227,11 @@ func (i FetchBalance) sources() []Reg { return []Reg{i.Account, i.Asset} }
 func (i LoadVar) dests() []Reg   { return []Reg{i.Dest} }
 func (i LoadVar) sources() []Reg { return nil }
 
-func (i JmpIfZero) dests() []Reg   { return nil }
-func (i JmpIfZero) sources() []Reg { return []Reg{i.Cond} }
+func (i JmpIfFalse) dests() []Reg   { return nil }
+func (i JmpIfFalse) sources() []Reg { return []Reg{i.Cond} }
+
+func (i JmpIfTrue) dests() []Reg   { return nil }
+func (i JmpIfTrue) sources() []Reg { return []Reg{i.Cond} }
 
 func (i Jmp) dests() []Reg   { return nil }
 func (i Jmp) sources() []Reg { return nil }

@@ -99,9 +99,8 @@ const (
 	// pair, so there is nothing to construct. Reserved, do not reuse.
 	Op_AddString Opcode = 0x36
 
-	// A = dest (int reg) = 1 if the strings in B and C are equal, else 0. There is
-	// no boolean bank: Op_JmpIfZero already branches on an int, so 0/1 is the
-	// predicate representation.
+	// A = dest (bool reg) = whether the strings in B and C are equal. The only
+	// string comparison that yields a value instead of trapping.
 	Op_StrEq Opcode = 0x37
 
 	// --- unary & conversions (0x40) ---
@@ -115,6 +114,10 @@ const (
 
 	// A = dest (str reg), B = asset (str reg), C = amount (int reg)
 	Op_MonetaryToString Opcode = 0x47
+
+	// A = dest (bool reg) = whether the amount in int reg B is zero. The only way
+	// a quantity becomes a branch condition, since the jumps take a bool.
+	Op_IsZero Opcode = 0x48
 
 	// --- funds & postings (0x50) ---
 
@@ -153,9 +156,13 @@ const (
 	// Op_PullAccountUnboundedOverdraft
 
 	// --- control flow (0x90) ---
-	// b_c = unsigned forward delta, added to the pc of the next instruction
-	Op_JmpIfZero Opcode = 0x90
+	// A = cond (bool reg); b_c = unsigned forward delta, added to the pc of the
+	// next instruction. A quantity is not a condition: project it with Op_IsZero.
+	Op_JmpIfFalse Opcode = 0x90
 	// unconditional; b_c = unsigned forward delta, as above
 	Op_Jmp Opcode = 0x91
+	// the dual of Op_JmpIfFalse, so either edge of a bool can be the branch
+	// without a negation instruction
+	Op_JmpIfTrue Opcode = 0x92
 	// note: Label emits no instruction; it only feeds the symbol table at assemble time
 )

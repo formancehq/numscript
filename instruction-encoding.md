@@ -216,7 +216,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>55</td><td><code>0x37</code></td><td><strong>STR_EQ</strong></td>
       <td>dest</td><td>left</td><td>right</td>
-      <td><code>int_regs[A] = str_regs[B] == str_regs[C] ? 1 : 0</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). Its dest is an <em>int</em>, not a bool: JMP_IF_ZERO branches on an int, so <code>0</code>/<code>1</code> is still the predicate representation — the bool bank exists but no instruction consumes one yet</td>
+      <td><code>bool_regs[A] = str_regs[B] == str_regs[C]</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET), and the only producer of a bool other than the two constants and IS_ZERO</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>
@@ -269,7 +269,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>str_regs[A] = str_regs[B] + " " + str(int_regs[C])</code> — takes both halves, so it is ternary despite living in this section</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x48..0x4F reserved</em></td>
+      <td>72</td><td><code>0x48</code></td><td><strong>IS_ZERO</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = int_regs[B].Sign() == 0</code> — the only projection from a quantity to a condition, since the jumps take a bool. Tests the sign, so a negative amount is <em>not</em> zero</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x49..0x4F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -343,9 +348,9 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
   </thead>
   <tbody>
     <tr>
-      <td>144</td><td><code>0x90</code></td><td><strong>JMP_IF_ZERO</strong></td>
+      <td>144</td><td><code>0x90</code></td><td><strong>JMP_IF_FALSE</strong></td>
       <td>cond</td><td colspan="2" align="center">Bx (forward delta)</td>
-      <td>If <code>int_regs[A] == 0</code>, skip <code>Bx</code> instructions: <code>pc += Bx</code>, where <code>pc</code> already points at the next instruction. Being an unsigned delta, the jump is forward-only (guarantees termination)</td>
+      <td>If <code>bool_regs[A]</code> is false, skip <code>Bx</code> instructions: <code>pc += Bx</code>, where <code>pc</code> already points at the next instruction. Being an unsigned delta, the jump is forward-only (guarantees termination). A quantity is not a condition — project it with <code>IS_ZERO</code> first</td>
     </tr>
     <tr>
       <td>145</td><td><code>0x91</code></td><td><strong>JMP</strong></td>
@@ -353,7 +358,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Unconditional: <code>pc += Bx</code>. Forward-only, as above</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x92..0xFF reserved</em></td>
+      <td>146</td><td><code>0x92</code></td><td><strong>JMP_IF_TRUE</strong></td>
+      <td>cond</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>The dual of <code>JMP_IF_FALSE</code>, so either edge of a condition is one instruction and no negation opcode is needed</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x93..0xFF reserved</em></td>
     </tr>
   </tbody>
 </table>

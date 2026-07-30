@@ -456,6 +456,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest, Op: OpNegInt{}, Arg: ap.reg()}
 	case "int_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpIntToString{}, Arg: ap.reg()}
+	case "is_zero":
+		instr = UnaryOp{Dest: dest, Op: OpIsZero{}, Arg: ap.reg()}
 	case "portion_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpPortionToString{}, Arg: ap.reg()}
 
@@ -522,33 +524,21 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 	case "set_account_meta":
 		instr = SetAccountMeta{Account: ap.reg(), Key: ap.reg(), Value: ap.reg()}
 
-	case "jmp_if_zero":
+	case "jmp_if_false":
 		cond, target := ap.reg(), ap.labelRef()
-		labelPos, defined := t.labelPos[string(target)]
-		switch {
-		case target == "":
-			// labelRef already said what was wrong
-		case !defined:
-			ap.addErr(s.Range, "jmp_if_zero: label %s is not defined in the program", target)
-		case labelPos < t.stmtPos:
-			// The VM only allows jumping forward: that's what makes every program
-			// terminate, so a backward jump is rejected here rather than assembled.
-			ap.addErr(s.Range, "jmp_if_zero: label %s is behind the jump (jumps must go forward)", target)
-		default:
-			instr = JmpIfZero{Cond: cond, Target: target}
+		if t.checkJmpTarget(ap, s, name, target) {
+			instr = JmpIfFalse{Cond: cond, Target: target}
+		}
+
+	case "jmp_if_true":
+		cond, target := ap.reg(), ap.labelRef()
+		if t.checkJmpTarget(ap, s, name, target) {
+			instr = JmpIfTrue{Cond: cond, Target: target}
 		}
 
 	case "jmp":
 		target := ap.labelRef()
-		labelPos, defined := t.labelPos[string(target)]
-		switch {
-		case target == "":
-			// labelRef already said what was wrong
-		case !defined:
-			ap.addErr(s.Range, "jmp: label %s is not defined in the program", target)
-		case labelPos < t.stmtPos:
-			ap.addErr(s.Range, "jmp: label %s is behind the jump (jumps must go forward)", target)
-		default:
+		if t.checkJmpTarget(ap, s, name, target) {
 			instr = Jmp{Target: target}
 		}
 
@@ -578,6 +568,27 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		return instr, &errs[0]
 	}
 	return instr, nil
+}
+
+// checkJmpTarget reports whether target is a label the jump named name may
+// reach: one that is defined, and not behind the jump. The VM only allows
+// jumping forward — that's what makes every program terminate — so a backward
+// jump is rejected here rather than assembled.
+func (t *transformer) checkJmpTarget(ap *argParser, s *syntax.InstrStmt, name string, target Label) bool {
+	labelPos, defined := t.labelPos[string(target)]
+	switch {
+	case target == "":
+		// labelRef already said what was wrong
+		return false
+	case !defined:
+		ap.addErr(s.Range, "%s: label %s is not defined in the program", name, target)
+		return false
+	case labelPos < t.stmtPos:
+		ap.addErr(s.Range, "%s: label %s is behind the jump (jumps must go forward)", name, target)
+		return false
+	default:
+		return true
+	}
 }
 
 // BinaryOp reads the two register args every binary instruction takes.

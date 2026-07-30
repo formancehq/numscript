@@ -149,7 +149,8 @@ func TestIRInorderSourcesStopAtFirstThatCovers(t *testing.T) {
   $from_a = pull_account(account: $a, cap: $remaining, overdraft: $overdraft)
   $pulled += $from_a
   $remaining -= $from_a
-  jmp_if_zero($remaining, #inorder_end)
+  $exhausted = is_zero($remaining)
+  jmp_if_true($exhausted, #inorder_end)
   $b = "b"
   $from_b = pull_account(account: $b, cap: $remaining, overdraft: $overdraft)
   $pulled += $from_b
@@ -256,7 +257,8 @@ func TestIRSnapshotRestoreBacktracks(t *testing.T) {
   $from_a = pull_account(account: $a, cap: $amount, overdraft: $overdraft)
   $result = int_copy($from_a)
   $missing = $amount - $from_a
-  jmp_if_zero($missing, #oneof_end)
+  $covered = is_zero($missing)
+  jmp_if_true($covered, #oneof_end)
   restore($mark)
   $b = "b"
   $from_b = pull_account(account: $b, cap: $amount, overdraft: $overdraft)
@@ -291,7 +293,7 @@ func TestIRStrEqAndJmp(t *testing.T) {
   $expected = "yes"
   $probe = load_var<str>(0)
   $eq = str_eq($probe, $expected)
-  jmp_if_zero($eq, #else)
+  jmp_if_false($eq, #else)
   $then_acc = "a"
   $pulled = pull_account(account: $then_acc, cap: $amount, overdraft: $overdraft)
   jmp(#end)
