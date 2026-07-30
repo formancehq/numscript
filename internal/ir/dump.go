@@ -22,6 +22,8 @@ func (OpMonetaryToString) String() string { return "monetary_to_string" }
 
 func (OpIntCopy) String() string         { return "int_copy" }
 func (OpPortionCopy) String() string     { return "portion_copy" }
+func (OpStrCopy) String() string         { return "str_copy" }
+func (OpBoolCopy) String() string        { return "bool_copy" }
 func (OpNegInt) String() string          { return "neg_int" }
 func (OpIntToString) String() string     { return "int_to_string" }
 func (OpIsZero) String() string          { return "is_zero" }

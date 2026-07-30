@@ -154,11 +154,13 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | --- | --- |
 | `$d = int_copy($a)` | `int -> int` |
 | `$d = portion_copy($a)` | `portion -> portion` |
+| `$d = str_copy($a)` | `str -> str` |
+| `$d = bool_copy($a)` | `bool -> bool` |
 | `$d = neg_int($a)` | `int -> int` |
 | `$d = int_to_string($a)` | `int -> str` |
 | `$d = portion_to_string($a)` | `portion -> str` |
 
-There is no register-to-register move: use `int_copy` / `portion_copy`. `$r0 = $r1` is not valid syntax.
+There is no register-to-register move: `$r0 = $r1` is not valid syntax. Use the copy for the bank instead — there is exactly one per bank, and none crosses banks. A monetary has no copy of its own, since it is a `(str, int)` pair: copy the two halves.
 
 There is no `get_asset` / `get_amount` either: projecting a monetary means naming one of its two registers, which costs no instruction. `monetary_to_string` is listed above with the other constructors, since it takes the pair.
 

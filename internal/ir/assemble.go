@@ -207,20 +207,17 @@ type unaryOpSig struct {
 	arg    regResolver
 }
 
-func (OpIntCopy) sig() unaryOpSig {
-	return unaryOpSig{
-		opcode: vm.Op_IntCopy,
-		dest:   (*assembler).intReg,
-		arg:    (*assembler).intReg,
-	}
+// copySig is the shape every bank copy shares: dest and src in the same bank.
+func copySig(opcode vm.Opcode, bank regResolver) unaryOpSig {
+	return unaryOpSig{opcode: opcode, dest: bank, arg: bank}
 }
+
+func (OpIntCopy) sig() unaryOpSig { return copySig(vm.Op_IntCopy, (*assembler).intReg) }
 func (OpPortionCopy) sig() unaryOpSig {
-	return unaryOpSig{
-		opcode: vm.Op_PortionCopy,
-		dest:   (*assembler).portionReg,
-		arg:    (*assembler).portionReg,
-	}
+	return copySig(vm.Op_PortionCopy, (*assembler).portionReg)
 }
+func (OpStrCopy) sig() unaryOpSig  { return copySig(vm.Op_StrCopy, (*assembler).strReg) }
+func (OpBoolCopy) sig() unaryOpSig { return copySig(vm.Op_BoolCopy, (*assembler).boolReg) }
 func (OpNegInt) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_NegInt,

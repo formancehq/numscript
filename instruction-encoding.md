@@ -237,7 +237,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>66</td><td><code>0x42</code></td><td><strong>INT_COPY</strong></td>
       <td>dest</td><td>src</td><td>-</td>
-      <td><code>int_regs[A] = int_regs[B]</code> (fresh copy)</td>
+      <td><code>int_regs[A] = int_regs[B]</code> (fresh copy). One copy per bank, none crossing banks; the family is split across <code>0x42..0x43</code> and <code>0x4A..0x4B</code> because <code>0x44..0x49</code> were already spoken for. No monetary copy: a monetary is a (str, int) pair, so copy the halves</td>
     </tr>
     <tr>
       <td>67</td><td><code>0x43</code></td><td><strong>PORTION_COPY</strong></td>
@@ -271,7 +271,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td colspan="7" align="center"><em>0x49 reserved (was NOT: moved to the bool-ops group, §8, now <code>0x70</code>)</em></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x4A..0x4F reserved</em></td>
+      <td>74</td><td><code>0x4A</code></td><td><strong>STR_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>str_regs[A] = str_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td>75</td><td><code>0x4B</code></td><td><strong>BOOL_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = bool_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x4C..0x4F reserved</em></td>
     </tr>
   </tbody>
 </table>

@@ -116,6 +116,11 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"lt_portion left", BinaryOp{Op: OpLtPortion{}, Dest: 9, Left: intReg, Right: portionReg}},
 		{"eq_portion right", BinaryOp{Op: OpEqPortion{}, Dest: 9, Left: portionReg, Right: intReg}},
 		{"not arg", UnaryOp{Op: OpNot{}, Dest: 9, Arg: intReg}},
+		// a copy never crosses banks
+		{"int_copy arg", UnaryOp{Op: OpIntCopy{}, Dest: 9, Arg: strReg}},
+		{"portion_copy arg", UnaryOp{Op: OpPortionCopy{}, Dest: 9, Arg: intReg}},
+		{"str_copy arg", UnaryOp{Op: OpStrCopy{}, Dest: 9, Arg: portionReg}},
+		{"bool_copy arg", UnaryOp{Op: OpBoolCopy{}, Dest: 9, Arg: intReg}},
 		{"restore mark", Restore{Mark: strReg}},
 		{"unary arg", UnaryOp{Op: OpPortionToString{}, Dest: 9, Arg: intReg}},
 		{"binary left", BinaryOp{Op: OpAddString{}, Dest: 9, Left: intReg, Right: strReg}},

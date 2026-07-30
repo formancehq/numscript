@@ -458,6 +458,10 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest, Op: OpIntCopy{}, Arg: ap.reg()}
 	case "portion_copy":
 		instr = UnaryOp{Dest: dest, Op: OpPortionCopy{}, Arg: ap.reg()}
+	case "str_copy":
+		instr = UnaryOp{Dest: dest, Op: OpStrCopy{}, Arg: ap.reg()}
+	case "bool_copy":
+		instr = UnaryOp{Dest: dest, Op: OpBoolCopy{}, Arg: ap.reg()}
 	case "neg_int":
 		instr = UnaryOp{Dest: dest, Op: OpNegInt{}, Arg: ap.reg()}
 	case "int_to_string":

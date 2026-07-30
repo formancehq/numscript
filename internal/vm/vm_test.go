@@ -180,6 +180,92 @@ func TestIsZero(t *testing.T) {
 	}
 }
 
+// One copy per bank. Each case writes a distinct value into reg 1, copies reg 1
+// into reg 0, and checks reg 0 took it — so a copy wired to the wrong bank, or a
+// no-op, fails.
+func TestBankCopies(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		prog := Program{
+			Instructions: []Instruction{
+				bc(Op_LoadInt, 1, 0),
+				abc(Op_IntCopy, 0, 1, nilReg),
+			},
+			IntsPool: []big.Int{*big.NewInt(-42)},
+		}
+		vm := NewVm(prog)
+		_, err := Exec(context.Background(), vm, nil, mockStore{})
+		require.Nil(t, err)
+		require.Zero(t, vm.intsRegs[0].Cmp(big.NewInt(-42)))
+	})
+
+	t.Run("portion", func(t *testing.T) {
+		prog := Program{
+			Instructions: []Instruction{
+				bc(Op_LoadInt, 0, 0),
+				bc(Op_LoadInt, 1, 1),
+				abc(Op_MkPortion, 1, 0, 1),
+				abc(Op_PortionCopy, 0, 1, nilReg),
+			},
+			IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(3)},
+		}
+		vm := NewVm(prog)
+		_, err := Exec(context.Background(), vm, nil, mockStore{})
+		require.Nil(t, err)
+		require.Zero(t, vm.portionsRegs[0].Cmp(big.NewRat(1, 3)))
+	})
+
+	t.Run("str", func(t *testing.T) {
+		prog := Program{
+			Instructions: []Instruction{
+				bc(Op_LoadStr, 1, 0),
+				abc(Op_StrCopy, 0, 1, nilReg),
+			},
+			StringsPool: []string{"USD/2"},
+		}
+		vm := NewVm(prog)
+		_, err := Exec(context.Background(), vm, nil, mockStore{})
+		require.Nil(t, err)
+		require.Equal(t, "USD/2", vm.stringsRegs[0])
+	})
+
+	t.Run("bool", func(t *testing.T) {
+		prog := Program{
+			Instructions: []Instruction{
+				abc(Op_ConstTrue, 1, nilReg, nilReg),
+				abc(Op_BoolCopy, 0, 1, nilReg),
+				// and the false direction, over a register that already held true
+				abc(Op_ConstTrue, 2, nilReg, nilReg),
+				abc(Op_ConstFalse, 3, nilReg, nilReg),
+				abc(Op_BoolCopy, 2, 3, nilReg),
+			},
+		}
+		vm := NewVm(prog)
+		_, err := Exec(context.Background(), vm, nil, mockStore{})
+		require.Nil(t, err)
+		require.True(t, vm.boolsRegs[0])
+		require.False(t, vm.boolsRegs[2], "copying false over true")
+	})
+}
+
+// A copy is a copy, not an alias: overwriting the source must not disturb the
+// destination. Only the int and portion banks can get this wrong, since those two
+// hold big values that are Set() into place rather than assigned.
+func TestCopiesAreNotAliases(t *testing.T) {
+	prog := Program{
+		Instructions: []Instruction{
+			bc(Op_LoadInt, 1, 0),          // $1 = 7
+			abc(Op_IntCopy, 0, 1, nilReg), // $0 = copy $1
+			bc(Op_LoadInt, 1, 1),          // $1 = 9
+		},
+		IntsPool: []big.Int{*big.NewInt(7), *big.NewInt(9)},
+	}
+	vm := NewVm(prog)
+	_, err := Exec(context.Background(), vm, nil, mockStore{})
+	require.Nil(t, err)
+	require.Zero(t, vm.intsRegs[0].Cmp(big.NewInt(7)), "the copy tracked its source")
+	require.Zero(t, vm.intsRegs[1].Cmp(big.NewInt(9)))
+}
+
 // The two int comparisons, over both signs. Each case also asserts the negation,
 // so `!=` — which has no opcode — is covered wherever `==` is.
 func TestIntComparisons(t *testing.T) {

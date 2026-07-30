@@ -784,6 +784,20 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "str_copy",
+			ir: `
+  $r0 = "USD/2"
+  $r1 = str_copy($r0)
+`,
+		},
+		{
+			name: "bool_copy",
+			ir: `
+  $r0 = true
+  $r1 = bool_copy($r0)
+`,
+		},
+		{
 			name: "portion_to_string",
 			ir: `
   $r0 = 1

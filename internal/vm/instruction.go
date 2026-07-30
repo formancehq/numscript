@@ -108,8 +108,13 @@ const (
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
 	// just naming one of its two registers. Reserved, do not reuse.
-	Op_IntCopy         Opcode = 0x42
-	Op_PortionCopy     Opcode = 0x43
+	// One copy per register bank: A = dest, B = src, both in that bank. There is
+	// no monetary copy, since a monetary is a (str asset, int amount) pair — copy
+	// the two halves. The family is split across 0x42..0x43 and 0x4A..0x4B
+	// because 0x44..0x49 were already spoken for.
+	Op_IntCopy     Opcode = 0x42
+	Op_PortionCopy Opcode = 0x43
+
 	Op_NegInt          Opcode = 0x44
 	Op_IntToString     Opcode = 0x45
 	Op_PortionToString Opcode = 0x46
@@ -123,7 +128,11 @@ const (
 	// 0x49 was Op_Not: moved to the bool-ops group, now 0x70. Reserved, do not
 	// reuse.
 
-	// 0x4A..0x4F reserved
+	// the other two bank copies; see Op_IntCopy above
+	Op_StrCopy  Opcode = 0x4A
+	Op_BoolCopy Opcode = 0x4B
+
+	// 0x4C..0x4F reserved
 
 	// --- funds & postings (0x50) ---
 

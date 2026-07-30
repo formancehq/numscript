@@ -446,6 +446,12 @@ func Exec[S Store](
 			arg := &portionsRegs[instr.B]
 			portionsRegs[instr.A].Set(arg)
 
+		case Op_StrCopy:
+			stringsRegs[instr.A] = stringsRegs[instr.B]
+
+		case Op_BoolCopy:
+			boolsRegs[instr.A] = boolsRegs[instr.B]
+
 		case Op_NegInt:
 			arg := &intsRegs[instr.B]
 			intsRegs[instr.A].Neg(arg)

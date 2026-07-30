@@ -231,6 +231,10 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 		return regInt, regInt, nil
 	case OpPortionCopy:
 		return regPortion, regPortion, nil
+	case OpStrCopy:
+		return regStr, regStr, nil
+	case OpBoolCopy:
+		return regBool, regBool, nil
 	case OpNegInt:
 		return regInt, regInt, nil
 	case OpIntToString:

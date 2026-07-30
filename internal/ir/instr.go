@@ -45,8 +45,13 @@ type UnKind interface {
 }
 
 type (
+	// One copy per register bank. A monetary has none: it is a (str, int) pair, so
+	// copying one is a str_copy plus an int_copy.
 	OpIntCopy     struct{}
 	OpPortionCopy struct{}
+	OpStrCopy     struct{}
+	OpBoolCopy    struct{}
+
 	OpNegInt      struct{}
 	OpIntToString struct{}
 	// OpIsZero projects an int onto a bool, which is how a quantity reaches a
