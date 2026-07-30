@@ -26,13 +26,13 @@ REG          '$' [a-zA-Z_] [a-zA-Z0-9_]*      $r0, $r12, $pulled
 LABEL        '#' [a-zA-Z_] [a-zA-Z0-9_]*      #inorder_end_0
 INT          [0-9]+                           42                (no sign, no separators)
 STRING       '"' ('\"' | ~["\r\n])* '"'       "USD/2", "a\"b"
-IDENTIFIER   [a-z] [a-z0-9_]*                 mk_monetary, account
+IDENTIFIER   [a-z] [a-z0-9_]*                 mk_portion, account
 TYPE_KEYWORD 'int' | 'str' | 'portion' | 'monetary'
 ```
 
 * Spaces, tabs and newlines are **skipped**, not significant. Statements are delimited by the grammar, not by line breaks — `$r0 = 1 $r1 = 2` is two valid instructions. Newlines are pure convention (a very useful one).
 * **There are no comments.** Any `//` or `#`-style comment is a syntax error (`#foo` lexes as a label).
-* `TYPE_KEYWORD` is matched before `IDENTIFIER`, so `int`, `str`, `portion` and `monetary` are reserved: they cannot be used as an instruction name or an argument label. Register names are unaffected (`$int` is fine, the `$` starts a `REG`).
+* `TYPE_KEYWORD` is matched before `IDENTIFIER`, so `int`, `str`, `portion` and `monetary` are reserved: they cannot be used as an instruction name or an argument label. Register names are unaffected (`$int` is fine, the `$` starts a `REG`). `monetary` is vestigial — no instruction takes it as a type parameter any more (see below) — but it stays reserved until the grammar is regenerated.
 * Instruction names and argument labels are lowercase-only (`IDENTIFIER` starts with `[a-z]`).
 
 ## Statements
@@ -60,7 +60,7 @@ Instructions come in five shapes:
 
 ```
 $r0                single register
-[$r0, $r1, $r2]    register list  (only mk_allot uses this)
+[$r0, $r1, $r2]    register list  (mk_allot and meta_monetary)
 _                  discard
 ```
 
@@ -90,7 +90,9 @@ Labeled arguments are looked up **by name**, so their order is free: `pull_accou
 
 ### Registers
 
-Registers in the IR are "logical": an unbounded stream of unsigned indices (`ir.Reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str`, `portion`, `monetary`), checked by `ir.Typecheck` — the type is never written in the text, it is inferred from the instruction that writes the register.
+Registers in the IR are "logical": an unbounded stream of unsigned indices (`ir.Reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str` or `portion`), checked by `ir.Typecheck` — the type is never written in the text, it is inferred from the instruction that writes the register.
+
+There is no monetary register. A monetary is a **pair** of registers, a `str` asset and an `int` amount, which the instructions below take and return separately. Nothing constructs or projects one, so `[USD/2 10]` is just the two registers holding `"USD/2"` and `10`.
 
 A register name is just a name: `ir.Parse` keeps a symbol table and allocates registers in order of **first appearance**, reusing the same one every later time a name shows up. `$r<N>` is a convention, not an index — `$r7` is no more meaningful than `$src`.
 
@@ -116,7 +118,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = load_var<int>(0)` | `int`; the index is a literal in `0..65535` |
 | `$d = load_var<str>(1)` | `str` |
 
-`load_var` reads from the encoded `vm.Vars` pool at that index. There is no `load_var<portion>` / `load_var<monetary>`: composite vars are encoded as their int/str components.
+`load_var` reads from the encoded `vm.Vars` pool at that index. There is no `load_var<portion>` / `load_var<monetary>`: composite vars are encoded as their int/str components. A monetary var is two `load_var`s — `load_var<str>` for the asset, `load_var<int>` for the amount — and that pair *is* the value.
 
 ### Pure arithmetic and constructors
 
@@ -128,7 +130,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
-| `$d = mk_monetary($asset, $amt)` | `(str, int) -> monetary` |
+| `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
 
 `add_int` and `sub_int` have infix sugar, which is what `ir.Dump` always prints:
 
@@ -148,23 +150,24 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | `$d = int_copy($a)` | `int -> int` |
 | `$d = portion_copy($a)` | `portion -> portion` |
 | `$d = neg_int($a)` | `int -> int` |
-| `$d = get_asset($m)` | `monetary -> str` |
-| `$d = get_amount($m)` | `monetary -> int` |
 | `$d = int_to_string($a)` | `int -> str` |
 | `$d = portion_to_string($a)` | `portion -> str` |
-| `$d = monetary_to_string($a)` | `monetary -> str` |
 
 There is no register-to-register move: use `int_copy` / `portion_copy`. `$r0 = $r1` is not valid syntax.
+
+There is no `get_asset` / `get_amount` either: projecting a monetary means naming one of its two registers, which costs no instruction. `monetary_to_string` is listed above with the other constructors, since it takes the pair.
 
 ### Run-state reads (impure)
 
 | syntax | signature |
 | --- | --- |
-| `$d = balance($account, $asset)` | `(str, str) -> monetary` |
+| `$d = balance($account, $asset)` | `(str, str) -> int` — the amount only; the monetary's asset is the `$asset` operand you already hold |
 | `$d = meta<str>($account, $key)` | `(str, str) -> str` |
 | `$d = meta<int>($account, $key)` | `(str, str) -> int` |
 | `$d = meta<portion>($account, $key)` | `(str, str) -> portion` |
-| `$d = meta<monetary>($account, $key)` | `(str, str) -> monetary` |
+| `[$asset, $amt] = meta_monetary($account, $key)` | `(str, str) -> (str, int)` |
+
+`meta_monetary` is not `meta<monetary>`: one store read yields both halves, so it is the only instruction other than `mk_allot` that writes a **dest list**, and its list must be exactly two registers (asset then amount).
 
 ### Funds movement
 
@@ -198,7 +201,7 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 | `assert_same_asset($l, $r)` | `str, str` |
 | `assert_valid_account($a)` | `str` |
 | `assert_valid_color($c)` | `str` |
-| `assert_non_negative_balance($bal, $account)` | `monetary, str` |
+| `assert_non_negative_balance($amt, $account)` | `int, str` — the account is only for the error |
 | `set_current_asset($asset)` | `str` — required before `pull_account` / `send_to_account` |
 
 `assert_leftover` / `assert_leftover_exact` are two separate instruction names, not one instruction with an `exact:` flag.
@@ -243,17 +246,16 @@ jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
 ```
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = "dest"
-  send_to_account(account: $r8)
+  set_current_asset($r0)
+  $r2 = "src"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
 ```
+
+`$r0` and `$r1` *are* the monetary: `set_current_asset` reads the asset half and the cap is the amount half, with nothing in between.
 
 ## Round-trip caveats
 

@@ -2,7 +2,7 @@
 
 Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
 
-- Registers are split into **per-type banks** (`int_regs`, `str_regs`, `mon_regs`, `por_regs`, …); an operand indexes the bank implied by the opcode.
+- Registers are split into **per-type banks** (`int_regs`, `str_regs`, `por_regs`); an operand indexes the bank implied by the opcode. There is no monetary bank: a monetary is a (`str_regs` asset, `int_regs` amount) pair, so the instructions that deal in monetaries take or return the two halves separately.
 - `0xFF` in a register slot means **nil** (absent optional operand).
 - **`Bx`** = a `u16` formed by slots `B`,`C` (little-endian); used for pool indices and jump targets. **`sBx`** is its signed form.
 - Most instructions are one word. A few extend into **continuation words** (shown as `↳ cont.`); an instruction's length is fixed by its opcode.
@@ -41,8 +41,8 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
     <tr>
       <td>3</td><td><code>0x03</code></td><td><strong>ASSERT_NON_NEGATIVE_BALANCE</strong></td>
-      <td>mon</td><td>acc</td><td>-</td>
-      <td>Traps if the monetary in <code>mon_regs[A]</code> is negative; <code>B</code> = account (for the error)</td>
+      <td>amt</td><td>acc</td><td>-</td>
+      <td>Traps if <code>int_regs[A]</code> is negative; <code>B</code> = account (for the error)</td>
     </tr>
     <tr>
       <td>4</td><td><code>0x04</code></td><td><strong>ASSERT_LEFTOVER</strong></td>
@@ -145,8 +145,13 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
     <tr>
       <td>37</td><td><code>0x25</code></td><td><strong>META_MONETARY</strong></td>
-      <td>dest</td><td>acc</td><td>key</td>
-      <td>as <code>META_STR</code>, typed <code>monetary</code></td>
+      <td>dest asset</td><td>acc</td><td>key</td>
+      <td>Parses the value as a monetary. One store read yields both halves, so this is the only two-destination read: <code>str_regs[A] =</code> asset</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>dest amt</td><td>-</td><td>-</td>
+      <td><code>int_regs[A] =</code> amount</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x26..0x2F reserved</em></td>
@@ -191,9 +196,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>por_regs[A] = int_regs[B] / int_regs[C]</code></td>
     </tr>
     <tr>
-      <td>53</td><td><code>0x35</code></td><td><strong>MK_MONETARY</strong></td>
-      <td>dest</td><td>asset</td><td>amount</td>
-      <td><code>mon_regs[A] = { str_regs[B], int_regs[C] }</code></td>
+      <td colspan="7" align="center"><em>0x35 reserved (was MK_MONETARY: a monetary is a register pair, nothing to construct)</em></td>
     </tr>
     <tr>
       <td>54</td><td><code>0x36</code></td><td><strong>ADD_STRING</strong></td>
@@ -218,14 +221,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
   </thead>
   <tbody>
     <tr>
-      <td>64</td><td><code>0x40</code></td><td><strong>GET_AMOUNT</strong></td>
-      <td>dest</td><td>mon</td><td>-</td>
-      <td><code>int_regs[A] = mon_regs[B].amount</code></td>
-    </tr>
-    <tr>
-      <td>65</td><td><code>0x41</code></td><td><strong>GET_ASSET</strong></td>
-      <td>dest</td><td>mon</td><td>-</td>
-      <td><code>str_regs[A] = mon_regs[B].asset</code></td>
+      <td colspan="7" align="center"><em>0x40..0x41 reserved (were GET_AMOUNT / GET_ASSET: projecting a monetary is naming one of its two registers, so it costs no instruction)</em></td>
     </tr>
     <tr>
       <td>66</td><td><code>0x42</code></td><td><strong>INT_COPY</strong></td>
@@ -254,8 +250,8 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
     <tr>
       <td>71</td><td><code>0x47</code></td><td><strong>MONETARY_TO_STRING</strong></td>
-      <td>dest</td><td>src</td><td>-</td>
-      <td><code>str_regs[A] = str(mon_regs[B])</code></td>
+      <td>dest</td><td>asset</td><td>amt</td>
+      <td><code>str_regs[A] = str_regs[B] + " " + str(int_regs[C])</code> — takes both halves, so it is ternary despite living in this section</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x48..0x4F reserved</em></td>
@@ -301,8 +297,8 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
     <tr>
       <td>84</td><td><code>0x54</code></td><td><strong>BALANCE</strong></td>
-      <td>dest</td><td>acc</td><td>asset</td>
-      <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state</td>
+      <td>dest amt</td><td>acc</td><td>asset</td>
+      <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state. Only the amount: the resulting monetary's asset is operand <code>C</code>, which the caller already holds</td>
     </tr>
     <tr>
       <td>85</td><td><code>0x55</code></td><td><strong>SNAPSHOT</strong></td>

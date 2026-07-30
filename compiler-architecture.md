@@ -202,6 +202,8 @@ The version/section framing and the pool encoding are the same code as the progr
 
 An important property is that the `vm.Vars` don't have a 1-1 correspondence with the vars. The `vm.Vars` only encodes ints and strings. Composite objects, such as monetaries, are split into 2 different vars. This keeps data encoding minimal, and makes optimizations surface simpler to implement (see optimisations section below).
 
+The same principle now applies inside the VM, not just at the vars boundary: a monetary **is** a (str asset, int amount) register pair everywhere. There is no monetary register bank and no instruction that builds or projects one.
+
 The compiler is free to choose any encoding it wants for the vars (e.g. the first value in the str pool doesn't have to be the first string variable). Behaviour can change across versions.
 
 ### Soundness verification
@@ -271,10 +273,8 @@ send <monetary> (
 ```
 
 ```
-$mon = <compiled monetary>
-$asset = get_asset($mon)
+$asset, $amount = <compiled monetary>  // two regs, no instruction of its own
 set_current_asset($asset) // needed for pull_account and send_to_account
-$amount = get_amount($mon)
 
 // a source always compiles by putting the pulled amt into a reg
 $pulled = <compiled src>
@@ -319,12 +319,9 @@ send [USD/2 10] (
 output:
 
 ```
-$asset_lit = "USD/2"
-$amount_lit = 10
-$mon = mk_monetary($asset_lit, $amount_lit)
-$asset = get_asset($mon)
+$asset = "USD/2"
+$amount = 10
 set_current_asset($asset)
-$amount = get_amount($mon)
 $src = "src"
 $overdraft = 0
 $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
@@ -367,10 +364,8 @@ $pulled += $pulled_sn
 Let's compile `max <monetary> from <src>`, bounded by the `$amount` cap.
 
 ```
-$mon = <compiled monetary>
-$max_asset = get_asset($mon)
+$max_asset, $max_amount = <compiled monetary>
 assert_same_asset($max_asset, $asset) // $asset is the current asset (set via set_current_asset)
-$max_amount = get_amount($mon)
 $cap = min_int($max_amount, $amount)
 $pulled = <compile src, capped by $cap>
 ```
@@ -408,6 +403,10 @@ check_enough_funds($pulled_sn, $share_n)
 
 You may have noticed that the previous compilation examples emit _a lot_ of garbage.
 That's done by design: the compiler must be simple and declarative. We don't want dozens of special cases in the compilation logic, which must express a general, albeit redundant, template which focuses on correctness.
+
+One whole class of that garbage is gone for good, though, and not via a peephole: monetaries used to be boxed with `mk_monetary` and immediately unboxed with `get_asset`/`get_amount`, so 3 of the 12 instructions for a simple `send` were pure round-tripping. Representing a monetary as a register pair removes them at codegen time, which is why there is no `monetaryFold` peephole to write.
+
+That change also *enables* a peephole that was previously out of reach. `assert_same_asset` used to compare two `get_asset(mk_monetary(..))` results, whose provenance is invisible without folding first; now both operands are plain `load_str`s, so an asset comparison between two literals is statically decidable and the assert can be dropped outright.
 
 However, the `irInstr` layer allows us to easily rewrite the instructions so that we remove garbage instructions, precomputing more aggressively, rewrite them into more efficient code (this is called [peephole optimisation](https://en.wikipedia.org/wiki/Peephole_optimization))
 
