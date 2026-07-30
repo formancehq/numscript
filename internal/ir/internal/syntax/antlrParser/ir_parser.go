@@ -32,13 +32,13 @@ var IRParserStaticData struct {
 func irParserInit() {
 	staticData := &IRParserStaticData
 	staticData.LiteralNames = []string{
-		"", "':'", "", "", "", "", "", "", "", "", "'('", "')'", "'['", "']'",
-		"','", "'='", "'+'", "'-'", "'+='", "'-='", "'<'", "'>'", "'_'",
+		"", "':'", "", "", "", "", "", "", "", "", "", "'('", "')'", "'['",
+		"']'", "','", "'='", "'+'", "'-'", "'+='", "'-='", "'<'", "'>'", "'_'",
 	}
 	staticData.SymbolicNames = []string{
-		"", "", "WS", "NEWLINE", "TYPE_KEYWORD", "REG", "LABEL", "INT", "STRING",
-		"IDENTIFIER", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "EQ",
-		"PLUS", "MINUS", "PLUS_EQ", "MINUS_EQ", "LT", "GT", "UNDERSCORE",
+		"", "", "WS", "NEWLINE", "TYPE_KEYWORD", "BOOL", "REG", "LABEL", "INT",
+		"STRING", "IDENTIFIER", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET",
+		"COMMA", "EQ", "PLUS", "MINUS", "PLUS_EQ", "MINUS_EQ", "LT", "GT", "UNDERSCORE",
 	}
 	staticData.RuleNames = []string{
 		"program", "line", "labelMarker", "instruction", "dest", "regList",
@@ -47,7 +47,7 @@ func irParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 22, 125, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 23, 126, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 1, 0, 5, 0, 30, 8, 0, 10,
 		0, 12, 0, 33, 9, 0, 1, 0, 1, 0, 1, 1, 1, 1, 3, 1, 39, 8, 1, 1, 2, 1, 2,
@@ -58,46 +58,47 @@ func irParserInit() {
 		1, 7, 1, 7, 3, 7, 90, 8, 7, 1, 8, 1, 8, 1, 9, 1, 9, 1, 9, 5, 9, 97, 8,
 		9, 10, 9, 12, 9, 100, 9, 9, 3, 9, 102, 8, 9, 1, 10, 1, 10, 1, 10, 1, 10,
 		3, 10, 108, 8, 10, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 3,
-		11, 117, 8, 11, 1, 12, 1, 12, 3, 12, 121, 8, 12, 1, 13, 1, 13, 1, 13, 0,
-		0, 14, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 0, 2, 1, 0, 16,
-		17, 1, 0, 18, 19, 127, 0, 31, 1, 0, 0, 0, 2, 38, 1, 0, 0, 0, 4, 40, 1,
-		0, 0, 0, 6, 61, 1, 0, 0, 0, 8, 69, 1, 0, 0, 0, 10, 71, 1, 0, 0, 0, 12,
-		79, 1, 0, 0, 0, 14, 84, 1, 0, 0, 0, 16, 91, 1, 0, 0, 0, 18, 101, 1, 0,
-		0, 0, 20, 107, 1, 0, 0, 0, 22, 116, 1, 0, 0, 0, 24, 120, 1, 0, 0, 0, 26,
-		122, 1, 0, 0, 0, 28, 30, 3, 2, 1, 0, 29, 28, 1, 0, 0, 0, 30, 33, 1, 0,
-		0, 0, 31, 29, 1, 0, 0, 0, 31, 32, 1, 0, 0, 0, 32, 34, 1, 0, 0, 0, 33, 31,
-		1, 0, 0, 0, 34, 35, 5, 0, 0, 1, 35, 1, 1, 0, 0, 0, 36, 39, 3, 4, 2, 0,
-		37, 39, 3, 6, 3, 0, 38, 36, 1, 0, 0, 0, 38, 37, 1, 0, 0, 0, 39, 3, 1, 0,
-		0, 0, 40, 41, 5, 6, 0, 0, 41, 5, 1, 0, 0, 0, 42, 43, 3, 8, 4, 0, 43, 44,
-		5, 15, 0, 0, 44, 45, 3, 12, 6, 0, 45, 62, 1, 0, 0, 0, 46, 62, 3, 12, 6,
-		0, 47, 48, 3, 8, 4, 0, 48, 49, 5, 15, 0, 0, 49, 50, 3, 24, 12, 0, 50, 62,
-		1, 0, 0, 0, 51, 52, 3, 8, 4, 0, 52, 53, 5, 15, 0, 0, 53, 54, 3, 26, 13,
-		0, 54, 55, 7, 0, 0, 0, 55, 56, 3, 26, 13, 0, 56, 62, 1, 0, 0, 0, 57, 58,
-		3, 26, 13, 0, 58, 59, 7, 1, 0, 0, 59, 60, 3, 26, 13, 0, 60, 62, 1, 0, 0,
-		0, 61, 42, 1, 0, 0, 0, 61, 46, 1, 0, 0, 0, 61, 47, 1, 0, 0, 0, 61, 51,
-		1, 0, 0, 0, 61, 57, 1, 0, 0, 0, 62, 7, 1, 0, 0, 0, 63, 70, 3, 26, 13, 0,
-		64, 70, 5, 22, 0, 0, 65, 66, 5, 12, 0, 0, 66, 67, 3, 10, 5, 0, 67, 68,
-		5, 13, 0, 0, 68, 70, 1, 0, 0, 0, 69, 63, 1, 0, 0, 0, 69, 64, 1, 0, 0, 0,
-		69, 65, 1, 0, 0, 0, 70, 9, 1, 0, 0, 0, 71, 76, 3, 26, 13, 0, 72, 73, 5,
-		14, 0, 0, 73, 75, 3, 26, 13, 0, 74, 72, 1, 0, 0, 0, 75, 78, 1, 0, 0, 0,
-		76, 74, 1, 0, 0, 0, 76, 77, 1, 0, 0, 0, 77, 11, 1, 0, 0, 0, 78, 76, 1,
-		0, 0, 0, 79, 80, 3, 14, 7, 0, 80, 81, 5, 10, 0, 0, 81, 82, 3, 18, 9, 0,
-		82, 83, 5, 11, 0, 0, 83, 13, 1, 0, 0, 0, 84, 89, 5, 9, 0, 0, 85, 86, 5,
-		20, 0, 0, 86, 87, 3, 16, 8, 0, 87, 88, 5, 21, 0, 0, 88, 90, 1, 0, 0, 0,
-		89, 85, 1, 0, 0, 0, 89, 90, 1, 0, 0, 0, 90, 15, 1, 0, 0, 0, 91, 92, 5,
-		4, 0, 0, 92, 17, 1, 0, 0, 0, 93, 98, 3, 20, 10, 0, 94, 95, 5, 14, 0, 0,
-		95, 97, 3, 20, 10, 0, 96, 94, 1, 0, 0, 0, 97, 100, 1, 0, 0, 0, 98, 96,
+		11, 117, 8, 11, 1, 12, 1, 12, 1, 12, 3, 12, 122, 8, 12, 1, 13, 1, 13, 1,
+		13, 0, 0, 14, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 0, 2,
+		1, 0, 17, 18, 1, 0, 19, 20, 129, 0, 31, 1, 0, 0, 0, 2, 38, 1, 0, 0, 0,
+		4, 40, 1, 0, 0, 0, 6, 61, 1, 0, 0, 0, 8, 69, 1, 0, 0, 0, 10, 71, 1, 0,
+		0, 0, 12, 79, 1, 0, 0, 0, 14, 84, 1, 0, 0, 0, 16, 91, 1, 0, 0, 0, 18, 101,
+		1, 0, 0, 0, 20, 107, 1, 0, 0, 0, 22, 116, 1, 0, 0, 0, 24, 121, 1, 0, 0,
+		0, 26, 123, 1, 0, 0, 0, 28, 30, 3, 2, 1, 0, 29, 28, 1, 0, 0, 0, 30, 33,
+		1, 0, 0, 0, 31, 29, 1, 0, 0, 0, 31, 32, 1, 0, 0, 0, 32, 34, 1, 0, 0, 0,
+		33, 31, 1, 0, 0, 0, 34, 35, 5, 0, 0, 1, 35, 1, 1, 0, 0, 0, 36, 39, 3, 4,
+		2, 0, 37, 39, 3, 6, 3, 0, 38, 36, 1, 0, 0, 0, 38, 37, 1, 0, 0, 0, 39, 3,
+		1, 0, 0, 0, 40, 41, 5, 7, 0, 0, 41, 5, 1, 0, 0, 0, 42, 43, 3, 8, 4, 0,
+		43, 44, 5, 16, 0, 0, 44, 45, 3, 12, 6, 0, 45, 62, 1, 0, 0, 0, 46, 62, 3,
+		12, 6, 0, 47, 48, 3, 8, 4, 0, 48, 49, 5, 16, 0, 0, 49, 50, 3, 24, 12, 0,
+		50, 62, 1, 0, 0, 0, 51, 52, 3, 8, 4, 0, 52, 53, 5, 16, 0, 0, 53, 54, 3,
+		26, 13, 0, 54, 55, 7, 0, 0, 0, 55, 56, 3, 26, 13, 0, 56, 62, 1, 0, 0, 0,
+		57, 58, 3, 26, 13, 0, 58, 59, 7, 1, 0, 0, 59, 60, 3, 26, 13, 0, 60, 62,
+		1, 0, 0, 0, 61, 42, 1, 0, 0, 0, 61, 46, 1, 0, 0, 0, 61, 47, 1, 0, 0, 0,
+		61, 51, 1, 0, 0, 0, 61, 57, 1, 0, 0, 0, 62, 7, 1, 0, 0, 0, 63, 70, 3, 26,
+		13, 0, 64, 70, 5, 23, 0, 0, 65, 66, 5, 13, 0, 0, 66, 67, 3, 10, 5, 0, 67,
+		68, 5, 14, 0, 0, 68, 70, 1, 0, 0, 0, 69, 63, 1, 0, 0, 0, 69, 64, 1, 0,
+		0, 0, 69, 65, 1, 0, 0, 0, 70, 9, 1, 0, 0, 0, 71, 76, 3, 26, 13, 0, 72,
+		73, 5, 15, 0, 0, 73, 75, 3, 26, 13, 0, 74, 72, 1, 0, 0, 0, 75, 78, 1, 0,
+		0, 0, 76, 74, 1, 0, 0, 0, 76, 77, 1, 0, 0, 0, 77, 11, 1, 0, 0, 0, 78, 76,
+		1, 0, 0, 0, 79, 80, 3, 14, 7, 0, 80, 81, 5, 11, 0, 0, 81, 82, 3, 18, 9,
+		0, 82, 83, 5, 12, 0, 0, 83, 13, 1, 0, 0, 0, 84, 89, 5, 10, 0, 0, 85, 86,
+		5, 21, 0, 0, 86, 87, 3, 16, 8, 0, 87, 88, 5, 22, 0, 0, 88, 90, 1, 0, 0,
+		0, 89, 85, 1, 0, 0, 0, 89, 90, 1, 0, 0, 0, 90, 15, 1, 0, 0, 0, 91, 92,
+		5, 4, 0, 0, 92, 17, 1, 0, 0, 0, 93, 98, 3, 20, 10, 0, 94, 95, 5, 15, 0,
+		0, 95, 97, 3, 20, 10, 0, 96, 94, 1, 0, 0, 0, 97, 100, 1, 0, 0, 0, 98, 96,
 		1, 0, 0, 0, 98, 99, 1, 0, 0, 0, 99, 102, 1, 0, 0, 0, 100, 98, 1, 0, 0,
 		0, 101, 93, 1, 0, 0, 0, 101, 102, 1, 0, 0, 0, 102, 19, 1, 0, 0, 0, 103,
-		108, 3, 22, 11, 0, 104, 105, 5, 9, 0, 0, 105, 106, 5, 1, 0, 0, 106, 108,
+		108, 3, 22, 11, 0, 104, 105, 5, 10, 0, 0, 105, 106, 5, 1, 0, 0, 106, 108,
 		3, 22, 11, 0, 107, 103, 1, 0, 0, 0, 107, 104, 1, 0, 0, 0, 108, 21, 1, 0,
-		0, 0, 109, 117, 3, 26, 13, 0, 110, 117, 5, 6, 0, 0, 111, 117, 5, 7, 0,
-		0, 112, 113, 5, 12, 0, 0, 113, 114, 3, 10, 5, 0, 114, 115, 5, 13, 0, 0,
+		0, 0, 109, 117, 3, 26, 13, 0, 110, 117, 5, 7, 0, 0, 111, 117, 5, 8, 0,
+		0, 112, 113, 5, 13, 0, 0, 113, 114, 3, 10, 5, 0, 114, 115, 5, 14, 0, 0,
 		115, 117, 1, 0, 0, 0, 116, 109, 1, 0, 0, 0, 116, 110, 1, 0, 0, 0, 116,
-		111, 1, 0, 0, 0, 116, 112, 1, 0, 0, 0, 117, 23, 1, 0, 0, 0, 118, 121, 5,
-		8, 0, 0, 119, 121, 5, 7, 0, 0, 120, 118, 1, 0, 0, 0, 120, 119, 1, 0, 0,
-		0, 121, 25, 1, 0, 0, 0, 122, 123, 5, 5, 0, 0, 123, 27, 1, 0, 0, 0, 11,
-		31, 38, 61, 69, 76, 89, 98, 101, 107, 116, 120,
+		111, 1, 0, 0, 0, 116, 112, 1, 0, 0, 0, 117, 23, 1, 0, 0, 0, 118, 122, 5,
+		9, 0, 0, 119, 122, 5, 8, 0, 0, 120, 122, 5, 5, 0, 0, 121, 118, 1, 0, 0,
+		0, 121, 119, 1, 0, 0, 0, 121, 120, 1, 0, 0, 0, 122, 25, 1, 0, 0, 0, 123,
+		124, 5, 6, 0, 0, 124, 27, 1, 0, 0, 0, 11, 31, 38, 61, 69, 76, 89, 98, 101,
+		107, 116, 121,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -140,24 +141,25 @@ const (
 	IRParserWS           = 2
 	IRParserNEWLINE      = 3
 	IRParserTYPE_KEYWORD = 4
-	IRParserREG          = 5
-	IRParserLABEL        = 6
-	IRParserINT          = 7
-	IRParserSTRING       = 8
-	IRParserIDENTIFIER   = 9
-	IRParserLPAREN       = 10
-	IRParserRPAREN       = 11
-	IRParserLBRACKET     = 12
-	IRParserRBRACKET     = 13
-	IRParserCOMMA        = 14
-	IRParserEQ           = 15
-	IRParserPLUS         = 16
-	IRParserMINUS        = 17
-	IRParserPLUS_EQ      = 18
-	IRParserMINUS_EQ     = 19
-	IRParserLT           = 20
-	IRParserGT           = 21
-	IRParserUNDERSCORE   = 22
+	IRParserBOOL         = 5
+	IRParserREG          = 6
+	IRParserLABEL        = 7
+	IRParserINT          = 8
+	IRParserSTRING       = 9
+	IRParserIDENTIFIER   = 10
+	IRParserLPAREN       = 11
+	IRParserRPAREN       = 12
+	IRParserLBRACKET     = 13
+	IRParserRBRACKET     = 14
+	IRParserCOMMA        = 15
+	IRParserEQ           = 16
+	IRParserPLUS         = 17
+	IRParserMINUS        = 18
+	IRParserPLUS_EQ      = 19
+	IRParserMINUS_EQ     = 20
+	IRParserLT           = 21
+	IRParserGT           = 22
+	IRParserUNDERSCORE   = 23
 )
 
 // IRParser rules.
@@ -304,7 +306,7 @@ func (p *IRParser) Program() (localctx IProgramContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4199008) != 0 {
+	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&8398016) != 0 {
 		{
 			p.SetState(28)
 			p.Line()
@@ -2140,7 +2142,7 @@ func (p *IRParser) Args() (localctx IArgsContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4832) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&9664) != 0 {
 		{
 			p.SetState(93)
 			p.Arg()
@@ -2827,10 +2829,44 @@ func (s *ConstIntContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
+type ConstBoolContext struct {
+	Const_Context
+}
+
+func NewConstBoolContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ConstBoolContext {
+	var p = new(ConstBoolContext)
+
+	InitEmptyConst_Context(&p.Const_Context)
+	p.parser = parser
+	p.CopyAll(ctx.(*Const_Context))
+
+	return p
+}
+
+func (s *ConstBoolContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *ConstBoolContext) BOOL() antlr.TerminalNode {
+	return s.GetToken(IRParserBOOL, 0)
+}
+
+func (s *ConstBoolContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(IRListener); ok {
+		listenerT.EnterConstBool(s)
+	}
+}
+
+func (s *ConstBoolContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(IRListener); ok {
+		listenerT.ExitConstBool(s)
+	}
+}
+
 func (p *IRParser) Const_() (localctx IConst_Context) {
 	localctx = NewConst_Context(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, IRParserRULE_const_)
-	p.SetState(120)
+	p.SetState(121)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -2855,6 +2891,18 @@ func (p *IRParser) Const_() (localctx IConst_Context) {
 		{
 			p.SetState(119)
 			p.Match(IRParserINT)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case IRParserBOOL:
+		localctx = NewConstBoolContext(p, localctx)
+		p.EnterOuterAlt(localctx, 3)
+		{
+			p.SetState(120)
+			p.Match(IRParserBOOL)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -2954,7 +3002,7 @@ func (p *IRParser) Reg() (localctx IRegContext) {
 	p.EnterRule(localctx, 26, IRParserRULE_reg)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(122)
+		p.SetState(123)
 		p.Match(IRParserREG)
 		if p.HasError() {
 			// Recognition error - abort rule

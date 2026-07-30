@@ -28,10 +28,12 @@ INT          [0-9]+                           42                (no sign, no sep
 STRING       '"' ('\"' | ~["\r\n])* '"'       "USD/2", "a\"b"
 IDENTIFIER   [a-z] [a-z0-9_]*                 mk_portion, account
 TYPE_KEYWORD 'int' | 'str' | 'portion' | 'monetary'
+BOOL         'true' | 'false'
 ```
 
 * Spaces, tabs and newlines are **skipped**, not significant. Statements are delimited by the grammar, not by line breaks — `$r0 = 1 $r1 = 2` is two valid instructions. Newlines are pure convention (a very useful one).
 * **There are no comments.** Any `//` or `#`-style comment is a syntax error (`#foo` lexes as a label).
+* `BOOL` is likewise matched before `IDENTIFIER`, so `true` and `false` are reserved too.
 * `TYPE_KEYWORD` is matched before `IDENTIFIER`, so `int`, `str`, `portion` and `monetary` are reserved: they cannot be used as an instruction name or an argument label. Register names are unaffected (`$int` is fine, the `$` starts a `REG`). `monetary` is vestigial — no instruction takes it as a type parameter any more (see below) — but it stays reserved until the grammar is regenerated.
 * Instruction names and argument labels are lowercase-only (`IDENTIFIER` starts with `[a-z]`).
 
@@ -90,7 +92,7 @@ Labeled arguments are looked up **by name**, so their order is free: `pull_accou
 
 ### Registers
 
-Registers in the IR are "logical": an unbounded stream of unsigned indices (`ir.Reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str` or `portion`), checked by `ir.Typecheck` — the type is never written in the text, it is inferred from the instruction that writes the register.
+Registers in the IR are "logical": an unbounded stream of unsigned indices (`ir.Reg` is a `uint`), later mapped onto the VM's 256-per-bank physical registers by the assembler's allocator. Each register has exactly one type for its whole lifetime (`int`, `str`, `portion` or `bool`), checked by `ir.Typecheck` — the type is never written in the text, it is inferred from the instruction that writes the register.
 
 There is no monetary register. A monetary is a **pair** of registers, a `str` asset and an `int` amount, which the instructions below take and return separately. Nothing constructs or projects one, so `[USD/2 10]` is just the two registers holding `"USD/2"` and `10`.
 
@@ -115,8 +117,12 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | --- | --- |
 | `$d = 42` | `int` |
 | `$d = "USD/2"` | `str` |
+| `$d = true` | `bool` |
+| `$d = false` | `bool` |
 | `$d = load_var<int>(0)` | `int`; the index is a literal in `0..65535` |
 | `$d = load_var<str>(1)` | `str` |
+
+`true` and `false` are constants like the other two, but they need no pool entry: the value is in the opcode (`CONST_TRUE` / `CONST_FALSE`). They are only ever the right-hand side of a const assignment — no instruction takes a bool *operand*, so `set_current_asset(true)` doesn't parse. There is no `load_var<bool>` either: numscript has no bool of its own, so a bool register can only come from an instruction inside the program.
 
 `load_var` reads from the encoded `vm.Vars` pool at that index. There is no `load_var<portion>` / `load_var<monetary>`: composite vars are encoded as their int/str components. A monetary var is two `load_var`s — `load_var<str>` for the asset, `load_var<int>` for the amount — and that pair *is* the value.
 
@@ -222,7 +228,7 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 #my_label
 ```
 
-`$cond` is `int` — there is no boolean type, so a zero/non-zero int *is* the predicate; `str_eq` is how a string comparison becomes one. For both instructions the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
+`$cond` is `int`: a zero/non-zero int *is* the predicate, and `str_eq` is how a string comparison becomes one. There is a `bool` register type, but no instruction consumes one yet — jumps and `str_eq` still work in the int bank. For both instructions the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
 
 ```
 jmp_if_zero($r0, #nope)     → label #nope is not defined in the program

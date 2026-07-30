@@ -79,6 +79,9 @@ type IRListener interface {
 	// EnterConstInt is called when entering the constInt production.
 	EnterConstInt(c *ConstIntContext)
 
+	// EnterConstBool is called when entering the constBool production.
+	EnterConstBool(c *ConstBoolContext)
+
 	// EnterReg is called when entering the reg production.
 	EnterReg(c *RegContext)
 
@@ -153,6 +156,9 @@ type IRListener interface {
 
 	// ExitConstInt is called when exiting the constInt production.
 	ExitConstInt(c *ConstIntContext)
+
+	// ExitConstBool is called when exiting the constBool production.
+	ExitConstBool(c *ConstBoolContext)
 
 	// ExitReg is called when exiting the reg production.
 	ExitReg(c *RegContext)

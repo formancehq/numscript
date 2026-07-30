@@ -15,6 +15,7 @@ type Program struct {
 	MaxRegString  byte
 	MaxRegInt     byte
 	MaxRegPortion byte
+	MaxRegBool    byte
 }
 
 var le = binary.LittleEndian
@@ -46,7 +47,7 @@ func (p Program) Encode() []byte {
 const maxRegDefault byte = 255
 
 func encodeMaxRegs(p Program) []byte {
-	return []byte{p.MaxRegString, p.MaxRegInt, p.MaxRegPortion}
+	return []byte{p.MaxRegString, p.MaxRegInt, p.MaxRegPortion, p.MaxRegBool}
 }
 
 // One byte per bank, positional, append-only order. The section length is the
@@ -59,9 +60,9 @@ func encodeMaxRegs(p Program) []byte {
 //
 // Extra trailing bytes (a newer writer) are ignored; a program that actually uses
 // such a bank is rejected later via its unknown opcodes.
-func parseMaxRegs(buf []byte) (str, i, portion byte) {
+func parseMaxRegs(buf []byte) (str, i, portion, bool_ byte) {
 	if len(buf) == 0 {
-		return maxRegDefault, maxRegDefault, maxRegDefault
+		return maxRegDefault, maxRegDefault, maxRegDefault, maxRegDefault
 	}
 	at := func(idx int) byte {
 		if idx < len(buf) {
@@ -69,7 +70,7 @@ func parseMaxRegs(buf []byte) (str, i, portion byte) {
 		}
 		return 0
 	}
-	return at(0), at(1), at(2)
+	return at(0), at(1), at(2), at(3)
 }
 
 func encodeStringsPool(strings []string) []byte {
@@ -210,7 +211,7 @@ func DecodeProgram(buf []byte) (Program, error) {
 		return Program{}, err
 	}
 
-	maxStr, maxInt, maxPortion := parseMaxRegs(sections[SectionMaxRegisters])
+	maxStr, maxInt, maxPortion, maxBool := parseMaxRegs(sections[SectionMaxRegisters])
 
 	return Program{
 		Instructions:  instructions,
@@ -219,5 +220,6 @@ func DecodeProgram(buf []byte) (Program, error) {
 		MaxRegString:  maxStr,
 		MaxRegInt:     maxInt,
 		MaxRegPortion: maxPortion,
+		MaxRegBool:    maxBool,
 	}, nil
 }

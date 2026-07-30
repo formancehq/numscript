@@ -97,14 +97,15 @@ const (
 	ValRegList                  // [$r0, $r1]
 )
 
-// Const is a constant literal: a string or an integer.
+// Const is a constant literal: a string, an integer or a bool.
 type Const struct {
 	Range parser.Range
 	Kind  ConstKind
 
 	// Exactly one is set:
-	StrVal *string
-	IntVal *string // raw numeric string
+	StrVal  *string
+	IntVal  *string // raw numeric string
+	BoolVal *bool
 }
 
 type ConstKind int
@@ -112,6 +113,7 @@ type ConstKind int
 const (
 	ConstString ConstKind = iota
 	ConstInt
+	ConstBool
 )
 
 // Infix is a binary operation with infix syntax.

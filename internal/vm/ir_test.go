@@ -730,6 +730,35 @@ func TestIRVmIsReusableAcrossRuns(t *testing.T) {
 
 // TestIRSurvivesTheWireFormat runs one program in memory and again after a trip
 // through Encode/DecodeProgram. Nothing else ties the encoder to the VM.
+// No instruction reads a bool yet, so this only pins down that the bank is
+// allocated separately from the others and that the two ops run.
+func TestIRConstBool(t *testing.T) {
+	program := assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $t = true
+  $f = false
+  $amount = 10
+  $overdraft = 0
+  $src = "src"
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`)
+
+	require.Equal(t, byte(2), program.MaxRegBool)
+	// $amount, $overdraft, $pulled — the two bools are not among them
+	require.Equal(t, byte(3), program.MaxRegInt, "bools don't consume int registers")
+
+	decoded, err := vm.DecodeProgram(program.Encode())
+	require.NoError(t, err)
+	require.Equal(t, program, decoded)
+
+	res, execErr := vm.Exec(context.Background(), vm.NewVm(decoded), nil, balances(map[string]int64{"src": 10}))
+	require.Nil(t, execErr, "unexpected execution error: %v", execErr)
+	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+}
+
 func TestIRSurvivesTheWireFormat(t *testing.T) {
 	program := assembleIR(t, `
   $asset = "USD/2"

@@ -172,6 +172,8 @@ func (t *transformer) transformConst(s *syntax.InstrStmt) (Instr, *Error) {
 			return nil, &Error{Range: s.Const.Range, Msg: fmt.Sprintf("invalid integer: %q", *s.Const.IntVal)}
 		}
 		return LoadInt{Dest: dest, Value: *n}, nil
+	case syntax.ConstBool:
+		return ConstBool{Dest: dest, Value: *s.Const.BoolVal}, nil
 	default:
 		return nil, &Error{Range: s.Range, Msg: "unknown const kind"}
 	}

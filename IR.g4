@@ -47,6 +47,7 @@ value
 const_
     : STRING                              # constString
     | INT                                 # constInt
+    | BOOL                                # constBool
     ;
 
 reg: REG;
@@ -58,6 +59,7 @@ NEWLINE: [\r\n]+ -> skip;
 
 // Must come before IDENTIFIER so keywords are not swallowed
 TYPE_KEYWORD: 'int' | 'str' | 'portion' | 'monetary';
+BOOL: 'true' | 'false';
 
 REG: '$' [a-zA-Z_] [a-zA-Z0-9_]*;
 LABEL: '#' [a-zA-Z_] [a-zA-Z0-9_]*;

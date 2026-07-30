@@ -67,6 +67,11 @@ const (
 
 	// 0x14 Op_LoadIntImmediate: inline i16 literal in b_c. NOT IMPLEMENTED (reserved)
 
+	// A = dest (bool reg). The two bool constants have an opcode each, so there
+	// is no operand to decode.
+	Op_ConstTrue  Opcode = 0x15
+	Op_ConstFalse Opcode = 0x16
+
 	// --- metadata (0x20) ---
 	// A = key (str reg), B = value (str reg)
 	Op_SetTxMeta Opcode = 0x20

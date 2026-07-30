@@ -135,6 +135,12 @@ type (
 		Dest  Reg
 		Value string
 	}
+	// ConstBool assembles to Op_ConstTrue or Op_ConstFalse: the value is in the
+	// opcode, so there is no pool entry.
+	ConstBool struct {
+		Dest  Reg
+		Value bool
+	}
 	BinaryOp struct {
 		Op                BinKind
 		Dest, Left, Right Reg
@@ -223,6 +229,9 @@ func (i LoadInt) sources() []Reg { return nil }
 
 func (i LoadStr) dests() []Reg   { return []Reg{i.Dest} }
 func (i LoadStr) sources() []Reg { return nil }
+
+func (i ConstBool) dests() []Reg   { return []Reg{i.Dest} }
+func (i ConstBool) sources() []Reg { return nil }
 
 func (i BinaryOp) dests() []Reg   { return []Reg{i.Dest} }
 func (i BinaryOp) sources() []Reg { return []Reg{i.Left, i.Right} }

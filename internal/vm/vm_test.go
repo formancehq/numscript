@@ -127,6 +127,28 @@ func TestAssertValidAccount(t *testing.T) {
 	}
 }
 
+// Nothing reads a bool yet, so the bank itself is the only observable effect.
+func TestConstBool(t *testing.T) {
+	prog := Program{
+		Instructions: []Instruction{
+			abc(Op_ConstTrue, 0, nilReg, nilReg),
+			abc(Op_ConstFalse, 1, nilReg, nilReg),
+			// a register written twice keeps the last value
+			abc(Op_ConstTrue, 2, nilReg, nilReg),
+			abc(Op_ConstFalse, 2, nilReg, nilReg),
+		},
+	}
+
+	vm := NewVm(prog)
+	_, err := Exec(context.Background(), vm, nil, mockStore{})
+	require.Nil(t, err)
+
+	require.True(t, vm.boolsRegs[0])
+	require.False(t, vm.boolsRegs[1])
+	require.False(t, vm.boolsRegs[2])
+	require.False(t, vm.boolsRegs[3], "untouched registers stay false")
+}
+
 func TestExecutionErrorMessages(t *testing.T) {
 	testCases := []struct {
 		name string

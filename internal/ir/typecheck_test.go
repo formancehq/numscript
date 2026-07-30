@@ -152,6 +152,40 @@ func TestBytecodeTypecheck_TaggedDests(t *testing.T) {
 	}
 }
 
+// A bool register is its own bank: nothing that takes an int accepts one, and it
+// can't be rewritten as another type.
+func TestBytecodeTypecheck_Bool(t *testing.T) {
+	t.Run("const_true and const_false define a bool", func(t *testing.T) {
+		require.NoError(t, Typecheck([]Instr{
+			ConstBool{Dest: 0, Value: true},
+			ConstBool{Dest: 1, Value: false},
+		}))
+	})
+
+	t.Run("a bool is not an int", func(t *testing.T) {
+		err := Typecheck([]Instr{
+			ConstBool{Dest: 0, Value: true},
+			Restore{Mark: 0},
+		})
+		require.ErrorContains(t, err, "read as int but holds bool")
+	})
+
+	t.Run("an int is not a bool", func(t *testing.T) {
+		err := Typecheck([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(1)},
+			ConstBool{Dest: 0, Value: true},
+		})
+		require.ErrorContains(t, err, "written as bool but already holds int")
+	})
+
+	t.Run("rewriting a bool with the same type is allowed", func(t *testing.T) {
+		require.NoError(t, Typecheck([]Instr{
+			ConstBool{Dest: 0, Value: true},
+			ConstBool{Dest: 0, Value: false},
+		}))
+	})
+}
+
 func TestBytecodeTypecheck_LabelMarker(t *testing.T) {
 	require.NoError(t, Typecheck([]Instr{LabelMarker{Label: "end"}}))
 	require.Empty(t, LabelMarker{Label: "end"}.dests())
@@ -215,6 +249,7 @@ func TestRegTypeString(t *testing.T) {
 	require.Equal(t, "int", regInt.String())
 	require.Equal(t, "string", regStr.String())
 	require.Equal(t, "portion", regPortion.String())
+	require.Equal(t, "bool", regBool.String())
 	require.Equal(t, "?", regType(99).String())
 	require.Equal(t, "?", regType(42).String())
 }

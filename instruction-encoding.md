@@ -2,7 +2,7 @@
 
 Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
 
-- Registers are split into **per-type banks** (`int_regs`, `str_regs`, `por_regs`); an operand indexes the bank implied by the opcode. There is no monetary bank: a monetary is a (`str_regs` asset, `int_regs` amount) pair, so the instructions that deal in monetaries take or return the two halves separately.
+- Registers are split into **per-type banks** (`int_regs`, `str_regs`, `por_regs`, `bool_regs`); an operand indexes the bank implied by the opcode. There is no monetary bank: a monetary is a (`str_regs` asset, `int_regs` amount) pair, so the instructions that deal in monetaries take or return the two halves separately.
 - `0xFF` in a register slot means **nil** (absent optional operand).
 - **`Bx`** = a `u16` formed by slots `B`,`C` (little-endian); used for pool indices and jump targets. **`sBx`** is its signed form.
 - Most instructions are one word. A few extend into **continuation words** (shown as `↳ cont.`); an instruction's length is fixed by its opcode.
@@ -102,7 +102,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>int_regs[A] = (big.Int)sBx</code> — small literals inline, no pool entry. <strong>Reserved; not implemented</strong></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x15..0x1F reserved</em></td>
+      <td>21</td><td><code>0x15</code></td><td><strong>CONST_TRUE</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>bool_regs[A] = true</code> — the value is in the opcode, so there is nothing to decode and no pool entry</td>
+    </tr>
+    <tr>
+      <td>22</td><td><code>0x16</code></td><td><strong>CONST_FALSE</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>bool_regs[A] = false</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x17..0x1F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -206,7 +216,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>55</td><td><code>0x37</code></td><td><strong>STR_EQ</strong></td>
       <td>dest</td><td>left</td><td>right</td>
-      <td><code>int_regs[A] = str_regs[B] == str_regs[C] ? 1 : 0</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). There is no boolean bank: JMP_IF_ZERO branches on an int, so <code>0</code>/<code>1</code> <em>is</em> the predicate representation</td>
+      <td><code>int_regs[A] = str_regs[B] == str_regs[C] ? 1 : 0</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). Its dest is an <em>int</em>, not a bool: JMP_IF_ZERO branches on an int, so <code>0</code>/<code>1</code> is still the predicate representation — the bool bank exists but no instruction consumes one yet</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>

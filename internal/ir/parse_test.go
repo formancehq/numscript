@@ -332,6 +332,11 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"stray operator", "  $r0 = $r1 * $r2\n"},
 		{"type param on plain instr", "  $r0 = neg_int<int>($r1)\n"},
 		{"label as instr arg", "  set_current_asset(#lbl)\n"},
+		// a bool is a const, never an operand: no instruction takes one inline
+		{"bool as instr arg", "  set_current_asset(true)\n"},
+		{"bool as labeled arg", "  $r0 = pull_account(account: false)\n"},
+		{"bool in a dest list", "  [$r0, $r1] = true\n"},
+		{"capitalised bool", "  $r0 = True\n"},
 	}
 
 	for _, s := range sources {
@@ -745,6 +750,18 @@ func TestRoundtripAllInstructions(t *testing.T) {
   $r0 = "USD/2"
   $r1 = 100
   $r2 = monetary_to_string($r0, $r1)
+`,
+		},
+		{
+			name: "bool true",
+			ir: `
+  $r0 = true
+`,
+		},
+		{
+			name: "bool false",
+			ir: `
+  $r0 = false
 `,
 		},
 	}

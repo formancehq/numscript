@@ -164,6 +164,12 @@ func (s *BaseIRListener) EnterConstInt(ctx *ConstIntContext) {}
 // ExitConstInt is called when production constInt is exited.
 func (s *BaseIRListener) ExitConstInt(ctx *ConstIntContext) {}
 
+// EnterConstBool is called when production constBool is entered.
+func (s *BaseIRListener) EnterConstBool(ctx *ConstBoolContext) {}
+
+// ExitConstBool is called when production constBool is exited.
+func (s *BaseIRListener) ExitConstBool(ctx *ConstBoolContext) {}
+
 // EnterReg is called when production reg is entered.
 func (s *BaseIRListener) EnterReg(ctx *RegContext) {}
 

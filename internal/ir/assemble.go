@@ -107,6 +107,7 @@ type assembler struct {
 	ints     regPool
 	strings  regPool
 	Portions regPool
+	bools    regPool
 
 	intsPool    constPool[big.Int]
 	stringsPool constPool[string]
@@ -117,6 +118,7 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 		ints:     newRegPool(),
 		strings:  newRegPool(),
 		Portions: newRegPool(),
+		bools:    newRegPool(),
 
 		labels: map[Label]uint16{},
 
@@ -156,12 +158,14 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 		MaxRegString:  byte(a.strings.next),
 		MaxRegPortion: byte(a.Portions.next),
 		MaxRegInt:     byte(a.ints.next),
+		MaxRegBool:    byte(a.bools.next),
 	}, nil
 }
 
 func (as *assembler) intReg(r Reg) (byte, error)     { return as.ints.Index(r) }
 func (as *assembler) strReg(r Reg) (byte, error)     { return as.strings.Index(r) }
 func (as *assembler) portionReg(r Reg) (byte, error) { return as.Portions.Index(r) }
+func (as *assembler) boolReg(r Reg) (byte, error)    { return as.bools.Index(r) }
 
 func (as *assembler) optionalReg(
 	regPool func(*assembler, Reg) (byte, error),
@@ -374,6 +378,21 @@ func (i LoadStr) assemble(a *assembler) error {
 	}
 
 	a.emitBC(vm.Op_LoadStr, dest, poolIndex)
+	return nil
+}
+
+func (i ConstBool) assemble(a *assembler) error {
+	dest, err := a.boolReg(i.Dest)
+	if err != nil {
+		return err
+	}
+
+	opcode := vm.Op_ConstFalse
+	if i.Value {
+		opcode = vm.Op_ConstTrue
+	}
+
+	a.emit(opcode, dest, maxReg, maxReg)
 	return nil
 }
 

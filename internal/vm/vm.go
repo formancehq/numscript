@@ -19,6 +19,7 @@ type Vm struct {
 	stringsRegs  [256]string // asset,string,account
 	intsRegs     [256]big.Int
 	portionsRegs [256]big.Rat
+	boolsRegs    [256]bool
 }
 
 func NewVm(
@@ -96,6 +97,7 @@ func Exec[S Store](
 	intsRegs := &vm.intsRegs
 	stringsRegs := &vm.stringsRegs
 	portionsRegs := &vm.portionsRegs
+	boolsRegs := &vm.boolsRegs
 	intsPool := vm.program.IntsPool
 	stringsPool := vm.program.StringsPool
 
@@ -367,6 +369,12 @@ func Exec[S Store](
 		case Op_LoadStr:
 			const_ := stringsPool[instr.GetBC()]
 			stringsRegs[instr.A] = const_
+
+		case Op_ConstTrue:
+			boolsRegs[instr.A] = true
+
+		case Op_ConstFalse:
+			boolsRegs[instr.A] = false
 
 			// ---  Binary ops
 		case Op_MinInt:

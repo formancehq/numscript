@@ -130,6 +130,10 @@ func (i LoadStr) String() string {
 	return fmt.Sprintf("%s = %q", i.Dest, i.Value)
 }
 
+func (i ConstBool) String() string {
+	return fmt.Sprintf("%s = %t", i.Dest, i.Value)
+}
+
 // infixAlias returns the infix spelling of an op, for the two that have one.
 func infixAlias(k BinKind) (string, bool) {
 	switch k.(type) {

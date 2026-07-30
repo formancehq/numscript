@@ -77,6 +77,27 @@ func TestAssemble_MaxRegPerBank(t *testing.T) {
 	require.Equal(t, byte(1), prog.MaxRegString, "one str reg")
 	require.Equal(t, byte(1), prog.MaxRegInt, "one int reg")
 	require.Equal(t, byte(1), prog.MaxRegPortion, "one portion reg")
+	require.Equal(t, byte(0), prog.MaxRegBool, "no bool reg")
+}
+
+// The bool value is in the opcode, so the two constants differ only there, and
+// bool registers are indexed in their own bank.
+func TestAssemble_ConstBool(t *testing.T) {
+	prog, err := Assemble([]Instr{
+		LoadInt{Dest: 0, Value: *big.NewInt(1)},
+		ConstBool{Dest: 1, Value: true},
+		ConstBool{Dest: 2, Value: false},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, []vm.Instruction{
+		vm.NewBC(vm.Op_LoadInt, 0, 0),
+		{Opcode: byte(vm.Op_ConstTrue), A: 0, B: 0xFF, C: 0xFF},
+		{Opcode: byte(vm.Op_ConstFalse), A: 1, B: 0xFF, C: 0xFF},
+	}, prog.Instructions)
+
+	require.Equal(t, byte(1), prog.MaxRegInt)
+	require.Equal(t, byte(2), prog.MaxRegBool)
 }
 
 // 255 registers per bank, because 0xFF is the "operand unset" sentinel.

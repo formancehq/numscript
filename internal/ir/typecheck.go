@@ -2,15 +2,16 @@ package ir
 
 import "fmt"
 
-// regType is the type of a virtual register. It mirrors the three VM register
-// banks; every register has exactly one type for its whole life. A monetary is
-// not one of them: it is a (regStr asset, regInt amount) pair.
+// regType is the type of a virtual register. It mirrors the VM register banks;
+// every register has exactly one type for its whole life. A monetary is not one
+// of them: it is a (regStr asset, regInt amount) pair.
 type regType int
 
 const (
 	regInt regType = iota
 	regStr
 	regPortion
+	regBool
 )
 
 func (t regType) String() string {
@@ -21,6 +22,8 @@ func (t regType) String() string {
 		return "string"
 	case regPortion:
 		return "portion"
+	case regBool:
+		return "bool"
 	default:
 		return "?"
 	}
@@ -74,6 +77,8 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 		return tc.def(i.Dest, regInt)
 	case LoadStr:
 		return tc.def(i.Dest, regStr)
+	case ConstBool:
+		return tc.def(i.Dest, regBool)
 	case LoadVar:
 		t, err := varRegType(i.Typ)
 		if err != nil {

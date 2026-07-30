@@ -92,12 +92,13 @@ func TestRoundTripEdgeValues(t *testing.T) {
 }
 
 func TestMaxRegRoundTrip(t *testing.T) {
-	prog := Program{MaxRegString: 3, MaxRegInt: 7, MaxRegPortion: 12}
+	prog := Program{MaxRegString: 3, MaxRegInt: 7, MaxRegPortion: 12, MaxRegBool: 5}
 	got, err := DecodeProgram(prog.Encode())
 	require.NoError(t, err)
 	require.Equal(t, prog.MaxRegString, got.MaxRegString)
 	require.Equal(t, prog.MaxRegInt, got.MaxRegInt)
 	require.Equal(t, prog.MaxRegPortion, got.MaxRegPortion)
+	require.Equal(t, prog.MaxRegBool, got.MaxRegBool)
 }
 
 func TestMaxRegDefaultsWhenAbsent(t *testing.T) {
@@ -108,6 +109,7 @@ func TestMaxRegDefaultsWhenAbsent(t *testing.T) {
 	require.Equal(t, maxRegDefault, got.MaxRegString)
 	require.Equal(t, maxRegDefault, got.MaxRegInt)
 	require.Equal(t, maxRegDefault, got.MaxRegPortion)
+	require.Equal(t, maxRegDefault, got.MaxRegBool)
 }
 
 func TestMaxRegShortSectionDefaultsTrailingToZero(t *testing.T) {
@@ -121,10 +123,11 @@ func TestMaxRegShortSectionDefaultsTrailingToZero(t *testing.T) {
 	require.Equal(t, byte(3), got.MaxRegString)
 	require.Equal(t, byte(7), got.MaxRegInt)
 	require.Equal(t, byte(0), got.MaxRegPortion) // beyond the writer's banks -> 0
+	require.Equal(t, byte(0), got.MaxRegBool)
 }
 
 func TestMaxRegExtraTrailingBytesIgnored(t *testing.T) {
-	// writer knew a 4th bank; this reader ignores the extra bytes
+	// writer knew a 5th bank; this reader ignores the extra bytes
 	var buf []byte
 	buf = appendFormatHeader(buf, "NUMB", 1)
 	buf = appendSection(buf, SectionMaxRegisters, []byte{1, 2, 3, 4, 99})
@@ -134,6 +137,7 @@ func TestMaxRegExtraTrailingBytesIgnored(t *testing.T) {
 	require.Equal(t, byte(1), got.MaxRegString)
 	require.Equal(t, byte(2), got.MaxRegInt)
 	require.Equal(t, byte(3), got.MaxRegPortion)
+	require.Equal(t, byte(4), got.MaxRegBool)
 }
 
 func TestDecodeMalformed(t *testing.T) {
