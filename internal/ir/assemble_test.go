@@ -70,14 +70,12 @@ func TestAssemble_MaxRegPerBank(t *testing.T) {
 	prog, err := Assemble([]Instr{
 		LoadStr{Dest: 0, Value: "USD/2"},
 		LoadInt{Dest: 1, Value: *big.NewInt(10)},
-		BinaryOp{Op: OpMakeMonetary{}, Left: 0, Right: 1, Dest: 2},
 		BinaryOp{Op: OpMakePortion{}, Left: 1, Right: 1, Dest: 3},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, byte(1), prog.MaxRegString, "one str reg")
 	require.Equal(t, byte(1), prog.MaxRegInt, "one int reg")
-	require.Equal(t, byte(1), prog.MaxRegMonetary, "one monetary reg")
 	require.Equal(t, byte(1), prog.MaxRegPortion, "one portion reg")
 }
 

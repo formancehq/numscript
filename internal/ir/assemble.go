@@ -104,10 +104,9 @@ type assembler struct {
 	labels  map[Label]uint16
 
 	// one register bank per VM register bank
-	ints       regPool
-	strings    regPool
-	Portions   regPool
-	monetaries regPool
+	ints     regPool
+	strings  regPool
+	Portions regPool
 
 	intsPool    constPool[big.Int]
 	stringsPool constPool[string]
@@ -115,10 +114,9 @@ type assembler struct {
 
 func Assemble(instrs []Instr) (vm.Program, error) {
 	a := &assembler{
-		ints:       newRegPool(),
-		strings:    newRegPool(),
-		Portions:   newRegPool(),
-		monetaries: newRegPool(),
+		ints:     newRegPool(),
+		strings:  newRegPool(),
+		Portions: newRegPool(),
 
 		labels: map[Label]uint16{},
 
@@ -155,17 +153,15 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 		StringsPool:  a.stringsPool.items,
 		IntsPool:     a.intsPool.items,
 
-		MaxRegString:   byte(a.strings.next),
-		MaxRegPortion:  byte(a.Portions.next),
-		MaxRegInt:      byte(a.ints.next),
-		MaxRegMonetary: byte(a.monetaries.next),
+		MaxRegString:  byte(a.strings.next),
+		MaxRegPortion: byte(a.Portions.next),
+		MaxRegInt:     byte(a.ints.next),
 	}, nil
 }
 
-func (as *assembler) intReg(r Reg) (byte, error)      { return as.ints.Index(r) }
-func (as *assembler) strReg(r Reg) (byte, error)      { return as.strings.Index(r) }
-func (as *assembler) portionReg(r Reg) (byte, error)  { return as.Portions.Index(r) }
-func (as *assembler) monetaryReg(r Reg) (byte, error) { return as.monetaries.Index(r) }
+func (as *assembler) intReg(r Reg) (byte, error)     { return as.ints.Index(r) }
+func (as *assembler) strReg(r Reg) (byte, error)     { return as.strings.Index(r) }
+func (as *assembler) portionReg(r Reg) (byte, error) { return as.Portions.Index(r) }
 
 func (as *assembler) optionalReg(
 	regPool func(*assembler, Reg) (byte, error),
@@ -221,20 +217,6 @@ func (OpPortionCopy) sig() unaryOpSig {
 		arg:    (*assembler).portionReg,
 	}
 }
-func (OpGetAsset) sig() unaryOpSig {
-	return unaryOpSig{
-		opcode: vm.Op_GetAsset,
-		dest:   (*assembler).strReg,
-		arg:    (*assembler).monetaryReg,
-	}
-}
-func (OpGetAmount) sig() unaryOpSig {
-	return unaryOpSig{
-		opcode: vm.Op_GetAmount,
-		dest:   (*assembler).intReg,
-		arg:    (*assembler).monetaryReg,
-	}
-}
 func (OpNegInt) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_NegInt,
@@ -256,14 +238,6 @@ func (OpPortionToString) sig() unaryOpSig {
 		arg:    (*assembler).portionReg,
 	}
 }
-func (OpMonetaryToString) sig() unaryOpSig {
-	return unaryOpSig{
-		opcode: vm.Op_MonetaryToString,
-		dest:   (*assembler).strReg,
-		arg:    (*assembler).monetaryReg,
-	}
-}
-
 func (i UnaryOp) assemble(a *assembler) error {
 	sig := i.Op.sig()
 
@@ -335,10 +309,10 @@ func (OpMakePortion) sig() binaryOpSig {
 		right:  (*assembler).intReg,
 	}
 }
-func (OpMakeMonetary) sig() binaryOpSig {
+func (OpMonetaryToString) sig() binaryOpSig {
 	return binaryOpSig{
-		opcode: vm.Op_MkMonetary,
-		dest:   (*assembler).monetaryReg,
+		opcode: vm.Op_MonetaryToString,
+		dest:   (*assembler).strReg,
 		left:   (*assembler).strReg,
 		right:  (*assembler).intReg,
 	}
@@ -540,7 +514,7 @@ func (i AssertValidColor) assemble(a *assembler) error {
 }
 
 func (i AssertNonNegativeBalance) assemble(a *assembler) error {
-	balance, err := a.monetaryReg(i.Balance)
+	balance, err := a.intReg(i.Balance)
 	if err != nil {
 		return err
 	}
@@ -606,16 +580,31 @@ func (MetaPortion) assembleMeta(a *assembler, dest, account, key Reg) error {
 	return a.emitMeta(vm.Op_MetaPortion, d, account, key)
 }
 
-func (MetaMonetary) assembleMeta(a *assembler, dest, account, key Reg) error {
-	d, err := a.monetaryReg(dest)
+func (i MetaVar) assemble(a *assembler) error {
+	return i.Typ.assembleMeta(a, i.Dest, i.Account, i.Key)
+}
+
+// MetaMonetary needs four operands, so it spills the second destination into an
+// ext word, like PullAccount and MakeAllotment.
+func (i MetaMonetary) assemble(a *assembler) error {
+	destAsset, err := a.strReg(i.DestAsset)
 	if err != nil {
 		return err
 	}
-	return a.emitMeta(vm.Op_MetaMonetary, d, account, key)
-}
-
-func (i MetaVar) assemble(a *assembler) error {
-	return i.Typ.assembleMeta(a, i.Dest, i.Account, i.Key)
+	destAmount, err := a.intReg(i.DestAmount)
+	if err != nil {
+		return err
+	}
+	if err := a.emitMeta(vm.Op_MetaMonetary, destAsset, i.Account, i.Key); err != nil {
+		return err
+	}
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      destAmount,
+		B:      maxReg,
+		C:      maxReg,
+	})
+	return nil
 }
 
 func (i SetAccountMeta) assemble(a *assembler) error {
@@ -638,7 +627,7 @@ func (i SetAccountMeta) assemble(a *assembler) error {
 }
 
 func (i FetchBalance) assemble(a *assembler) error {
-	dest, err := a.monetaryReg(i.Dest)
+	dest, err := a.intReg(i.Dest)
 	if err != nil {
 		return err
 	}

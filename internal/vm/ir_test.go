@@ -213,12 +213,10 @@ func TestIRBalanceReadFromStore(t *testing.T) {
   $asset = "USD/2"
   $bal = balance($src, $asset)
   assert_non_negative_balance($bal, $src)
-  $cur = get_asset($bal)
-  set_current_asset($cur)
-  $amount = get_amount($bal)
+  set_current_asset($asset)
   $overdraft = 0
-  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
-  check_enough_funds($pulled, $amount)
+  $pulled = pull_account(account: $src, cap: $bal, overdraft: $overdraft)
+  check_enough_funds($pulled, $bal)
   $dest = "dest"
   send_to_account(account: $dest)
 `, balances(map[string]int64{"src": 42}), nil)
@@ -553,10 +551,8 @@ func TestIRMetaTypes(t *testing.T) {
 		res := runIR(t, `
   $acc = "acc"
   $key = "monetary"
-  $mon = meta<monetary>($acc, $key)
-  $asset = get_asset($mon)
+  [$asset, $amount] = meta_monetary($acc, $key)
   set_current_asset($asset)
-  $amount = get_amount($mon)
   $overdraft = 300
   $pulled = pull_account(account: $acc, cap: $amount, overdraft: $overdraft)
   check_enough_funds($pulled, $amount)
@@ -568,13 +564,16 @@ func TestIRMetaTypes(t *testing.T) {
 	})
 
 	t.Run("a value of the wrong shape is an error", func(t *testing.T) {
-		for _, typ := range []string{"int", "portion", "monetary"} {
+		for _, read := range []string{
+			`  $v = meta<int>($acc, $key)`,
+			`  $v = meta<portion>($acc, $key)`,
+			`  [$a, $n] = meta_monetary($acc, $key)`,
+		} {
 			execErr := runIRExpectingError(t, `
   $acc = "acc"
   $key = "oops"
-  $v = meta<`+typ+`>($acc, $key)
-`, store, nil)
-			require.IsType(t, vm.BadMetaValueError{}, execErr, "meta<%s>", typ)
+`+read+"\n", store, nil)
+			require.IsType(t, vm.BadMetaValueError{}, execErr, "%s", read)
 		}
 	})
 }
@@ -605,13 +604,17 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
 	})
 
 	t.Run("on a metadata read", func(t *testing.T) {
-		for _, typ := range []string{"str", "int", "portion", "monetary"} {
+		for _, read := range []string{
+			`  $v = meta<str>($acc, $key)`,
+			`  $v = meta<int>($acc, $key)`,
+			`  $v = meta<portion>($acc, $key)`,
+			`  [$a, $n] = meta_monetary($acc, $key)`,
+		} {
 			execErr := runIRExpectingError(t, `
   $acc = "acc"
   $key = "k"
-  $v = meta<`+typ+`>($acc, $key)
-`, failing, nil)
-			require.IsType(t, vm.StoreError{}, execErr, "meta<%s>", typ)
+`+read+"\n", failing, nil)
+			require.IsType(t, vm.StoreError{}, execErr, "%s", read)
 		}
 	})
 

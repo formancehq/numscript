@@ -26,7 +26,7 @@ func TestParseErrors(t *testing.T) {
 
 	t.Run("invalid arg type", func(t *testing.T) {
 		_, errs := Parse(`
-  $r0 = get_asset(42)
+  $r0 = neg_int(42)
 `)
 		require.NotEmpty(t, errs)
 		require.Contains(t, errs[0].Msg, "expected register")
@@ -192,7 +192,7 @@ func TestBinaryOpCallForms(t *testing.T) {
   $diff = sub_int($i, $i)
   $cat = add_string($s, $s)
   $rest = sub_portion($p, $p)
-  $mon = mk_monetary($s, $i)
+  $label = monetary_to_string($s, $i)
 `)
 	require.Empty(t, errs)
 	require.NoError(t, Typecheck(instrs))
@@ -285,9 +285,9 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		ir   string
 	}{
 		{"comment", "// not a comment in this format\n  $r0 = 1\n"},
-		{"no args at all", "  $r0 = get_asset()\n"},
+		{"no args at all", "  $r0 = neg_int()\n"},
 		{"too few args", "  $r0 = balance($r1)\n"},
-		{"too many args", "  $r0 = get_asset($r1, $r2)\n"},
+		{"too many args", "  $r0 = neg_int($r1, $r2)\n"},
 		{"missing required labeled arg", "  $r0 = pull_account(cap: $r1)\n"},
 		{"unknown labeled arg", "  $r0 = pull_account(account: $r1, nope: $r2)\n"},
 		{"capitalised label", "  $r0 = pull_account(Account: $r1)\n"},
@@ -298,14 +298,14 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"mk_allot without dest list", "  $r0 = mk_allot($r1, [$r2])\n"},
 		{"reg to reg copy", "  $r0 = $r1\n"},
 		{"garbage", "$$$ !!!"},
-		{"unclosed paren", "  $r0 = get_asset($r1"},
-		{"uppercase instr name", "  $r0 = GET_ASSET($r1)"},
+		{"unclosed paren", "  $r0 = neg_int($r1"},
+		{"uppercase instr name", "  $r0 = NEG_INT($r1)"},
 		{"negative int literal", "  $r0 = -1\n"},
 		{"empty dest list", "  [] = mk_allot($r0, [$r1])\n"},
-		{"missing dest", "  = get_asset($r0)\n"},
+		{"missing dest", "  = neg_int($r0)\n"},
 		{"unterminated string", "  $r0 = \"oops\n"},
 		{"stray operator", "  $r0 = $r1 * $r2\n"},
-		{"type param on plain instr", "  $r0 = get_asset<int>($r1)\n"},
+		{"type param on plain instr", "  $r0 = neg_int<int>($r1)\n"},
 		{"label as instr arg", "  set_current_asset(#lbl)\n"},
 	}
 
@@ -329,17 +329,17 @@ func TestRegNamesBindInOrder(t *testing.T) {
 	_, dumped := parseAndDump(t, `
   $asset = "USD/2"
   $amount = 10
-  $mon = mk_monetary($asset, $amount)
-  $same = get_amount($mon)
-  $r99 = add_int($same, $amount)
+  $label = monetary_to_string($asset, $amount)
+  $twice = add_int($amount, $amount)
+  $r99 = int_to_string($twice)
 `)
 
 	require.Equal(t, `
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_amount($r2)
-  $r4 = $r3 + $r1
+  $r2 = monetary_to_string($r0, $r1)
+  $r3 = $r1 + $r1
+  $r4 = int_to_string($r3)
 `, dumped)
 }
 
@@ -392,11 +392,11 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "mk_monetary",
+			name: "mk_portion",
 			ir: `
-  $r0 = "USD/2"
-  $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
 `,
 		},
 		{
@@ -442,14 +442,10 @@ func TestRoundtripAllInstructions(t *testing.T) {
 		{
 			name: "unary ops",
 			ir: `
-  $r0 = "USD/2"
-  $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  $r4 = get_amount($r2)
-  $r5 = neg_int($r1)
-  $r6 = int_copy($r1)
-  $r7 = int_to_string($r1)
+  $r0 = 10
+  $r1 = neg_int($r0)
+  $r2 = int_copy($r0)
+  $r3 = int_to_string($r0)
 `,
 		},
 		{
@@ -565,11 +561,9 @@ func TestRoundtripAllInstructions(t *testing.T) {
 		{
 			name: "assert_non_negative_balance",
 			ir: `
-  $r0 = "USD/2"
-  $r1 = 100
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = "src"
-  assert_non_negative_balance($r2, $r3)
+  $r0 = 100
+  $r1 = "src"
+  assert_non_negative_balance($r0, $r1)
 `,
 		},
 		{
@@ -629,11 +623,11 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "meta monetary",
+			name: "meta_monetary",
 			ir: `
   $r0 = "acct"
   $r1 = "key"
-  $r2 = meta<monetary>($r0, $r1)
+  [$r2, $r3] = meta_monetary($r0, $r1)
 `,
 		},
 		{
@@ -710,8 +704,7 @@ func TestRoundtripAllInstructions(t *testing.T) {
 			ir: `
   $r0 = "USD/2"
   $r1 = 100
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = monetary_to_string($r2)
+  $r2 = monetary_to_string($r0, $r1)
 `,
 		},
 	}

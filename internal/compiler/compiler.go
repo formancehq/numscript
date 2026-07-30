@@ -48,10 +48,12 @@ type compiledProgramIR struct {
 type state struct {
 	ir.Builder
 
-	vars            map[string]ir.Reg
-	exprTypes       map[parser.ValueExpr]typecheck.Type
-	featureFlags    map[string]struct{}
-	currentAssetReg ir.Reg
+	vars         map[string]value
+	exprTypes    map[parser.ValueExpr]typecheck.Type
+	featureFlags map[string]struct{}
+	// set by compileSentValue before any source/destination is compiled; nil
+	// until then, so compileCapAmount can't silently assert against register 0.
+	currentAssetReg *ir.Reg
 
 	nextIntVar int
 	nextStrVar int
@@ -124,17 +126,15 @@ func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue)
 }
 
 func (st *state) compileCapAmount(monExpr parser.ValueExpr) (ir.Reg, CompilerError) {
-	monReg, err := st.compileExpr(monExpr)
+	mon, err := st.compileMonetaryExpr(monExpr)
 	if err != nil {
 		return 0, err
 	}
-	assetReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-		return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: monReg, Dest: dest}
-	})
-	st.Push(ir.AssertSameAsset{Left: assetReg, Right: st.currentAssetReg})
-	return st.PushWithDest(func(dest ir.Reg) ir.Instr {
-		return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: monReg, Dest: dest}
-	}), nil
+	if st.currentAssetReg == nil {
+		panic("compileCapAmount: no current asset (compileSentValue must run first)")
+	}
+	st.Push(ir.AssertSameAsset{Left: mon.Asset, Right: *st.currentAssetReg})
+	return mon.Amount, nil
 }
 
 func (st *state) compilePortionOne() ir.Reg {
@@ -146,7 +146,14 @@ func (st *state) compilePortionOne() ir.Reg {
 	})
 }
 
+// compileExpr compiles a non-monetary expression into the single register its
+// type maps to. Monetary-typed expressions go to compileMonetaryExpr instead,
+// since a monetary needs two registers.
 func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
+	if st.exprTypes[expr] == typecheck.TypeMonetary {
+		panic("compileExpr: monetary expression (use compileMonetaryExpr)")
+	}
+
 	switch expr := expr.(type) {
 	case *parser.AssetLiteral:
 		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
@@ -172,26 +179,6 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 			}
 		})
 
-	case *parser.MonetaryLiteral:
-		assetReg, err := st.compileExpr(expr.Asset)
-		if err != nil {
-			return 0, err
-		}
-
-		amtReg, err := st.compileExpr(expr.Amount)
-		if err != nil {
-			return 0, err
-		}
-
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.BinaryOp{
-				Op:    ir.OpMakeMonetary{},
-				Left:  assetReg,
-				Right: amtReg,
-				Dest:  dest,
-			}
-		})
-
 	case *parser.AccountInterpLiteral:
 		var parts []ir.Reg
 		hasVar := false
@@ -210,20 +197,24 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 					return 0, err
 				}
 				hasVar = true
+				// reject before compiling, so a non-castable part doesn't reach
+				// compileExpr (which only handles non-monetary expressions)
+				t := st.exprTypes[part]
+				switch t {
+				case typecheck.TypeAccount, typecheck.TypeString, typecheck.TypeNumber:
+				default:
+					return 0, CannotCastToString{Range: part.GetRange(), Type: t}
+				}
 				r, err := st.compileExpr(part)
 				if err != nil {
 					return 0, err
 				}
-				switch t := st.exprTypes[part]; t {
-				case typecheck.TypeAccount, typecheck.TypeString:
-					parts = append(parts, r)
-				case typecheck.TypeNumber:
-					parts = append(parts, st.PushWithDest(func(dest ir.Reg) ir.Instr {
+				if t == typecheck.TypeNumber {
+					r = st.PushWithDest(func(dest ir.Reg) ir.Instr {
 						return ir.UnaryOp{Op: ir.OpIntToString{}, Arg: r, Dest: dest}
-					}))
-				default:
-					return 0, CannotCastToString{Range: part.GetRange(), Type: t}
+					})
 				}
+				parts = append(parts, r)
 			}
 		}
 
@@ -242,11 +233,11 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 		return acc, nil
 
 	case *parser.Variable:
-		r, ok := st.vars[expr.Name]
+		v, ok := st.vars[expr.Name]
 		if !ok {
 			return 0, UnboundVar{Range: expr.Range, Var: expr.Name}
 		}
-		return r, nil
+		return v.Reg, nil
 
 	case *parser.PercentageLiteral:
 		// e.g. 50% -> portion 50/100; mk_portion reduces via SetFrac
@@ -278,72 +269,14 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 			})
 
 		case parser.InfixOperatorPlus:
-			switch st.exprTypes[expr.Left] {
-			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpAddInt{}, Left: leftReg, Right: rightReg, Dest: dest}
-				})
-
-			case typecheck.TypeMonetary:
-				lAsset := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: leftReg, Dest: dest}
-				})
-				rAsset := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: rightReg, Dest: dest}
-				})
-				st.Push(ir.AssertSameAsset{Left: lAsset, Right: rAsset})
-
-				lAmt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: leftReg, Dest: dest}
-				})
-				rAmt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: rightReg, Dest: dest}
-				})
-				sum := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpAddInt{}, Left: lAmt, Right: rAmt, Dest: dest}
-				})
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: lAsset, Right: sum, Dest: dest}
-				})
-
-			default:
-				panic("TODO compileExpr + for unexpected type")
-
-			}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpAddInt{}, Left: leftReg, Right: rightReg, Dest: dest}
+			})
 
 		case parser.InfixOperatorMinus:
-			switch st.exprTypes[expr.Left] {
-			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpSubInt{}, Left: leftReg, Right: rightReg, Dest: dest}
-				})
-
-			case typecheck.TypeMonetary:
-				lAsset := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: leftReg, Dest: dest}
-				})
-				rAsset := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: rightReg, Dest: dest}
-				})
-				st.Push(ir.AssertSameAsset{Left: lAsset, Right: rAsset})
-
-				lAmt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: leftReg, Dest: dest}
-				})
-				rAmt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: rightReg, Dest: dest}
-				})
-				diff := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpSubInt{}, Left: lAmt, Right: rAmt, Dest: dest}
-				})
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: lAsset, Right: diff, Dest: dest}
-				})
-
-			default:
-				panic("TODO compileExpr - for unexpected type")
-
-			}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpSubInt{}, Left: leftReg, Right: rightReg, Dest: dest}
+			})
 
 		default:
 			panic("TODO compileExpr binary op " + string(expr.Operator))
@@ -356,29 +289,9 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 			if err != nil {
 				return 0, err
 			}
-			switch st.exprTypes[expr.Expr] {
-			case typecheck.TypeNumber:
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: argReg, Dest: dest}
-				})
-
-			case typecheck.TypeMonetary:
-				amt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
-				})
-				negAmt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: amt, Dest: dest}
-				})
-				asset := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-					return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
-				})
-				return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-					return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: asset, Right: negAmt, Dest: dest}
-				})
-
-			default:
-				panic("TODO compileExpr prefix - for unexpected type")
-			}
+			return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: argReg, Dest: dest}
+			})
 
 		default:
 			panic("TODO compileExpr prefix op " + string(expr.Operator))
@@ -407,78 +320,160 @@ func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, C
 		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAmountFunctionFeatureFlag); err != nil {
 			return 0, err
 		}
-		argReg, err := st.compileExpr(expr.Args[0])
+		mon, err := st.compileMonetaryExpr(expr.Args[0])
 		if err != nil {
 			return 0, err
 		}
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: argReg, Dest: dest}
-		})
+		return mon.Amount, nil
 
 	case builtins.GetAsset:
 		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAssetFunctionFeatureFlag); err != nil {
 			return 0, err
 		}
-		argReg, err := st.compileExpr(expr.Args[0])
+		mon, err := st.compileMonetaryExpr(expr.Args[0])
 		if err != nil {
 			return 0, err
 		}
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: argReg, Dest: dest}
-		})
-
-	case builtins.Balance:
-		accountReg, err := st.compileExpr(expr.Args[0])
-		if err != nil {
-			return 0, err
-		}
-		assetReg, err := st.compileExpr(expr.Args[1])
-		if err != nil {
-			return 0, err
-		}
-		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
-		})
-		st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
-		return balReg, nil
-
-	case builtins.Overdraft:
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalOverdraftFunctionFeatureFlag); err != nil {
-			return 0, err
-		}
-		accountReg, err := st.compileExpr(expr.Args[0])
-		if err != nil {
-			return 0, err
-		}
-		assetReg, err := st.compileExpr(expr.Args[1])
-		if err != nil {
-			return 0, err
-		}
-		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
-		})
-		amtReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: balReg, Dest: dest}
-		})
-		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
-		})
-		minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.BinaryOp{Op: ir.OpMinInt{}, Left: amtReg, Right: zeroReg, Dest: dest}
-		})
-		// overdraft = max(0, -balance) = -min(balance, 0)
-		negReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
-		})
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: assetReg, Right: negReg, Dest: dest}
-		})
+		return mon.Asset, nil
 
 	case builtins.Meta:
 		return 0, InvalidMetaPosition{Range: expr.Range}
 
 	default:
 		panic("TODO compileExpr fn call " + expr.Caller.Name)
+	}
+}
+
+// compileMonetaryExpr compiles a monetary-typed expression into the (asset,
+// amount) register pair. Which expressions reach here is decided by
+// st.exprTypes; compileExpr rejects monetary-typed ones.
+func (st *state) compileMonetaryExpr(expr parser.ValueExpr) (monetaryValue, CompilerError) {
+	switch expr := expr.(type) {
+	case *parser.MonetaryLiteral:
+		assetReg, err := st.compileExpr(expr.Asset)
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		amtReg, err := st.compileExpr(expr.Amount)
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		return monetaryValue{Asset: assetReg, Amount: amtReg}, nil
+
+	case *parser.Variable:
+		v, ok := st.vars[expr.Name]
+		if !ok {
+			return monetaryValue{}, UnboundVar{Range: expr.Range, Var: expr.Name}
+		}
+		if v.Mon == nil {
+			panic("compileMonetaryExpr: $" + expr.Name + " is not a monetary")
+		}
+		return *v.Mon, nil
+
+	case *parser.BinaryInfix:
+		left, err := st.compileMonetaryExpr(expr.Left)
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		right, err := st.compileMonetaryExpr(expr.Right)
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		st.Push(ir.AssertSameAsset{Left: left.Asset, Right: right.Asset})
+
+		var op ir.BinKind
+		switch expr.Operator {
+		case parser.InfixOperatorPlus:
+			op = ir.OpAddInt{}
+		case parser.InfixOperatorMinus:
+			op = ir.OpSubInt{}
+		default:
+			panic("TODO compileMonetaryExpr binary op " + string(expr.Operator))
+		}
+		amount := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: op, Left: left.Amount, Right: right.Amount, Dest: dest}
+		})
+		// the assert above makes left vs right immaterial
+		return monetaryValue{Asset: left.Asset, Amount: amount}, nil
+
+	case *parser.Prefix:
+		if expr.Operator != parser.PrefixOperatorMinus {
+			panic("TODO compileMonetaryExpr prefix op " + string(expr.Operator))
+		}
+		arg, err := st.compileMonetaryExpr(expr.Expr)
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		amount := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: arg.Amount, Dest: dest}
+		})
+		return monetaryValue{Asset: arg.Asset, Amount: amount}, nil
+
+	case *parser.FnCall:
+		return st.compileMonetaryFnCall(expr, false)
+
+	default:
+		return utils.NonExhaustiveMatchPanic[monetaryValue](expr), nil
+	}
+}
+
+// compileMonetaryFnCall handles the builtins that return a monetary. isVarOrigin
+// carries the same meaning as in compileFnCall.
+func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (monetaryValue, CompilerError) {
+	if !isVarOrigin {
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
+			return monetaryValue{}, err
+		}
+	}
+
+	switch expr.Caller.Name {
+	case builtins.Balance:
+		accountReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		assetReg, err := st.compileExpr(expr.Args[1])
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+		})
+		st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
+		return monetaryValue{Asset: assetReg, Amount: balReg}, nil
+
+	case builtins.Overdraft:
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalOverdraftFunctionFeatureFlag); err != nil {
+			return monetaryValue{}, err
+		}
+		accountReg, err := st.compileExpr(expr.Args[0])
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		assetReg, err := st.compileExpr(expr.Args[1])
+		if err != nil {
+			return monetaryValue{}, err
+		}
+		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+		})
+		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
+		})
+		minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMinInt{}, Left: balReg, Right: zeroReg, Dest: dest}
+		})
+		// overdraft = max(0, -balance) = -min(balance, 0)
+		negReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
+		})
+		return monetaryValue{Asset: assetReg, Amount: negReg}, nil
+
+	case builtins.Meta:
+		return monetaryValue{}, InvalidMetaPosition{Range: expr.Range}
+
+	default:
+		panic("TODO compileMonetaryExpr fn call " + expr.Caller.Name)
 	}
 }
 
@@ -919,30 +914,16 @@ func (st *state) compileSentValue(
 ) (ir.Reg, CompilerError) {
 	switch sentValue := sentValue.(type) {
 	case *parser.SentValueLiteral:
-		monetaryReg, err := st.compileExpr(sentValue.Monetary)
+		mon, err := st.compileMonetaryExpr(sentValue.Monetary)
 		if err != nil {
 			return 0, err
 		}
-		assetReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{
-				Op:   ir.OpGetAsset{},
-				Arg:  monetaryReg,
-				Dest: dest,
-			}
-		})
 		st.Push(ir.SetCurrentAsset{
-			Asset: assetReg,
+			Asset: mon.Asset,
 		})
-		st.currentAssetReg = assetReg
-		capReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{
-				Op:   ir.OpGetAmount{},
-				Arg:  monetaryReg,
-				Dest: dest,
-			}
-		})
+		st.currentAssetReg = &mon.Asset
 
-		return st.compileSourceWithRequiredAmount(capReg, source)
+		return st.compileSourceWithRequiredAmount(mon.Amount, source)
 
 	case *parser.SentValueAll:
 		assetReg, err := st.compileExpr(sentValue.Asset)
@@ -952,7 +933,7 @@ func (st *state) compileSentValue(
 		st.Push(ir.SetCurrentAsset{
 			Asset: assetReg,
 		})
-		st.currentAssetReg = assetReg
+		st.currentAssetReg = &assetReg
 		return st.compileSource(nil, source)
 
 	default:
@@ -981,17 +962,12 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 		var amountReg *ir.Reg
 		switch sv := stmt.SentValue.(type) {
 		case *parser.SentValueLiteral:
-			monReg, err := st.compileExpr(sv.Monetary)
+			mon, err := st.compileMonetaryExpr(sv.Monetary)
 			if err != nil {
 				return err
 			}
-			assetReg = st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpGetAsset{}, Arg: monReg, Dest: dest}
-			})
-			amt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.UnaryOp{Op: ir.OpGetAmount{}, Arg: monReg, Dest: dest}
-			})
-			amountReg = &amt
+			assetReg = mon.Asset
+			amountReg = &mon.Amount
 		case *parser.SentValueAll:
 			r, err := st.compileExpr(sv.Asset)
 			if err != nil {
@@ -1051,6 +1027,21 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 // stringified). Strings/accounts/assets already live in string registers;
 // numbers go through int_to_string.
 func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError) {
+	if st.exprTypes[expr] == typecheck.TypeMonetary {
+		mon, err := st.compileMonetaryExpr(expr)
+		if err != nil {
+			return 0, err
+		}
+		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{
+				Op:    ir.OpMonetaryToString{},
+				Left:  mon.Asset,
+				Right: mon.Amount,
+				Dest:  dest,
+			}
+		}), nil
+	}
+
 	r, err := st.compileExpr(expr)
 	if err != nil {
 		return 0, err
@@ -1066,10 +1057,6 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError)
 	case typecheck.TypePortion:
 		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.UnaryOp{Op: ir.OpPortionToString{}, Arg: r, Dest: dest}
-		}), nil
-	case typecheck.TypeMonetary:
-		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.UnaryOp{Op: ir.OpMonetaryToString{}, Arg: r, Dest: dest}
 		}), nil
 	default:
 		panic("TODO meta value of type " + st.exprTypes[expr])
@@ -1093,7 +1080,7 @@ func compileProgramToIR(program parser.Program, featureFlags map[string]struct{}
 		flagSet[flag.String] = struct{}{}
 	}
 
-	st := state{vars: map[string]ir.Reg{}, exprTypes: tc.ExprTypes, featureFlags: flagSet}
+	st := state{vars: map[string]value{}, exprTypes: tc.ExprTypes, featureFlags: flagSet}
 
 	if program.Vars != nil {
 		for _, decl := range program.Vars.Declarations {
@@ -1124,6 +1111,26 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 		st.compileExternalVar(decl)
 		return nil
 	}
+	if decl.Type.Name == typecheck.TypeMonetary {
+		if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
+			if fnCall.Caller.Name == builtins.Meta {
+				return st.compileMetaVar(decl, fnCall)
+			}
+			mon, err := st.compileMonetaryFnCall(fnCall, true)
+			if err != nil {
+				return err
+			}
+			st.vars[decl.Name.Name] = monValue(mon)
+			return nil
+		}
+		mon, err := st.compileMonetaryExpr(*decl.Origin)
+		if err != nil {
+			return err
+		}
+		st.vars[decl.Name.Name] = monValue(mon)
+		return nil
+	}
+
 	var r ir.Reg
 	var err CompilerError
 	if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
@@ -1140,7 +1147,7 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 	if err != nil {
 		return err
 	}
-	st.vars[decl.Name.Name] = r
+	st.vars[decl.Name.Name] = scalarValue(r)
 	return nil
 }
 
@@ -1154,6 +1161,21 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 		return err
 	}
 
+	// monetary is the one meta type whose single store read yields two values, so
+	// it has its own two-destination instruction rather than a MetaType.
+	if decl.Type.Name == typecheck.TypeMonetary {
+		destAsset := st.FreshReg()
+		destAmount := st.FreshReg()
+		st.Push(ir.MetaMonetary{
+			DestAsset:  destAsset,
+			DestAmount: destAmount,
+			Account:    account,
+			Key:        key,
+		})
+		st.vars[decl.Name.Name] = monValue(monetaryValue{Asset: destAsset, Amount: destAmount})
+		return nil
+	}
+
 	var typ ir.MetaType
 	switch decl.Type.Name {
 	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
@@ -1162,15 +1184,13 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 		typ = ir.MetaInt{}
 	case typecheck.TypePortion:
 		typ = ir.MetaPortion{}
-	case typecheck.TypeMonetary:
-		typ = ir.MetaMonetary{}
 	default:
 		panic("unexpected meta var type: " + decl.Type.Name)
 	}
 
-	st.vars[decl.Name.Name] = st.PushWithDest(func(dest ir.Reg) ir.Instr {
+	st.vars[decl.Name.Name] = scalarValue(st.PushWithDest(func(dest ir.Reg) ir.Instr {
 		return ir.MetaVar{Dest: dest, Account: account, Key: key, Typ: typ}
-	})
+	}))
 	return nil
 }
 
@@ -1181,24 +1201,24 @@ func (st *state) compileExternalVar(decl parser.VarDeclaration) {
 
 	switch decl.Type.Name {
 	case typecheck.TypeNumber:
-		st.vars[name] = st.loadIntVar()
+		st.vars[name] = scalarValue(st.loadIntVar())
 
 	case typecheck.TypeString, typecheck.TypeAsset, typecheck.TypeAccount:
-		st.vars[name] = st.loadStrVar()
+		st.vars[name] = scalarValue(st.loadStrVar())
 
 	case typecheck.TypePortion:
 		num := st.loadIntVar()
 		den := st.loadIntVar()
-		st.vars[name] = st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		st.vars[name] = scalarValue(st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.BinaryOp{Op: ir.OpMakePortion{}, Left: num, Right: den, Dest: dest}
-		})
+		}))
 
 	case typecheck.TypeMonetary:
+		// the vars payload already carries a monetary as two scalars, so the pair
+		// is the value — nothing to assemble
 		asset := st.loadStrVar()
 		amount := st.loadIntVar()
-		st.vars[name] = st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.BinaryOp{Op: ir.OpMakeMonetary{}, Left: asset, Right: amount, Dest: dest}
-		})
+		st.vars[name] = monValue(monetaryValue{Asset: asset, Amount: amount})
 
 	default:
 		panic("unexpected var type: " + decl.Type.Name)

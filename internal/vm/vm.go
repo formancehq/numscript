@@ -8,11 +8,6 @@ import (
 	"github.com/formancehq/numscript/internal/runtime"
 )
 
-type monetary struct {
-	asset  string
-	amount big.Int
-}
-
 const nilReg byte = 0xFF
 const worldAccount = "world"
 
@@ -20,10 +15,11 @@ type Vm struct {
 	program  Program
 	runstate *runtime.RunState
 
-	stringsRegs    [256]string // asset,string,account
-	intsRegs       [256]big.Int
-	portionsRegs   [256]big.Rat
-	monetariesRegs [256]monetary
+	// a monetary is not a bank of its own: it travels as a (str asset, int amount)
+	// register pair
+	stringsRegs  [256]string // asset,string,account
+	intsRegs     [256]big.Int
+	portionsRegs [256]big.Rat
 }
 
 func NewVm(
@@ -101,7 +97,6 @@ func Exec[S Store](
 	intsRegs := &vm.intsRegs
 	stringsRegs := &vm.stringsRegs
 	portionsRegs := &vm.portionsRegs
-	monetariesRegs := &vm.monetariesRegs
 	intsPool := vm.program.IntsPool
 	stringsPool := vm.program.StringsPool
 
@@ -268,11 +263,11 @@ func Exec[S Store](
 			}
 
 		case Op_AssertNonNegativeBalance:
-			m := &monetariesRegs[instr.A]
-			if m.amount.Sign() < 0 {
+			amount := &intsRegs[instr.A]
+			if amount.Sign() < 0 {
 				return runtime.ExecutionResult{}, NegativeBalanceError{
 					Account: stringsRegs[instr.B],
-					Amount:  m.amount,
+					Amount:  *amount,
 				}
 			}
 
@@ -326,6 +321,11 @@ func Exec[S Store](
 			portionsRegs[instr.A].Set(r)
 
 		case Op_MetaMonetary:
+			// TODO crashes if this is the last instruction (the ext word carrying the
+			// amount destination is missing), same as Op_PullAccount.
+			instrExt := instrs[pc]
+			pc++
+
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
 			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
@@ -335,9 +335,8 @@ func Exec[S Store](
 			if merr != nil {
 				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
 			}
-			dest := &monetariesRegs[instr.A]
-			dest.asset = asset
-			dest.amount.Set(amount)
+			stringsRegs[instr.A] = asset
+			intsRegs[instrExt.A].Set(amount)
 
 			// --- Vars
 			// TODO both crash if vars is nil (Exec called with no vars for a
@@ -403,14 +402,6 @@ func Exec[S Store](
 			}
 			portionsRegs[instr.A].SetFrac(num, den)
 
-		case Op_MkMonetary:
-			asset := stringsRegs[instr.B]
-			amt := &intsRegs[instr.C]
-
-			dest := &monetariesRegs[instr.A]
-			dest.asset = asset
-			dest.amount.Set(amt)
-
 		case Op_Balance:
 			account := stringsRegs[instr.B]
 			asset := stringsRegs[instr.C]
@@ -419,9 +410,9 @@ func Exec[S Store](
 			if err != nil {
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
-			dest := &monetariesRegs[instr.A]
-			dest.asset = asset
-			dest.amount.Set(bal)
+			// only the amount: the asset of the result is the asset operand, which
+			// the caller already holds in reg C
+			intsRegs[instr.A].Set(bal)
 
 		// --- Unary ops
 		case Op_IntCopy:
@@ -431,14 +422,6 @@ func Exec[S Store](
 		case Op_PortionCopy:
 			arg := &portionsRegs[instr.B]
 			portionsRegs[instr.A].Set(arg)
-
-		case Op_GetAsset:
-			arg := &monetariesRegs[instr.B]
-			stringsRegs[instr.A] = arg.asset
-
-		case Op_GetAmount:
-			arg := &monetariesRegs[instr.B]
-			intsRegs[instr.A].Set(&arg.amount)
 
 		case Op_NegInt:
 			arg := &intsRegs[instr.B]
@@ -451,8 +434,7 @@ func Exec[S Store](
 			stringsRegs[instr.A] = portionsRegs[instr.B].String()
 
 		case Op_MonetaryToString:
-			mon := &monetariesRegs[instr.B]
-			stringsRegs[instr.A] = mon.asset + " " + mon.amount.String()
+			stringsRegs[instr.A] = stringsRegs[instr.B] + " " + intsRegs[instr.C].String()
 
 		default:
 			return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}

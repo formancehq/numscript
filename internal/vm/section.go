@@ -2,7 +2,10 @@ package vm
 
 import "fmt"
 
-const FormatVersion uint16 = 1
+// v2 dropped the monetary register bank: MK_MONETARY/GET_AMOUNT/GET_ASSET are
+// gone, BALANCE/ASSERT_NON_NEGATIVE_BALANCE/MONETARY_TO_STRING changed operand
+// banks, META_MONETARY grew an ext word, and SectionMaxRegisters lost its 4th byte.
+const FormatVersion uint16 = 2
 
 const (
 	SectionInstructions uint16 = 0x01 // NUMB only

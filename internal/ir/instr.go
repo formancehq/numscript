@@ -19,13 +19,15 @@ type BinKind interface {
 }
 
 type (
-	OpMinInt       struct{}
-	OpAddInt       struct{}
-	OpSubInt       struct{}
-	OpAddString    struct{}
-	OpSubPortion   struct{}
-	OpMakePortion  struct{}
-	OpMakeMonetary struct{}
+	OpMinInt      struct{}
+	OpAddInt      struct{}
+	OpSubInt      struct{}
+	OpAddString   struct{}
+	OpSubPortion  struct{}
+	OpMakePortion struct{}
+	// OpMonetaryToString takes the asset (str) and the amount (int) of a monetary
+	// and produces its "ASSET AMOUNT" form, the inverse of runtime.ParseMonetary.
+	OpMonetaryToString struct{}
 )
 
 type UnKind interface {
@@ -34,14 +36,11 @@ type UnKind interface {
 }
 
 type (
-	OpIntCopy          struct{}
-	OpPortionCopy      struct{}
-	OpGetAsset         struct{}
-	OpGetAmount        struct{}
-	OpNegInt           struct{}
-	OpIntToString      struct{}
-	OpPortionToString  struct{}
-	OpMonetaryToString struct{}
+	OpIntCopy         struct{}
+	OpPortionCopy     struct{}
+	OpNegInt          struct{}
+	OpIntToString     struct{}
+	OpPortionToString struct{}
 )
 
 type VarType interface {
@@ -60,10 +59,9 @@ type MetaType interface {
 }
 
 type (
-	MetaStr      struct{}
-	MetaInt      struct{}
-	MetaPortion  struct{}
-	MetaMonetary struct{}
+	MetaStr     struct{}
+	MetaInt     struct{}
+	MetaPortion struct{}
 )
 
 type (
@@ -94,7 +92,7 @@ type (
 	AssertSameAsset          struct{ Left, Right Reg }         // str, str
 	AssertValidAccount       struct{ Account Reg }             // str
 	AssertValidColor         struct{ Color Reg }               // str
-	AssertNonNegativeBalance struct{ Balance, Account Reg }    // monetary, str
+	AssertNonNegativeBalance struct{ Balance, Account Reg }    // int (the amount), str
 	SetTxMeta                struct{ Key, Value Reg }          // str, str
 	SetAccountMeta           struct{ Account, Key, Value Reg } // str, str, str
 	MetaVar                  struct {
@@ -102,8 +100,16 @@ type (
 		Account, Key Reg // str, str
 		Typ          MetaType
 	}
+	// MetaMonetary is meta<monetary>: one store read yields both halves, so it is
+	// the only two-destination read and is not a MetaType.
+	MetaMonetary struct {
+		DestAsset  Reg // str
+		DestAmount Reg // int
+		Account    Reg // str
+		Key        Reg // str
+	}
 	FetchBalance struct {
-		Dest           Reg // monetary
+		Dest           Reg // int (the amount; the asset is the Asset operand)
 		Account, Asset Reg // str, str
 	} // reads the run-state (impure)
 	LoadVar struct {
@@ -190,6 +196,9 @@ func (i SetAccountMeta) sources() []Reg { return []Reg{i.Account, i.Key, i.Value
 
 func (i MetaVar) dests() []Reg   { return []Reg{i.Dest} }
 func (i MetaVar) sources() []Reg { return []Reg{i.Account, i.Key} }
+
+func (i MetaMonetary) dests() []Reg   { return []Reg{i.DestAsset, i.DestAmount} }
+func (i MetaMonetary) sources() []Reg { return []Reg{i.Account, i.Key} }
 
 func (i FetchBalance) dests() []Reg   { return []Reg{i.Dest} }
 func (i FetchBalance) sources() []Reg { return []Reg{i.Account, i.Asset} }

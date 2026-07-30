@@ -57,12 +57,11 @@ func TestBytecodeTypecheck_ErrorLocatesTheInstruction(t *testing.T) {
 // Every register operand must be rejected when it names a register of the wrong
 // bank. Each case is the prelude plus one instruction with exactly one bad operand.
 func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
-	intReg, strReg, portionReg, monReg := Reg(0), Reg(1), Reg(2), Reg(3)
+	intReg, strReg, portionReg := Reg(0), Reg(1), Reg(2)
 	prelude := []Instr{
 		LoadInt{Dest: intReg, Value: *big.NewInt(1)},
 		LoadStr{Dest: strReg, Value: "USD/2"},
 		BinaryOp{Op: OpMakePortion{}, Dest: portionReg, Left: intReg, Right: intReg},
-		BinaryOp{Op: OpMakeMonetary{}, Dest: monReg, Left: strReg, Right: intReg},
 	}
 
 	testCases := []struct {
@@ -89,8 +88,8 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"assert_same_asset right", AssertSameAsset{Left: strReg, Right: intReg}},
 		{"assert_valid_account", AssertValidAccount{Account: intReg}},
 		{"assert_valid_color", AssertValidColor{Color: intReg}},
-		{"assert_non_negative_balance balance", AssertNonNegativeBalance{Balance: intReg, Account: strReg}},
-		{"assert_non_negative_balance account", AssertNonNegativeBalance{Balance: monReg, Account: intReg}},
+		{"assert_non_negative_balance balance", AssertNonNegativeBalance{Balance: strReg, Account: strReg}},
+		{"assert_non_negative_balance account", AssertNonNegativeBalance{Balance: intReg, Account: intReg}},
 		{"set_tx_meta key", SetTxMeta{Key: intReg, Value: strReg}},
 		{"set_tx_meta value", SetTxMeta{Key: strReg, Value: intReg}},
 		{"set_account_meta account", SetAccountMeta{Account: intReg, Key: strReg, Value: strReg}},
@@ -98,13 +97,20 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"set_account_meta value", SetAccountMeta{Account: strReg, Key: strReg, Value: intReg}},
 		{"meta account", MetaVar{Dest: 9, Account: intReg, Key: strReg, Typ: MetaStr{}}},
 		{"meta key", MetaVar{Dest: 9, Account: strReg, Key: intReg, Typ: MetaStr{}}},
+		{"meta_monetary account", MetaMonetary{DestAsset: 9, DestAmount: 10, Account: intReg, Key: strReg}},
+		{"meta_monetary key", MetaMonetary{DestAsset: 9, DestAmount: 10, Account: strReg, Key: intReg}},
+		{"meta_monetary dest asset", MetaMonetary{DestAsset: intReg, DestAmount: 10, Account: strReg, Key: strReg}},
+		{"meta_monetary dest amount", MetaMonetary{DestAsset: 9, DestAmount: strReg, Account: strReg, Key: strReg}},
 		{"balance account", FetchBalance{Dest: 9, Account: intReg, Asset: strReg}},
 		{"balance asset", FetchBalance{Dest: 9, Account: strReg, Asset: intReg}},
+		{"balance dest", FetchBalance{Dest: strReg, Account: strReg, Asset: strReg}},
 		{"jmp_if_zero cond", JmpIfZero{Cond: strReg, Target: "end"}},
 		{"restore mark", Restore{Mark: strReg}},
-		{"unary arg", UnaryOp{Op: OpGetAmount{}, Dest: 9, Arg: intReg}},
+		{"unary arg", UnaryOp{Op: OpPortionToString{}, Dest: 9, Arg: intReg}},
 		{"binary left", BinaryOp{Op: OpAddString{}, Dest: 9, Left: intReg, Right: strReg}},
 		{"binary right", BinaryOp{Op: OpAddString{}, Dest: 9, Left: strReg, Right: intReg}},
+		{"monetary_to_string asset", BinaryOp{Op: OpMonetaryToString{}, Dest: 9, Left: intReg, Right: intReg}},
+		{"monetary_to_string amount", BinaryOp{Op: OpMonetaryToString{}, Dest: 9, Left: strReg, Right: strReg}},
 	}
 
 	for _, tc := range testCases {
@@ -130,7 +136,6 @@ func TestBytecodeTypecheck_TaggedDests(t *testing.T) {
 		{"meta<str>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaStr{}}, false},
 		{"meta<int>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaInt{}}, true},
 		{"meta<portion>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaPortion{}}, false},
-		{"meta<monetary>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaMonetary{}}, false},
 		{"snapshot", Snapshot{Dest: 9}, true},
 	}
 
@@ -210,6 +215,6 @@ func TestRegTypeString(t *testing.T) {
 	require.Equal(t, "int", regInt.String())
 	require.Equal(t, "string", regStr.String())
 	require.Equal(t, "portion", regPortion.String())
-	require.Equal(t, "monetary", regMonetary.String())
+	require.Equal(t, "?", regType(99).String())
 	require.Equal(t, "?", regType(42).String())
 }

@@ -37,17 +37,15 @@ func TestSimpleProgram(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = "dest"
-  send_to_account(account: $r8)
-`))
+  set_current_asset($r0)
+  $r2 = "src"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`),
+	)
 }
 
 func TestIntAddition(t *testing.T) {
@@ -63,17 +61,15 @@ func TestIntAddition(t *testing.T) {
   $r1 = 4
   $r2 = 6
   $r3 = $r1 + $r2
-  $r4 = mk_monetary($r0, $r3)
-  $r5 = get_asset($r4)
-  set_current_asset($r5)
-  $r6 = get_amount($r4)
-  $r7 = "src"
-  $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  check_enough_funds($r9, $r6)
-  $r10 = "dest"
-  send_to_account(account: $r10)
-`))
+  set_current_asset($r0)
+  $r4 = "src"
+  $r5 = 0
+  $r6 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
+  check_enough_funds($r6, $r3)
+  $r7 = "dest"
+  send_to_account(account: $r7)
+`),
+	)
 }
 
 func TestIntSubtraction(t *testing.T) {
@@ -89,17 +85,15 @@ func TestIntSubtraction(t *testing.T) {
   $r1 = 16
   $r2 = 6
   $r3 = $r1 - $r2
-  $r4 = mk_monetary($r0, $r3)
-  $r5 = get_asset($r4)
-  set_current_asset($r5)
-  $r6 = get_amount($r4)
-  $r7 = "src"
-  $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  check_enough_funds($r9, $r6)
-  $r10 = "dest"
-  send_to_account(account: $r10)
-`))
+  set_current_asset($r0)
+  $r4 = "src"
+  $r5 = 0
+  $r6 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
+  check_enough_funds($r6, $r3)
+  $r7 = "dest"
+  send_to_account(account: $r7)
+`),
+	)
 }
 
 func TestMonetaryAddition(t *testing.T) {
@@ -117,27 +111,19 @@ func TestMonetaryAddition(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 3
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = "USD/2"
-  $r4 = 7
-  $r5 = mk_monetary($r3, $r4)
-  $r6 = get_asset($r2)
-  $r7 = get_asset($r5)
-  assert_same_asset($r6, $r7)
-  $r8 = get_amount($r2)
-  $r9 = get_amount($r5)
-  $r10 = $r8 + $r9
-  $r11 = mk_monetary($r6, $r10)
-  $r12 = get_asset($r11)
-  set_current_asset($r12)
-  $r13 = get_amount($r11)
-  $r14 = "src"
-  $r15 = 0
-  $r16 = pull_account(account: $r14, cap: $r13, overdraft: $r15)
-  check_enough_funds($r16, $r13)
-  $r17 = "dest"
-  send_to_account(account: $r17)
-`))
+  $r2 = "USD/2"
+  $r3 = 7
+  assert_same_asset($r0, $r2)
+  $r4 = $r1 + $r3
+  set_current_asset($r0)
+  $r5 = "src"
+  $r6 = 0
+  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 = "dest"
+  send_to_account(account: $r8)
+`),
+	)
 }
 
 func TestMonetarySubtraction(t *testing.T) {
@@ -155,27 +141,19 @@ func TestMonetarySubtraction(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 30
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = "USD/2"
-  $r4 = 20
-  $r5 = mk_monetary($r3, $r4)
-  $r6 = get_asset($r2)
-  $r7 = get_asset($r5)
-  assert_same_asset($r6, $r7)
-  $r8 = get_amount($r2)
-  $r9 = get_amount($r5)
-  $r10 = $r8 - $r9
-  $r11 = mk_monetary($r6, $r10)
-  $r12 = get_asset($r11)
-  set_current_asset($r12)
-  $r13 = get_amount($r11)
-  $r14 = "src"
-  $r15 = 0
-  $r16 = pull_account(account: $r14, cap: $r13, overdraft: $r15)
-  check_enough_funds($r16, $r13)
-  $r17 = "dest"
-  send_to_account(account: $r17)
-`))
+  $r2 = "USD/2"
+  $r3 = 20
+  assert_same_asset($r0, $r2)
+  $r4 = $r1 - $r3
+  set_current_asset($r0)
+  $r5 = "src"
+  $r6 = 0
+  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  check_enough_funds($r7, $r4)
+  $r8 = "dest"
+  send_to_account(account: $r8)
+`),
+	)
 }
 
 func TestGetAmount(t *testing.T) {
@@ -194,20 +172,16 @@ func TestGetAmount(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 42
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_amount($r2)
-  $r4 = "USD/2"
-  $r5 = mk_monetary($r4, $r3)
-  $r6 = get_asset($r5)
-  set_current_asset($r6)
-  $r7 = get_amount($r5)
-  $r8 = "src"
-  $r9 = 0
-  $r10 = pull_account(account: $r8, cap: $r7, overdraft: $r9)
-  check_enough_funds($r10, $r7)
-  $r11 = "dest"
-  send_to_account(account: $r11)
-`))
+  $r2 = "USD/2"
+  set_current_asset($r2)
+  $r3 = "src"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r1, overdraft: $r4)
+  check_enough_funds($r5, $r1)
+  $r6 = "dest"
+  send_to_account(account: $r6)
+`),
+	)
 }
 
 func TestGetAsset(t *testing.T) {
@@ -226,20 +200,16 @@ func TestGetAsset(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 42
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  $r4 = 10
-  $r5 = mk_monetary($r3, $r4)
-  $r6 = get_asset($r5)
-  set_current_asset($r6)
-  $r7 = get_amount($r5)
-  $r8 = "src"
-  $r9 = 0
-  $r10 = pull_account(account: $r8, cap: $r7, overdraft: $r9)
-  check_enough_funds($r10, $r7)
-  $r11 = "dest"
-  send_to_account(account: $r11)
-`))
+  $r2 = 10
+  set_current_asset($r0)
+  $r3 = "src"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  check_enough_funds($r5, $r2)
+  $r6 = "dest"
+  send_to_account(account: $r6)
+`),
+	)
 }
 
 func TestPrefixMinusMonetary(t *testing.T) {
@@ -258,21 +228,16 @@ func TestPrefixMinusMonetary(t *testing.T) {
   $r0 = "USD/2"
   $r1 = 10
   $r2 = neg_int($r1)
-  $r3 = mk_monetary($r0, $r2)
-  $r4 = get_amount($r3)
-  $r5 = neg_int($r4)
-  $r6 = get_asset($r3)
-  $r7 = mk_monetary($r6, $r5)
-  $r8 = get_asset($r7)
-  set_current_asset($r8)
-  $r9 = get_amount($r7)
-  $r10 = "src"
-  $r11 = 0
-  $r12 = pull_account(account: $r10, cap: $r9, overdraft: $r11)
-  check_enough_funds($r12, $r9)
-  $r13 = "dest"
-  send_to_account(account: $r13)
-`))
+  $r3 = neg_int($r2)
+  set_current_asset($r0)
+  $r4 = "src"
+  $r5 = 0
+  $r6 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
+  check_enough_funds($r6, $r3)
+  $r7 = "dest"
+  send_to_account(account: $r7)
+`),
+	)
 }
 
 func TestBalance(t *testing.T) {
@@ -291,16 +256,15 @@ func TestBalance(t *testing.T) {
   $r1 = "USD/2"
   $r2 = balance($r0, $r1)
   assert_non_negative_balance($r2, $r0)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = "dest"
-  send_to_account(account: $r8)
-`))
+  set_current_asset($r1)
+  $r3 = "src"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  check_enough_funds($r5, $r2)
+  $r6 = "dest"
+  send_to_account(account: $r6)
+`),
+	)
 }
 
 func TestAccountInterpolation(t *testing.T) {
@@ -319,25 +283,23 @@ func TestAccountInterpolation(t *testing.T) {
   $r0 = "alice"
   $r1 = "USD/2"
   $r2 = 10
-  $r3 = mk_monetary($r1, $r2)
-  $r4 = get_asset($r3)
-  set_current_asset($r4)
-  $r5 = get_amount($r3)
-  $r6 = "world"
-  $r7 = 0
-  $r8 = pull_account(account: $r6, cap: $r5, overdraft: $r7)
-  check_enough_funds($r8, $r5)
-  $r9 = "users"
-  $r10 = ":"
-  $r11 = ":"
-  $r12 = "wallet"
-  $r13 = add_string($r9, $r10)
-  $r14 = add_string($r13, $r0)
-  $r15 = add_string($r14, $r11)
-  $r16 = add_string($r15, $r12)
-  assert_valid_account($r16)
-  send_to_account(account: $r16)
-`))
+  set_current_asset($r1)
+  $r3 = "world"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  check_enough_funds($r5, $r2)
+  $r6 = "users"
+  $r7 = ":"
+  $r8 = ":"
+  $r9 = "wallet"
+  $r10 = add_string($r6, $r7)
+  $r11 = add_string($r10, $r0)
+  $r12 = add_string($r11, $r8)
+  $r13 = add_string($r12, $r9)
+  assert_valid_account($r13)
+  send_to_account(account: $r13)
+`),
+	)
 }
 
 func TestAccountInterpolationInt(t *testing.T) {
@@ -356,22 +318,20 @@ func TestAccountInterpolationInt(t *testing.T) {
   $r0 = 42
   $r1 = "USD/2"
   $r2 = 10
-  $r3 = mk_monetary($r1, $r2)
-  $r4 = get_asset($r3)
-  set_current_asset($r4)
-  $r5 = get_amount($r3)
-  $r6 = "world"
-  $r7 = 0
-  $r8 = pull_account(account: $r6, cap: $r5, overdraft: $r7)
-  check_enough_funds($r8, $r5)
-  $r9 = "account"
-  $r10 = ":"
-  $r11 = int_to_string($r0)
-  $r12 = add_string($r9, $r10)
-  $r13 = add_string($r12, $r11)
-  assert_valid_account($r13)
-  send_to_account(account: $r13)
-`))
+  set_current_asset($r1)
+  $r3 = "world"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  check_enough_funds($r5, $r2)
+  $r6 = "account"
+  $r7 = ":"
+  $r8 = int_to_string($r0)
+  $r9 = add_string($r6, $r7)
+  $r10 = add_string($r9, $r8)
+  assert_valid_account($r10)
+  send_to_account(account: $r10)
+`),
+	)
 }
 
 func TestInorder(t *testing.T) {
@@ -389,33 +349,31 @@ func TestInorder(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
+  set_current_asset($r0)
+  $r2 = 0
+  $r3 = int_copy($r1)
+  $r4 = "a"
   $r5 = 0
-  $r6 = int_copy($r4)
-  $r7 = "a"
+  $r6 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
+  $r2 += $r6
+  $r3 -= $r6
+  jmp_if_zero($r3, #inorder_end_0)
+  $r7 = "b"
   $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 += $r9
-  $r6 -= $r9
-  jmp_if_zero($r6, #inorder_end_0)
-  $r10 = "b"
+  $r9 = pull_account(account: $r7, cap: $r3, overdraft: $r8)
+  $r2 += $r9
+  $r3 -= $r9
+  jmp_if_zero($r3, #inorder_end_0)
+  $r10 = "c"
   $r11 = 0
-  $r12 = pull_account(account: $r10, cap: $r6, overdraft: $r11)
-  $r5 += $r12
-  $r6 -= $r12
-  jmp_if_zero($r6, #inorder_end_0)
-  $r13 = "c"
-  $r14 = 0
-  $r15 = pull_account(account: $r13, cap: $r6, overdraft: $r14)
-  $r5 += $r15
+  $r12 = pull_account(account: $r10, cap: $r3, overdraft: $r11)
+  $r2 += $r12
 #inorder_end_0
-  check_enough_funds($r5, $r4)
-  $r16 = "dest"
-  send_to_account(account: $r16)
-`))
+  check_enough_funds($r2, $r1)
+  $r13 = "dest"
+  send_to_account(account: $r13)
+`),
+	)
 }
 
 func TestInorderWithCap(t *testing.T) {
@@ -433,40 +391,35 @@ func TestInorderWithCap(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
+  set_current_asset($r0)
+  $r2 = 0
+  $r3 = int_copy($r1)
+  $r4 = "a"
   $r5 = 0
-  $r6 = int_copy($r4)
-  $r7 = "a"
-  $r8 = 0
-  $r9 = pull_account(account: $r7, cap: $r6, overdraft: $r8)
-  $r5 += $r9
-  $r6 -= $r9
-  jmp_if_zero($r6, #inorder_end_0)
-  $r10 = "USD/2"
-  $r11 = 5
-  $r12 = mk_monetary($r10, $r11)
-  $r13 = get_asset($r12)
-  assert_same_asset($r13, $r3)
-  $r14 = get_amount($r12)
-  $r15 = min_int($r14, $r6)
-  $r16 = "b"
-  $r17 = 0
-  $r18 = pull_account(account: $r16, cap: $r15, overdraft: $r17)
-  $r5 += $r18
-  $r6 -= $r18
-  jmp_if_zero($r6, #inorder_end_0)
-  $r19 = "c"
-  $r20 = 0
-  $r21 = pull_account(account: $r19, cap: $r6, overdraft: $r20)
-  $r5 += $r21
+  $r6 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
+  $r2 += $r6
+  $r3 -= $r6
+  jmp_if_zero($r3, #inorder_end_0)
+  $r7 = "USD/2"
+  $r8 = 5
+  assert_same_asset($r7, $r0)
+  $r9 = min_int($r8, $r3)
+  $r10 = "b"
+  $r11 = 0
+  $r12 = pull_account(account: $r10, cap: $r9, overdraft: $r11)
+  $r2 += $r12
+  $r3 -= $r12
+  jmp_if_zero($r3, #inorder_end_0)
+  $r13 = "c"
+  $r14 = 0
+  $r15 = pull_account(account: $r13, cap: $r3, overdraft: $r14)
+  $r2 += $r15
 #inorder_end_0
-  check_enough_funds($r5, $r4)
-  $r22 = "dest"
-  send_to_account(account: $r22)
-`))
+  check_enough_funds($r2, $r1)
+  $r16 = "dest"
+  send_to_account(account: $r16)
+`),
+	)
 }
 
 func TestDestInorder(t *testing.T) {
@@ -483,28 +436,23 @@ func TestDestInorder(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "world"
-  $r6 = 0
-  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = int_copy($r7)
-  $r9 = "USD/2"
-  $r10 = 4
-  $r11 = mk_monetary($r9, $r10)
-  $r12 = get_asset($r11)
-  assert_same_asset($r12, $r3)
-  $r13 = get_amount($r11)
-  $r14 = min_int($r8, $r13)
-  $r15 = "d1"
-  send_to_account(account: $r15, cap: $r14)
-  $r8 -= $r14
-  $r16 = "d2"
-  send_to_account(account: $r16, cap: $r8)
-`))
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = int_copy($r4)
+  $r6 = "USD/2"
+  $r7 = 4
+  assert_same_asset($r6, $r0)
+  $r8 = min_int($r5, $r7)
+  $r9 = "d1"
+  send_to_account(account: $r9, cap: $r8)
+  $r5 -= $r8
+  $r10 = "d2"
+  send_to_account(account: $r10, cap: $r5)
+`),
+	)
 }
 
 func TestSourceOneofSimple(t *testing.T) {
@@ -522,34 +470,32 @@ func TestSourceOneofSimple(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = snapshot()
-  $r6 = "a"
-  $r7 = 0
-  $r8 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
-  $r9 = int_copy($r8)
-  $r10 = $r4 - $r8
-  jmp_if_zero($r10, #oneof_end_0)
-  restore($r5)
-  $r11 = "b"
-  $r12 = 0
-  $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
-  $r9 = int_copy($r13)
-  $r14 = $r4 - $r13
-  jmp_if_zero($r14, #oneof_end_0)
-  restore($r5)
-  $r15 = "c"
-  $r16 = 0
-  $r17 = pull_account(account: $r15, cap: $r4, overdraft: $r16)
-  $r9 = int_copy($r17)
+  set_current_asset($r0)
+  $r2 = snapshot()
+  $r3 = "a"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r1, overdraft: $r4)
+  $r6 = int_copy($r5)
+  $r7 = $r1 - $r5
+  jmp_if_zero($r7, #oneof_end_0)
+  restore($r2)
+  $r8 = "b"
+  $r9 = 0
+  $r10 = pull_account(account: $r8, cap: $r1, overdraft: $r9)
+  $r6 = int_copy($r10)
+  $r11 = $r1 - $r10
+  jmp_if_zero($r11, #oneof_end_0)
+  restore($r2)
+  $r12 = "c"
+  $r13 = 0
+  $r14 = pull_account(account: $r12, cap: $r1, overdraft: $r13)
+  $r6 = int_copy($r14)
 #oneof_end_0
-  check_enough_funds($r9, $r4)
-  $r18 = "dest"
-  send_to_account(account: $r18)
-`))
+  check_enough_funds($r6, $r1)
+  $r15 = "dest"
+  send_to_account(account: $r15)
+`),
+	)
 }
 
 func TestSourceOneofBounded(t *testing.T) {
@@ -567,26 +513,23 @@ func TestSourceOneofBounded(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = snapshot()
-  $r6 = "a"
-  $r7 = 0
-  $r8 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
-  $r9 = int_copy($r8)
-  $r10 = $r4 - $r8
-  jmp_if_zero($r10, #oneof_end_0)
-  restore($r5)
-  $r11 = "b"
-  $r12 = 0
-  $r13 = pull_account(account: $r11, cap: $r4, overdraft: $r12)
-  $r9 = int_copy($r13)
+  set_current_asset($r0)
+  $r2 = snapshot()
+  $r3 = "a"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r1, overdraft: $r4)
+  $r6 = int_copy($r5)
+  $r7 = $r1 - $r5
+  jmp_if_zero($r7, #oneof_end_0)
+  restore($r2)
+  $r8 = "b"
+  $r9 = 0
+  $r10 = pull_account(account: $r8, cap: $r1, overdraft: $r9)
+  $r6 = int_copy($r10)
 #oneof_end_0
-  check_enough_funds($r9, $r4)
-  $r14 = "dest"
-  send_to_account(account: $r14)
+  check_enough_funds($r6, $r1)
+  $r11 = "dest"
+  send_to_account(account: $r11)
 `),
 	)
 }
@@ -605,33 +548,28 @@ func TestDestOneof(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "USD/2"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "world"
-  $r6 = 0
-  $r7 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = 0
-  $r9 = "USD/2"
-  $r10 = 4
-  $r11 = mk_monetary($r9, $r10)
-  $r12 = get_asset($r11)
-  assert_same_asset($r12, $r3)
-  $r13 = get_amount($r11)
-  $r14 = min_int($r7, $r13)
-  $r15 = $r7 - $r14
-  jmp_if_zero($r15, #oneof_dest_clause_1)
-  $r16 = "b"
-  send_to_account(account: $r16)
-  jmp_if_zero($r8, #oneof_dest_end_0)
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = 0
+  $r6 = "USD/2"
+  $r7 = 4
+  assert_same_asset($r6, $r0)
+  $r8 = min_int($r4, $r7)
+  $r9 = $r4 - $r8
+  jmp_if_zero($r9, #oneof_dest_clause_1)
+  $r10 = "b"
+  send_to_account(account: $r10)
+  jmp_if_zero($r5, #oneof_dest_end_0)
 #oneof_dest_clause_1
-  $r17 = "a"
-  send_to_account(account: $r17)
-  jmp_if_zero($r8, #oneof_dest_end_0)
+  $r11 = "a"
+  send_to_account(account: $r11)
+  jmp_if_zero($r5, #oneof_dest_end_0)
 #oneof_dest_end_0
-`))
+`),
+	)
 }
 
 func TestColoredSource(t *testing.T) {
@@ -646,19 +584,17 @@ func TestColoredSource(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "COIN"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "src"
-  $r6 = "RED"
-  assert_valid_color($r6)
-  $r7 = 0
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r7, color: $r6)
-  check_enough_funds($r8, $r4)
-  $r9 = "dest"
-  send_to_account(account: $r9)
-`))
+  set_current_asset($r0)
+  $r2 = "src"
+  $r3 = "RED"
+  assert_valid_color($r3)
+  $r4 = 0
+  $r5 = pull_account(account: $r2, cap: $r1, overdraft: $r4, color: $r3)
+  check_enough_funds($r5, $r1)
+  $r6 = "dest"
+  send_to_account(account: $r6)
+`),
+	)
 }
 
 func TestColoredOverdraftSource(t *testing.T) {
@@ -673,16 +609,14 @@ func TestColoredOverdraftSource(t *testing.T) {
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
   $r0 = "COIN"
   $r1 = 10
-  $r2 = mk_monetary($r0, $r1)
-  $r3 = get_asset($r2)
-  set_current_asset($r3)
-  $r4 = get_amount($r2)
-  $r5 = "src"
-  $r6 = "RED"
-  assert_valid_color($r6)
-  $r7 = pull_account(account: $r5, cap: $r4, color: $r6)
-  check_enough_funds($r7, $r4)
-  $r8 = "dest"
-  send_to_account(account: $r8)
-`))
+  set_current_asset($r0)
+  $r2 = "src"
+  $r3 = "RED"
+  assert_valid_color($r3)
+  $r4 = pull_account(account: $r2, cap: $r1, color: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`),
+	)
 }

@@ -2,15 +2,15 @@ package ir
 
 import "fmt"
 
-// regType is the type of a virtual register. It mirrors the four VM register
-// banks; every register has exactly one type for its whole life.
+// regType is the type of a virtual register. It mirrors the three VM register
+// banks; every register has exactly one type for its whole life. A monetary is
+// not one of them: it is a (regStr asset, regInt amount) pair.
 type regType int
 
 const (
 	regInt regType = iota
 	regStr
 	regPortion
-	regMonetary
 )
 
 func (t regType) String() string {
@@ -21,8 +21,6 @@ func (t regType) String() string {
 		return "string"
 	case regPortion:
 		return "portion"
-	case regMonetary:
-		return "monetary"
 	default:
 		return "?"
 	}
@@ -138,7 +136,7 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 	case AssertValidColor:
 		return tc.use(i.Color, regStr)
 	case AssertNonNegativeBalance:
-		return firstErr(tc.use(i.Balance, regMonetary), tc.use(i.Account, regStr))
+		return firstErr(tc.use(i.Balance, regInt), tc.use(i.Account, regStr))
 
 	case SetTxMeta:
 		return firstErr(tc.use(i.Key, regStr), tc.use(i.Value, regStr))
@@ -150,8 +148,15 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 			return err
 		}
 		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.def(i.Dest, t))
+	case MetaMonetary:
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Key, regStr),
+			tc.def(i.DestAsset, regStr),
+			tc.def(i.DestAmount, regInt),
+		)
 	case FetchBalance:
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.def(i.Dest, regMonetary))
+		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.def(i.Dest, regInt))
 
 	case JmpIfZero:
 		return tc.use(i.Cond, regInt)
@@ -206,8 +211,6 @@ func metaRegType(t MetaType) (regType, error) {
 		return regInt, nil
 	case MetaPortion:
 		return regPortion, nil
-	case MetaMonetary:
-		return regMonetary, nil
 	default:
 		return 0, fmt.Errorf("bytecode typechecker: unknown meta type %T", t)
 	}
@@ -219,18 +222,12 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 		return regInt, regInt, nil
 	case OpPortionCopy:
 		return regPortion, regPortion, nil
-	case OpGetAsset:
-		return regStr, regMonetary, nil
-	case OpGetAmount:
-		return regInt, regMonetary, nil
 	case OpNegInt:
 		return regInt, regInt, nil
 	case OpIntToString:
 		return regStr, regInt, nil
 	case OpPortionToString:
 		return regStr, regPortion, nil
-	case OpMonetaryToString:
-		return regStr, regMonetary, nil
 	default:
 		return 0, 0, fmt.Errorf("bytecode typechecker: unknown unary op %T", op)
 	}
@@ -246,8 +243,8 @@ func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:
 		return regPortion, regInt, regInt, nil
-	case OpMakeMonetary:
-		return regMonetary, regStr, regInt, nil
+	case OpMonetaryToString:
+		return regStr, regStr, regInt, nil
 	default:
 		return 0, 0, 0, fmt.Errorf("bytecode typechecker: unknown binary op %T", op)
 	}

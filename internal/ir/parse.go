@@ -421,18 +421,16 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			typ = MetaInt{}
 		case "portion":
 			typ = MetaPortion{}
-		case "monetary":
-			typ = MetaMonetary{}
 		default:
-			return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("meta: expected type parameter str, int, portion or monetary, got %q", typeParam)}
+			return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("meta: expected type parameter str, int or portion, got %q", typeParam)}
 		}
 		instr = MetaVar{Dest: dest, Typ: typ, Account: ap.reg(), Key: ap.reg()}
 
 	case "balance":
 		instr = FetchBalance{Dest: dest, Account: ap.reg(), Asset: ap.reg()}
 
-	case "mk_monetary":
-		instr = ap.BinaryOp(dest, OpMakeMonetary{})
+	case "monetary_to_string":
+		instr = ap.BinaryOp(dest, OpMonetaryToString{})
 	case "mk_portion":
 		instr = ap.BinaryOp(dest, OpMakePortion{})
 	case "add_int":
@@ -450,18 +448,12 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest, Op: OpIntCopy{}, Arg: ap.reg()}
 	case "portion_copy":
 		instr = UnaryOp{Dest: dest, Op: OpPortionCopy{}, Arg: ap.reg()}
-	case "get_asset":
-		instr = UnaryOp{Dest: dest, Op: OpGetAsset{}, Arg: ap.reg()}
-	case "get_amount":
-		instr = UnaryOp{Dest: dest, Op: OpGetAmount{}, Arg: ap.reg()}
 	case "neg_int":
 		instr = UnaryOp{Dest: dest, Op: OpNegInt{}, Arg: ap.reg()}
 	case "int_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpIntToString{}, Arg: ap.reg()}
 	case "portion_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpPortionToString{}, Arg: ap.reg()}
-	case "monetary_to_string":
-		instr = UnaryOp{Dest: dest, Op: OpMonetaryToString{}, Arg: ap.reg()}
 
 	case "pull_account":
 		instr = PullAccount{
@@ -486,6 +478,18 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			break
 		}
 		instr = MakeAllotment{Dest: dests, Amount: ap.reg(), Portions: ap.regList()}
+
+	case "meta_monetary":
+		if len(dests) != 2 {
+			ap.addErr(s.Range, "meta_monetary requires a dest list of 2 registers (asset, amount)")
+			break
+		}
+		instr = MetaMonetary{
+			DestAsset:  dests[0],
+			DestAmount: dests[1],
+			Account:    ap.reg(),
+			Key:        ap.reg(),
+		}
 
 	case "check_enough_funds":
 		instr = CheckEnoughFunds{Got: ap.reg(), Needed: ap.reg()}

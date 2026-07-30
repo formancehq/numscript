@@ -18,16 +18,15 @@ import (
 //
 //	$r0  "USD/2"   -> strings[0]  (sUSD)      $r6  remaining -> ints[3] (iRem)
 //	$r1  10        -> ints[0]     (iTen)      $r7  "s1"      -> strings[2] (sS1)
-//	$r2  monetary  -> monetary[0] (mMon)      $r8  pulled1   -> ints[4] (iPulled1)
-//	$r3  asset     -> strings[1]  (sAsset)    $r9  "s2"      -> strings[3] (sS2)
-//	$r4  amount    -> ints[1]     (iAmount)   $r10 pulled2   -> ints[5] (iPulled2)
-//	$r5  sum=0     -> ints[2]     (iSum)      $r11 "dest"    -> strings[4] (sDest)
+//	$r3  asset     -> strings[1]  (sAsset)    $r8  pulled1   -> ints[4] (iPulled1)
+//	$r4  amount    -> ints[1]     (iAmount)   $r9  "s2"      -> strings[3] (sS2)
+//	$r5  sum=0     -> ints[2]     (iSum)      $r10 pulled2   -> ints[5] (iPulled2)
+//	                                          $r11 "dest"    -> strings[4] (sDest)
 //	(added) zero overdraft bound -> ints[6] (iZero)  -- gives BoundedZero
 const (
 	sUSD, sAsset, sS1, sS2, sDest       = 0, 1, 2, 3, 4
 	iTen, iAmount, iSum, iRem, iPulled1 = 0, 1, 2, 3, 4
 	iPulled2, iZero                     = 5, 6
-	mMon                                = 0
 )
 
 func abc(op Opcode, a, b, c byte) Instruction {

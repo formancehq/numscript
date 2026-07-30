@@ -43,8 +43,8 @@ const (
 	// errors if the account name in str reg A is not well-formed
 	Op_AssertValidAccount Opcode = 0x02
 
-	// errors (NegativeBalanceError) if the monetary in reg A has a negative
-	// amount; B = account str reg (for the error)
+	// errors (NegativeBalanceError) if the amount in int reg A is negative;
+	// B = account str reg (for the error)
 	Op_AssertNonNegativeBalance Opcode = 0x03
 
 	// checks the allotment leftover portion in reg A: errors if it is negative
@@ -76,9 +76,12 @@ const (
 
 	// meta(account, key) read, dispatched on the target type.
 	// A = dest, B = account (str reg), C = key (str reg)
-	Op_MetaStr      Opcode = 0x22
-	Op_MetaInt      Opcode = 0x23
-	Op_MetaPortion  Opcode = 0x24
+	Op_MetaStr     Opcode = 0x22
+	Op_MetaInt     Opcode = 0x23
+	Op_MetaPortion Opcode = 0x24
+
+	// as above, but the parsed monetary needs two destinations, so the amount's
+	// goes in an ext word: A = dest asset (str reg), ext.A = dest amount (int reg)
 	Op_MetaMonetary Opcode = 0x25
 
 	// --- arithmetic & constructors (0x30) ---
@@ -87,17 +90,20 @@ const (
 	Op_MinInt     Opcode = 0x32
 	Op_SubPortion Opcode = 0x33
 	Op_MkPortion  Opcode = 0x34
-	Op_MkMonetary Opcode = 0x35
-	Op_AddString  Opcode = 0x36
+	// 0x35 was Op_MkMonetary: a monetary is a (str asset, int amount) register
+	// pair, so there is nothing to construct. Reserved, do not reuse.
+	Op_AddString Opcode = 0x36
 
 	// --- unary & conversions (0x40) ---
-	Op_GetAmount        Opcode = 0x40
-	Op_GetAsset         Opcode = 0x41
-	Op_IntCopy          Opcode = 0x42
-	Op_PortionCopy      Opcode = 0x43
-	Op_NegInt           Opcode = 0x44
-	Op_IntToString      Opcode = 0x45
-	Op_PortionToString  Opcode = 0x46
+	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
+	// just naming one of its two registers. Reserved, do not reuse.
+	Op_IntCopy         Opcode = 0x42
+	Op_PortionCopy     Opcode = 0x43
+	Op_NegInt          Opcode = 0x44
+	Op_IntToString     Opcode = 0x45
+	Op_PortionToString Opcode = 0x46
+
+	// A = dest (str reg), B = asset (str reg), C = amount (int reg)
 	Op_MonetaryToString Opcode = 0x47
 
 	// --- funds & postings (0x50) ---

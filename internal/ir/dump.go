@@ -8,22 +8,19 @@ import (
 func (r Reg) String() string   { return fmt.Sprintf("$r%d", uint(r)) }
 func (l Label) String() string { return fmt.Sprintf("#%s", string(l)) }
 
-func (OpMinInt) String() string       { return "min_int" }
-func (OpAddInt) String() string       { return "add_int" }
-func (OpSubInt) String() string       { return "sub_int" }
-func (OpAddString) String() string    { return "add_string" }
-func (OpSubPortion) String() string   { return "sub_portion" }
-func (OpMakePortion) String() string  { return "mk_portion" }
-func (OpMakeMonetary) String() string { return "mk_monetary" }
-
-func (OpIntCopy) String() string          { return "int_copy" }
-func (OpPortionCopy) String() string      { return "portion_copy" }
-func (OpGetAsset) String() string         { return "get_asset" }
-func (OpGetAmount) String() string        { return "get_amount" }
-func (OpNegInt) String() string           { return "neg_int" }
-func (OpIntToString) String() string      { return "int_to_string" }
-func (OpPortionToString) String() string  { return "portion_to_string" }
+func (OpMinInt) String() string           { return "min_int" }
+func (OpAddInt) String() string           { return "add_int" }
+func (OpSubInt) String() string           { return "sub_int" }
+func (OpAddString) String() string        { return "add_string" }
+func (OpSubPortion) String() string       { return "sub_portion" }
+func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }
+
+func (OpIntCopy) String() string         { return "int_copy" }
+func (OpPortionCopy) String() string     { return "portion_copy" }
+func (OpNegInt) String() string          { return "neg_int" }
+func (OpIntToString) String() string     { return "int_to_string" }
+func (OpPortionToString) String() string { return "portion_to_string" }
 
 func (i PullAccount) String() string {
 	opts := joinOpts(
@@ -97,10 +94,13 @@ func (i MetaVar) String() string {
 	return fmt.Sprintf("%s = meta<%s>(%s, %s)", i.Dest, i.Typ, i.Account, i.Key)
 }
 
-func (MetaStr) String() string      { return "str" }
-func (MetaInt) String() string      { return "int" }
-func (MetaPortion) String() string  { return "portion" }
-func (MetaMonetary) String() string { return "monetary" }
+func (i MetaMonetary) String() string {
+	return fmt.Sprintf("[%s, %s] = meta_monetary(%s, %s)", i.DestAsset, i.DestAmount, i.Account, i.Key)
+}
+
+func (MetaStr) String() string     { return "str" }
+func (MetaInt) String() string     { return "int" }
+func (MetaPortion) String() string { return "portion" }
 
 func (i FetchBalance) String() string {
 	return fmt.Sprintf("%s = balance(%s, %s)", i.Dest, i.Account, i.Asset)
