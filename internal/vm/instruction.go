@@ -137,6 +137,7 @@ const (
 	// Op_PullAccountUnboundedOverdraft
 
 	// --- control flow (0x90) ---
-	Op_JmpIfZero Opcode = 0x90 // b_c = resolved instruction offset
+	// b_c = unsigned forward delta, added to the pc of the next instruction
+	Op_JmpIfZero Opcode = 0x90
 	// note: Label emits no instruction; it only feeds the symbol table at assemble time
 )

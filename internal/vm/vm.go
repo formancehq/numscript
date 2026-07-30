@@ -353,7 +353,7 @@ func Exec[S Store](
 		case Op_JmpIfZero:
 			arg := &intsRegs[instr.A]
 			if arg.Sign() == 0 {
-				pc = int(instr.GetBC())
+				pc += int(instr.GetBC())
 			}
 
 		// --- consts

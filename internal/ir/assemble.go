@@ -90,9 +90,10 @@ func (b *regPool) bindContiguous(regs []Reg) (byte, error) {
 }
 
 type patch struct {
-	Label          Label
-	index          int
-	getInstruction func(labelIndex uint16) vm.Instruction
+	Label Label
+	index int
+	// delta is the forward jump offset, relative to the instruction following index
+	getInstruction func(delta uint16) vm.Instruction
 }
 
 // assembler lowers IR instructions into a vm.Program.
@@ -141,7 +142,12 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 			return vm.Program{}, fmt.Errorf("missing label declaration of `%s`", string(patch.Label))
 		}
 
-		a.instructions[patch.index] = patch.getInstruction(labelIndex)
+		next := patch.index + 1
+		if int(labelIndex) < next {
+			return vm.Program{}, fmt.Errorf("backward jump to label `%s`: jumps must go forward", string(patch.Label))
+		}
+
+		a.instructions[patch.index] = patch.getInstruction(uint16(int(labelIndex) - next))
 	}
 
 	return vm.Program{
@@ -659,8 +665,8 @@ func (i JmpIfZero) assemble(a *assembler) error {
 	a.patches = append(a.patches, patch{
 		Label: i.Target,
 		index: len(a.instructions),
-		getInstruction: func(labelIndex uint16) vm.Instruction {
-			return vm.NewBC(vm.Op_JmpIfZero, cond, labelIndex)
+		getInstruction: func(delta uint16) vm.Instruction {
+			return vm.NewBC(vm.Op_JmpIfZero, cond, delta)
 		},
 	})
 

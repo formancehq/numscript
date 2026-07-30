@@ -333,8 +333,8 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
   <tbody>
     <tr>
       <td>144</td><td><code>0x90</code></td><td><strong>JMP_IF_ZERO</strong></td>
-      <td>cond</td><td colspan="2" align="center">Bx (target instr)</td>
-      <td>Jump to instruction <code>Bx</code> if <code>int_regs[A] == 0</code>. Forward-only (guarantees termination)</td>
+      <td>cond</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>If <code>int_regs[A] == 0</code>, skip <code>Bx</code> instructions: <code>pc += Bx</code>, where <code>pc</code> already points at the next instruction. Being an unsigned delta, the jump is forward-only (guarantees termination)</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x91..0xFF reserved</em></td>

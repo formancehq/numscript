@@ -112,6 +112,51 @@ func TestAssemble_RegisterBankOverflow(t *testing.T) {
 	})
 }
 
+func TestAssemble_JmpIfZeroDelta(t *testing.T) {
+	t.Run("delta counts the instructions skipped", func(t *testing.T) {
+		prog, err := Assemble([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(0)}, // 0
+			JmpIfZero{Cond: 0, Target: "end"},       // 1
+			LoadInt{Dest: 1, Value: *big.NewInt(1)}, // 2
+			LoadInt{Dest: 2, Value: *big.NewInt(2)}, // 3
+			LabelMarker{Label: "end"},               // -> 4
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, vm.NewBC(vm.Op_JmpIfZero, 0, 2), prog.Instructions[1])
+	})
+
+	t.Run("jump to the immediately following instruction has delta 0", func(t *testing.T) {
+		prog, err := Assemble([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(0)},
+			JmpIfZero{Cond: 0, Target: "end"},
+			LabelMarker{Label: "end"},
+			LoadInt{Dest: 1, Value: *big.NewInt(1)},
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, vm.NewBC(vm.Op_JmpIfZero, 0, 0), prog.Instructions[1])
+	})
+
+	t.Run("backward jump is rejected", func(t *testing.T) {
+		_, err := Assemble([]Instr{
+			LabelMarker{Label: "start"},
+			LoadInt{Dest: 0, Value: *big.NewInt(0)},
+			JmpIfZero{Cond: 0, Target: "start"},
+		})
+		require.ErrorContains(t, err, "backward jump")
+	})
+
+	t.Run("jump to itself is rejected", func(t *testing.T) {
+		_, err := Assemble([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(0)},
+			LabelMarker{Label: "self"},
+			JmpIfZero{Cond: 0, Target: "self"},
+		})
+		require.ErrorContains(t, err, "backward jump")
+	})
+}
+
 // mk_allot reserves its blocks contiguously, so one that doesn't fit must error
 // rather than wrap around the bank.
 func TestAssemble_ContiguousOverflow(t *testing.T) {
