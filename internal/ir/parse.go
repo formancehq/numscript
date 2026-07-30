@@ -439,6 +439,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = ap.BinaryOp(dest, OpSubInt{})
 	case "add_string":
 		instr = ap.BinaryOp(dest, OpAddString{})
+	case "str_eq":
+		instr = ap.BinaryOp(dest, OpStrEq{})
 	case "sub_portion":
 		instr = ap.BinaryOp(dest, OpSubPortion{})
 	case "min_int":
@@ -532,6 +534,20 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			ap.addErr(s.Range, "jmp_if_zero: label %s is behind the jump (jumps must go forward)", target)
 		default:
 			instr = JmpIfZero{Cond: cond, Target: target}
+		}
+
+	case "jmp":
+		target := ap.labelRef()
+		labelPos, defined := t.labelPos[string(target)]
+		switch {
+		case target == "":
+			// labelRef already said what was wrong
+		case !defined:
+			ap.addErr(s.Range, "jmp: label %s is not defined in the program", target)
+		case labelPos < t.stmtPos:
+			ap.addErr(s.Range, "jmp: label %s is behind the jump (jumps must go forward)", target)
+		default:
+			instr = Jmp{Target: target}
 		}
 
 	default:

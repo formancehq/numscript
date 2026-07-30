@@ -153,6 +153,26 @@ func TestAssemble_JmpIfZeroDelta(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "backward jump")
 	})
+
+	t.Run("unconditional jmp patches its delta", func(t *testing.T) {
+		prog, err := Assemble([]Instr{
+			Jmp{Target: "end"},
+			LoadInt{Dest: 0, Value: *big.NewInt(0)},
+			LabelMarker{Label: "end"},
+		})
+		require.NoError(t, err)
+
+		// one instruction (the load) sits between the jump and the label
+		require.Equal(t, vm.NewBC(vm.Op_Jmp, 0, 1), prog.Instructions[0])
+	})
+
+	t.Run("backward unconditional jmp is rejected", func(t *testing.T) {
+		_, err := Assemble([]Instr{
+			LabelMarker{Label: "start"},
+			Jmp{Target: "start"},
+		})
+		require.ErrorContains(t, err, "backward jump")
+	})
 }
 
 // mk_allot reserves its blocks contiguously, so one that doesn't fit must error

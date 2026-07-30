@@ -1,0 +1,28 @@
+{
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
+  "testCases": [
+    {
+      "it": "unboundedness is decided on the interpolated name, not on the syntax",
+      "variables": {
+        "name": "world"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    },
+    {
+      "it": "an interpolation that lands on another name stays bounded",
+      "variables": {
+        "name": "worldly"
+      },
+      "expect.error.missingFunds": true
+    }
+  ]
+}

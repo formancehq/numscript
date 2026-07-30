@@ -160,6 +160,8 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 
 	case JmpIfZero:
 		return tc.use(i.Cond, regInt)
+	case Jmp:
+		return nil
 	case LabelMarker:
 		return nil
 
@@ -239,6 +241,8 @@ func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 		return regInt, regInt, regInt, nil
 	case OpAddString:
 		return regStr, regStr, regStr, nil
+	case OpStrEq:
+		return regInt, regStr, regStr, nil
 	case OpSubPortion:
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:

@@ -293,6 +293,15 @@ func (OpAddString) sig() binaryOpSig {
 		right:  (*assembler).strReg,
 	}
 }
+func (OpStrEq) sig() binaryOpSig {
+	return binaryOpSig{
+		opcode: vm.Op_StrEq,
+		dest:   (*assembler).intReg,
+		left:   (*assembler).strReg,
+		right:  (*assembler).strReg,
+	}
+}
+
 func (OpSubPortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_SubPortion,
@@ -656,6 +665,21 @@ func (i JmpIfZero) assemble(a *assembler) error {
 		index: len(a.instructions),
 		getInstruction: func(delta uint16) vm.Instruction {
 			return vm.NewBC(vm.Op_JmpIfZero, cond, delta)
+		},
+	})
+
+	// Emit dummy instruction
+	a.emit(0, 0, 0, 0)
+
+	return nil
+}
+
+func (i Jmp) assemble(a *assembler) error {
+	a.patches = append(a.patches, patch{
+		Label: i.Target,
+		index: len(a.instructions),
+		getInstruction: func(delta uint16) vm.Instruction {
+			return vm.NewBC(vm.Op_Jmp, 0, delta)
 		},
 	})
 

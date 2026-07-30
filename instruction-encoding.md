@@ -204,7 +204,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>str_regs[A] = str_regs[B] + str_regs[C]</code></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x37..0x3F reserved</em></td>
+      <td>55</td><td><code>0x37</code></td><td><strong>STR_EQ</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>int_regs[A] = str_regs[B] == str_regs[C] ? 1 : 0</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). There is no boolean bank: JMP_IF_ZERO branches on an int, so <code>0</code>/<code>1</code> <em>is</em> the predicate representation</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -333,7 +338,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>If <code>int_regs[A] == 0</code>, skip <code>Bx</code> instructions: <code>pc += Bx</code>, where <code>pc</code> already points at the next instruction. Being an unsigned delta, the jump is forward-only (guarantees termination)</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x91..0xFF reserved</em></td>
+      <td>145</td><td><code>0x91</code></td><td><strong>JMP</strong></td>
+      <td>—</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>Unconditional: <code>pc += Bx</code>. Forward-only, as above</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x92..0xFF reserved</em></td>
     </tr>
   </tbody>
 </table>

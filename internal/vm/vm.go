@@ -9,7 +9,6 @@ import (
 )
 
 const nilReg byte = 0xFF
-const worldAccount = "world"
 
 type Vm struct {
 	program  Program
@@ -127,7 +126,7 @@ func Exec[S Store](
 			}
 
 			var overdraft *big.Int
-			if account != worldAccount && instrExt.A != nilReg {
+			if instrExt.A != nilReg {
 				overdraft = &intsRegs[instrExt.A]
 			}
 
@@ -355,6 +354,9 @@ func Exec[S Store](
 				pc += int(instr.GetBC())
 			}
 
+		case Op_Jmp:
+			pc += int(instr.GetBC())
+
 		// --- consts
 		// TODO both crash if GetBC() >= len(pool), e.g. an Op_LoadInt referring to
 		// pool index 5 in a program whose ints pool has 3 entries.
@@ -388,6 +390,13 @@ func Exec[S Store](
 
 		case Op_AddString:
 			stringsRegs[instr.A] = stringsRegs[instr.B] + stringsRegs[instr.C]
+
+		case Op_StrEq:
+			var eq int64
+			if stringsRegs[instr.B] == stringsRegs[instr.C] {
+				eq = 1
+			}
+			intsRegs[instr.A].SetInt64(eq)
 
 		case Op_SubPortion:
 			left := &portionsRegs[instr.B]

@@ -1,0 +1,38 @@
+{
+  "testCases": [
+    {
+      "it": "the overdraft bound applies to a regular account",
+      "variables": {
+        "src": "acc"
+      },
+      "expect.postings": [
+        {
+          "source": "acc",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 95,
+          "asset": "COIN"
+        }
+      ]
+    },
+    {
+      "it": "but world discards it and covers the whole cap",
+      "variables": {
+        "src": "world"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

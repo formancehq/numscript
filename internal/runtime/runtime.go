@@ -10,14 +10,18 @@
 // Balances are tracked per (account, asset, color) triple as a balanceEntry that
 // separates the movement applied this run from the account's starting balance.
 // Until something needs the absolute balance, an entry holds only the net delta
-// (debits/credits) and the Store is never consulted: an unbounded pull (from
-// @world, or `allowing unbounded overdraft`) makes cap available regardless of
-// balance, so it just records a debit. The starting balance is fetched from the
-// Store lazily, the first time an operation actually needs the absolute value (a
-// bounded pull, a send-all, or a balance() read), and folded into the delta;
-// from then on the entry holds the absolute balance and further ops mutate it in
-// place. This keeps the common send-from-@world path free of Store round-trips
-// while a later balance(@world) still reports the correct running balance.
+// (debits/credits) and the Store is never consulted: an unbounded pull — one
+// whose overdraft is nil — makes cap available regardless of balance, so it just
+// records a debit. The starting balance is fetched from the Store lazily, the
+// first time an operation actually needs the absolute value (a bounded pull, a
+// send-all, or a balance() read), and folded into the delta; from then on the
+// entry holds the absolute balance and further ops mutate it in place.
+//
+// Which accounts are unbounded is not this package's business: nothing here
+// knows the name "world". Callers decide, and pass a nil overdraft — the
+// interpreter with a Go comparison, the compiler by emitting one (see
+// compiler.pullFromAccount). That is what keeps the common send-from-@world path
+// free of Store round-trips while its running balance stays correct.
 //
 // Color is a plain string; the empty string "" means "uncolored". Pull tags the
 // funds it queues with a color, and Send drains only the sources whose color

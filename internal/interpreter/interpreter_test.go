@@ -436,6 +436,23 @@ func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+// same as above, except world is only known at run time
+func TestInvalidUnboundedWorldFromVarInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $src
+	}
+	send [USD/2 *] (
+		source = $src
+		destination = @dest
+	)`)
+	tc.setVarsFromJSON(t, `{"src": "world"}`)
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidUnboundedInSendAll{Name: "world"},
+	}
+	test(t, tc)
+}
+
 func TestInvalidUnboundedInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (

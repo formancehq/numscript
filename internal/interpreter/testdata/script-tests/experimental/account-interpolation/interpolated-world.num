@@ -1,0 +1,7 @@
+vars {
+  string $name
+}
+send [COIN 100] (
+  source = @$name
+  destination = @dest
+)

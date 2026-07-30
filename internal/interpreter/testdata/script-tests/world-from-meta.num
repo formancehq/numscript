@@ -1,0 +1,8 @@
+vars {
+  account $config
+  account $src = meta($config, "source")
+}
+send [COIN 100] (
+  source = $src
+  destination = @dest
+)

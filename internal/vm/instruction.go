@@ -94,6 +94,11 @@ const (
 	// pair, so there is nothing to construct. Reserved, do not reuse.
 	Op_AddString Opcode = 0x36
 
+	// A = dest (int reg) = 1 if the strings in B and C are equal, else 0. There is
+	// no boolean bank: Op_JmpIfZero already branches on an int, so 0/1 is the
+	// predicate representation.
+	Op_StrEq Opcode = 0x37
+
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
 	// just naming one of its two registers. Reserved, do not reuse.
@@ -145,5 +150,7 @@ const (
 	// --- control flow (0x90) ---
 	// b_c = unsigned forward delta, added to the pc of the next instruction
 	Op_JmpIfZero Opcode = 0x90
+	// unconditional; b_c = unsigned forward delta, as above
+	Op_Jmp Opcode = 0x91
 	// note: Label emits no instruction; it only feeds the symbol table at assemble time
 )

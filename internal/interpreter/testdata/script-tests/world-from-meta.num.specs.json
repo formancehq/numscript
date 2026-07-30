@@ -1,0 +1,21 @@
+{
+  "testCases": [
+    {
+      "it": "an account read from metadata is unbounded when it is world",
+      "variables": {
+        "config": "config"
+      },
+      "metadata": [
+        { "account": "config", "key": "source", "value": "world" }
+      ],
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

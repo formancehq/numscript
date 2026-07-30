@@ -1,0 +1,26 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "an unbounded pull keeps its color",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN",
+          "color": "RED"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 70,
+          "asset": "COIN",
+          "color": "BLUE"
+        }
+      ]
+    }
+  ]
+}

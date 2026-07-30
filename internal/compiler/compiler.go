@@ -58,7 +58,14 @@ type state struct {
 	nextIntVar int
 	nextStrVar int
 	varDecls   []varDecl
+
+	// holds worldAccount; see pullFromAccount
+	worldReg ir.Reg
 }
+
+// The unbounded account. The VM knows nothing about it: a source account is a
+// register, so the comparison is compiled, not built in.
+const worldAccount = "world"
 
 // Every flag in flags.AllFlags has a check site below except
 // ExperimentalScopedFunction: scoped() isn't in typecheck's builtin table, so a
@@ -494,6 +501,59 @@ func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerErro
 	return &reg, nil
 }
 
+// pullFromAccount emits the pull of a source account, including the @world
+// check. The account is a register — it can come from a var, an interpolation or
+// metadata — so the check cannot be decided here and becomes a run-time branch:
+//
+//	$eq = str_eq($account, $world)
+//	jmp_if_zero($eq, #not_world)
+//	  $pulled = pull_account(...)              // no overdraft operand: unbounded
+//	  jmp(#pull_end)
+//	#not_world
+//	  $pulled = pull_account(..., overdraft: $od)
+//	#pull_end
+//
+// Both arms write the same dest, which the register typechecker allows because
+// the type doesn't change. When overdraftReg is nil the source is unbounded for
+// every account, so the two arms would be identical and the branch is skipped.
+//
+// Deliberately unconditional otherwise, even for a literal @world: one code path
+// is easier to trust than a compile-time-folded one, and collapsing it is a
+// peephole's job (const-fold str_eq, then drop the dead arm).
+func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *ir.Reg) ir.Reg {
+	pull := func(dest ir.Reg, overdraft *ir.Reg) ir.Instr {
+		return ir.PullAccount{
+			Dest:      dest,
+			Account:   accReg,
+			Cap:       capReg,
+			Overdraft: overdraft,
+			Color:     colorReg,
+		}
+	}
+
+	if overdraftReg == nil {
+		return st.PushWithDest(func(dest ir.Reg) ir.Instr { return pull(dest, nil) })
+	}
+
+	isWorld := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.BinaryOp{Op: ir.OpStrEq{}, Left: accReg, Right: st.worldReg, Dest: dest}
+	})
+	notWorldLabel := st.FreshLabel("not_world")
+	endLabel := st.FreshLabel("pull_end")
+
+	st.Push(ir.JmpIfZero{Cond: isWorld, Target: notWorldLabel})
+	// an uncapped context reaches this arm with no cap and no overdraft, which is
+	// the InvalidUncappedSource case: taking *all* of an unbounded source
+	pulledReg := st.PushWithDest(func(dest ir.Reg) ir.Instr { return pull(dest, nil) })
+	st.Push(ir.Jmp{Target: endLabel})
+
+	st.Push(ir.LabelMarker{Label: notWorldLabel})
+	st.Push(pull(pulledReg, overdraftReg))
+	st.Push(ir.LabelMarker{Label: endLabel})
+
+	return pulledReg
+}
+
 // capReg is the register containing the current cap (or nil if context is uncapped)
 // returns (when there's no err) the register where we store the pulled amount of this source
 func (st *state) compileSource(
@@ -519,15 +579,7 @@ func (st *state) compileSource(
 			}
 		})
 
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.PullAccount{
-				Dest:      dest,
-				Account:   accReg,
-				Cap:       capReg,
-				Overdraft: &overdraftReg,
-				Color:     colorReg,
-			}
-		})
+		return st.pullFromAccount(accReg, capReg, &overdraftReg, colorReg), nil
 
 	case *parser.SourceOverdraft:
 		if src.Bounded == nil && capReg == nil {
@@ -555,15 +607,7 @@ func (st *state) compileSource(
 			overdraftReg = &amtReg
 		}
 
-		return st.pushInstructionWithDestErr(func(dest ir.Reg) ir.Instr {
-			return ir.PullAccount{
-				Dest:      dest,
-				Account:   accReg,
-				Cap:       capReg,
-				Overdraft: overdraftReg,
-				Color:     colorReg,
-			}
-		})
+		return st.pullFromAccount(accReg, capReg, overdraftReg, colorReg), nil
 
 	case *parser.SourceCapped:
 		clauseCapIntReg, err := st.compileCapAmount(src.Cap)
@@ -1081,6 +1125,12 @@ func compileProgramToIR(program parser.Program, featureFlags map[string]struct{}
 	}
 
 	st := state{vars: map[string]value{}, exprTypes: tc.ExprTypes, featureFlags: flagSet}
+
+	// loaded once, up front, so that it dominates every pullFromAccount branch
+	// regardless of the jumps those branches sit between
+	st.worldReg = st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.LoadStr{Value: worldAccount, Dest: dest}
+	})
 
 	if program.Vars != nil {
 		for _, decl := range program.Vars.Declarations {

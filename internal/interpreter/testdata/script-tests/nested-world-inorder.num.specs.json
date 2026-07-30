@@ -1,0 +1,49 @@
+{
+  "testCases": [
+    {
+      "it": "world covers the rest from two levels deep, and nothing after it is reached",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 10
+        },
+        {
+          "account": "b",
+          "asset": "COIN",
+          "amount": 20
+        },
+        {
+          "account": "never_reached",
+          "asset": "COIN",
+          "amount": 1000
+        },
+        {
+          "account": "also_never_reached",
+          "asset": "COIN",
+          "amount": 1000
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "COIN"
+        },
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 20,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 70,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

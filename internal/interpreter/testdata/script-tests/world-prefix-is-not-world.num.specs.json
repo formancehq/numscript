@@ -1,0 +1,15 @@
+{
+  "testCases": [
+    {
+      "it": "only the account named exactly world is unbounded",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

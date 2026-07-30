@@ -1,0 +1,28 @@
+{
+  "testCases": [
+    {
+      "it": "world can be an allotment sub-source",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 50
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN"
+        },
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

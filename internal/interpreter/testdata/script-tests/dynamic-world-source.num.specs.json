@@ -1,0 +1,25 @@
+{
+  "testCases": [
+    {
+      "it": "an account known only at run time is unbounded when it is world",
+      "variables": {
+        "src": "world"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN"
+        }
+      ]
+    },
+    {
+      "it": "but any other account is still bounded by its balance",
+      "variables": {
+        "src": "alice"
+      },
+      "expect.error.missingFunds": true
+    }
+  ]
+}

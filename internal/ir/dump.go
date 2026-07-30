@@ -12,6 +12,7 @@ func (OpMinInt) String() string           { return "min_int" }
 func (OpAddInt) String() string           { return "add_int" }
 func (OpSubInt) String() string           { return "sub_int" }
 func (OpAddString) String() string        { return "add_string" }
+func (OpStrEq) String() string            { return "str_eq" }
 func (OpSubPortion) String() string       { return "sub_portion" }
 func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }
@@ -115,6 +116,10 @@ func (VarStr) String() string { return "str" }
 
 func (i JmpIfZero) String() string {
 	return fmt.Sprintf("jmp_if_zero(%s, %s)", i.Cond, i.Target)
+}
+
+func (i Jmp) String() string {
+	return fmt.Sprintf("jmp(%s)", i.Target)
 }
 
 func (i LoadInt) String() string {

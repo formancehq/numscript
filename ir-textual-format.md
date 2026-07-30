@@ -81,7 +81,7 @@ Which form an argument takes is fixed per instruction (see the reference below) 
 
 ```
 $r0            register
-#my_label      label reference   (jmp_if_zero only)
+#my_label      label reference   (jmp_if_zero and jmp only)
 42             int literal       (load_var index only)
 [$r0, $r1]     register list     (mk_allot portions only)
 ```
@@ -128,6 +128,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_int($l, $r)` | `(int, int) -> int` |
 | `$d = sub_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
+| `$d = str_eq($l, $r)` | `(str, str) -> int` — `1` if equal, else `0` |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
@@ -216,16 +217,29 @@ Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`i
 ### Control flow
 
 ```
-#my_label
   jmp_if_zero($cond, #my_label)
+  jmp(#my_label)
+#my_label
 ```
 
-`$cond` is `int`; the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
+`$cond` is `int` — there is no boolean type, so a zero/non-zero int *is* the predicate; `str_eq` is how a string comparison becomes one. For both instructions the target must be a label that is defined in the program, unique, and **after** the jump. The VM only permits forward jumps — that's what guarantees termination — and `ir.Parse` enforces all three rules, so a program that assembles can't loop:
 
 ```
 jmp_if_zero($r0, #nope)     → label #nope is not defined in the program
 #back                       → label #back is behind the jump (jumps must go forward)
   jmp_if_zero($r0, #back)
+```
+
+Together they express an if/else, which is how `@world`'s unboundedness is compiled (see `compiler-architecture.md`):
+
+```
+  $eq = str_eq($account, $world)
+  jmp_if_zero($eq, #not_world)
+  ; then arm
+  jmp(#end)
+#not_world
+  ; else arm
+#end
 ```
 
 `labelMarker` is a pseudo-instruction: it emits no bytecode, it only feeds the assembler's symbol table.

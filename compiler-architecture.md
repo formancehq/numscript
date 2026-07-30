@@ -293,12 +293,30 @@ It'll write pulled amount into the `$pulled` reg:
 ```
 $src = "src"
 $overdraft = 0
-$pulled = pull_account(
-  account: $src,
-  cap: $amount,
-  overdraft: $overdraft,
-)
+$eq = str_eq($src, $world)
+jmp_if_zero($eq, #not_world)
+  $pulled = pull_account(account: $src, cap: $amount)
+  jmp(#pull_end)
+#not_world
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+#pull_end
 ```
+
+The branch is `@world`. A pull with no `overdraft` operand is *unbounded*: it makes
+the whole cap available without ever reading a balance, which is exactly what
+`@world` means. The VM knows nothing about the name — the account is a register, so
+it could equally come from a var, an interpolation or a `meta()` read, and the
+comparison has to happen at run time. `$world` is a single `load_str "world"` in
+the program prologue, so it dominates every such branch no matter what jumps the
+branch sits between.
+
+This is emitted for *every* source account, literal `@world` or not. One code path
+is easier to trust than a compile-time-folded one, and collapsing it back down is a
+peephole's job: const-fold `str_eq` over two known `load_str`s, then drop the dead
+arm. Until those land, the diamond is the cost of the VM not knowing about `@world`.
+
+When the source is `allowing unbounded overdraft` there is no `overdraft` operand
+to drop, so both arms would be identical and the branch is skipped entirely.
 
 the plain `@dest` destination account will look like:
 
@@ -319,12 +337,19 @@ send [USD/2 10] (
 output:
 
 ```
+$world = "world"
 $asset = "USD/2"
 $amount = 10
 set_current_asset($asset)
 $src = "src"
 $overdraft = 0
-$pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+$eq = str_eq($src, $world)
+jmp_if_zero($eq, #not_world)
+  $pulled = pull_account(account: $src, cap: $amount)
+  jmp(#pull_end)
+#not_world
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+#pull_end
 check_enough_funds($pulled, $amount)
 $dest = "dest"
 send_to_account(account: $dest)
@@ -418,6 +443,20 @@ We apply each peephole optimisation sequentially, and repeat until we reach a fi
 Note that proving that a peephole function _does_ have a fixed point is usually simple, whereas proving that the function composition of all the peepholes isn't. Pratically speaking, we can avoid non-terminating optimisation passes by imposing a max amount of optimisation passes. A clever order of peepholes should make convergence quite fast anyway.
 
 > TODO list some peepholes
+
+The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is
+the clearest case to date, and it needs two passes that compose:
+
+1. **Const-fold `str_eq`** — when both operands trace back to `load_str` constants, the
+   comparison is statically decidable: replace it with `load_int 0` or `load_int 1`.
+2. **Dead-branch elimination** — a `jmp_if_zero` on a register holding a known constant
+   is either a no-op or an unconditional `jmp`; then everything between a `jmp` and the
+   next reachable label is unreachable.
+
+Together they collapse a literal `@world` source back to a single unbounded
+`pull_account`, and any other literal account back to a single bounded one — i.e. to
+exactly the code the compiler emitted when the VM still special-cased the name. The
+prologue's `load_str "world"` also becomes dead once no branch refers to it.
 
 ### Registers allocator
 

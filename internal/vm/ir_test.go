@@ -279,6 +279,43 @@ func TestIRSnapshotRestoreBacktracks(t *testing.T) {
 	})
 }
 
+func TestIRStrEqAndJmp(t *testing.T) {
+	// the if/else shape: str_eq is the only way to branch on a string, and jmp is
+	// what skips the else arm. Here the taken arm decides which account is pulled
+	// from, which is how @world's unboundedness is expressed in bytecode.
+	src := `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 10
+  $overdraft = 0
+  $expected = "yes"
+  $probe = load_var<str>(0)
+  $eq = str_eq($probe, $expected)
+  jmp_if_zero($eq, #else)
+  $then_acc = "a"
+  $pulled = pull_account(account: $then_acc, cap: $amount, overdraft: $overdraft)
+  jmp(#end)
+#else
+  $else_acc = "b"
+  $pulled = pull_account(account: $else_acc, cap: $amount, overdraft: $overdraft)
+#end
+  $dest = "dest"
+  send_to_account(account: $dest)
+`
+
+	store := balances(map[string]int64{"a": 10, "b": 10})
+
+	t.Run("equal strings take the then arm", func(t *testing.T) {
+		res := runIR(t, src, store, &vm.Vars{StringsPool: []string{"yes"}})
+		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+	})
+
+	t.Run("and jmp skips it otherwise", func(t *testing.T) {
+		res := runIR(t, src, store, &vm.Vars{StringsPool: []string{"no"}})
+		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
+	})
+}
+
 func TestIRSaveWithholdsFunds(t *testing.T) {
 	// save reserves part of the balance, so the pull can't reach it
 	src := `
@@ -640,8 +677,9 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
 	})
 
 	t.Run("but not on a send: crediting a destination reads nothing", func(t *testing.T) {
-		// @world is unbounded, so the pull reads no balance either — the whole send
-		// runs against a store that fails every call
+		// the pull has no overdraft operand, so it is unbounded and reads no balance
+		// either — the whole send runs against a store that fails every call. This
+		// is the arm the compiler emits for @world.
 		res := runIR(t, `
   $asset = "USD/2"
   set_current_asset($asset)

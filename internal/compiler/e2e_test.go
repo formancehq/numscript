@@ -983,6 +983,97 @@ func TestE2E_InvalidColor(t *testing.T) {
 	require.IsType(t, vm.InvalidColor{}, execErr)
 }
 
+// countingStore is an e2eStore that records how many balances it was asked for.
+type countingStore struct {
+	e2eStore
+	balanceCalls int
+}
+
+func (s *countingStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
+	s.balanceCalls++
+	return s.e2eStore.GetBalance(ctx, account, asset, color)
+}
+
+// The compiled world arm has no overdraft operand, which is what makes the pull
+// unbounded and therefore free of Store round-trips. numscript_test.go asserts
+// the same for the interpreter.
+func TestE2E_WorldSourceReadsNoBalance(t *testing.T) {
+	src := `send [USD/2 100] (source = @world destination = @dest)`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+	store := &countingStore{}
+	machine := vm.NewVm(program)
+	res, execErr := vm.Exec(context.Background(), machine, nil, store)
+	require.Nil(t, execErr)
+
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, res.Postings)
+	require.Zero(t, store.balanceCalls, "a world source must not read any balance")
+}
+
+// the run-time branch, not the literal, is what decides it
+func TestE2E_DynamicWorldSourceReadsNoBalance(t *testing.T) {
+	src := `
+		vars { account $src }
+		send [USD/2 100] (source = $src destination = @dest)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	enc, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+	vars, err := enc.Encode(map[string]string{"src": "world"})
+	require.NoError(t, err)
+	store := &countingStore{}
+	machine := vm.NewVm(program)
+	res, execErr := vm.Exec(context.Background(), machine, &vars, store)
+	require.Nil(t, execErr)
+
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, res.Postings)
+	require.Zero(t, store.balanceCalls, "a world source must not read any balance")
+}
+
+// A send-all needs a bounded source to know how much "all" is, and @world is
+// unbounded. The specs format has no expectation field for this error, so it is
+// asserted here; the interpreter's twin is TestInvalidUnboundedWorldInSendAll.
+func TestE2E_SendAllFromWorldErrors(t *testing.T) {
+	src := `send [USD/2 *] (source = @world destination = @dest)`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{})
+
+	require.Equal(t, vm.InvalidUncappedSource{Account: "world"}, execErr)
+}
+
+// same, but world is only known at run time, so the compiler cannot reject it
+func TestE2E_SendAllFromDynamicWorldErrors(t *testing.T) {
+	src := `
+		vars { account $src }
+		send [USD/2 *] (source = $src destination = @dest)
+	`
+
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	enc, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+	vars, err := enc.Encode(map[string]string{"src": "world"})
+	require.NoError(t, err)
+	machine := vm.NewVm(program)
+	_, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{})
+
+	require.Equal(t, vm.InvalidUncappedSource{Account: "world"}, execErr)
+}
+
 func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)

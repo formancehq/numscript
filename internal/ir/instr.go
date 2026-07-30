@@ -19,10 +19,13 @@ type BinKind interface {
 }
 
 type (
-	OpMinInt      struct{}
-	OpAddInt      struct{}
-	OpSubInt      struct{}
-	OpAddString   struct{}
+	OpMinInt    struct{}
+	OpAddInt    struct{}
+	OpSubInt    struct{}
+	OpAddString struct{}
+	// OpStrEq yields 1 or 0 in an int register: there is no boolean type, and
+	// JmpIfZero branches on an int.
+	OpStrEq       struct{}
 	OpSubPortion  struct{}
 	OpMakePortion struct{}
 	// OpMonetaryToString takes the asset (str) and the amount (int) of a monetary
@@ -121,6 +124,9 @@ type (
 		Cond   Reg // int
 		Target Label
 	}
+	Jmp struct {
+		Target Label
+	}
 	LoadInt struct {
 		Dest  Reg
 		Value big.Int
@@ -208,6 +214,9 @@ func (i LoadVar) sources() []Reg { return nil }
 
 func (i JmpIfZero) dests() []Reg   { return nil }
 func (i JmpIfZero) sources() []Reg { return []Reg{i.Cond} }
+
+func (i Jmp) dests() []Reg   { return nil }
+func (i Jmp) sources() []Reg { return nil }
 
 func (i LoadInt) dests() []Reg   { return []Reg{i.Dest} }
 func (i LoadInt) sources() []Reg { return nil }

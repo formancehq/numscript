@@ -58,6 +58,31 @@ func TestParseErrors(t *testing.T) {
 		require.Contains(t, errs[0].Msg, "must go forward")
 	})
 
+	t.Run("forward unconditional jmp", func(t *testing.T) {
+		_, errs := Parse(`
+  jmp(#my_label)
+#my_label
+`)
+		require.Empty(t, errs)
+	})
+
+	t.Run("backward unconditional jmp", func(t *testing.T) {
+		_, errs := Parse(`
+#my_label
+  jmp(#my_label)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "must go forward")
+	})
+
+	t.Run("unconditional jmp to an undefined label", func(t *testing.T) {
+		_, errs := Parse(`
+  jmp(#nope)
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "not defined")
+	})
+
 	t.Run("missing required labeled arg", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = "acc"
@@ -655,6 +680,21 @@ func TestRoundtripAllInstructions(t *testing.T) {
   $r0 = 0
   jmp_if_zero($r0, #my_label)
 #my_label
+`,
+		},
+		{
+			name: "jmp and label",
+			ir: `
+  jmp(#my_label)
+#my_label
+`,
+		},
+		{
+			name: "str_eq",
+			ir: `
+  $r0 = "a"
+  $r1 = "b"
+  $r2 = str_eq($r0, $r1)
 `,
 		},
 		{

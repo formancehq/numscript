@@ -1,0 +1,7 @@
+send [COIN 100] (
+  source = {
+    max [COIN 30] from @world \ "RED"
+    @world \ "BLUE"
+  }
+  destination = @dest
+)
