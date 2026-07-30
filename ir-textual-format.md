@@ -130,11 +130,11 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 
 | syntax | signature |
 | --- | --- |
-| `$d = min_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_int($l, $r)` | `(int, int) -> int` |
 | `$d = sub_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
 | `$d = str_eq($l, $r)` | `(str, str) -> bool` |
+| `$d = lt_int($l, $r)` | `(int, int) -> bool` — strict; swap the operands for the other direction |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
@@ -305,7 +305,7 @@ Text → `[]ir.Instr` never panics: it reports `ir.Error`s. Anything the grammar
 
 ```
   $a = 42
-  $y = min_int($a, $b)      →  3:3: register $b is read but never written
+  $y = lt_int($a, $b)       →  3:3: register $b is read but never written
 ```
 
 Since jumps only go forward, text order is execution order, so a read with no earlier write can't be reached by any path — it would hand the VM whatever that register happens to hold. Note this is a linear check: a register written only inside a branch that may be skipped and read afterwards is *not* caught here, which is the job of the path-sensitive bytecode verifier.

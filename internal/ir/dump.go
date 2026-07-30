@@ -8,11 +8,11 @@ import (
 func (r Reg) String() string   { return fmt.Sprintf("$r%d", uint(r)) }
 func (l Label) String() string { return fmt.Sprintf("#%s", string(l)) }
 
-func (OpMinInt) String() string           { return "min_int" }
 func (OpAddInt) String() string           { return "add_int" }
 func (OpSubInt) String() string           { return "sub_int" }
 func (OpAddString) String() string        { return "add_string" }
 func (OpStrEq) String() string            { return "str_eq" }
+func (OpLtInt) String() string            { return "lt_int" }
 func (OpSubPortion) String() string       { return "sub_portion" }
 func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }

@@ -19,10 +19,12 @@ type BinKind interface {
 }
 
 type (
-	OpMinInt    struct{}
 	OpAddInt    struct{}
 	OpSubInt    struct{}
 	OpAddString struct{}
+	// OpLtInt is the only ordering comparison: the other direction is the same
+	// instruction with the operands swapped.
+	OpLtInt struct{}
 	// OpStrEq yields a bool: it is the one comparison that produces a value
 	// rather than trapping, and what the jumps branch on.
 	OpStrEq       struct{}

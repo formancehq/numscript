@@ -393,11 +393,19 @@ Let's compile `max <monetary> from <src>`, bounded by the `$amount` cap.
 ```
 $max_asset, $max_amount = <compiled monetary>
 assert_same_asset($max_asset, $asset) // $asset is the current asset (set via set_current_asset)
-$cap = min_int($max_amount, $amount)
+
+// $cap = min($max_amount, $amount): there is no min opcode, so it is a comparison
+// and a copy. Copying the left operand first saves the else arm's `jmp`.
+$cap = int_copy($max_amount)
+$lt = lt_int($max_amount, $amount)
+jmp_if_true($lt, #min_end)
+$cap = int_copy($amount)
+#min_end
+
 $pulled = <compile src, capped by $cap>
 ```
 
-If there's no outer cap (an unbounded context), the `min_int` is skipped and the inner source is capped by `$max_amount` directly.
+The speculative copy is only sound because `$cap` is freshly allocated: an aliased dest would clobber `$amount` before the else arm reads it. If there's no outer cap (an unbounded context), the whole min is skipped and the inner source is capped by `$max_amount` directly.
 
 #### Allotment source (bounded)
 

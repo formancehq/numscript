@@ -381,14 +381,8 @@ func Exec[S Store](
 			boolsRegs[instr.A] = false
 
 			// ---  Binary ops
-		case Op_MinInt:
-			left := &intsRegs[instr.B]
-			right := &intsRegs[instr.C]
-			if left.Cmp(right) == -1 {
-				intsRegs[instr.A].Set(left)
-			} else {
-				intsRegs[instr.A].Set(right)
-			}
+		case Op_LtInt:
+			boolsRegs[instr.A] = intsRegs[instr.B].Cmp(&intsRegs[instr.C]) < 0
 
 		case Op_AddInt:
 			left := &intsRegs[instr.B]

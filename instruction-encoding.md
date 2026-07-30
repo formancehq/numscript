@@ -191,9 +191,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>int_regs[A] = int_regs[B] - int_regs[C]</code></td>
     </tr>
     <tr>
-      <td>50</td><td><code>0x32</code></td><td><strong>MIN_INT</strong></td>
-      <td>dest</td><td>left</td><td>right</td>
-      <td><code>int_regs[A] = min(int_regs[B], int_regs[C])</code></td>
+      <td colspan="7" align="center"><em>0x32 reserved (was MIN_INT: a min is a comparison and a copy, so it is LT_INT plus a branch)</em></td>
     </tr>
     <tr>
       <td>51</td><td><code>0x33</code></td><td><strong>SUB_PORTION</strong></td>
@@ -219,7 +217,13 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>bool_regs[A] = str_regs[B] == str_regs[C]</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET), and the only producer of a bool other than the two constants and IS_ZERO</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>
+    <tr>
+      <td>56</td><td><code>0x38</code></td><td><strong>LT_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = int_regs[B] &lt; int_regs[C]</code>. Strict, and the only ordering comparison: swapping the operands gives the other direction, so there is no GT_INT</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x39..0x3F reserved</em></td>
     </tr>
   </tbody>
 </table>

@@ -90,9 +90,10 @@ const (
 	Op_MetaMonetary Opcode = 0x25
 
 	// --- arithmetic & constructors (0x30) ---
-	Op_AddInt     Opcode = 0x30
-	Op_SubInt     Opcode = 0x31
-	Op_MinInt     Opcode = 0x32
+	Op_AddInt Opcode = 0x30
+	Op_SubInt Opcode = 0x31
+	// 0x32 was Op_MinInt: a min is a comparison and a copy, so it is Op_LtInt
+	// plus a branch. Reserved, do not reuse.
 	Op_SubPortion Opcode = 0x33
 	Op_MkPortion  Opcode = 0x34
 	// 0x35 was Op_MkMonetary: a monetary is a (str asset, int amount) register
@@ -102,6 +103,10 @@ const (
 	// A = dest (bool reg) = whether the strings in B and C are equal. The only
 	// string comparison that yields a value instead of trapping.
 	Op_StrEq Opcode = 0x37
+
+	// A = dest (bool reg) = whether int reg B is strictly less than int reg C.
+	// Swapping the operands gives the other direction, so there is no Op_GtInt.
+	Op_LtInt Opcode = 0x38
 
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now

@@ -244,7 +244,7 @@ func TestReadBeforeWrite(t *testing.T) {
 	t.Run("never written at all", func(t *testing.T) {
 		_, errs := Parse(`
   $a = 42
-  $y = min_int($a, $b)
+  $y = lt_int($a, $b)
 `)
 		require.Len(t, errs, 1)
 		require.Contains(t, errs[0].Msg, "$b is read but never written")
@@ -253,7 +253,7 @@ func TestReadBeforeWrite(t *testing.T) {
 	t.Run("written only after the read", func(t *testing.T) {
 		_, errs := Parse(`
   $a = 42
-  $y = min_int($a, $b)
+  $y = lt_int($a, $b)
   $b = 1
 `)
 		require.Len(t, errs, 1)
@@ -734,11 +734,11 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "min_int",
+			name: "lt_int",
 			ir: `
   $r0 = 10
   $r1 = 5
-  $r2 = min_int($r0, $r1)
+  $r2 = lt_int($r0, $r1)
 `,
 		},
 		{

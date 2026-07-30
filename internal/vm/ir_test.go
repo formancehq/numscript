@@ -118,22 +118,46 @@ func TestIRSend(t *testing.T) {
 	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
 }
 
-func TestIRSourceCappedByMinInt(t *testing.T) {
-	// the `max [USD/2 20] from @src` shape: the cap is the smaller of the two
-	res := runIR(t, `
+// The `max [USD/2 20] from @src` shape: the cap is the smaller of the two. There
+// is no min opcode — it is lt_int plus a branch, so both arms need covering, and
+// the ties too (lt_int is strict).
+func TestIRSourceCappedByMin(t *testing.T) {
+	// $cap = min($max, $amount), by copying $max and overwriting it unless it
+	// already won
+	src := `
   $asset = "USD/2"
   set_current_asset($asset)
-  $amount = 50
-  $max = 20
-  $cap = min_int($max, $amount)
+  $amount = load_var<int>(0)
+  $max = load_var<int>(1)
+  $cap = int_copy($max)
+  $lt = lt_int($max, $amount)
+  jmp_if_true($lt, #min_end)
+  $cap = int_copy($amount)
+#min_end
   $src = "src"
   $overdraft = 0
   $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
   $dest = "dest"
   send_to_account(account: $dest)
-`, balances(map[string]int64{"src": 100}), nil)
+`
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 20)}, res.Postings)
+	testCases := []struct {
+		name        string
+		amount, max int64
+		wantSent    int64
+	}{
+		{"right operand is smaller", 20, 50, 20},
+		{"left operand is smaller", 50, 20, 20},
+		{"equal operands", 20, 20, 20},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vars := &vm.Vars{IntsPool: []big.Int{*big.NewInt(tc.amount), *big.NewInt(tc.max)}}
+			res := runIR(t, src, balances(map[string]int64{"src": 100}), vars)
+			requirePostings(t, []runtime.Posting{posting("src", "dest", tc.wantSent)}, res.Postings)
+		})
+	}
 }
 
 func TestIRInorderSourcesStopAtFirstThatCovers(t *testing.T) {

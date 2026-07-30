@@ -445,8 +445,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = ap.BinaryOp(dest, OpStrEq{})
 	case "sub_portion":
 		instr = ap.BinaryOp(dest, OpSubPortion{})
-	case "min_int":
-		instr = ap.BinaryOp(dest, OpMinInt{})
+	case "lt_int":
+		instr = ap.BinaryOp(dest, OpLtInt{})
 
 	case "int_copy":
 		instr = UnaryOp{Dest: dest, Op: OpIntCopy{}, Arg: ap.reg()}

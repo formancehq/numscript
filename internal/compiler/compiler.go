@@ -467,10 +467,8 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
 		})
-		minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.BinaryOp{Op: ir.OpMinInt{}, Left: balReg, Right: zeroReg, Dest: dest}
-		})
 		// overdraft = max(0, -balance) = -min(balance, 0)
+		minReg := st.minInt(balReg, zeroReg)
 		negReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.UnaryOp{Op: ir.OpNegInt{}, Arg: minReg, Dest: dest}
 		})
@@ -554,6 +552,36 @@ func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *
 	return pulledReg
 }
 
+// minInt writes min(leftReg, rightReg) into a fresh register.
+//
+// There is no min opcode: a min is a comparison and a copy, so it is one of each
+// plus a branch. Speculatively copying the left operand first saves the `jmp`
+// the else arm would otherwise need:
+//
+//	$min = int_copy($left)
+//	$lt = lt_int($left, $right)
+//	jmp_if_true($lt, #min_end)      ; left is already the answer
+//	$min = int_copy($right)
+//	#min_end
+//
+// That form is only correct because the dest is freshly allocated: an aliased
+// dest would clobber $right before the else arm reads it.
+func (st *state) minInt(leftReg, rightReg ir.Reg) ir.Reg {
+	minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: leftReg, Dest: dest}
+	})
+	lt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.BinaryOp{Op: ir.OpLtInt{}, Left: leftReg, Right: rightReg, Dest: dest}
+	})
+
+	endLabel := st.FreshLabel("min_end")
+	st.Push(ir.JmpIfTrue{Cond: lt, Target: endLabel})
+	st.Push(ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: rightReg, Dest: minReg})
+	st.Push(ir.LabelMarker{Label: endLabel})
+
+	return minReg
+}
+
 // jmpIfAmountZero jumps to target when the quantity in amountReg is zero.
 //
 // The conditional jumps take a bool, so a quantity has to be projected onto one
@@ -631,15 +659,7 @@ func (st *state) compileSource(
 		if capReg == nil {
 			innerCapReg = clauseCapIntReg
 		} else {
-			minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.BinaryOp{
-					Op:    ir.OpMinInt{},
-					Left:  clauseCapIntReg,
-					Right: *capReg,
-					Dest:  dest,
-				}
-			})
-			innerCapReg = minReg
+			innerCapReg = st.minInt(clauseCapIntReg, *capReg)
 		}
 
 		return st.compileSource(&innerCapReg, src.From)
@@ -860,9 +880,7 @@ func (st *state) compileDestination(
 			if err != nil {
 				return err
 			}
-			minReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: currentCap, Right: capAmtReg, Dest: dest}
-			})
+			minReg := st.minInt(currentCap, capAmtReg)
 			diff := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 				return ir.BinaryOp{Op: ir.OpSubInt{}, Left: currentCap, Right: minReg, Dest: dest}
 			})
@@ -909,9 +927,7 @@ func (st *state) compileDestination(
 			if err != nil {
 				return err
 			}
-			amtReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-				return ir.BinaryOp{Op: ir.OpMinInt{}, Left: remaining, Right: capAmtReg, Dest: dest}
-			})
+			amtReg := st.minInt(remaining, capAmtReg)
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
 			}

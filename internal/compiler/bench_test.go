@@ -131,7 +131,8 @@ func BenchmarkCompiledVM(b *testing.B) {
 
 // --- Capped inorder script: `{ @a ; max [USD/2 5] from @b ; @c }` -----------
 // Same methodology as above, on a more representative script (inorder traversal,
-// a `max` cap with a min_int, running total, and an early-exit jump). Balances:
+// a `max` cap (a min, i.e. lt_int + copies), running total, and an early-exit
+// jump). Balances:
 // a=3, b=100 (capped to 5), c=100 → pulls 3 / 5 / 2.
 const benchSrcCapped = `send [USD/2 10] (
 	source = {

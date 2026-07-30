@@ -246,12 +246,14 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 
 func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 	switch op.(type) {
-	case OpMinInt, OpAddInt, OpSubInt:
+	case OpAddInt, OpSubInt:
 		return regInt, regInt, regInt, nil
 	case OpAddString:
 		return regStr, regStr, regStr, nil
 	case OpStrEq:
 		return regBool, regStr, regStr, nil
+	case OpLtInt:
+		return regBool, regInt, regInt, nil
 	case OpSubPortion:
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:

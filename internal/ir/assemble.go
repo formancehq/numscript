@@ -272,10 +272,10 @@ type binaryOpSig struct {
 	right  regResolver
 }
 
-func (OpMinInt) sig() binaryOpSig {
+func (OpLtInt) sig() binaryOpSig {
 	return binaryOpSig{
-		opcode: vm.Op_MinInt,
-		dest:   (*assembler).intReg,
+		opcode: vm.Op_LtInt,
+		dest:   (*assembler).boolReg,
 		left:   (*assembler).intReg,
 		right:  (*assembler).intReg,
 	}
