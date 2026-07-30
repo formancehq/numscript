@@ -412,6 +412,11 @@ func Exec[S Store](
 		case Op_EqPortion:
 			boolsRegs[instr.A] = portionsRegs[instr.B].Cmp(&portionsRegs[instr.C]) == 0
 
+		case Op_AddPortion:
+			left := &portionsRegs[instr.B]
+			right := &portionsRegs[instr.C]
+			portionsRegs[instr.A].Add(left, right)
+
 		case Op_SubPortion:
 			left := &portionsRegs[instr.B]
 			right := &portionsRegs[instr.C]

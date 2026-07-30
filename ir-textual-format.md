@@ -133,6 +133,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_int($l, $r)` | `(int, int) -> int` |
 | `$d = sub_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
+| `$d = add_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |

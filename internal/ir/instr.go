@@ -32,6 +32,7 @@ type (
 	// OpStrEq yields a bool: it is the one comparison that produces a value
 	// rather than trapping, and what the jumps branch on.
 	OpStrEq       struct{}
+	OpAddPortion  struct{}
 	OpSubPortion  struct{}
 	OpMakePortion struct{}
 	// OpMonetaryToString takes the asset (str) and the amount (int) of a monetary

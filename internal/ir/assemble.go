@@ -328,14 +328,19 @@ func (OpStrEq) sig() binaryOpSig {
 	}
 }
 
-func (OpSubPortion) sig() binaryOpSig {
+// portionArithSig is the shape of portion addition and subtraction: three
+// portion operands.
+func portionArithSig(opcode vm.Opcode) binaryOpSig {
 	return binaryOpSig{
-		opcode: vm.Op_SubPortion,
+		opcode: opcode,
 		dest:   (*assembler).portionReg,
 		left:   (*assembler).portionReg,
 		right:  (*assembler).portionReg,
 	}
 }
+
+func (OpAddPortion) sig() binaryOpSig { return portionArithSig(vm.Op_AddPortion) }
+func (OpSubPortion) sig() binaryOpSig { return portionArithSig(vm.Op_SubPortion) }
 func (OpMakePortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_MkPortion,

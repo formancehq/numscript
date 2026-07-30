@@ -262,7 +262,7 @@ func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 		return regBool, regInt, regInt, nil
 	case OpLtPortion, OpEqPortion:
 		return regBool, regPortion, regPortion, nil
-	case OpSubPortion:
+	case OpAddPortion, OpSubPortion:
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:
 		return regPortion, regInt, regInt, nil

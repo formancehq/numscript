@@ -103,7 +103,11 @@ const (
 	// 0x37 was Op_StrEq: moved to the comparison group, now 0x62. Reserved, do
 	// not reuse.
 
-	// 0x38..0x3F reserved
+	// the other half of portion arithmetic; not adjacent to Op_SubPortion (0x33)
+	// because 0x32 is burned and 0x34..0x37 are taken
+	Op_AddPortion Opcode = 0x38
+
+	// 0x39..0x3F reserved
 
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now

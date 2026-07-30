@@ -180,6 +180,51 @@ func TestIsZero(t *testing.T) {
 	}
 }
 
+// Portion addition and subtraction, over unequal denominators so the result has
+// to be a real rational sum rather than a numerator-wise one.
+func TestPortionArithmetic(t *testing.T) {
+	testCases := []struct {
+		name             string
+		op               Opcode
+		numL, denL       int64
+		numR, denR       int64
+		wantNum, wantDen int64
+	}{
+		{"add with equal denominators", Op_AddPortion, 1, 4, 1, 4, 1, 2},
+		{"add with unequal denominators", Op_AddPortion, 1, 6, 1, 3, 1, 2},
+		{"add to a whole", Op_AddPortion, 1, 3, 2, 3, 1, 1},
+		{"add past a whole", Op_AddPortion, 3, 4, 1, 2, 5, 4},
+		{"sub with unequal denominators", Op_SubPortion, 1, 2, 1, 6, 1, 3},
+		{"sub to zero", Op_SubPortion, 1, 3, 1, 3, 0, 1},
+		{"sub below zero", Op_SubPortion, 1, 4, 1, 2, -1, 4},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prog := Program{
+				Instructions: []Instruction{
+					bc(Op_LoadInt, 0, 0), bc(Op_LoadInt, 1, 1),
+					bc(Op_LoadInt, 2, 2), bc(Op_LoadInt, 3, 3),
+					abc(Op_MkPortion, 0, 0, 1),
+					abc(Op_MkPortion, 1, 2, 3),
+					abc(tc.op, 2, 0, 1),
+				},
+				IntsPool: []big.Int{
+					*big.NewInt(tc.numL), *big.NewInt(tc.denL),
+					*big.NewInt(tc.numR), *big.NewInt(tc.denR),
+				},
+			}
+
+			vm := NewVm(prog)
+			_, err := Exec(context.Background(), vm, nil, mockStore{})
+			require.Nil(t, err)
+			want := big.NewRat(tc.wantNum, tc.wantDen)
+			require.Zero(t, vm.portionsRegs[2].Cmp(want),
+				"got %s, want %s", vm.portionsRegs[2].RatString(), want.RatString())
+		})
+	}
+}
+
 // One copy per bank. Each case writes a distinct value into reg 1, copies reg 1
 // into reg 0, and checks reg 0 took it — so a copy wired to the wrong bank, or a
 // no-op, fails.

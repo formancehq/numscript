@@ -16,6 +16,7 @@ func (OpLtInt) String() string            { return "lt_int" }
 func (OpEqInt) String() string            { return "eq_int" }
 func (OpLtPortion) String() string        { return "lt_portion" }
 func (OpEqPortion) String() string        { return "eq_portion" }
+func (OpAddPortion) String() string       { return "add_portion" }
 func (OpSubPortion) String() string       { return "sub_portion" }
 func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }

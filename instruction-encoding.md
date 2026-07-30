@@ -196,7 +196,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>51</td><td><code>0x33</code></td><td><strong>SUB_PORTION</strong></td>
       <td>dest</td><td>left</td><td>right</td>
-      <td><code>por_regs[A] = por_regs[B] - por_regs[C]</code></td>
+      <td><code>por_regs[A] = por_regs[B] - por_regs[C]</code>. Its counterpart ADD_PORTION is at <code>0x38</code>, not adjacent, because <code>0x32</code> is burned and <code>0x34..0x37</code> were taken</td>
     </tr>
     <tr>
       <td>52</td><td><code>0x34</code></td><td><strong>MK_PORTION</strong></td>
@@ -215,7 +215,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td colspan="7" align="center"><em>0x37 reserved (was STR_EQ: moved to the comparison group, §7, now <code>0x62</code>)</em></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>
+      <td>56</td><td><code>0x38</code></td><td><strong>ADD_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>por_regs[A] = por_regs[B] + por_regs[C]</code>. A rational sum, so unequal denominators combine correctly and the result is normalised; it may exceed 1</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x39..0x3F reserved</em></td>
     </tr>
   </tbody>
 </table>

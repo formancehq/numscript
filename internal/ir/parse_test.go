@@ -217,6 +217,7 @@ func TestBinaryOpCallForms(t *testing.T) {
   $diff = sub_int($i, $i)
   $cat = add_string($s, $s)
   $rest = sub_portion($p, $p)
+  $tot = add_portion($p, $p)
   $label = monetary_to_string($s, $i)
 `)
 	require.Empty(t, errs)
@@ -226,7 +227,10 @@ func TestBinaryOpCallForms(t *testing.T) {
 	require.Contains(t, Dump(instrs), "$r3 = $r0 + $r0")
 	require.Contains(t, Dump(instrs), "$r4 = $r0 - $r0")
 	require.Contains(t, Dump(instrs), "$r5 = add_string($r1, $r1)")
+	// only the int ops have infix sugar: `+` and `-` bind to add_int/sub_int, and
+	// ir.Parse doesn't typecheck, so it couldn't dispatch on operand type anyway
 	require.Contains(t, Dump(instrs), "$r6 = sub_portion($r2, $r2)")
+	require.Contains(t, Dump(instrs), "$r7 = add_portion($r2, $r2)")
 }
 
 func TestParseErrorMessageFormat(t *testing.T) {
@@ -747,6 +751,24 @@ func TestRoundtripAllInstructions(t *testing.T) {
   $r0 = 10
   $r1 = 5
   $r2 = eq_int($r0, $r1)
+`,
+		},
+		{
+			name: "add_portion",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = add_portion($r2, $r2)
+`,
+		},
+		{
+			name: "sub_portion",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = sub_portion($r2, $r2)
 `,
 		},
 		{
