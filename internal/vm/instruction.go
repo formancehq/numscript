@@ -100,13 +100,10 @@ const (
 	// pair, so there is nothing to construct. Reserved, do not reuse.
 	Op_AddString Opcode = 0x36
 
-	// A = dest (bool reg) = whether the strings in B and C are equal. The only
-	// string comparison that yields a value instead of trapping.
-	Op_StrEq Opcode = 0x37
+	// 0x37 was Op_StrEq: moved to the comparison group, now 0x62. Reserved, do
+	// not reuse.
 
-	// A = dest (bool reg) = whether int reg B is strictly less than int reg C.
-	// Swapping the operands gives the other direction, so there is no Op_GtInt.
-	Op_LtInt Opcode = 0x38
+	// 0x38..0x3F reserved
 
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
@@ -120,9 +117,13 @@ const (
 	// A = dest (str reg), B = asset (str reg), C = amount (int reg)
 	Op_MonetaryToString Opcode = 0x47
 
-	// A = dest (bool reg) = whether the amount in int reg B is zero. The only way
-	// a quantity becomes a branch condition, since the jumps take a bool.
-	Op_IsZero Opcode = 0x48
+	// 0x48 was Op_IsZero: moved to the comparison group, now 0x63. Reserved, do
+	// not reuse.
+
+	// 0x49 was Op_Not: moved to the bool-ops group, now 0x70. Reserved, do not
+	// reuse.
+
+	// 0x4A..0x4F reserved
 
 	// --- funds & postings (0x50) ---
 
@@ -150,7 +151,7 @@ const (
 	// A = int reg holding a mark; rolls the source queue back to it.
 	Op_Restore Opcode = 0x56
 
-	// reserved (0x57..0x8F) for PullAccount specializations, e.g.:
+	// reserved (0x57..0x5F) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero
 	// Op_PullAccountBoundedZero
 	// // cap=None, overdraft=Bounded r
@@ -159,6 +160,50 @@ const (
 	// Op_PullAccountCap
 	// // cap=Some,  overdraft=Unbounded
 	// Op_PullAccountUnboundedOverdraft
+	//
+	// This block used to run to 0x8F. The comparison and bool-ops groups below
+	// took 0x60..0x7F out of it, leaving nine slots for the four specializations
+	// sketched above.
+
+	// --- comparisons (0x60) ---
+	// A = dest (bool reg) for all of them; the operand banks are what the opcode
+	// implies. Op_IsZero is unary and the rest are binary, but they are one group
+	// because they are the whole set of bool *producers*.
+	//
+	// Only `<` and `==` exist, per type. The other ten surface operators are
+	// normalised by the front end:
+	//
+	//	a <  b   ->  Lt(a, b)
+	//	a >  b   ->  Lt(b, a)            operands swapped
+	//	a <= b   ->  Not(Lt(b, a))
+	//	a >= b   ->  Not(Lt(a, b))
+	//	a == b   ->  Eq(a, b)
+	//	a != b   ->  Not(Eq(a, b))
+	//
+	// 12 surface operators, 5 opcodes. Every extra predicate is another case in
+	// the SMT encoder and in any formal model of the VM, so the cost is paid three
+	// times over. LLVM does the same, canonicalising `sgt` to `slt` with swapped
+	// operands in InstCombine so downstream passes only see one form.
+	Op_LtInt     Opcode = 0x60
+	Op_EqInt     Opcode = 0x61
+	Op_StrEq     Opcode = 0x62 // was 0x37
+	Op_IsZero    Opcode = 0x63 // was 0x48
+	Op_LtPortion Opcode = 0x64
+	Op_EqPortion Opcode = 0x65
+
+	// reserved (0x66..0x6F) for `<` and `==` on types that don't exist yet. Str
+	// gets equality only, never ordering. Bool equality, and structural comparison
+	// of tuples/arrays, are front-end expansions rather than opcodes.
+	//
+	// Deliberately no named-but-unimplemented constants here: a live opcode with
+	// no emitter invites a second lowering path that no test exercises.
+
+	// --- bool ops (0x70) ---
+	// A = dest (bool reg), B = src (bool reg).
+	Op_Not Opcode = 0x70 // was 0x49
+
+	// reserved (0x71..0x7F) for and/or, if they ever pay for themselves. Both are
+	// expressible as branches, so neither is needed for completeness.
 
 	// --- control flow (0x90) ---
 	// A = cond (bool reg); b_c = unsigned forward delta, added to the pc of the

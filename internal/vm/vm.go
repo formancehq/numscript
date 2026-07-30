@@ -384,6 +384,9 @@ func Exec[S Store](
 		case Op_LtInt:
 			boolsRegs[instr.A] = intsRegs[instr.B].Cmp(&intsRegs[instr.C]) < 0
 
+		case Op_EqInt:
+			boolsRegs[instr.A] = intsRegs[instr.B].Cmp(&intsRegs[instr.C]) == 0
+
 		case Op_AddInt:
 			left := &intsRegs[instr.B]
 			right := &intsRegs[instr.C]
@@ -399,6 +402,15 @@ func Exec[S Store](
 
 		case Op_StrEq:
 			boolsRegs[instr.A] = stringsRegs[instr.B] == stringsRegs[instr.C]
+
+		// portion comparison is *value* comparison: big.Rat normalises on
+		// construction, so 1/2 and 2/4 are the same rational and compare equal.
+		// Comparing numerator/denominator pairs separately would be wrong.
+		case Op_LtPortion:
+			boolsRegs[instr.A] = portionsRegs[instr.B].Cmp(&portionsRegs[instr.C]) < 0
+
+		case Op_EqPortion:
+			boolsRegs[instr.A] = portionsRegs[instr.B].Cmp(&portionsRegs[instr.C]) == 0
 
 		case Op_SubPortion:
 			left := &portionsRegs[instr.B]
@@ -449,6 +461,9 @@ func Exec[S Store](
 
 		case Op_IsZero:
 			boolsRegs[instr.A] = intsRegs[instr.B].Sign() == 0
+
+		case Op_Not:
+			boolsRegs[instr.A] = !boolsRegs[instr.B]
 
 		default:
 			return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}

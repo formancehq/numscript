@@ -180,6 +180,140 @@ func TestIsZero(t *testing.T) {
 	}
 }
 
+// The two int comparisons, over both signs. Each case also asserts the negation,
+// so `!=` — which has no opcode — is covered wherever `==` is.
+func TestIntComparisons(t *testing.T) {
+	testCases := []struct {
+		name        string
+		op          Opcode
+		left, right int64
+		want        bool
+	}{
+		{"lt when less", Op_LtInt, 3, 7, true},
+		{"lt when equal", Op_LtInt, 7, 7, false},
+		{"lt when greater", Op_LtInt, 7, 3, false},
+		{"lt across zero", Op_LtInt, -7, 3, true},
+		{"lt on negatives", Op_LtInt, -7, -3, true},
+
+		{"eq when equal", Op_EqInt, 7, 7, true},
+		{"eq when different", Op_EqInt, 7, 3, false},
+		{"eq on negatives", Op_EqInt, -7, -7, true},
+		{"eq distinguishes sign", Op_EqInt, -7, 7, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prog := Program{
+				Instructions: []Instruction{
+					bc(Op_LoadInt, 0, 0),
+					bc(Op_LoadInt, 1, 1),
+					abc(tc.op, 0, 0, 1),
+					abc(Op_Not, 1, 0, nilReg),
+				},
+				IntsPool: []big.Int{*big.NewInt(tc.left), *big.NewInt(tc.right)},
+			}
+
+			vm := NewVm(prog)
+			_, err := Exec(context.Background(), vm, nil, mockStore{})
+			require.Nil(t, err)
+			require.Equal(t, tc.want, vm.boolsRegs[0])
+			require.Equal(t, !tc.want, vm.boolsRegs[1], "not")
+		})
+	}
+}
+
+// The four derived operators have no opcodes: the front end normalises them onto
+// Lt / Eq / Not. This checks each lowering against the operator it stands for,
+// which is the property that makes leaving them out safe.
+func TestDerivedComparisonLowerings(t *testing.T) {
+	// each lowering as it would be emitted, over a grid that covers <, == and >
+	values := []int64{-7, -1, 0, 1, 7}
+
+	testCases := []struct {
+		name string
+		emit []Instruction // leaves the answer in bool reg 0
+		want func(l, r int64) bool
+	}{
+		{
+			name: "a > b  ->  Lt(b, a)",
+			emit: []Instruction{abc(Op_LtInt, 0, 1, 0)},
+			want: func(l, r int64) bool { return l > r },
+		},
+		{
+			name: "a <= b  ->  Not(Lt(b, a))",
+			emit: []Instruction{abc(Op_LtInt, 1, 1, 0), abc(Op_Not, 0, 1, nilReg)},
+			want: func(l, r int64) bool { return l <= r },
+		},
+		{
+			name: "a >= b  ->  Not(Lt(a, b))",
+			emit: []Instruction{abc(Op_LtInt, 1, 0, 1), abc(Op_Not, 0, 1, nilReg)},
+			want: func(l, r int64) bool { return l >= r },
+		},
+		{
+			name: "a != b  ->  Not(Eq(a, b))",
+			emit: []Instruction{abc(Op_EqInt, 1, 0, 1), abc(Op_Not, 0, 1, nilReg)},
+			want: func(l, r int64) bool { return l != r },
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, l := range values {
+				for _, r := range values {
+					instrs := []Instruction{bc(Op_LoadInt, 0, 0), bc(Op_LoadInt, 1, 1)}
+					prog := Program{
+						Instructions: append(instrs, tc.emit...),
+						IntsPool:     []big.Int{*big.NewInt(l), *big.NewInt(r)},
+					}
+
+					vm := NewVm(prog)
+					_, err := Exec(context.Background(), vm, nil, mockStore{})
+					require.Nil(t, err)
+					require.Equal(t, tc.want(l, r), vm.boolsRegs[0], "l=%d r=%d", l, r)
+				}
+			}
+		})
+	}
+}
+
+// Portion comparison is value comparison: big.Rat normalises on construction, so
+// equal rationals with different spellings must compare equal.
+func TestPortionComparisons(t *testing.T) {
+	// builds two portions from (numL/denL, numR/denR) and compares them
+	run := func(t *testing.T, op Opcode, numL, denL, numR, denR int64) bool {
+		t.Helper()
+		prog := Program{
+			Instructions: []Instruction{
+				bc(Op_LoadInt, 0, 0), bc(Op_LoadInt, 1, 1),
+				bc(Op_LoadInt, 2, 2), bc(Op_LoadInt, 3, 3),
+				abc(Op_MkPortion, 0, 0, 1), // portion 0 = numL/denL
+				abc(Op_MkPortion, 1, 2, 3), // portion 1 = numR/denR
+				abc(op, 0, 0, 1),
+			},
+			IntsPool: []big.Int{
+				*big.NewInt(numL), *big.NewInt(denL),
+				*big.NewInt(numR), *big.NewInt(denR),
+			},
+		}
+		vm := NewVm(prog)
+		_, err := Exec(context.Background(), vm, nil, mockStore{})
+		require.Nil(t, err)
+		return vm.boolsRegs[0]
+	}
+
+	t.Run("equality is by value, not by numerator/denominator", func(t *testing.T) {
+		require.True(t, run(t, Op_EqPortion, 1, 2, 2, 4), "1/2 == 2/4")
+		require.True(t, run(t, Op_EqPortion, 3, 9, 1, 3), "3/9 == 1/3")
+		require.False(t, run(t, Op_EqPortion, 1, 2, 1, 3), "1/2 != 1/3")
+	})
+
+	t.Run("ordering", func(t *testing.T) {
+		require.True(t, run(t, Op_LtPortion, 1, 3, 1, 2), "1/3 < 1/2")
+		require.False(t, run(t, Op_LtPortion, 1, 2, 1, 3), "1/2 not < 1/3")
+		require.False(t, run(t, Op_LtPortion, 1, 2, 2, 4), "equal values are not <")
+	})
+}
+
 // The two conditional jumps are duals: each takes the edge the other doesn't.
 func TestConditionalJumps(t *testing.T) {
 	// jump over a CONST_TRUE writing bool reg 1, so reg 1 reports whether the

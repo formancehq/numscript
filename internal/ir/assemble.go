@@ -242,6 +242,13 @@ func (OpIsZero) sig() unaryOpSig {
 		arg:    (*assembler).intReg,
 	}
 }
+func (OpNot) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_Not,
+		dest:   (*assembler).boolReg,
+		arg:    (*assembler).boolReg,
+	}
+}
 func (OpPortionToString) sig() unaryOpSig {
 	return unaryOpSig{
 		opcode: vm.Op_PortionToString,
@@ -272,13 +279,24 @@ type binaryOpSig struct {
 	right  regResolver
 }
 
-func (OpLtInt) sig() binaryOpSig {
+// comparisonSig is the shape every binary comparison shares: two operands of one
+// bank, a bool dest.
+func comparisonSig(opcode vm.Opcode, operand regResolver) binaryOpSig {
 	return binaryOpSig{
-		opcode: vm.Op_LtInt,
+		opcode: opcode,
 		dest:   (*assembler).boolReg,
-		left:   (*assembler).intReg,
-		right:  (*assembler).intReg,
+		left:   operand,
+		right:  operand,
 	}
+}
+
+func (OpLtInt) sig() binaryOpSig { return comparisonSig(vm.Op_LtInt, (*assembler).intReg) }
+func (OpEqInt) sig() binaryOpSig { return comparisonSig(vm.Op_EqInt, (*assembler).intReg) }
+func (OpLtPortion) sig() binaryOpSig {
+	return comparisonSig(vm.Op_LtPortion, (*assembler).portionReg)
+}
+func (OpEqPortion) sig() binaryOpSig {
+	return comparisonSig(vm.Op_EqPortion, (*assembler).portionReg)
 }
 func (OpAddInt) sig() binaryOpSig {
 	return binaryOpSig{

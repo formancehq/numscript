@@ -13,6 +13,9 @@ func (OpSubInt) String() string           { return "sub_int" }
 func (OpAddString) String() string        { return "add_string" }
 func (OpStrEq) String() string            { return "str_eq" }
 func (OpLtInt) String() string            { return "lt_int" }
+func (OpEqInt) String() string            { return "eq_int" }
+func (OpLtPortion) String() string        { return "lt_portion" }
+func (OpEqPortion) String() string        { return "eq_portion" }
 func (OpSubPortion) String() string       { return "sub_portion" }
 func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }
@@ -22,6 +25,7 @@ func (OpPortionCopy) String() string     { return "portion_copy" }
 func (OpNegInt) String() string          { return "neg_int" }
 func (OpIntToString) String() string     { return "int_to_string" }
 func (OpIsZero) String() string          { return "is_zero" }
+func (OpNot) String() string             { return "not" }
 func (OpPortionToString) String() string { return "portion_to_string" }
 
 func (i PullAccount) String() string {

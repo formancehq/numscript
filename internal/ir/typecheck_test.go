@@ -109,6 +109,13 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"jmp_if_true cond", JmpIfTrue{Cond: strReg, Target: "end"}},
 		{"is_zero arg", UnaryOp{Op: OpIsZero{}, Dest: 9, Arg: strReg}},
 		{"str_eq left", BinaryOp{Op: OpStrEq{}, Dest: 9, Left: intReg, Right: strReg}},
+		// each comparison takes its own bank and yields a bool; not takes a bool
+		{"lt_int left", BinaryOp{Op: OpLtInt{}, Dest: 9, Left: strReg, Right: intReg}},
+		{"lt_int right", BinaryOp{Op: OpLtInt{}, Dest: 9, Left: intReg, Right: portionReg}},
+		{"eq_int left", BinaryOp{Op: OpEqInt{}, Dest: 9, Left: strReg, Right: intReg}},
+		{"lt_portion left", BinaryOp{Op: OpLtPortion{}, Dest: 9, Left: intReg, Right: portionReg}},
+		{"eq_portion right", BinaryOp{Op: OpEqPortion{}, Dest: 9, Left: portionReg, Right: intReg}},
+		{"not arg", UnaryOp{Op: OpNot{}, Dest: 9, Arg: intReg}},
 		{"restore mark", Restore{Mark: strReg}},
 		{"unary arg", UnaryOp{Op: OpPortionToString{}, Dest: 9, Arg: intReg}},
 		{"binary left", BinaryOp{Op: OpAddString{}, Dest: 9, Left: intReg, Right: strReg}},
@@ -187,6 +194,54 @@ func TestBytecodeTypecheck_Bool(t *testing.T) {
 			ConstBool{Dest: 0, Value: true},
 			ConstBool{Dest: 0, Value: false},
 		}))
+	})
+
+	// every comparison feeds a jump directly, and `not` composes with all of them
+	// — which is what makes the derived operators expressible without opcodes
+	t.Run("comparisons yield branchable bools", func(t *testing.T) {
+		// operand register per bank, so each op is fed its own type
+		prelude := []Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(1)},
+			BinaryOp{Op: OpMakePortion{}, Dest: 1, Left: 0, Right: 0},
+			LoadStr{Dest: 2, Value: "x"},
+		}
+		ops := map[BinKind]Reg{
+			OpLtInt{}:     0,
+			OpEqInt{}:     0,
+			OpLtPortion{}: 1,
+			OpEqPortion{}: 1,
+			OpStrEq{}:     2,
+		}
+		for op, operand := range ops {
+			t.Run(op.String(), func(t *testing.T) {
+				require.NoError(t, Typecheck(append(append([]Instr{}, prelude...),
+					BinaryOp{Op: op, Dest: 9, Left: operand, Right: operand},
+					UnaryOp{Op: OpNot{}, Dest: 10, Arg: 9},
+					JmpIfTrue{Cond: 9, Target: "end"},
+					JmpIfFalse{Cond: 10, Target: "end"},
+					LabelMarker{Label: "end"},
+				)))
+			})
+		}
+	})
+
+	// is_zero is in the comparison group too, and is the one unary member
+	t.Run("is_zero yields a branchable bool", func(t *testing.T) {
+		require.NoError(t, Typecheck([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(1)},
+			UnaryOp{Op: OpIsZero{}, Dest: 1, Arg: 0},
+			JmpIfTrue{Cond: 1, Target: "end"},
+			LabelMarker{Label: "end"},
+		}))
+	})
+
+	t.Run("a comparison result is not an int", func(t *testing.T) {
+		err := Typecheck([]Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(1)},
+			BinaryOp{Op: OpEqInt{}, Dest: 1, Left: 0, Right: 0},
+			Restore{Mark: 1},
+		})
+		require.ErrorContains(t, err, "read as int but holds bool")
 	})
 }
 

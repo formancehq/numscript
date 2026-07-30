@@ -742,6 +742,39 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "eq_int",
+			ir: `
+  $r0 = 10
+  $r1 = 5
+  $r2 = eq_int($r0, $r1)
+`,
+		},
+		{
+			name: "lt_portion",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = lt_portion($r2, $r2)
+`,
+		},
+		{
+			name: "eq_portion",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = eq_portion($r2, $r2)
+`,
+		},
+		{
+			name: "not",
+			ir: `
+  $r0 = true
+  $r1 = not($r0)
+`,
+		},
+		{
 			name: "portion_copy",
 			ir: `
   $r0 = 1

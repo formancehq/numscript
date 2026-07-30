@@ -160,6 +160,41 @@ func TestIRSourceCappedByMin(t *testing.T) {
 	}
 }
 
+// A comparison drives a real branch end to end, including the `!=` spelling that
+// has no opcode of its own (eq_int + not).
+func TestIRComparisonBranch(t *testing.T) {
+	// send the whole balance only when it differs from the requested amount,
+	// otherwise send the amount — a shape numscript can't express yet, which is
+	// the point of testing it here
+	src := `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $amount = 10
+  $bal = balance($src, $asset)
+  $same = eq_int($bal, $amount)
+  $differs = not($same)
+  $cap = int_copy($amount)
+  jmp_if_false($differs, #end)
+  $cap = int_copy($bal)
+#end
+  $overdraft = 0
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`
+
+	t.Run("balance differs, so it is sent whole", func(t *testing.T) {
+		res := runIR(t, src, balances(map[string]int64{"src": 4}), nil)
+		requirePostings(t, []runtime.Posting{posting("src", "dest", 4)}, res.Postings)
+	})
+
+	t.Run("balance equals the amount, so the amount is sent", func(t *testing.T) {
+		res := runIR(t, src, balances(map[string]int64{"src": 10}), nil)
+		requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	})
+}
+
 func TestIRInorderSourcesStopAtFirstThatCovers(t *testing.T) {
 	// @a holds enough, so the forward jump must skip @b entirely
 	src := `

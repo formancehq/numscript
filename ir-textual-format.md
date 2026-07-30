@@ -133,8 +133,6 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_int($l, $r)` | `(int, int) -> int` |
 | `$d = sub_int($l, $r)` | `(int, int) -> int` |
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
-| `$d = str_eq($l, $r)` | `(str, str) -> bool` |
-| `$d = lt_int($l, $r)` | `(int, int) -> bool` — strict; swap the operands for the other direction |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
@@ -159,11 +157,41 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | `$d = neg_int($a)` | `int -> int` |
 | `$d = int_to_string($a)` | `int -> str` |
 | `$d = portion_to_string($a)` | `portion -> str` |
-| `$d = is_zero($a)` | `int -> bool` — tests the *sign*, so a negative amount is not zero |
 
 There is no register-to-register move: use `int_copy` / `portion_copy`. `$r0 = $r1` is not valid syntax.
 
 There is no `get_asset` / `get_amount` either: projecting a monetary means naming one of its two registers, which costs no instruction. `monetary_to_string` is listed above with the other constructors, since it takes the pair.
+
+### Comparisons and `not`
+
+Every instruction that produces a `bool`, other than the `true`/`false` constants:
+
+| syntax | signature |
+| --- | --- |
+| `$d = lt_int($l, $r)` | `(int, int) -> bool` — strict |
+| `$d = eq_int($l, $r)` | `(int, int) -> bool` |
+| `$d = str_eq($l, $r)` | `(str, str) -> bool` |
+| `$d = is_zero($a)` | `int -> bool` — tests the *sign*, so a negative amount is not zero |
+| `$d = lt_portion($l, $r)` | `(portion, portion) -> bool` — strict |
+| `$d = eq_portion($l, $r)` | `(portion, portion) -> bool` |
+| `$d = not($a)` | `bool -> bool` |
+
+Only `<` and `==` exist per type. The other four operators are **front-end normalisations**, so the IR never sees them and there is no `gt_*`, `lte_*`, `gte_*` or `neq_*`:
+
+```
+a <  b   ->   lt_int($a, $b)
+a >  b   ->   lt_int($b, $a)              operands swapped
+a <= b   ->   $t = lt_int($b, $a)  ;  not($t)
+a >= b   ->   $t = lt_int($a, $b)  ;  not($t)
+a == b   ->   eq_int($a, $b)
+a != b   ->   $t = eq_int($a, $b)  ;  not($t)
+```
+
+12 surface operators over 5 instructions. The reason is that every extra predicate is another case in the SMT encoder and in any formal model of the VM, so its cost is paid three times over; LLVM canonicalises the same way. `is_zero` is kept next to `eq_int` because it needs no materialised zero and sits on every quantity branch.
+
+`eq_portion` is **value** equality: `1/2 == 2/4` is true, since a portion register holds a normalised rational.
+
+`str` gets equality only, never ordering. Bool equality and structural comparison of tuples/arrays would also be front-end expansions rather than instructions.
 
 ### Run-state reads (impure)
 

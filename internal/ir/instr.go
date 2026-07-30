@@ -22,9 +22,13 @@ type (
 	OpAddInt    struct{}
 	OpSubInt    struct{}
 	OpAddString struct{}
-	// OpLtInt is the only ordering comparison: the other direction is the same
-	// instruction with the operands swapped.
-	OpLtInt struct{}
+	// The comparisons: only `<` and `==`, per type. `>`, `<=`, `>=` and `!=` are
+	// front-end normalisations over these plus OpNot — see the table in
+	// internal/vm/instruction.go.
+	OpLtInt     struct{}
+	OpEqInt     struct{}
+	OpLtPortion struct{}
+	OpEqPortion struct{}
 	// OpStrEq yields a bool: it is the one comparison that produces a value
 	// rather than trapping, and what the jumps branch on.
 	OpStrEq       struct{}
@@ -47,7 +51,9 @@ type (
 	OpIntToString struct{}
 	// OpIsZero projects an int onto a bool, which is how a quantity reaches a
 	// jump: the jumps take a bool, so the projection has to be explicit.
-	OpIsZero          struct{}
+	OpIsZero struct{}
+	// OpNot is the only bool -> bool operation.
+	OpNot             struct{}
 	OpPortionToString struct{}
 )
 

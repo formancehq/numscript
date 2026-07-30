@@ -447,6 +447,12 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = ap.BinaryOp(dest, OpSubPortion{})
 	case "lt_int":
 		instr = ap.BinaryOp(dest, OpLtInt{})
+	case "eq_int":
+		instr = ap.BinaryOp(dest, OpEqInt{})
+	case "lt_portion":
+		instr = ap.BinaryOp(dest, OpLtPortion{})
+	case "eq_portion":
+		instr = ap.BinaryOp(dest, OpEqPortion{})
 
 	case "int_copy":
 		instr = UnaryOp{Dest: dest, Op: OpIntCopy{}, Arg: ap.reg()}
@@ -458,6 +464,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest, Op: OpIntToString{}, Arg: ap.reg()}
 	case "is_zero":
 		instr = UnaryOp{Dest: dest, Op: OpIsZero{}, Arg: ap.reg()}
+	case "not":
+		instr = UnaryOp{Dest: dest, Op: OpNot{}, Arg: ap.reg()}
 	case "portion_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpPortionToString{}, Arg: ap.reg()}
 

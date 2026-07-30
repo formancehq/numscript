@@ -212,18 +212,10 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>str_regs[A] = str_regs[B] + str_regs[C]</code></td>
     </tr>
     <tr>
-      <td>55</td><td><code>0x37</code></td><td><strong>STR_EQ</strong></td>
-      <td>dest</td><td>left</td><td>right</td>
-      <td><code>bool_regs[A] = str_regs[B] == str_regs[C]</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET), and the only producer of a bool other than the two constants and IS_ZERO</td>
+      <td colspan="7" align="center"><em>0x37 reserved (was STR_EQ: moved to the comparison group, §7, now <code>0x62</code>)</em></td>
     </tr>
     <tr>
-    <tr>
-      <td>56</td><td><code>0x38</code></td><td><strong>LT_INT</strong></td>
-      <td>dest</td><td>left</td><td>right</td>
-      <td><code>bool_regs[A] = int_regs[B] &lt; int_regs[C]</code>. Strict, and the only ordering comparison: swapping the operands gives the other direction, so there is no GT_INT</td>
-    </tr>
-    <tr>
-      <td colspan="7" align="center"><em>0x39..0x3F reserved</em></td>
+      <td colspan="7" align="center"><em>0x38..0x3F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -273,12 +265,13 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>str_regs[A] = str_regs[B] + " " + str(int_regs[C])</code> — takes both halves, so it is ternary despite living in this section</td>
     </tr>
     <tr>
-      <td>72</td><td><code>0x48</code></td><td><strong>IS_ZERO</strong></td>
-      <td>dest</td><td>src</td><td>-</td>
-      <td><code>bool_regs[A] = int_regs[B].Sign() == 0</code> — the only projection from a quantity to a condition, since the jumps take a bool. Tests the sign, so a negative amount is <em>not</em> zero</td>
+      <td colspan="7" align="center"><em>0x48 reserved (was IS_ZERO: moved to the comparison group, §7, now <code>0x63</code>)</em></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x49..0x4F reserved</em></td>
+      <td colspan="7" align="center"><em>0x49 reserved (was NOT: moved to the bool-ops group, §8, now <code>0x70</code>)</em></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x4A..0x4F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -335,12 +328,99 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Rolls the source queue back to the mark in <code>int_regs[A]</code> (repays debited balances, then truncates)</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x57..0x8F reserved (e.g. PULL_ACCOUNT specializations)</em></td>
+      <td colspan="7" align="center"><em>0x57..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving nine slots for the four specializations sketched in <code>instruction.go</code></em></td>
     </tr>
   </tbody>
 </table>
 
-## 7. Control Flow
+## 7. Comparisons
+
+Every bool producer lives here. `A` = dest (a `bool_regs` index) for all of them; the operand banks are what the opcode implies. `IS_ZERO` is unary and the rest are binary — they are one group because they are one *category*, not one arity.
+
+Only `<` and `==` exist, per type. The other four surface operators are **normalised by the front end**:
+
+| surface | lowering |
+|---|---|
+| `a < b`  | `Lt(a, b)` |
+| `a > b`  | `Lt(b, a)` — operands swapped |
+| `a <= b` | `Not(Lt(b, a))` |
+| `a >= b` | `Not(Lt(a, b))` |
+| `a == b` | `Eq(a, b)` |
+| `a != b` | `Not(Eq(a, b))` |
+
+12 surface operators, 5 opcodes. Every extra predicate is another case in the SMT encoder and in any formal model of the VM, so the cost would be paid three times over. LLVM does the same, canonicalising `sgt` to `slt` with swapped operands in InstCombine so downstream passes only ever see one form.
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>96</td><td><code>0x60</code></td><td><strong>LT_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = int_regs[B] &lt; int_regs[C]</code>. Strict</td>
+    </tr>
+    <tr>
+      <td>97</td><td><code>0x61</code></td><td><strong>EQ_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = int_regs[B] == int_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td>98</td><td><code>0x62</code></td><td><strong>STR_EQ</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = str_regs[B] == str_regs[C]</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). <strong>Was <code>0x37</code></strong></td>
+    </tr>
+    <tr>
+      <td>99</td><td><code>0x63</code></td><td><strong>IS_ZERO</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = int_regs[B].Sign() == 0</code> — the projection from a quantity to a condition, since the jumps take a bool. Tests the sign, so a negative amount is <em>not</em> zero. Kept alongside EQ_INT because it needs no materialised zero and it is on every quantity branch. <strong>Was <code>0x48</code></strong></td>
+    </tr>
+    <tr>
+      <td>100</td><td><code>0x64</code></td><td><strong>LT_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = por_regs[B] &lt; por_regs[C]</code>. Strict, and by <em>value</em> — see EQ_PORTION</td>
+    </tr>
+    <tr>
+      <td>101</td><td><code>0x65</code></td><td><strong>EQ_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = por_regs[B] == por_regs[C]</code>. <strong>Value</strong> equality: <code>1/2 == 2/4</code> is true. <code>big.Rat</code> normalises on construction, so the rationals are compared — comparing numerator/denominator pairs separately would give the wrong answer</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x66..0x6F reserved for <code>&lt;</code> and <code>==</code> on types that don't exist yet. <code>Str</code> gets equality only, never ordering. Bool equality, and structural comparison of tuples/arrays, are front-end expansions rather than opcodes. No named-but-unimplemented constants live here on purpose: a live opcode with no emitter invites a second lowering path that no test exercises</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 8. Bool ops
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>112</td><td><code>0x70</code></td><td><strong>NOT</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = !bool_regs[B]</code> — the only operation whose operand and result are both bools, and what the four derived operators above are built from. <strong>Was <code>0x49</code></strong></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x71..0x7F reserved for and/or, if they ever pay for themselves — both are expressible as branches, so neither is needed for completeness</em></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x80..0x8F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 9. Control Flow
 
 <table width="100%">
   <thead>
