@@ -208,23 +208,3 @@ func TestAssemble_JmpDelta(t *testing.T) {
 		require.ErrorContains(t, err, "backward jump")
 	})
 }
-
-// mk_allot reserves its blocks contiguously, so one that doesn't fit must error
-// rather than wrap around the bank.
-func TestAssemble_ContiguousOverflow(t *testing.T) {
-	// one portion register, then an allotment whose dest block can't fit
-	portion := []Instr{
-		LoadInt{Dest: 0, Value: *big.NewInt(1)},
-		BinaryOp{Op: OpMakePortion{}, Left: 0, Right: 0, Dest: 1},
-	}
-
-	dests := make([]Reg, 255)
-	portions := make([]Reg, 255)
-	for i := range dests {
-		dests[i] = Reg(100 + i)
-		portions[i] = 1
-	}
-
-	_, err := Assemble(append(portion, MakeAllotment{Dest: dests, Amount: 0, Portions: portions}))
-	require.ErrorContains(t, err, "register bank overflow")
-}

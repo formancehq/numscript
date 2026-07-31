@@ -417,10 +417,15 @@ Note that an allotment source is always bounded.
 $leftover = 1 - <p1> - .. - <pn>
 assert_leftover_exact($leftover) // plain "assert_leftover" if there's a remaining clause
 
-// evaluate each clause's portion
-// arrays are eventually assembled into contiguous registers
-// (len is always statically known)
-[$share_1, .., $share_n] = mk_allot($amount, [<p1>, .., <pn>])
+// split $amount across the portions. There is no allotment instruction: each
+// share is a floored product, and the leftover from flooring is handed to the
+// earliest shares one unit at a time. n is statically known, so the fixup is
+// unrolled -- and only n-1 blocks are needed, since the shortfall is < n.
+$amount_p = int_to_portion($amount)
+$share_1 = portion_to_int(mul_portion(<p1>, $amount_p))
+..
+$share_n = portion_to_int(mul_portion(<pn>, $amount_p))
+// then, for i in 1..n-1: if $total < $amount { $share_i += 1; $total += 1 }
 
 $pulled_s1 = <compile s1, capped by $share_1>
 check_enough_funds($pulled_s1, $share_1)

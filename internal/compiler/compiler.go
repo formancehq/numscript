@@ -120,16 +120,69 @@ func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue)
 		portions[remainingIdx] = leftover
 	}
 
+	return st.compileAllotmentSplit(amount, portions), nil
+}
+
+// TODO properly review claude-generated compileAllotmentSplit
+
+// compileAllotmentSplit writes the amount split across the portions: one int
+// register per portion, summing exactly to amount. It expects the portions to
+// sum to 1, which is what the assert_leftover emitted by the caller establishes.
+//
+// Each share is floor(portion * amount); flooring loses strictly less than one
+// unit per share, so the shortfall is under len(portions) and a single
+// front-to-back pass handing out one unit each closes it. That order is
+// observable — 100 by thirds is 34/33/33, not 33/33/34.
+func (st *state) compileAllotmentSplit(amount ir.Reg, portions []ir.Reg) []ir.Reg {
+	n := len(portions)
 	dest := make([]ir.Reg, n)
-	for i := range dest {
-		dest[i] = st.FreshReg()
-	}
-	st.Push(ir.MakeAllotment{
-		Dest:     dest,
-		Amount:   amount,
-		Portions: portions,
+
+	amountPortion := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpIntToPortion{}, Arg: amount, Dest: dest}
 	})
-	return dest, nil
+
+	// total accumulates the floored shares; it starts as a copy of the first one
+	// rather than a zero, which saves a load
+	var total ir.Reg
+	for i, portion := range portions {
+		product := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.BinaryOp{Op: ir.OpMulPortion{}, Left: portion, Right: amountPortion, Dest: dest}
+		})
+		dest[i] = st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.UnaryOp{Op: ir.OpPortionToInt{}, Arg: product, Dest: dest}
+		})
+
+		if i == 0 {
+			total = st.PushWithDest(func(t ir.Reg) ir.Instr {
+				return ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: dest[0], Dest: t}
+			})
+			continue
+		}
+		st.Push(ir.BinaryOp{Op: ir.OpAddInt{}, Left: total, Right: dest[i], Dest: total})
+	}
+
+	// The shortfall is at most n-1, so the last share never receives a unit and
+	// its block would be dead. The jumps go forward to one shared exit, which is
+	// what lets this be a straight line: the assembler rejects backward jumps.
+	if n > 1 {
+		one := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *big.NewInt(1), Dest: dest}
+		})
+		done := st.FreshLabel("allot_end")
+
+		for i := 0; i < n-1; i++ {
+			short := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.BinaryOp{Op: ir.OpLtInt{}, Left: total, Right: amount, Dest: dest}
+			})
+			st.Push(ir.JmpIfFalse{Cond: short, Target: done})
+			st.Push(ir.BinaryOp{Op: ir.OpAddInt{}, Left: dest[i], Right: one, Dest: dest[i]})
+			st.Push(ir.BinaryOp{Op: ir.OpAddInt{}, Left: total, Right: one, Dest: total})
+		}
+
+		st.Push(ir.LabelMarker{Label: done})
+	}
+
+	return dest
 }
 
 func (st *state) compileCapAmount(monExpr parser.ValueExpr) (ir.Reg, CompilerError) {

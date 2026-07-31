@@ -178,25 +178,6 @@ func Exec[S Store](
 				}
 			}
 
-		case Op_MkAllotment:
-			// TODO crashes if this is the last instruction (missing ext word),
-			// same as Op_PullAccount.
-			instrExt := instrs[pc]
-			pc++
-
-			// TODO crashes when instr.A+instr.C > 256: the slice runs past the
-			// register bank. Both are bytes, so A+C can be up to 510.
-			destArrStartReg := intsRegs[instr.A : instr.A+instr.C]
-			inpArrStartReg := portionsRegs[instr.B : instr.B+instr.C]
-
-			amt := &intsRegs[instrExt.A]
-
-			runtime.MakeAllotment(
-				destArrStartReg,
-				amt,
-				inpArrStartReg,
-			)
-
 		case Op_CheckEnoughFunds:
 			got := &intsRegs[instr.A]
 			needed := &intsRegs[instr.B]
@@ -421,6 +402,20 @@ func Exec[S Store](
 			left := &portionsRegs[instr.B]
 			right := &portionsRegs[instr.C]
 			portionsRegs[instr.A].Sub(left, right)
+
+		case Op_MulPortion:
+			left := &portionsRegs[instr.B]
+			right := &portionsRegs[instr.C]
+			portionsRegs[instr.A].Mul(left, right)
+
+		case Op_IntToPortion:
+			portionsRegs[instr.A].SetInt(&intsRegs[instr.B])
+
+		// floor: big.Rat's denominator is always positive, so Div (Euclidean) is
+		// the floor for negatives too
+		case Op_PortionToInt:
+			p := &portionsRegs[instr.B]
+			intsRegs[instr.A].Div(p.Num(), p.Denom())
 
 		case Op_MkPortion:
 			num := &intsRegs[instr.B]

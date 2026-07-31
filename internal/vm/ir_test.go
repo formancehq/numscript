@@ -3,6 +3,7 @@ package vm_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -50,6 +51,32 @@ func balances(pairs map[string]int64) irStore {
 		b[runtime.PairKey{Account: account, Asset: "USD/2"}] = big.NewInt(amount)
 	}
 	return irStore{balances: b}
+}
+
+// allot2IR is the sequence the compiler emits to split an amount two ways:
+// floor each share, then hand the flooring leftover to the earliest. There is
+// no allotment instruction — the split is built out of pure ops — so the three
+// tests that need one share this rather than spelling it out each time.
+//
+// Only one fixup block: flooring loses under a unit per share, so with the two
+// portions summing to 1 the shortfall is at most 1 and the second share never
+// receives it.
+func allot2IR(amount, portion1, portion2, share1, share2 string) string {
+	return fmt.Sprintf(`
+  $allot_amt = int_to_portion($%[1]s)
+  $allot_prod = mul_portion($%[2]s, $allot_amt)
+  $%[4]s = portion_to_int($allot_prod)
+  $allot_total = int_copy($%[4]s)
+  $allot_prod = mul_portion($%[3]s, $allot_amt)
+  $%[5]s = portion_to_int($allot_prod)
+  $allot_total = add_int($allot_total, $%[5]s)
+  $allot_one = 1
+  $allot_short = lt_int($allot_total, $%[1]s)
+  jmp_if_false($allot_short, #allot_end)
+  $%[4]s = add_int($%[4]s, $allot_one)
+  $allot_total = add_int($allot_total, $allot_one)
+#allot_end
+`, amount, portion1, portion2, share1, share2)
 }
 
 // assembleIR turns an IR text into a runnable program, failing the test on any
@@ -253,7 +280,7 @@ func TestIRAllotmentDestination(t *testing.T) {
   $whole = mk_portion($one, $one)
   $leftover = sub_portion($whole, $quarter)
   assert_leftover($leftover)
-  [$small_share, $big_share] = mk_allot($amount, [$quarter, $leftover])
+`+allot2IR("amount", "quarter", "leftover", "small_share", "big_share")+`
   $small = "small"
   send_to_account(account: $small, cap: $small_share)
   $big = "big"
@@ -632,7 +659,7 @@ func TestIRMetaTypes(t *testing.T) {
   $whole = mk_portion($one, $one)
   $rest = sub_portion($whole, $quarter)
   assert_leftover($rest)
-  [$a_share, $b_share] = mk_allot($amount, [$quarter, $rest])
+`+allot2IR("amount", "quarter", "rest", "a_share", "b_share")+`
   $a = "a"
   send_to_account(account: $a, cap: $a_share)
   $b = "b"
@@ -835,7 +862,7 @@ func TestIRSurvivesTheWireFormat(t *testing.T) {
   $whole = mk_portion($one, $one)
   $rest = sub_portion($whole, $half)
   assert_leftover($rest)
-  [$a_share, $b_share] = mk_allot($amount, [$half, $rest])
+`+allot2IR("amount", "half", "rest", "a_share", "b_share")+`
   $a = "a"
   send_to_account(account: $a, cap: $a_share)
   $b = "b"
@@ -878,4 +905,104 @@ func TestIRVarsSurviveTheWireFormat(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), &decoded, balances(map[string]int64{"src": 100}))
 	require.Nil(t, execErr)
 	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+}
+
+// --- The int/portion boundary ops -------------------------------------------
+
+func TestIRPortionToIntFloors(t *testing.T) {
+	// 7/2 of nothing in particular: the projection floors, it does not round
+	res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $seven = 7
+  $two = 2
+  $p = mk_portion($seven, $two)
+  $amount = portion_to_int($p)
+  $world = "world"
+  $overdraft = 100
+  $pulled = pull_account(account: $world, cap: $amount, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances(nil), nil)
+
+	requirePostings(t, []runtime.Posting{posting("world", "dest", 3)}, res.Postings)
+}
+
+func TestIRIntToPortionAndMul(t *testing.T) {
+	// 1/4 * 100 == 25, computed as mul_portion(int_to_portion(100), 1/4)
+	res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $hundred = 100
+  $one = 1
+  $four = 4
+  $quarter = mk_portion($one, $four)
+  $ap = int_to_portion($hundred)
+  $prod = mul_portion($quarter, $ap)
+  $amount = portion_to_int($prod)
+  $world = "world"
+  $overdraft = 100
+  $pulled = pull_account(account: $world, cap: $amount, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances(nil), nil)
+
+	requirePostings(t, []runtime.Posting{posting("world", "dest", 25)}, res.Postings)
+}
+
+// A three-way split written out of pure ops: floor each share, then hand the
+// flooring leftover to the earliest shares one unit at a time. This is the
+// lowering compileAllotmentSplit emits, pinned here on the 34/33/33 case.
+//
+// Only n-1 fixup blocks: each floor loses < 1, so with portions summing to 1 the
+// shortfall is <= n-1 and the last share never receives a unit.
+const allotThirdsIR = `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = 100
+  $world = "world"
+  $overdraft = 100
+  $pulled = pull_account(account: $world, cap: $amount, overdraft: $overdraft)
+
+  $one = 1
+  $three = 3
+  $third = mk_portion($one, $three)
+  $ap = int_to_portion($amount)
+
+  $prod = mul_portion($third, $ap)
+  $out0 = portion_to_int($prod)
+  $total = int_copy($out0)
+  $prod = mul_portion($third, $ap)
+  $out1 = portion_to_int($prod)
+  $total = add_int($total, $out1)
+  $prod = mul_portion($third, $ap)
+  $out2 = portion_to_int($prod)
+  $total = add_int($total, $out2)
+
+  $lt = lt_int($total, $amount)
+  jmp_if_false($lt, #done)
+  $out0 = add_int($out0, $one)
+  $total = add_int($total, $one)
+  $lt = lt_int($total, $amount)
+  jmp_if_false($lt, #done)
+  $out1 = add_int($out1, $one)
+  $total = add_int($total, $one)
+#done
+
+  $a = "a"
+  send_to_account(account: $a, cap: $out0)
+  $b = "b"
+  send_to_account(account: $b, cap: $out1)
+  $c = "c"
+  send_to_account(account: $c, cap: $out2)
+`
+
+func TestIRAllotmentFromPureOps(t *testing.T) {
+	res := runIR(t, allotThirdsIR, balances(nil), nil)
+
+	requirePostings(t, []runtime.Posting{
+		posting("world", "a", 34),
+		posting("world", "b", 33),
+		posting("world", "c", 33),
+	}, res.Postings)
 }

@@ -187,15 +187,6 @@ func TestParseErrors(t *testing.T) {
 		require.Contains(t, errs[0].Msg, "expected label, got register")
 	})
 
-	t.Run("register where a register list is expected", func(t *testing.T) {
-		_, errs := Parse(`
-  $r0 = 1
-  [$r1] = mk_allot($r0, $r0)
-`)
-		require.NotEmpty(t, errs)
-		require.Contains(t, errs[0].Msg, "expected register list, got register")
-	})
-
 	t.Run("register list where a register is expected", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = "USD/2"
@@ -292,14 +283,12 @@ func TestReadBeforeWrite(t *testing.T) {
 		require.Empty(t, errs)
 	})
 
-	t.Run("mk_allot dests count as written", func(t *testing.T) {
+	t.Run("dest list entries count as written", func(t *testing.T) {
 		_, errs := Parse(`
-  $amount = 100
-  $num = 1
-  $den = 2
-  $half = mk_portion($num, $den)
-  [$first, $second] = mk_allot($amount, [$half, $half])
-  check_enough_funds($first, $second)
+  $acct = "acct"
+  $key = "key"
+  [$asset, $amount] = meta_monetary($acct, $key)
+  check_enough_funds($amount, $amount)
 `)
 		require.Empty(t, errs)
 	})
@@ -324,13 +313,13 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"load_var without type param", "  $r0 = load_var(0)\n"},
 		{"load_var with a type it doesn't have", "  $r0 = load_var<portion>(0)\n"},
 		{"meta without type param", "  $r0 = meta($r1, $r2)\n"},
-		{"mk_allot without dest list", "  $r0 = mk_allot($r1, [$r2])\n"},
+		{"meta_monetary without dest list", "  $r0 = meta_monetary($r1, $r2)\n"},
 		{"reg to reg copy", "  $r0 = $r1\n"},
 		{"garbage", "$$$ !!!"},
 		{"unclosed paren", "  $r0 = neg_int($r1"},
 		{"uppercase instr name", "  $r0 = NEG_INT($r1)"},
 		{"negative int literal", "  $r0 = -1\n"},
-		{"empty dest list", "  [] = mk_allot($r0, [$r1])\n"},
+		{"empty dest list", "  [] = meta_monetary($r0, $r1)\n"},
 		{"missing dest", "  = neg_int($r0)\n"},
 		{"unterminated string", "  $r0 = \"oops\n"},
 		{"stray operator", "  $r0 = $r1 * $r2\n"},
@@ -532,19 +521,6 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "mk_allot",
-			ir: `
-  $r0 = 100
-  $r1 = 1
-  $r2 = 1
-  $r3 = mk_portion($r1, $r2)
-  $r4 = 1
-  $r5 = 1
-  $r6 = mk_portion($r4, $r5)
-  [$r7, $r8] = mk_allot($r0, [$r3, $r6])
-`,
-		},
-		{
 			name: "check_enough_funds",
 			ir: `
   $r0 = 50
@@ -662,6 +638,31 @@ func TestRoundtripAllInstructions(t *testing.T) {
   $r0 = "acct"
   $r1 = "key"
   [$r2, $r3] = meta_monetary($r0, $r1)
+`,
+		},
+		{
+			name: "mul_portion",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = mul_portion($r2, $r2)
+`,
+		},
+		{
+			name: "int_to_portion",
+			ir: `
+  $r0 = 100
+  $r1 = int_to_portion($r0)
+`,
+		},
+		{
+			name: "portion_to_int",
+			ir: `
+  $r0 = 1
+  $r1 = 2
+  $r2 = mk_portion($r0, $r1)
+  $r3 = portion_to_int($r2)
 `,
 		},
 		{

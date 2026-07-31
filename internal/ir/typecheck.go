@@ -112,22 +112,6 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 	case Save:
 		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.useOpt(i.Amount, regInt))
 
-	case MakeAllotment:
-		if err := tc.use(i.Amount, regInt); err != nil {
-			return err
-		}
-		for _, p := range i.Portions {
-			if err := tc.use(p, regPortion); err != nil {
-				return err
-			}
-		}
-		for _, d := range i.Dest {
-			if err := tc.def(d, regInt); err != nil {
-				return err
-			}
-		}
-		return nil
-
 	case CheckEnoughFunds:
 		return firstErr(tc.use(i.Got, regInt), tc.use(i.Needed, regInt))
 	case AssertLeftover:
@@ -245,6 +229,10 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 		return regBool, regBool, nil
 	case OpPortionToString:
 		return regStr, regPortion, nil
+	case OpIntToPortion:
+		return regPortion, regInt, nil
+	case OpPortionToInt:
+		return regInt, regPortion, nil
 	default:
 		return 0, 0, fmt.Errorf("bytecode typechecker: unknown unary op %T", op)
 	}
@@ -262,7 +250,7 @@ func binOpRegTypes(op BinKind) (dest, left, right regType, err error) {
 		return regBool, regInt, regInt, nil
 	case OpLtPortion, OpEqPortion:
 		return regBool, regPortion, regPortion, nil
-	case OpAddPortion, OpSubPortion:
+	case OpAddPortion, OpSubPortion, OpMulPortion:
 		return regPortion, regPortion, regPortion, nil
 	case OpMakePortion:
 		return regPortion, regInt, regInt, nil

@@ -324,19 +324,6 @@ func (ap *argParser) intLit() uint16 {
 	return uint16(n)
 }
 
-// regList consumes the next positional arg as a register list.
-func (ap *argParser) regList() []Reg {
-	v := ap.next(syntax.ValRegList)
-	if v == nil {
-		return nil
-	}
-	regs := make([]Reg, len(*v.Regs))
-	for i, r := range *v.Regs {
-		regs[i] = ap.t.resolveReg(r)
-	}
-	return regs
-}
-
 func (ap *argParser) addErr(rng parser.Range, format string, args ...any) {
 	*ap.errs = append(*ap.errs, Error{Range: rng, Msg: fmt.Sprintf(format, args...)})
 }
@@ -445,6 +432,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = ap.BinaryOp(dest, OpStrEq{})
 	case "sub_portion":
 		instr = ap.BinaryOp(dest, OpSubPortion{})
+	case "mul_portion":
+		instr = ap.BinaryOp(dest, OpMulPortion{})
 	case "add_portion":
 		instr = ap.BinaryOp(dest, OpAddPortion{})
 	case "lt_int":
@@ -474,6 +463,10 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest, Op: OpNot{}, Arg: ap.reg()}
 	case "portion_to_string":
 		instr = UnaryOp{Dest: dest, Op: OpPortionToString{}, Arg: ap.reg()}
+	case "int_to_portion":
+		instr = UnaryOp{Dest: dest, Op: OpIntToPortion{}, Arg: ap.reg()}
+	case "portion_to_int":
+		instr = UnaryOp{Dest: dest, Op: OpPortionToInt{}, Arg: ap.reg()}
 
 	case "pull_account":
 		instr = PullAccount{
@@ -491,13 +484,6 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Asset:   ap.reqLabeledReg("asset"),
 			Amount:  ap.optLabeledReg("amount"),
 		}
-
-	case "mk_allot":
-		if len(dests) == 0 {
-			ap.addErr(s.Range, "mk_allot requires a dest list")
-			break
-		}
-		instr = MakeAllotment{Dest: dests, Amount: ap.reg(), Portions: ap.regList()}
 
 	case "meta_monetary":
 		if len(dests) != 2 {

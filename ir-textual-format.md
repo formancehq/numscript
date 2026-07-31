@@ -62,7 +62,7 @@ Instructions come in five shapes:
 
 ```
 $r0                single register
-[$r0, $r1, $r2]    register list  (mk_allot and meta_monetary)
+[$r0, $r1]        register list  (meta_monetary only)
 _                  discard
 ```
 
@@ -85,8 +85,9 @@ Which form an argument takes is fixed per instruction (see the reference below) 
 $r0            register
 #my_label      label reference   (the jumps only)
 42             int literal       (load_var index only)
-[$r0, $r1]     register list     (mk_allot portions only)
 ```
+
+A register list is a destination form only — no instruction takes one as an argument.
 
 Labeled arguments are looked up **by name**, so their order is free: `pull_account(cap: $c, account: $a)` is the same instruction as `pull_account(account: $a, cap: $c)`. `ir.Dump` always emits them in the canonical order given below.
 
@@ -135,6 +136,7 @@ Types are the register types of each operand; `?` marks an optional labeled argu
 | `$d = add_string($l, $r)` | `(str, str) -> str` |
 | `$d = add_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = sub_portion($l, $r)` | `(portion, portion) -> portion` |
+| `$d = mul_portion($l, $r)` | `(portion, portion) -> portion` |
 | `$d = mk_portion($num, $den)` | `(int, int) -> portion` |
 | `$d = monetary_to_string($asset, $amt)` | `(str, int) -> str` — the `"ASSET AMOUNT"` form |
 
@@ -160,6 +162,10 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | `$d = neg_int($a)` | `int -> int` |
 | `$d = int_to_string($a)` | `int -> str` |
 | `$d = portion_to_string($a)` | `portion -> str` |
+| `$d = int_to_portion($a)` | `int -> portion` — exact |
+| `$d = portion_to_int($a)` | `portion -> int` — **floors** |
+
+`int_to_portion` and `portion_to_int` are the only numeric crossings between the int and portion banks. `portion_to_int` truncates towards negative infinity (a `big.Rat` denominator is always positive, so this is `Div`, not a rounding), which is what makes an allotment share exact.
 
 There is no register-to-register move: `$r0 = $r1` is not valid syntax. Use the copy for the bank instead — there is exactly one per bank, and none crosses banks. A monetary has no copy of its own, since it is a `(str, int)` pair: copy the two halves.
 
@@ -206,7 +212,7 @@ a != b   ->   $t = eq_int($a, $b)  ;  not($t)
 | `$d = meta<portion>($account, $key)` | `(str, str) -> portion` |
 | `[$asset, $amt] = meta_monetary($account, $key)` | `(str, str) -> (str, int)` |
 
-`meta_monetary` is not `meta<monetary>`: one store read yields both halves, so it is the only instruction other than `mk_allot` that writes a **dest list**, and its list must be exactly two registers (asset then amount).
+`meta_monetary` is not `meta<monetary>`: one store read yields both halves, so it is the only instruction that writes a **dest list**, and its list must be exactly two registers (asset then amount).
 
 ### Funds movement
 
@@ -225,10 +231,7 @@ No destination. Both arguments are optional: no `cap` sends everything currently
 ```
 No destination. `account: str` and `asset: str` are required, `amount: int` is optional — omitting it saves the whole balance.
 
-```
-  [$s1, $s2, $s3] = mk_allot($amount, [$p1, $p2, $p3])
-```
-Splits `$amount` (`int`) across `n` portions (`portion`), writing `n` shares (`int`). The destination **must** be a register list, and its length must match the portion list. Both lengths are statically known at compile time; the assembler materializes each list into contiguous registers.
+There is no allotment instruction. Splitting an amount across portions is built out of the pure ops above: each share is `portion_to_int(mul_portion($p_i, int_to_portion($amount)))`, and the leftover from flooring is then handed to the earliest shares a unit at a time, using `lt_int` and forward jumps to a shared exit. See `compileAllotmentSplit` in `internal/compiler/compiler.go`.
 
 ### Assertions and checks
 

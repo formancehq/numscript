@@ -63,32 +63,6 @@ func (b *regPool) Index(r Reg) (byte, error) {
 	return idx, nil
 }
 
-// reserveContiguous reserves n consecutive slots (scratch, not bound to any Reg)
-// and returns the first index. Used for the contiguous arrays Op_MkAllotment
-// requires (portionsRegs[B:B+C]).
-func (b *regPool) reserveContiguous(n int) (byte, error) {
-	if b.next+n > maxReg {
-		return 0, fmt.Errorf("register bank overflow: more than %d registers in one bank (register allocation not implemented yet)", maxReg)
-	}
-	start := byte(b.next)
-	b.next += n
-	return start, nil
-}
-
-// bindContiguous reserves len(regs) consecutive slots and binds each Reg to one,
-// so later references to those regs resolve to the contiguous block. Used for
-// Op_MkAllotment's output array (intsRegs[A:A+C]), which the following sends read.
-func (b *regPool) bindContiguous(regs []Reg) (byte, error) {
-	start, err := b.reserveContiguous(len(regs))
-	if err != nil {
-		return 0, err
-	}
-	for i, r := range regs {
-		b.indexByReg[r] = start + byte(i)
-	}
-	return start, nil
-}
-
 type patch struct {
 	Label Label
 	index int
@@ -253,6 +227,20 @@ func (OpPortionToString) sig() unaryOpSig {
 		arg:    (*assembler).portionReg,
 	}
 }
+func (OpIntToPortion) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_IntToPortion,
+		dest:   (*assembler).portionReg,
+		arg:    (*assembler).intReg,
+	}
+}
+func (OpPortionToInt) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_PortionToInt,
+		dest:   (*assembler).intReg,
+		arg:    (*assembler).portionReg,
+	}
+}
 func (i UnaryOp) assemble(a *assembler) error {
 	sig := i.Op.sig()
 
@@ -341,6 +329,7 @@ func portionArithSig(opcode vm.Opcode) binaryOpSig {
 
 func (OpAddPortion) sig() binaryOpSig { return portionArithSig(vm.Op_AddPortion) }
 func (OpSubPortion) sig() binaryOpSig { return portionArithSig(vm.Op_SubPortion) }
+func (OpMulPortion) sig() binaryOpSig { return portionArithSig(vm.Op_MulPortion) }
 func (OpMakePortion) sig() binaryOpSig {
 	return binaryOpSig{
 		opcode: vm.Op_MkPortion,
@@ -640,7 +629,7 @@ func (i MetaVar) assemble(a *assembler) error {
 }
 
 // MetaMonetary needs four operands, so it spills the second destination into an
-// ext word, like PullAccount and MakeAllotment.
+// ext word, like PullAccount.
 func (i MetaMonetary) assemble(a *assembler) error {
 	destAsset, err := a.strReg(i.DestAsset)
 	if err != nil {
@@ -741,41 +730,6 @@ func (i Jmp) assemble(a *assembler) error {
 	// Emit dummy instruction
 	a.emit(0, 0, 0, 0)
 
-	return nil
-}
-
-func (i MakeAllotment) assemble(a *assembler) error {
-	n := len(i.Portions) // == len(i.dest)
-
-	amt, err := a.intReg(i.Amount)
-	if err != nil {
-		return err
-	}
-
-	portionStart, err := a.Portions.reserveContiguous(n)
-	if err != nil {
-		return err
-	}
-	for j, p := range i.Portions {
-		src, err := a.Portions.Index(p)
-		if err != nil {
-			return err
-		}
-		a.emit(vm.Op_PortionCopy, portionStart+byte(j), src, maxReg)
-	}
-
-	destStart, err := a.ints.bindContiguous(i.Dest)
-	if err != nil {
-		return err
-	}
-
-	a.emit(vm.Op_MkAllotment, destStart, portionStart, byte(n))
-	a.instructions = append(a.instructions, vm.Instruction{
-		Opcode: maxReg,
-		A:      amt,
-		B:      maxReg,
-		C:      maxReg,
-	})
 	return nil
 }
 

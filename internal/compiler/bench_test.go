@@ -250,3 +250,85 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 		}
 	}
 }
+
+// --- Allotment scripts ------------------------------------------------------
+// Ported from feat/exp/optimize-vm so the before/after of decomposing the
+// allotment split into pure ops is measurable on this branch. Same methodology.
+
+// benchCompiledVM is the shape the two benchmarks above open-code: compile once,
+// reuse one Vm, measure only the run.
+func benchCompiledVM(b *testing.B, src string, store benchStore) {
+	b.Helper()
+
+	parsed := parser.Parse(src)
+	if len(parsed.Errors) != 0 {
+		b.Fatalf("parse errors: %v", parsed.Errors)
+	}
+	_, program, err := compiler.Compile(parsed.Value, nil)
+	if err != nil {
+		b.Fatalf("compile: %v", err)
+	}
+
+	machine := vm.NewVm(program) // reused across iterations
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := vm.Exec(context.Background(), machine, nil, store)
+		if err != nil {
+			b.Fatalf("exec: %v", err)
+		}
+	}
+}
+
+// Fan-out allotment: 1 source -> {1/2 @a; 1/2 @b}. Exercises the allotment
+// split and the queue drain across two capped sends.
+const benchSrcAllotment = `send [USD/2 100] (
+	source = @src
+	destination = {
+		1/2 to @a
+		1/2 to @b
+	}
+)`
+
+func BenchmarkCompiledVMAllotment(b *testing.B) {
+	benchCompiledVM(b, benchSrcAllotment, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+// Thirds: the case where the flooring leftover is non-zero, so the fixup pass
+// actually runs (100 -> 34/33/33).
+const benchSrcAllotmentThirds = `send [USD/2 100] (
+	source = @src
+	destination = {
+		1/3 to @a
+		1/3 to @b
+		remaining to @c
+	}
+)`
+
+func BenchmarkCompiledVMAllotmentThirds(b *testing.B) {
+	benchCompiledVM(b, benchSrcAllotmentThirds, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+// Fan-in: {1/3 from @a; 1/3 from @b; 1/3 from @c} -> @dest. Allotment on the
+// source side, no early-exit jump.
+const benchSrcFanIn = `send [USD/2 30] (
+	source = {
+		1/3 from @a
+		1/3 from @b
+		1/3 from @c
+	}
+	destination = @dest
+)`
+
+func BenchmarkCompiledVMFanIn(b *testing.B) {
+	benchCompiledVM(b, benchSrcFanIn, benchStore{balances: map[runtime.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+}

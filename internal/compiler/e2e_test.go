@@ -1098,3 +1098,123 @@ func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {
 		require.Zero(t, g.Amount.Cmp(w.Amount), "posting[%d].Amount: got %s want %s", i, g.Amount, w.Amount)
 	}
 }
+
+// --- Allotment rounding, ported from internal/runtime/allotment_test.go -----
+// These pinned runtime.MakeAllotment before the split was lowered into pure
+// instructions; they now pin the compiler's lowering of it.
+
+// A two-unit shortfall: 1/6,1/6,4/6 of 100 floors to 16,16,66 (sum 98), so the
+// first two shares each get one unit back.
+func TestE2E_AllotmentLeftoverTwoUnits(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				1/6 to @a
+				1/6 to @b
+				remaining to @c
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(17)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(17)},
+		{Source: "world", Destination: "c", Asset: "USD/2", Amount: big.NewInt(66)},
+	}, postings)
+}
+
+// An odd amount split in half: 7 -> 3,3 (sum 6), leftover unit to the earliest.
+func TestE2E_AllotmentHalvesOfOddAmount(t *testing.T) {
+	src := `
+		send [USD/2 7] (
+			source = @world
+			destination = {
+				1/2 to @a
+				remaining to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(4)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(3)},
+	}, postings)
+}
+
+// A single whole share: the lowering emits no fixup blocks at all for n == 1.
+func TestE2E_AllotmentSinglePortionWhole(t *testing.T) {
+	src := `
+		send [USD/2 100] (
+			source = @world
+			destination = {
+				remaining to @a
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(100)},
+	}, postings)
+}
+
+// Percentages that divide exactly: no leftover, so no share is adjusted.
+func TestE2E_AllotmentPercentagesDivideExactly(t *testing.T) {
+	src := `
+		send [USD/2 10000] (
+			source = @world
+			destination = {
+				19/100 to @a
+				remaining to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(1900)},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(8100)},
+	}, postings)
+}
+
+// Sevenths of 1001 floor awkwardly (143 + 286 + 572 = 1001 exactly here), the
+// point being that the shares must always sum back to the amount.
+func TestE2E_AllotmentPartsSumToAmount(t *testing.T) {
+	src := `
+		send [USD/2 1001] (
+			source = @world
+			destination = {
+				1/7 to @a
+				2/7 to @b
+				remaining to @c
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+
+	total := new(big.Int)
+	for _, p := range postings {
+		total.Add(total, p.Amount)
+	}
+	require.Zero(t, total.Cmp(big.NewInt(1001)), "shares sum to %s, want 1001 (%v)", total, postings)
+}
+
+// Beyond int64: ~1e27+1 split in half, the odd unit going to the earliest share.
+func TestE2E_AllotmentBeyondInt64(t *testing.T) {
+	src := `
+		send [USD/2 1000000000000000000000000001] (
+			source = @world
+			destination = {
+				1/2 to @a
+				remaining to @b
+			}
+		)
+	`
+	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+
+	amount, _ := new(big.Int).SetString("1000000000000000000000000001", 10)
+	half := new(big.Int).Div(amount, big.NewInt(2))
+	requirePostingsEqual(t, []runtime.Posting{
+		{Source: "world", Destination: "a", Asset: "USD/2", Amount: new(big.Int).Add(half, big.NewInt(1))},
+		{Source: "world", Destination: "b", Asset: "USD/2", Amount: half},
+	}, postings)
+}

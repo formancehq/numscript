@@ -18,6 +18,7 @@ func (OpLtPortion) String() string        { return "lt_portion" }
 func (OpEqPortion) String() string        { return "eq_portion" }
 func (OpAddPortion) String() string       { return "add_portion" }
 func (OpSubPortion) String() string       { return "sub_portion" }
+func (OpMulPortion) String() string       { return "mul_portion" }
 func (OpMakePortion) String() string      { return "mk_portion" }
 func (OpMonetaryToString) String() string { return "monetary_to_string" }
 
@@ -30,6 +31,8 @@ func (OpIntToString) String() string     { return "int_to_string" }
 func (OpIsZero) String() string          { return "is_zero" }
 func (OpNot) String() string             { return "not" }
 func (OpPortionToString) String() string { return "portion_to_string" }
+func (OpIntToPortion) String() string    { return "int_to_portion" }
+func (OpPortionToInt) String() string    { return "portion_to_int" }
 
 func (i PullAccount) String() string {
 	opts := joinOpts(
@@ -47,10 +50,6 @@ func (i PullAccount) String() string {
 func (i SendToAccount) String() string {
 	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap))
 	return fmt.Sprintf("send_to_account(%s)", opts)
-}
-
-func (i MakeAllotment) String() string {
-	return fmt.Sprintf("[%s] = mk_allot(%s, [%s])", regList(i.Dest), i.Amount, regList(i.Portions))
 }
 
 func (i CheckEnoughFunds) String() string {
@@ -209,12 +208,4 @@ func joinOpts(parts ...string) string {
 		}
 	}
 	return strings.Join(kept, ", ")
-}
-
-func regList(regs []Reg) string {
-	parts := make([]string, len(regs))
-	for i, r := range regs {
-		parts[i] = r.String()
-	}
-	return strings.Join(parts, ", ")
 }

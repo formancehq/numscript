@@ -107,7 +107,11 @@ const (
 	// because 0x32 is burned and 0x34..0x37 are taken
 	Op_AddPortion Opcode = 0x38
 
-	// 0x39..0x3F reserved
+	// completes portion arithmetic: an allotment share is a mul plus a floor
+	// (Op_PortionToInt)
+	Op_MulPortion Opcode = 0x39
+
+	// 0x3A..0x3F reserved
 
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
@@ -136,7 +140,12 @@ const (
 	Op_StrCopy  Opcode = 0x4A
 	Op_BoolCopy Opcode = 0x4B
 
-	// 0x4C..0x4F reserved
+	// The two directions across the int/portion boundary. Op_IntToPortion is
+	// exact; Op_PortionToInt floors.
+	Op_IntToPortion Opcode = 0x4C
+	Op_PortionToInt Opcode = 0x4D
+
+	// 0x4E..0x4F reserved
 
 	// --- funds & postings (0x50) ---
 
@@ -151,8 +160,9 @@ const (
 	// save all), floored at 0
 	Op_Save Opcode = 0x52
 
-	// dest_start,inp_arr_start,inp_arr_size|amt
-	Op_MkAllotment Opcode = 0x53
+	// 0x53 was Op_MkAllotment: an allotment share is now built out of pure ops
+	// (Op_IntToPortion, Op_MulPortion, Op_PortionToInt plus the leftover fixup),
+	// so there is no variadic domain instruction. Reserved, do not reuse.
 
 	// reads the account balance from the run-state
 	Op_Balance Opcode = 0x54

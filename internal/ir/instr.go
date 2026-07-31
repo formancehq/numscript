@@ -34,6 +34,7 @@ type (
 	OpStrEq       struct{}
 	OpAddPortion  struct{}
 	OpSubPortion  struct{}
+	OpMulPortion  struct{}
 	OpMakePortion struct{}
 	// OpMonetaryToString takes the asset (str) and the amount (int) of a monetary
 	// and produces its "ASSET AMOUNT" form, the inverse of runtime.ParseMonetary.
@@ -61,6 +62,12 @@ type (
 	// OpNot is the only bool -> bool operation.
 	OpNot             struct{}
 	OpPortionToString struct{}
+	// The two directions across the int/portion boundary. OpIntToPortion is
+	// exact; OpPortionToInt floors (big.Rat's denominator is always positive, so
+	// big.Int.Div is the floor). Together with OpMulPortion they are what an
+	// allotment share is made of.
+	OpIntToPortion struct{}
+	OpPortionToInt struct{}
 )
 
 type VarType interface {
@@ -97,11 +104,6 @@ type (
 		Account Reg  // str
 		Asset   Reg  // str
 		Amount  *Reg // int; nil = save all
-	}
-	MakeAllotment struct {
-		Dest     []Reg // int, len N
-		Amount   Reg   // int
-		Portions []Reg // portion, len N
 	}
 	CheckEnoughFunds struct{ Got, Needed Reg } // int
 	AssertLeftover   struct {
@@ -189,9 +191,6 @@ func (i PullAccount) sources() []Reg { return present(&i.Account, i.Cap, i.Overd
 
 func (i SendToAccount) dests() []Reg   { return nil }
 func (i SendToAccount) sources() []Reg { return present(i.Account, i.Cap) }
-
-func (i MakeAllotment) dests() []Reg   { return i.Dest }
-func (i MakeAllotment) sources() []Reg { return append(append([]Reg{}, i.Portions...), i.Amount) }
 
 func (i CheckEnoughFunds) dests() []Reg   { return nil }
 func (i CheckEnoughFunds) sources() []Reg { return []Reg{i.Got, i.Needed} }
