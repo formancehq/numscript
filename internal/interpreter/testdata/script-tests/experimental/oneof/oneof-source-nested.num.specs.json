@@ -1,0 +1,30 @@
+{
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "outer oneof rolls back an inner oneof's partial pull, then takes from the next branch",
+      "balances": [
+        {
+          "account": "b",
+          "asset": "GEM",
+          "amount": 30
+        },
+        {
+          "account": "c",
+          "asset": "GEM",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

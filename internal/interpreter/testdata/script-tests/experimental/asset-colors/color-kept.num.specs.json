@@ -1,0 +1,41 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "refunds the kept funds to the source color",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ],
+      "expect.endBalances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 70
+        },
+        {
+          "account": "dest",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 30
+        }
+      ]
+    }
+  ]
+}

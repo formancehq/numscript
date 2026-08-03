@@ -3,8 +3,10 @@ package numscript
 import (
 	"context"
 
+	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/vm"
 )
 
 // This struct represents a parsed numscript source code
@@ -124,4 +126,56 @@ func (p ParseResult) ResolveDependencies(ctx context.Context, vars VariablesMap,
 
 func (p ParseResult) GetSource() string {
 	return p.parseResult.Source
+}
+
+type (
+	VarsEncoder     = compiler.VarsEncoder
+	CompiledProgram = vm.Program
+	VMStore         = vm.Store
+	Vm              = vm.Vm
+	Vars            = vm.Vars
+)
+
+var NewVm = vm.NewVm
+
+var DecodeVars = vm.DecodeVars
+
+func (p ParseResult) Compile() (VarsEncoder, CompiledProgram, error) {
+	return p.CompileWithFeatureFlags(nil)
+}
+
+// CompileWithFeatureFlags compiles the program, rejecting any construct gated
+// behind an experimental feature flag that isn't in featureFlags.
+func (p ParseResult) CompileWithFeatureFlags(featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	if len(p.parseResult.Errors) != 0 {
+		return VarsEncoder{}, CompiledProgram{}, p.parseResult.Errors[0]
+	}
+
+	if featureFlags == nil {
+		featureFlags = make(map[string]struct{})
+	}
+
+	return compiler.Compile(p.parseResult.Value, featureFlags)
+}
+
+func Compile(source string) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).Compile()
+}
+
+func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).CompileWithFeatureFlags(featureFlags)
+}
+
+var DecodeCompiledProgram = vm.DecodeProgram
+
+func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
+	res, execErr := vm.Exec(ctx, machine, vars, store)
+	if execErr != nil {
+		return ExecutionResult{}, execErr
+	}
+
+	// Postings share one type now (runtime.Posting); the VM leaves scope fields
+	// empty. TODO map VM tx/account metadata (stringified) onto the typed
+	// contract; deferred together with scopes in the VM.
+	return ExecutionResult{Postings: res.Postings}, nil
 }

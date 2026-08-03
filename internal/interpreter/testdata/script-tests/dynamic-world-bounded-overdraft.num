@@ -1,0 +1,10 @@
+vars {
+  account $src
+}
+send [COIN 100] (
+  source = {
+    $src allowing overdraft up to [COIN 5]
+    @world
+  }
+  destination = @dest
+)

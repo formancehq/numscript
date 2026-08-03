@@ -1,0 +1,40 @@
+{
+  "testCases": [
+    {
+      "it": "several world sources across several sends",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 5
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest1",
+          "amount": 10,
+          "asset": "COIN"
+        },
+        {
+          "source": "a",
+          "destination": "dest2",
+          "amount": 5,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest2",
+          "amount": 15,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest3",
+          "amount": 30,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

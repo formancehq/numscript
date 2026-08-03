@@ -1,0 +1,45 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "the overdraft applies to the colored balance only",
+      "balances": [
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": 1000
+        },
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 40
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "acc",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ],
+      "expect.endBalances.include": [
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": -60
+        },
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": 1000
+        }
+      ]
+    }
+  ]
+}

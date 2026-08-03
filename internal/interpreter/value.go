@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
-	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 )
 
 type Value interface {
@@ -42,14 +41,14 @@ func (Portion) value()        {}
 func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
-	if !checkAccountName(src) {
+	if !runtime.ValidateAccount(src) {
 		return AccountAddress{}, InvalidAccountName{Name: src}
 	}
 	return AccountAddress{Name: src}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
-	if !checkAssetName(src) {
+	if !runtime.ValidateAsset(src) {
 		return Asset(""), InvalidAsset{Name: src}
 	}
 	return Asset(src), nil
@@ -132,10 +131,10 @@ func ParseTaggedValue(data []byte) (Value, error) {
 		if err := json.Unmarshal(data, &v); err != nil {
 			return nil, err
 		}
-		if !checkAccountName(v.Name) {
+		if !runtime.ValidateAccount(v.Name) {
 			return nil, fmt.Errorf("invalid account name: %q", v.Name)
 		}
-		if !checkScopeName(v.Scope) {
+		if !runtime.ValidateScope(v.Scope) {
 			return nil, fmt.Errorf("invalid account scope: %q", v.Scope)
 		}
 		return AccountAddress{Name: v.Name, Scope: v.Scope}, nil
@@ -414,18 +413,4 @@ func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 
 	sum := new(big.Int).Sub(&bi, &otherBi)
 	return MonetaryInt(*sum)
-}
-
-func (asset Asset) GetBaseAndScale() (string, int64) {
-	parts := strings.Split(string(asset), "/")
-	if len(parts) == 2 {
-		scale, err := strconv.ParseInt(parts[1], 10, 64)
-		if err == nil {
-			return parts[0], scale
-		}
-		// fallback if parsing fails
-		return parts[0], 0
-	}
-	return string(asset), 0
-
 }

@@ -436,6 +436,23 @@ func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+// same as above, except world is only known at run time
+func TestInvalidUnboundedWorldFromVarInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $src
+	}
+	send [USD/2 *] (
+		source = $src
+		destination = @dest
+	)`)
+	tc.setVarsFromJSON(t, `{"src": "world"}`)
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidUnboundedInSendAll{Name: "world"},
+	}
+	test(t, tc)
+}
+
 func TestInvalidUnboundedInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
@@ -1129,135 +1146,6 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 		},
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
-}
-
-func TestSafeMaxWithdraft(t *testing.T) {
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(0),
-		big.NewInt(0),
-	))
-
-	require.Equal(t, big.NewInt(200), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(100),
-		big.NewInt(100),
-	))
-
-	require.Equal(t, big.NewInt(105), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(100),
-		big.NewInt(5),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(0),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(5),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(10),
-	))
-
-	require.Equal(t, big.NewInt(1), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(11),
-	))
-}
-
-// TODO this should be a fuzz test instead
-func TestSafeWithdraft(t *testing.T) {
-	t.Run("with zero overdraft, only take what's available", func(t *testing.T) {
-		t.Run("balance > 0 allows you to take what's available", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(1), interpreter.CalculateSafeWithdraw(
-				big.NewInt(1),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-
-			// not enough balance:
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(100),
-			))
-
-		})
-
-		t.Run("balance == 0 doesn't let you take anything", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-		})
-
-		t.Run("balance < 0 doesn't let you take anything if there's no overdraft", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-100),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-1),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-10),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-		})
-	})
-
-	t.Run("when overdraft is not zero, you can go over your balance", func(t *testing.T) {
-		t.Run("if we have enough balance>=requestedAmount, overdraft is ignored matter", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(100),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(100), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(42),
-				big.NewInt(100),
-			))
-		})
-
-		t.Run("if we have zero balance, overdraft allows us to withdraw", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(100),
-				big.NewInt(10),
-			))
-		})
-
-	})
-
 }
 
 func TestInvalidScalingWorld(t *testing.T) {

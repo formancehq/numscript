@@ -1,0 +1,34 @@
+{
+  "testCases": [
+    {
+      "it": "a capped world source is clamped, and a later world source covers the rest",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 30
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 20,
+          "asset": "COIN"
+        },
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN"
+        },
+        {
+          "source": "world",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

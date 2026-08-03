@@ -6,6 +6,7 @@ import (
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 )
 
 func evaluateFnCall(env *evalEnv, type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
@@ -230,7 +231,7 @@ func scoped(
 		return nil, err
 	}
 
-	if !checkScopeName(scopeStr) {
+	if !runtime.ValidateScope(scopeStr) {
 		return nil, InvalidScope{Scope: scopeStr}
 	}
 

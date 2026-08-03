@@ -1,0 +1,34 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "every posting of the split keeps the source color",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "a",
+          "amount": 30,
+          "asset": "COIN",
+          "color": "RED"
+        },
+        {
+          "source": "src",
+          "destination": "b",
+          "amount": 70,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ]
+    }
+  ]
+}

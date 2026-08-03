@@ -1,0 +1,8 @@
+{
+  "testCases": [
+    {
+      "it": "-",
+      "expect.error.negativeAmount": true
+    }
+  ]
+}

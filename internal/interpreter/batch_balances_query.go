@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -68,22 +69,11 @@ func (st *programState) batchQuery(account AccountAddress, asset Asset, color St
 }
 
 func (st *programState) runBalancesQuery() error {
-	filteredQuery := st.CachedBalances.filterQuery(st.CurrentBalanceQuery)
-
-	// avoid updating balances if we don't need to fetch new data
-	if len(filteredQuery) == 0 {
-		return nil
-	}
-
-	queriedBalances, err := st.Store.GetBalances(st.ctx, filteredQuery)
-	if err != nil {
+	if err := fetchAndPrewarm(st.ctx, st.Store, st.rs, st.CurrentBalanceQuery); err != nil {
 		return err
 	}
 	// reset batch query
 	st.CurrentBalanceQuery = BalanceQuery{}
-
-	st.CachedBalances.Merge(queriedBalances)
-
 	return nil
 }
 
@@ -110,7 +100,7 @@ func (st *programState) findBalancesQueries(source parser.Source) InterpreterErr
 		}
 		// NOTE we don't query the swap account's balance
 
-		st.batchQuery(account, assetToScaledAsset(st.CurrentAsset), "")
+		st.batchQuery(account, Asset(runtime.AssetToScaledAsset(string(st.CurrentAsset))), "")
 		return nil
 
 	case *parser.SourceOverdraft:

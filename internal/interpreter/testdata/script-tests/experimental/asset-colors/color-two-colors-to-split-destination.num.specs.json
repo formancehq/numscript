@@ -1,0 +1,40 @@
+{
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "splits two colors across the two destinations",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "RED",
+          "amount": 50
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "color": "BLUE",
+          "amount": 50
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "a",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "RED"
+        },
+        {
+          "source": "src",
+          "destination": "b",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "BLUE"
+        }
+      ]
+    }
+  ]
+}

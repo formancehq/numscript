@@ -1,0 +1,9 @@
+send [COIN 100] (
+  source = {
+    @world:sub
+    @myworld
+    @worl
+    @world
+  }
+  destination = @dest
+)

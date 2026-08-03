@@ -1,39 +1,64 @@
-package interpreter
+package runtime
 
 import (
 	"fmt"
 	"math/big"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-func assetToScaledAsset(asset Asset) Asset {
-	strAsset := string(asset)
-	parts := strings.Split(strAsset, "/")
-	if len(parts) == 1 {
-		return Asset(strAsset + "/*")
+// Asset-scaling arithmetic: converting between different scales of the same base
+// asset (e.g. EUR, EUR/2, EUR/4) with no rounding error and no spare amount.
+// Value-free — operates on asset strings, scales, and amounts — so both the
+// interpreter and the VM can drive it.
+
+// GetBaseAndScale splits an asset into its base and scale, e.g. "EUR/2" ->
+// ("EUR", 2) and "EUR" -> ("EUR", 0).
+func GetBaseAndScale(asset string) (string, int64) {
+	parts := strings.Split(asset, "/")
+	if len(parts) == 2 {
+		scale, err := strconv.ParseInt(parts[1], 10, 64)
+		if err == nil {
+			return parts[0], scale
+		}
+		// fallback if parsing fails
+		return parts[0], 0
 	}
-	return Asset(parts[0] + "/*")
+	return asset, 0
 }
 
-func buildScaledAsset(baseAsset string, scale int64) string {
+// AssetToScaledAsset maps an asset to its wildcard-scale form, e.g. "EUR/2" ->
+// "EUR/*" and "EUR" -> "EUR/*".
+func AssetToScaledAsset(asset string) string {
+	parts := strings.Split(asset, "/")
+	if len(parts) == 1 {
+		return asset + "/*"
+	}
+	return parts[0] + "/*"
+}
+
+// BuildScaledAsset composes a base asset and a scale into an asset string, e.g.
+// ("EUR", 2) -> "EUR/2" and ("EUR", 0) -> "EUR".
+func BuildScaledAsset(baseAsset string, scale int64) string {
 	if scale == 0 {
 		return baseAsset
 	}
 	return fmt.Sprintf("%s/%d", baseAsset, scale)
 }
 
-func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
+// GetAssets collects, per scale, the (uncolored) amount an account holds of
+// baseAsset. Scaling converts only uncolored balances and emits uncolored
+// postings, so colored balances are excluded.
+func GetAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for _, accBalance := range accountBalances {
 		if accBalance.Color != "" {
-			// scaling converts only uncolored balances, and emits uncolored
-			// postings, so a colored balance must not be treated as available
 			continue
 		}
-		accBalanceAsset, scale := Asset(accBalance.Asset).GetBaseAndScale()
+		accBalanceAsset, scale := GetBaseAndScale(accBalance.Asset)
 		if accBalanceAsset == baseAsset {
 			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
@@ -41,23 +66,25 @@ func getAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*bi
 	return result
 }
 
-type scalePair struct {
-	scale  int64
-	amount *big.Int
+// ScalePair is an (amount at scale) entry: a conversion output of
+// FindScalingSolution.
+type ScalePair struct {
+	Scale  int64
+	Amount *big.Int
 }
 
-func getSortedAssets(scales map[int64]*big.Int) []scalePair {
-	var assets []scalePair
+func getSortedAssets(scales map[int64]*big.Int) []ScalePair {
+	var assets []ScalePair
 	for k, v := range scales {
-		assets = append(assets, scalePair{
-			scale:  k,
-			amount: v,
+		assets = append(assets, ScalePair{
+			Scale:  k,
+			Amount: v,
 		})
 	}
 
 	// Sort in DESC order (e.g. EUR/4, .., EUR/1, EUR)
-	slices.SortFunc(assets, func(p scalePair, other scalePair) int {
-		return int(other.scale - p.scale)
+	slices.SortFunc(assets, func(p ScalePair, other ScalePair) int {
+		return int(other.Scale - p.Scale)
 	})
 
 	return assets
@@ -102,24 +129,24 @@ func applyScalingInv(amt *big.Int, scalingFactor *big.Rat) *big.Int {
 	return availableCurrencyScaled
 }
 
-// Find a set of conversions from the available "scales", to
-// [ASSET/$neededAmtScale $neededAmt], so that there's no rounding error
-// and no spare amount
-func findScalingSolution(
+// FindScalingSolution finds a set of conversions from the available "scales" to
+// [ASSET/$neededAmtScale $neededAmt], so that there's no rounding error and no
+// spare amount. neededAmt may be nil (meaning "convert everything available").
+func FindScalingSolution(
 	neededAmt *big.Int, // <- can be nil
 	neededAmtScale int64,
 	scales map[int64]*big.Int,
-) ([]scalePair, *big.Int) {
+) ([]ScalePair, *big.Int) {
 	if ownedAmt, ok := scales[neededAmtScale]; ok && neededAmt != nil {
 		// Note we don't mutate the input value
 		neededAmt = new(big.Int).Sub(neededAmt, ownedAmt)
 	}
 
-	var out []scalePair
+	var out []ScalePair
 	totalSent := big.NewInt(0)
 
 	for _, p := range getSortedAssets(scales) {
-		if neededAmtScale == p.scale {
+		if neededAmtScale == p.Scale {
 			// We don't convert assets we already have
 			continue
 		}
@@ -128,11 +155,11 @@ func findScalingSolution(
 			break
 		}
 
-		scalingFactor := getScalingFactor(neededAmtScale, p.scale)
+		scalingFactor := getScalingFactor(neededAmtScale, p.Scale)
 
 		// scale the original amount to the current currency
 		// availableCurrencyScaled := floor(p.amount * scalingFactor)
-		availableCurrencyScaled := applyScaling(p.amount, scalingFactor)
+		availableCurrencyScaled := applyScaling(p.Amount, scalingFactor)
 
 		var taken *big.Int // := min(availableCurrencyScaled, (neededAmt-totalSent) ?? ∞)
 		if neededAmt == nil {
@@ -153,9 +180,9 @@ func findScalingSolution(
 
 		totalSent.Add(totalSent, actuallyTaken)
 
-		out = append(out, scalePair{
-			scale:  p.scale,
-			amount: intPart,
+		out = append(out, ScalePair{
+			Scale:  p.Scale,
+			Amount: intPart,
 		})
 	}
 

@@ -454,12 +454,19 @@ set_tx_meta(
 	})
 	require.Nil(t, err)
 
+	// @alice starts with 20 and receives 100, so its running balance is 120.
+	// (@bob is an unbounded source, so its balance is never fetched; @alice's
+	// starting balance is fetched lazily by the mid-script balance() call.)
 	require.Equal(t, interpreter.Metadata{
-		"k": interpreter.NewMonetary("USD/2", 100),
+		"k": interpreter.Monetary{Asset: "USD/2", Amount: interpreter.NewMonetaryInt(120)},
 	}, res.Metadata)
 
 	require.Equal(t,
-		[]numscript.BalanceQuery(nil),
+		[]numscript.BalanceQuery{
+			{
+				{Account: "alice", Asset: "USD/2"},
+			},
+		},
 		store.GetBalancesCalls,
 	)
 

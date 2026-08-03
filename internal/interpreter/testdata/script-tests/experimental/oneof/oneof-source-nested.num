@@ -1,0 +1,16 @@
+
+// Nested oneof: the outer's first branch is itself a oneof whose last branch (@b)
+// partially pulls 30. The outer sees that's short of the full 100, rolls the
+// inner pull back, and takes everything from @c. Only @c posts — which requires
+// the outer restore to undo funds pulled through the inner oneof (independent
+// snapshot marks).
+send [GEM 100] (
+  source = oneof {
+    oneof {
+      @a
+      @b
+    }
+    @c
+  }
+  destination = @dest
+)
