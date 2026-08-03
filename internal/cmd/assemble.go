@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -14,14 +15,29 @@ type AssembleArgs struct {
 	OutputPath string
 }
 
+// stdioPath is the conventional stand-in for stdin/stdout, accepted both as the
+// input path and as --output.
+const stdioPath = "-"
+
 // defaultBytecodePath derives the output path from the IR path: "x.ir" becomes
-// "x.numb", anything else just gains the suffix.
+// "x.numb", anything else just gains the suffix. Reading from stdin has no path
+// to derive from, so it writes to stdout.
 func defaultBytecodePath(irPath string) string {
+	if irPath == stdioPath {
+		return stdioPath
+	}
 	return strings.TrimSuffix(irPath, ".ir") + ".numb"
 }
 
+func readIRSource(irPath string) ([]byte, error) {
+	if irPath == stdioPath {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(irPath)
+}
+
 func assemble(irPath string, opts AssembleArgs) error {
-	content, err := os.ReadFile(irPath)
+	content, err := readIRSource(irPath)
 	if err != nil {
 		return err
 	}
@@ -53,7 +69,7 @@ func assemble(irPath string, opts AssembleArgs) error {
 	if outputPath == "" {
 		outputPath = defaultBytecodePath(irPath)
 	}
-	if outputPath == "-" {
+	if outputPath == stdioPath {
 		_, err := os.Stdout.Write(bytecode)
 		return err
 	}
@@ -65,7 +81,7 @@ func getAssembleCmd() *cobra.Command {
 	opts := AssembleArgs{}
 
 	cmd := cobra.Command{
-		Use:   "assemble",
+		Use:   "assemble <file.ir>",
 		Short: "Assemble a textual IR file into bytecode",
 		Long: `Assemble a textual IR file into the binary bytecode the vm executes.
 
@@ -74,6 +90,10 @@ assemble folder/my-script.ir
 will write 'folder/my-script.numb'.
 
 Use --output to write elsewhere, or --output - to write the bytecode to stdout.
+
+Pass - as the path to read the IR from stdin, in which case the bytecode goes to
+stdout unless --output says otherwise:
+cat folder/my-script.ir | numscript assemble - > folder/my-script.numb
 
 The IR format tracks an unstable instruction set and is not a public interface.
 `,

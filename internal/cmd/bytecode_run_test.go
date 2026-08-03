@@ -30,6 +30,48 @@ func TestDefaultBytecodePath(t *testing.T) {
 	require.Equal(t, "folder/x.numb", defaultBytecodePath("folder/x.ir"))
 	require.Equal(t, "folder/x.numb", defaultBytecodePath("folder/x"))
 	require.Equal(t, "folder/x.num.numb", defaultBytecodePath("folder/x.num"))
+	// stdin has no path to derive an output name from
+	require.Equal(t, "-", defaultBytecodePath("-"))
+}
+
+// Reading the IR from stdin must assemble to the same program as reading it
+// from a file, and default to writing the bytecode to stdout.
+func TestAssembleFromStdin(t *testing.T) {
+	dir := t.TempDir()
+
+	stdin, err := os.Create(filepath.Join(dir, "stdin"))
+	require.NoError(t, err)
+	_, err = stdin.WriteString(varsIR)
+	require.NoError(t, err)
+	require.NoError(t, stdin.Close())
+	stdin, err = os.Open(filepath.Join(dir, "stdin"))
+	require.NoError(t, err)
+
+	captured, err := os.Create(filepath.Join(dir, "stdout"))
+	require.NoError(t, err)
+
+	realStdin, realStdout := os.Stdin, os.Stdout
+	os.Stdin, os.Stdout = stdin, captured
+	err = assemble("-", AssembleArgs{})
+	os.Stdin, os.Stdout = realStdin, realStdout
+	require.NoError(t, stdin.Close())
+	require.NoError(t, captured.Close())
+	require.NoError(t, err)
+
+	written, err := os.ReadFile(filepath.Join(dir, "stdout"))
+	require.NoError(t, err)
+	fromStdin, err := vm.DecodeProgram(written)
+	require.NoError(t, err)
+
+	instrs, irErrs := ir.Parse(varsIR)
+	require.Empty(t, irErrs)
+	expected, err := ir.Assemble(instrs)
+	require.NoError(t, err)
+	require.Equal(t, expected.Instructions, fromStdin.Instructions)
+
+	// nothing was written next to a "-" path
+	_, err = os.Stat("-.numb")
+	require.True(t, os.IsNotExist(err))
 }
 
 // The file assemble writes must decode back to exactly what the assembler
