@@ -6,7 +6,7 @@
     {
       "it": "-",
       "expect.txMetadata": [
-        { "key": "amt", "value": { "type": "number", "value": "100" } }
+        { "key": "amt", "value": "100" }
       ]
     }
   ]

@@ -9,7 +9,7 @@
     {
       "it": "sets the expected meta",
       "expect.txMetadata": [
-        { "key": "key", "value": { "type": "portion", "numerator": "11", "denominator": "2" } }
+        { "key": "key", "value": "11/2" }
       ]
     }
   ]

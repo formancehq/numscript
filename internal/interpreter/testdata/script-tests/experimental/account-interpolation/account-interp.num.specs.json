@@ -11,7 +11,7 @@
         "status": "pending"
       },
       "expect.txMetadata": [
-        { "key": "k", "value": { "type": "account", "name": "acc:42:pending:user:001" } }
+        { "key": "k", "value": "acc:42:pending:user:001" }
       ]
     }
   ]

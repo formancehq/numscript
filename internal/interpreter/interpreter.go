@@ -21,7 +21,10 @@ type InterpreterError interface {
 	parser.Ranged
 }
 
-type Metadata = map[string]Value
+// Metadata is the external representation of transaction metadata: keys mapped
+// to their rendered value (see MetaString). The runtime keeps the typed values in
+// programState.TxMeta and renders them when building the ExecutionResult.
+type Metadata = map[string]string
 
 type Posting struct {
 	Source           string   `json:"source"`
@@ -225,7 +228,7 @@ func RunProgram(
 
 	res := &ExecutionResult{
 		Postings:         st.Postings,
-		Metadata:         st.TxMeta,
+		Metadata:         st.txMetaToRendered(),
 		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
 	return res, nil
@@ -246,6 +249,16 @@ type programState struct {
 	SetAccountsMeta internalSetAccountsMeta
 
 	CurrentBalanceQuery BalanceQuery
+}
+
+// txMetaToRendered renders the typed transaction metadata into the external,
+// untyped Metadata form.
+func (st *programState) txMetaToRendered() Metadata {
+	meta := make(Metadata, len(st.TxMeta))
+	for k, v := range st.TxMeta {
+		meta[k] = MetaString(v)
+	}
+	return meta
 }
 
 func (st *programState) pushSender(name AccountAddress, monetary MonetaryInt, color String) {
@@ -1061,10 +1074,5 @@ func PrettyPrintPostings(postings []Posting) string {
 }
 
 func PrettyPrintMeta(meta Metadata) string {
-	m := map[string]string{}
-	for k, v := range meta {
-		m[k] = v.String()
-	}
-
-	return utils.CsvPrettyMap("Name", "Value", m)
+	return utils.CsvPrettyMap("Name", "Value", meta)
 }

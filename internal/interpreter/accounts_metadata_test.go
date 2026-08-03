@@ -8,8 +8,8 @@ import (
 )
 
 func TestCompareSetAccountsMetadata(t *testing.T) {
-	x := SetAccountMetadataRow{Account: "a", Key: "k", Value: NewMonetaryInt(1)}
-	y := SetAccountMetadataRow{Account: "a", Key: "k", Value: NewMonetaryInt(2)}
+	x := SetAccountMetadataRow{Account: "a", Key: "k", Value: "1"}
+	y := SetAccountMetadataRow{Account: "a", Key: "k", Value: "2"}
 
 	t.Run("equal regardless of order", func(t *testing.T) {
 		require.True(t, CompareSetAccountsMetadata(
