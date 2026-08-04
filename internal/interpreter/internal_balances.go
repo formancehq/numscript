@@ -110,6 +110,12 @@ func (b InternalBalances) filterQuery(q BalanceQuery) BalanceQuery {
 func (b InternalBalances) Merge(update []BalanceRow) {
 	for _, row := range update {
 		key := AccountAddress{Name: row.Account, Scope: row.Scope}
-		b.Set(key, row.Asset, row.Color, row.Amount)
+		// clone the amount so the cache (which is mutated in place during a run)
+		// never aliases the *big.Int the Store handed us
+		amount := new(big.Int)
+		if row.Amount != nil {
+			amount.Set(row.Amount)
+		}
+		b.Set(key, row.Asset, row.Color, amount)
 	}
 }
