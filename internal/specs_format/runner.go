@@ -59,8 +59,7 @@ func ReadSpecsFiles(paths []string) ([]RawSpec, error) {
 
 		info, err := os.Stat(root)
 		if err != nil {
-			_, _ = os.Stderr.Write([]byte(err.Error()))
-			os.Exit(1)
+			return nil, err
 		}
 
 		if !info.IsDir() {
