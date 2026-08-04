@@ -29,11 +29,10 @@ func (t regType) String() string {
 	}
 }
 
-// bytecodeTypechecker validates a IR stream one instruction at
-// a time. It remembers the type each register was written with; a later read of
-// that register with a different type, or a read before any write, is a bug in
-// the code that produced the instructions. The state is updated as each
-// instruction checks out.
+// bytecodeTypechecker validates an IR stream one instruction at a time,
+// remembering the type each register was written with. A later read of that
+// register with a different type, or a read before any write, is a bug in whatever
+// produced the instructions.
 type bytecodeTypechecker struct {
 	types map[Reg]regType
 }
@@ -156,10 +155,8 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 	case LabelMarker:
 		return nil
 
-	// the mark ops touch no register, so there is nothing to type here. What does
-	// need checking about them — that pushes and pops balance, and that no send or
-	// asset change sits inside a region — is a control-flow property, not a
-	// register one; see the note on MarkPush in instr.go.
+	// the mark ops touch no register. What does need checking about them is a
+	// control-flow property, not a register one; see the note on MarkPush in instr.go
 	case MarkPush, MarkEnd:
 		return nil
 

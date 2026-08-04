@@ -176,24 +176,18 @@ type (
 	}
 	LabelMarker struct{ Label Label }
 
-	// The mark ops, used for oneof backtracking. Neither takes a register:
-	// the mark is a source-queue depth on a LIFO the run-state owns, so there is no
-	// operand that could name a depth the run-state never marked, and no big.Int
-	// register spent on a small number.
+	// The mark ops, used for oneof backtracking. Neither takes a register: the mark
+	// is a source-queue depth on a LIFO the run-state owns, so no operand can name a
+	// depth it never marked.
 	//
-	// There is deliberately no "rewind but keep the mark" instruction. Closing is
-	// the only way to stop rewinding, so pushes and ends match strictly and "a
-	// region left open after a rewind" cannot be written down at all. A retry is
-	// MarkEnd{Rewind: true} followed by a fresh MarkPush; after the rollback the
-	// queue depth and posting count are back to the closed mark's values, so the new
-	// mark is identical to it.
-	//
-	// Mark depth is therefore a function of position in the instruction stream, and
-	// a verifier could decide statically that pushes and ends balance on every path,
-	// that no MarkEnd runs at depth 0, and that no SendToAccount, SetCurrentAsset or
-	// Save sits at depth > 0 (each invalidates an open mark). No such pass exists yet
-	// — the VM enforces all of it at execution time — but keep emission verifiable:
-	// never emit a mark op on only one side of a branch.
+	// There is no "rewind but keep the mark" instruction: a retry is
+	// MarkEnd{Rewind: true} followed by a fresh MarkPush, which after the rollback
+	// yields a mark identical to the closed one. Mark depth is therefore a function
+	// of position in the instruction stream, so a verifier could decide statically
+	// that pushes and ends balance on every path, that no MarkEnd runs at depth 0,
+	// and that no SendToAccount, SetCurrentAsset or Save sits at depth > 0. No such
+	// pass exists yet — the VM enforces it at execution time — but keep emission
+	// verifiable: never emit a mark op on only one side of a branch.
 	MarkPush struct{} // opens a region at the current source-queue depth
 	// MarkEnd closes the innermost region. Rewind undoes what it did; otherwise the
 	// region's pulls and postings are committed. Dumps as mark_rewind / mark_commit.

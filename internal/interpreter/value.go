@@ -73,14 +73,8 @@ const (
 	valueTypePortion  = "portion"
 )
 
-// The per-shape tagged-JSON structs below are each shared by their type's
-// MarshalJSON and by ParseTaggedValue, so the layout is defined once.
-//
-//	scalar (string/number) -> { "type": ..., "value": "..." }
-//	asset                  -> { "type": "asset",    "name": "COIN" }
-//	account                -> { "type": "account",  "name": "x", "scope": "s" }
-//	monetary               -> { "type": "monetary", "asset": "COIN", "amount": "100" }
-//	portion                -> { "type": "portion",  "numerator": "1", "denominator": "2" }
+// Each struct below is shared by its type's MarshalJSON and by ParseTaggedValue,
+// so the layout is defined once. See the shapes above.
 type (
 	taggedScalar struct {
 		Type  string `json:"type"`

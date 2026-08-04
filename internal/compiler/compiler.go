@@ -567,10 +567,8 @@ func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerErro
 // Both arms write the same dest, which the register typechecker allows because
 // the type doesn't change. When overdraftReg is nil the source is unbounded for
 // every account, so the two arms would be identical and the branch is skipped.
-//
-// Deliberately unconditional otherwise, even for a literal @world: one code path
-// is easier to trust than a compile-time-folded one, and collapsing it is a
-// peephole's job (const-fold str_eq, then drop the dead arm).
+// A literal @world still gets the branch; collapsing it is a peephole's job
+// (const-fold str_eq, then drop the dead arm).
 func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *ir.Reg) ir.Reg {
 	pull := func(dest ir.Reg, overdraft *ir.Reg) ir.Instr {
 		return ir.PullAccount{
@@ -605,11 +603,9 @@ func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *
 	return pulledReg
 }
 
-// minInt writes min(leftReg, rightReg) into a fresh register.
-//
-// There is no min opcode: a min is a comparison and a copy, so it is one of each
-// plus a branch. Speculatively copying the left operand first saves the `jmp`
-// the else arm would otherwise need:
+// minInt writes min(leftReg, rightReg) into a fresh register. There is no min
+// opcode, so it is a comparison, a copy and a branch. Speculatively copying the
+// left operand first saves the `jmp` the else arm would otherwise need:
 //
 //	$min = int_copy($left)
 //	$lt = lt_int($left, $right)
@@ -635,11 +631,9 @@ func (st *state) minInt(leftReg, rightReg ir.Reg) ir.Reg {
 	return minReg
 }
 
-// jmpIfAmountZero jumps to target when the quantity in amountReg is zero.
-//
 // The conditional jumps take a bool, so a quantity has to be projected onto one
-// first: that costs an instruction, and is exactly what stops a monetary amount
-// from being used as a condition by accident (ir.Typecheck rejects it).
+// first — which is what stops a monetary amount from being used as a condition by
+// accident (ir.Typecheck rejects it).
 func (st *state) jmpIfAmountZero(amountReg ir.Reg, target ir.Label) {
 	isZero := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 		return ir.UnaryOp{Op: ir.OpIsZero{}, Arg: amountReg, Dest: dest}

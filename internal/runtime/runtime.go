@@ -1,43 +1,25 @@
-// Package runtime is a Go port of the OCaml run_state module, extended with
-// color (sub-asset fungibility) support. It is the shared funds engine driven by
-// both the VM and the tree-walking interpreter.
+// Package runtime is the funds engine shared by the VM and the tree-walking
+// interpreter: per-(account, scope, asset, color) balances, a FIFO queue of
+// funding sources fed by Pull/PullUncapped, and the postings produced by
+// Send/SendUncapped.
 //
-// It tracks per-(account, asset, color) balances, an ordered FIFO queue of
-// funding sources produced by Pull/PullUncapped, and the list of postings
-// produced by Send/SendUncapped. It is the state layer the VM's PullAccount /
-// SendToAccount / CheckEnoughFunds opcodes call into.
+// Balances load lazily. An entry holds only the net delta applied this run until
+// an operation needs the absolute value (a bounded pull, a send-all, a balance()
+// read); the Store is consulted then and the starting balance folded in. An
+// unbounded pull (nil overdraft) makes cap available regardless of balance, so it
+// never triggers a fetch — that is what keeps send-from-@world free of Store
+// round-trips. Nothing here knows the name "world": callers decide which accounts
+// are unbounded and pass a nil overdraft.
 //
-// Balances are tracked per (account, asset, color) triple as a balanceEntry that
-// separates the movement applied this run from the account's starting balance.
-// Until something needs the absolute balance, an entry holds only the net delta
-// (debits/credits) and the Store is never consulted: an unbounded pull — one
-// whose overdraft is nil — makes cap available regardless of balance, so it just
-// records a debit. The starting balance is fetched from the Store lazily, the
-// first time an operation actually needs the absolute value (a bounded pull, a
-// send-all, or a balance() read), and folded into the delta; from then on the
-// entry holds the absolute balance and further ops mutate it in place.
+// Color "" means uncolored. Pull tags queued funds with a color; Send drains only
+// matching sources, preserving the position of the rest.
 //
-// Which accounts are unbounded is not this package's business: nothing here
-// knows the name "world". Callers decide, and pass a nil overdraft — the
-// interpreter with a Go comparison, the compiler by emitting one (see
-// compiler.pullFromAccount). That is what keeps the common send-from-@world path
-// free of Store round-trips while its running balance stays correct.
+// A *RunState is NOT safe for concurrent use. Use one per execution.
 //
-// Color is a plain string; the empty string "" means "uncolored". Pull tags the
-// funds it queues with a color, and Send drains only the sources whose color
-// matches the requested one, skipping (but preserving the position of)
-// non-matching funds.
-//
-// Concurrency: a *RunState is mutable and NOT safe for concurrent use. Use one
-// per execution.
-//
-// Numeric model: all amounts are *big.Int (arbitrary precision), matching the
-// numscript interpreter. Because *big.Int is a mutable reference type, this
-// package is careful about aliasing: it clones values it ingests from the Store
-// and clones caller-supplied amounts it intends to mutate, it only mutates
-// big.Ints it privately owns (queued source amounts), and it never hands out a
-// live reference to its internal state (GetAccountBalance / GetPostings return
-// copies).
+// Amounts are *big.Int, a mutable reference type, so this package clones values
+// it ingests from the Store and amounts it intends to mutate, only mutates
+// big.Ints it privately owns (queued source amounts), and never hands out a live
+// reference to internal state.
 package runtime
 
 import (
@@ -45,25 +27,19 @@ import (
 	"math/big"
 )
 
-// ErrNoOpenMark is the only way to misuse a mark: MarkEnd on an empty stack. It is
-// the sole error MarkEnd returns, so a caller can map it without inspecting the
-// error at all. Well-formed bytecode matches its pushes to its ends, so this only
-// surfaces for hand-written IR or a hand-crafted .numb.
+// ErrNoOpenMark is the only error MarkEnd returns. Well-formed bytecode matches
+// pushes to ends, so it only surfaces for hand-written IR or a hand-crafted .numb.
 var ErrNoOpenMark = errors.New("runtime: no open mark to end")
 
-// Store supplies the authoritative starting balance for an (account, asset,
-// color) triple. A triple never seen by the ledger is fetched once, then cached.
-// Implementations should return 0 (or nil, treated as 0) for unknown triples,
-// not an error. The returned *big.Int is cloned on ingest, so the Store may
-// safely reuse it.
+// Store supplies the starting balance for an (account, asset, color) triple.
+// Implementations should return 0 (or nil, treated as 0) for unknown triples, not
+// an error. The returned *big.Int is cloned on ingest, so the Store may reuse it.
 type Store interface {
 	GetBalance(account, asset, color string) (*big.Int, error)
 }
 
-// Posting is a recorded movement of Amount units of Asset (of the given Color)
-// from Source to Destination. It is the single source of truth for the
-// interpreter's public Posting type (aliased there), hence the json tags: field
-// names and order define the public ledger serialization contract — keep them
+// Posting is aliased as the interpreter's public Posting type, so the json tags
+// define the public ledger serialization contract — keep field names and order
 // stable. The VM leaves the scope fields empty; the interpreter fills them.
 type Posting struct {
 	Source           string   `json:"source"`
@@ -81,10 +57,8 @@ type ExecutionResult struct {
 	AccountsMetadata AccountsMetadata  `json:"accountsMeta"`
 }
 
-// PairKey identifies a balance slot: an (account, scope, asset, color) tuple.
-// Exported so a Store mock/adapter can build the same keys. Scope is a second
-// dimension of the account (scoped accounts hold separate balances); the VM
-// leaves it empty.
+// PairKey identifies a balance slot. Scope is a second dimension of the account
+// (scoped accounts hold separate balances); the VM leaves it empty.
 type PairKey struct {
 	Account string
 	Scope   string
@@ -92,10 +66,8 @@ type PairKey struct {
 	Color   string
 }
 
-// source is an internal funding entry queued by Pull / PullUncapped. It carries
-// the scope and color of the funds so Send can filter and so postings/refunds
-// land on the right (scope, asset, color) balance. The amount is privately owned
-// by the queue and may be mutated in place.
+// source is a funding entry queued by Pull / PullUncapped. The amount is
+// privately owned by the queue and may be mutated in place.
 type source struct {
 	account string
 	scope   string
@@ -103,24 +75,22 @@ type source struct {
 	color   string
 }
 
-// balanceEntry tracks one (account, asset, color) balance. While baseLoaded is
-// false, amount is the net delta applied this run (starting from 0) and the
-// Store has not been consulted; once baseLoaded is true, the Store's starting
-// balance has been folded in and amount is the absolute running balance.
+// While baseLoaded is false, amount is the net delta applied this run and the
+// Store has not been consulted; once true, the starting balance has been folded
+// in and amount is the absolute running balance.
 type balanceEntry struct {
 	amount     big.Int
 	baseLoaded bool
 }
 
-// mark is one open region: the source-queue depth and the posting-list
-// length at the matching MarkPush. A rewinding MarkEnd rolls both back to it.
+// mark is one open region: the source-queue depth and the posting-list length at
+// the matching MarkPush. A rewinding MarkEnd rolls both back to it.
 type mark struct {
 	sources  int32
 	postings int32
 }
 
-// RunState is the Go port of the OCaml run_state. The zero value is not usable;
-// call New. All fields are unexported to preserve the .mli interface boundary.
+// The zero value is not usable; call New.
 type RunState struct {
 	store        Store
 	balances     map[PairKey]*balanceEntry
@@ -145,22 +115,16 @@ func New(store Store) *RunState {
 //
 // PRE: no mark is open (see HasOpenMark). A rewinding MarkEnd repays queued funds
 // into the current asset's balance, so changing the asset mid-region would repay
-// into the wrong one. The VM refuses the pair outright rather than relying on this.
+// into the wrong one.
 func (s *RunState) SetCurrentAsset(asset string) {
 	s.currentAsset = asset
 }
 
-// Reset clears all per-execution state — the balance cache, the source queue,
-// the postings, the mark stack, and the current asset — and rebinds the store,
-// while retaining the underlying map/slice capacity. This lets a single RunState
-// be reused across executions without reallocating its containers (the balances
-// map and the sources/postings/marks slices keep their backing storage).
+// Reset clears all per-execution state and rebinds the store, retaining
+// map/slice capacity so a RunState can be reused across executions. Any mark left
+// open by a run that failed mid-region is dropped.
 //
-// Resetting drops any mark left open by a run that failed mid-region, so a reused
-// RunState never inherits the previous run's open marks.
-//
-// Note: GetPostings returns deep copies, so a result obtained before Reset stays
-// valid afterward.
+// GetPostings returns copies, so a result obtained before Reset stays valid.
 func (s *RunState) Reset(store Store) {
 	s.store = store
 	clear(s.balances)
@@ -170,16 +134,13 @@ func (s *RunState) Reset(store Store) {
 	s.currentAsset = ""
 }
 
-// Prewarm seeds the balance cache with balances fetched in bulk, so runtime's
-// lazy per-key Store.GetBalance path is never hit for them. This lets a caller
-// keep a single batched balance round-trip (e.g. the interpreter's pre-pass that
-// collects every needed (account, asset, color) and fetches them in one query)
-// instead of paying one Store call per triple.
+// Prewarm seeds the balance cache from a bulk fetch, so the lazy per-key
+// Store.GetBalance path is never hit for those keys.
 //
-// Call it once, before any Pull/Send/Save/ForcePosting. Amounts are cloned, so
-// the caller may reuse them. A key whose base is already loaded is left untouched
-// (the live value wins), so a stray double-call can never clobber computed state;
-// a key that only holds a delta so far has the base folded into it here.
+// Call it once, before any Pull/Send/Save/ForcePosting. Amounts are cloned. A key
+// whose base is already loaded is left untouched (the live value wins), so a
+// stray double-call cannot clobber computed state; a key that only holds a delta
+// has the base folded into it here.
 func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 	for key, amount := range balances {
 		e := s.balances[key]
@@ -197,25 +158,23 @@ func (s *RunState) Prewarm(balances map[PairKey]*big.Int) {
 }
 
 // Has reports whether (account, asset, color) already has its starting balance
-// loaded (prewarmed or fetched). An entry that only holds a delta so far reports
-// false, so a caller (e.g. fetchAndPrewarm) still fetches and folds in the base.
+// loaded. An entry that only holds a delta so far reports false, so a caller
+// still fetches and folds in the base.
 func (s *RunState) Has(account, scope, asset, color string) bool {
 	e := s.balances[PairKey{account, scope, asset, color}]
 	return e != nil && e.baseLoaded
 }
 
-// AccountBalance is a single cached (asset, color, amount) entry for an account.
 type AccountBalance struct {
 	Asset  string
 	Color  string
 	Amount *big.Int
 }
 
-// AccountBalances returns copies of every tracked balance entry for account,
-// with each entry's starting balance folded in so the amounts are absolute. It
-// only reports triples already touched this run (it does not enumerate the
-// Store), so an account that was never prewarmed/touched yields an empty slice.
-// Used by asset scaling, which must enumerate an account's holdings across scales.
+// AccountBalances returns copies of every tracked balance entry for account, with
+// starting balances folded in so the amounts are absolute. It only reports
+// triples already touched this run — it does not enumerate the Store — so an
+// account never prewarmed or touched yields an empty slice.
 func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, error) {
 	var out []AccountBalance
 	for key, e := range s.balances {
@@ -233,15 +192,11 @@ func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, err
 	return out, nil
 }
 
-// GetAccountBalance returns the balance for (account, asset, color). An empty
-// asset means "use currentAsset" (the OCaml ?asset default). The value is
-// fetched from the Store on first access and cached thereafter. The returned
-// *big.Int is a fresh copy: callers may keep or mutate it freely without
-// affecting runtime state.
+// GetAccountBalance returns a fresh copy of the balance for (account, asset,
+// color), fetching from the Store on first access.
 //
-// Note: "" is the unset sentinel for asset, consistent with currentAsset
-// starting as "". A real asset must never be the empty string. For color, ""
-// is a legitimate value meaning "uncolored".
+// "" is the unset sentinel for asset, meaning "use currentAsset"; a real asset is
+// never the empty string. For color, "" is a legitimate value: uncolored.
 func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.Int, error) {
 	if asset == "" {
 		asset = s.currentAsset
@@ -253,26 +208,21 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 	return new(big.Int).Set(bal), nil
 }
 
-// Pull mirrors the OCaml `pull`. It debits up to cap from src's (currentAsset,
-// color) balance (clamped to non-negative), honoring the overdraft policy,
-// queues the pulled amount as a funding source tagged with color, and writes the
-// amount made available into out. The overdraft bound is an optional *big.Int
-// (the OCaml `int64 option`):
+// Pull debits up to cap from src's (currentAsset, color) balance, queues the
+// pulled amount as a funding source tagged with color, and writes the amount made
+// available into out:
 //
 //	overdraft == nil -> unbounded: available = max(0, cap)
 //	overdraft == b   -> available = min(max(0, balance + max(0,b)), max(0, cap))
 //	                    (pass big.NewInt(0) for the "balance only" default)
 //
-// The result is written into the caller-provided out (overwritten), avoiding a
-// return allocation; out may be any addressable *big.Int (e.g. a VM register).
-// Inputs cap and overdraft are not mutated. The only allocation per call is the
-// queued source's own copy of the amount (it must outlive out and is mutated in
-// place by compactAt/Send); the balance is debited in place on the cached value.
+// out is overwritten and may be any addressable *big.Int (e.g. a VM register).
+// cap and overdraft are not mutated. The only allocation per call is the queued
+// source's own copy of the amount, which must outlive out.
 func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) error {
 	if overdraft == nil {
-		// unbounded: available = max(0, cap), independent of the balance — so no
-		// Store fetch. The debit is recorded as a delta and folded against the
-		// starting balance only if the balance is later needed.
+		// available = max(0, cap), independent of the balance, so no Store fetch:
+		// the debit is recorded as a delta and folded in only if later needed.
 		out.Set(cap)
 		if out.Sign() < 0 {
 			out.SetInt64(0)
@@ -306,28 +256,20 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// queue the pulled funds — an independent copy (out stays the caller's; the
-	// queued amount is mutated in place by compactAt/Send)
+	// an independent copy: out stays the caller's, while the queued amount is
+	// mutated in place by compactAt/Send
 	amt := new(big.Int).Set(out)
 	s.sources = append(s.sources, source{src, scope, amt, color})
 
-	// debit the source balance in place; the cache keeps the same *big.Int
 	currentBal.Sub(currentBal, out)
 	return nil
 }
 
-// PullUncapped mirrors the OCaml `pull_uncapped`: makes available
-// max(0, balance + max(0, overdraftBound)) of src's (currentAsset, color)
-// balance, queuing it only when positive, and writes the available amount into
-// out. As in Pull, a negative overdraftBound is clamped to 0 (a nonsensical
-// negative bound never eats into the positive balance); pass big.NewInt(0) for
-// the "balance only" default.
-//
-// Like Pull, the result is written into the caller-provided out (no return
-// allocation; out may be any addressable *big.Int). overdraftBound is not
-// mutated. When the available amount is positive it costs one allocation (the
-// queued source's own copy) and debits the balance in place; when it is zero
-// nothing is queued, nothing is debited, and no allocation occurs.
+// PullUncapped makes available max(0, balance + max(0, overdraftBound)) of src's
+// (currentAsset, color) balance, queuing it only when positive, and writes the
+// available amount into out. As in Pull a negative overdraftBound is clamped to 0,
+// so it never eats into a positive balance; pass big.NewInt(0) for the "balance
+// only" default. overdraftBound is not mutated.
 func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) error {
 	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
 	if err != nil {
@@ -351,24 +293,20 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	return nil
 }
 
-// Send mirrors the OCaml `send`, extended with a color filter. It drains queued
-// funding sources in FIFO order until cap is satisfied or eligible sources run
-// out, and each emitted posting carries the *consumed source's* own color.
+// Send drains queued funding sources in FIFO order until cap is satisfied or
+// eligible sources run out. Each emitted posting carries the *consumed source's*
+// own color.
 //
-// The color filter selects which sources are eligible:
-//
-//	color == nil   -> match anything; a single drain may consume and emit funds
-//	                  of several colors at once. This is the mode the interpreter's
-//	                  destinations use.
+//	color == nil   -> match anything; one drain may consume and emit funds of
+//	                  several colors at once (the interpreter's destination mode)
 //	color != nil   -> only sources whose color == *color are consumed; others are
-//	                  skipped and left in place (*color == "" meaning uncolored).
+//	                  skipped and left in place (*color == "" meaning uncolored)
 //
-// dest == nil is the "keep/refund" path: the source is credited back and no
-// posting is emitted. A partially consumed source's remainder stays at its
-// position.
+// dest == nil is the keep/refund path: the source is credited back and no posting
+// is emitted. A partially consumed source's remainder stays at its position.
 //
-// PRE: no mark is open (see HasOpenMark). Draining consumes sources from the front,
-// which renumbers the queue and leaves an open mark pointing at the wrong boundary.
+// PRE: no mark is open (see HasOpenMark). Draining consumes sources from the
+// front, renumbering the queue and leaving an open mark at the wrong boundary.
 func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
 	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
@@ -400,10 +338,9 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 	return nil
 }
 
-// SendUncapped mirrors the OCaml `send_uncapped`, extended with the same color
-// filter as Send: color == nil drains every queued source (each posting keeping
-// its own color); color != nil drains only matching ones, leaving others in
-// place.
+// SendUncapped applies the same color filter as Send: color == nil drains every
+// queued source (each posting keeping its own color); color != nil drains only
+// matching ones, leaving others in place.
 //
 // PRE: no mark is open, for the same reason as Send.
 func (s *RunState) SendUncapped(dest *string, destScope string, color *string) error {
@@ -424,16 +361,13 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 	return nil
 }
 
-// ForcePosting records a direct movement of amount (of asset/color) from src to
-// dst, bypassing the funding queue: it debits src, credits dst, and appends the
-// posting. It is for movements the queue does not model — e.g. asset-scaling
-// conversions (interpreter.forcePushPostingUncolored). Unlike Send it uses the
-// explicit asset argument, which may differ from the current asset (a scaled
-// asset). A non-positive amount is a no-op. PRE: the caller has already checked
-// invariants (e.g. amount sign); no balance sufficiency check is performed.
+// ForcePosting moves amount from src to dst bypassing the funding queue, for
+// movements the queue does not model (e.g. asset-scaling conversions). Unlike Send
+// it uses the explicit asset argument, which may differ from the current asset. A
+// non-positive amount is a no-op; no balance sufficiency check is performed.
 //
-// Safe inside a region, unlike Send: it touches no queue entry, so
-// a rewinding MarkEnd undoes it completely by reversing the posting.
+// Safe inside a region, unlike Send: it touches no queue entry, so a rewinding
+// MarkEnd undoes it completely by reversing the posting.
 func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
 		return nil
@@ -444,7 +378,7 @@ func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color strin
 	return s.addPosting(src, srcScope, dst, dstScope, asset, color, amount) // appends the posting and credits dst
 }
 
-// Save mirrors the numscript `save` statement: it protects funds from being
+// Save implements the numscript `save` statement: it protects funds from being
 // pulled later by reducing the (account, asset, color) balance, floored at zero.
 //
 //	amount != nil -> balance = max(0, balance - amount)   (PRE: amount >= 0)
@@ -471,48 +405,37 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 
 // --- marks ---
 //
-// A region lets a caller try a source evaluation and undo it if it did not work out
-// — the `oneof` shape: pull from a branch, and if the branch did not cover the cap,
-// repay what it pulled and try the next one.
+// A region lets a caller try a source evaluation and undo it if it did not work
+// out — the `oneof` shape: pull from a branch, and if the branch did not cover the
+// cap, repay what it pulled and try the next one.
 //
-// The mark is the source-queue depth, and it is deliberately NOT a value the
-// caller holds: RunState owns a LIFO of them. That is what makes the primitive
-// safe. A caller cannot name a depth that was never marked, cannot restore a mark
-// out of order, and cannot restore one twice — so the queue can never be
-// truncated to a bogus depth, which would either panic or resurrect entries the
-// queue had already handed out.
+// The mark is a source-queue depth that the caller never holds: RunState owns a
+// LIFO of them, so a caller cannot name a depth that was never marked, restore one
+// out of order, or restore one twice. The queue can therefore never be truncated
+// to a bogus depth.
 //
-// The other half of the safety story is not enforced here: a depth only stays
-// meaningful while nothing consumes the queue from the front and the asset a repay
-// lands on is fixed, so Send, SendUncapped and SetCurrentAsset document that as a
-// precondition and callers use HasOpenMark to hold themselves to it. The VM checks
-// it at Op_SendToAccount and Op_SetCurrentAsset, where a violation is a property of
-// the program rather than of the funds state.
+// A depth only stays meaningful while nothing consumes the queue from the front
+// and the asset a repay lands on is fixed, which Send, SendUncapped and
+// SetCurrentAsset document as a precondition. That half is not enforced here; the
+// VM checks it at Op_SendToAccount and Op_SetCurrentAsset.
 //
-// A rewind undoes both pulls and postings, so a movement recorded by ForcePosting
-// inside a region is rolled back — that is what makes a scaled source usable inside
-// a `oneof` branch. What it does NOT undo is queue *consumption*, which is why Send
-// is still refused inside a region; see the INVARIANT on MarkEnd. Lifting that needs
-// a real undo log of queue mutations, and nothing in the language asks for it yet:
-// sources only pull.
+// A rewind undoes pulls and postings, so a ForcePosting inside a region is rolled
+// back. It does NOT undo queue *consumption*, which is why Send is refused inside
+// a region; see the INVARIANT on MarkEnd.
 //
-// There are deliberately only two operations, MarkPush and MarkEnd, and closing is
-// the *only* way to stop rewinding — there is no "rewind but keep the mark". A caller
-// that wants to retry closes with rewind and pushes again. That keeps the grammar a
-// strict matching of pushes to ends, which makes "a region left open after a rewind"
-// not a state to detect but a state that cannot be written down. Since the ops carry
-// no operand either, mark depth is a function of the instruction stream alone, so an
-// IR verifier can prove pushes and ends balance and that no forbidden op appears
-// inside a region. No such pass exists yet.
+// There is no "rewind but keep the mark": a retry closes with rewind and pushes
+// again. Pushes and ends therefore match strictly, so "a region left open after a
+// rewind" is not a state to detect but one that cannot be encoded. Neither op
+// carries an operand, so mark depth is a function of the instruction stream alone
+// and an IR verifier could prove balance statically. No such pass exists yet.
 
-// HasOpenMark reports whether at least one mark is open.
 func (s *RunState) HasOpenMark() bool {
 	return len(s.marks) > 0
 }
 
-// MarkPush opens a region at the current source-queue depth and posting-list length.
-// O(1), and free of allocation once the stack has reached its high-water mark (the
-// backing array is retained across Reset).
+// MarkPush opens a region at the current source-queue depth and posting-list
+// length. Allocation-free once the stack has reached its high-water mark, since
+// the backing array is retained across Reset.
 func (s *RunState) MarkPush() {
 	s.marks = append(s.marks, mark{
 		sources:  int32(len(s.sources)),
@@ -520,42 +443,25 @@ func (s *RunState) MarkPush() {
 	})
 }
 
-// MarkEnd closes the innermost region. It always pops the mark; rewind
-// decides what happens to the work the region did.
+// MarkEnd closes the innermost region, always popping the mark.
 //
-// rewind == false — commit. Whatever was pulled stays queued and whatever was posted
-// stays posted; only the mark goes away. This is the path a `oneof` branch that
-// covered the cap takes.
+// rewind == false commits: whatever was pulled stays queued and whatever was
+// posted stays posted.
 //
-// rewind == true — roll the region back, in two parts.
+// rewind == true rolls the region back in two parts. Postings emitted since the
+// MarkPush are reversed and dropped; each posting records its own asset, so this
+// part does not depend on currentAsset. Sources still queued above the mark are
+// repaid to the balance they were debited from, then the queue is truncated.
+// compactAt may have folded funds, but the fold preserves (account, scope, color),
+// so the repay still lands correctly. The two parts are both additive balance
+// adjustments, so their order is conventional rather than required.
 //
-// Postings emitted since the MarkPush are reversed and dropped. A posting records its
-// own source, destination, asset, colour and amount, so crediting the source and
-// debiting the destination is the exact inverse of addPosting plus the debit that
-// funded it — and because the asset comes from the posting, this part does not depend
-// on currentAsset at all.
-//
-// Sources still queued above the mark are repaid to the (account, scope, colour)
-// balance they were debited from, then the queue is truncated. Repaying the queued
-// amounts is the exact inverse of the debits Pull made. (compactAt may have folded
-// same-(account,scope,colour) funds, but the fold preserves all three per the merge
-// key, so the repay still lands correctly.)
-//
-// The two parts commute — both are additive balance adjustments — so their order is
-// the conventional undo direction rather than a requirement.
-//
-// To retry, close with rewind and MarkPush again: after the rollback the queue depth
-// and posting length are back to the old mark's values, so the new mark is identical
-// to the one just closed. There is no rewind-without-closing on purpose; see the note
-// above this block.
-//
-// INVARIANT: no Send may have run inside the region. Reversing a posting credits its
-// source back, which is only right because the queue entry that funded it was pulled
-// *inside* the region and is therefore not also being repaid by the second loop. A
-// Send can consume entries queued *below* the mark, and for those the credit and the
-// repay would both apply — double-counting, i.e. inventing money. That is why
-// Op_SendToAccount is refused while a mark is open; relaxing that guard requires
-// undoing queue consumption too, not just postings.
+// INVARIANT: no Send may have run inside the region. Reversing a posting credits
+// its source back, which is only correct because the queue entry that funded it was
+// pulled *inside* the region and is therefore not also repaid by the second loop. A
+// Send can consume entries queued *below* the mark, and for those the credit and
+// the repay would both apply — inventing money. Hence Op_SendToAccount is refused
+// while a mark is open; relaxing that requires undoing queue consumption too.
 func (s *RunState) MarkEnd(rewind bool) error {
 	if len(s.marks) == 0 {
 		return ErrNoOpenMark
@@ -582,11 +488,10 @@ func (s *RunState) MarkEnd(rewind bool) error {
 	return nil
 }
 
-// GetPostings returns a copy of the recorded postings: a fresh slice, so callers
-// cannot alter the internal queue's length/order. Posting amounts are write-once
-// (addPosting appends a freshly-cloned Amount and never mutates an existing
-// posting), so the *big.Int values are shared rather than deep-cloned — safe,
-// and it avoids an allocation per posting.
+// GetPostings returns a fresh slice, so callers cannot alter the internal
+// length/order. Posting amounts are write-once — addPosting clones on append and
+// never mutates an existing posting — so the *big.Int values are shared rather
+// than deep-cloned.
 func (s *RunState) GetPostings() []Posting {
 	out := make([]Posting, len(s.postings))
 	copy(out, s.postings)
@@ -596,9 +501,7 @@ func (s *RunState) GetPostings() []Posting {
 // --- internal helpers ---
 
 // credit routes a consumed source amount either into a posting (dest != nil) or
-// back to the source as a refund (dest == nil). The funds keep their color, so
-// both the posting and the destination/source balance land on (asset, color).
-// amount is treated as read-only.
+// back to the source as a refund (dest == nil). amount is read-only.
 func (s *RunState) credit(dest *string, destScope string, src source, asset string, amount *big.Int) error {
 	if dest != nil {
 		return s.addPosting(src.account, src.scope, *dest, destScope, asset, src.color, amount)
@@ -609,8 +512,7 @@ func (s *RunState) credit(dest *string, destScope string, src source, asset stri
 	return nil
 }
 
-// entryFor returns the entry for key, creating a fresh zero-delta one (base not
-// yet loaded) if absent.
+// entryFor creates a fresh zero-delta entry (base not yet loaded) if absent.
 func (s *RunState) entryFor(key PairKey) *balanceEntry {
 	e := s.balances[key]
 	if e == nil {
@@ -622,8 +524,8 @@ func (s *RunState) entryFor(key PairKey) *balanceEntry {
 
 // loadBase folds e's starting balance in from the Store on first need, turning a
 // delta-only entry into an absolute one. Idempotent once baseLoaded is set. The
-// Store is scope-agnostic; scoped balances are seeded via Prewarm, and the VM
-// (the only path hitting the Store) never uses scopes.
+// Store is scope-agnostic: scoped balances are seeded via Prewarm, and the VM (the
+// only path hitting the Store) never uses scopes.
 func (s *RunState) loadBase(key PairKey, e *balanceEntry) error {
 	if e.baseLoaded {
 		return nil
@@ -639,11 +541,9 @@ func (s *RunState) loadBase(key PairKey, e *balanceEntry) error {
 	return nil
 }
 
-// absoluteBalance returns a live pointer to the (account, asset, color) absolute
-// balance, loading the starting balance from the Store on first access. The
-// returned pointer is the live entry value — internal callers may mutate it in
-// place to debit/credit; it is never aliased externally (GetAccountBalance hands
-// out copies).
+// absoluteBalance returns a live pointer into the entry, loading the starting
+// balance from the Store on first access. Internal callers may mutate it in place
+// to debit/credit; it is never aliased externally.
 func (s *RunState) absoluteBalance(account, scope, asset, color string) (*big.Int, error) {
 	key := PairKey{account, scope, asset, color}
 	e := s.entryFor(key)
@@ -653,11 +553,10 @@ func (s *RunState) absoluteBalance(account, scope, asset, color string) (*big.In
 	return &e.amount, nil
 }
 
-// addToBalance applies delta to (account, asset, color). It never consults the
-// Store: a delta added to a not-yet-loaded entry just accumulates against the
-// running delta (folded against the base later, if ever needed), and a delta
-// added to a loaded entry mutates the absolute balance in place. delta is
-// read-only. The error return is kept for call-site symmetry; it is always nil.
+// addToBalance never consults the Store: a delta on a not-yet-loaded entry just
+// accumulates (folded against the base later, if ever needed), and a delta on a
+// loaded entry mutates the absolute balance in place. delta is read-only. The
+// error return is kept for call-site symmetry; it is always nil.
 func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.Int) error {
 	e := s.entryFor(PairKey{account, scope, asset, color})
 	e.amount.Add(&e.amount, delta)
@@ -666,18 +565,17 @@ func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.
 
 // subFromBalance is addToBalance with the sign flipped, so a caller undoing a
 // movement does not have to allocate a negated copy of the amount. delta is
-// read-only. No error return: like addToBalance it never fails, and unlike
-// addToBalance it has no historical call sites expecting one.
+// read-only.
 func (s *RunState) subFromBalance(account, scope, asset, color string, delta *big.Int) {
 	e := s.entryFor(PairKey{account, scope, asset, color})
 	e.amount.Sub(&e.amount, delta)
 }
 
-// addPosting appends a posting verbatim and credits the destination balance.
-// Non-positive amounts are ignored. Postings are never merged here: same-source
-// funds are instead coalesced upstream in the source queue by compactAt, so a
-// posting can only ever fuse adjacent funds *within* one drain — never across
-// separate sends. amount is cloned into the posting.
+// addPosting appends a posting and credits the destination balance. Non-positive
+// amounts are ignored. Postings are never merged here: same-source funds are
+// coalesced upstream in the queue by compactAt, so a posting can only fuse
+// adjacent funds *within* one drain, never across separate sends. amount is cloned
+// into the posting.
 func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
 		return nil
@@ -694,14 +592,12 @@ func (s *RunState) addPosting(src, srcScope, dst, dstScope, asset, color string,
 	return s.addToBalance(dst, dstScope, asset, color, amount)
 }
 
-// compactAt coalesces the maximal run of funds at index i that share i's
-// (account, color), folding each into s.sources[i], and drops any zero-amount
-// entries it passes. It merges adjacent same-source funds in the queue before
-// they are drained, so
-// one drain over them yields a single posting. Because it operates on the queue
-// (which each send fully consumes) and never on the posting list, it cannot fuse
-// funds belonging to different sends. The fold mutates s.sources[i].amount in
-// place, which is safe because queued amounts are privately owned.
+// compactAt coalesces the maximal run of funds at index i sharing i's (account,
+// scope, color) into s.sources[i], dropping any zero-amount entries it passes, so
+// one drain over them yields a single posting. It operates on the queue and never
+// on the posting list, so it cannot fuse funds belonging to different sends. The
+// fold mutates s.sources[i].amount in place, safe because queued amounts are
+// privately owned.
 func (s *RunState) compactAt(i int) {
 	for i+1 < len(s.sources) {
 		next := s.sources[i+1]
@@ -717,7 +613,7 @@ func (s *RunState) compactAt(i int) {
 	}
 }
 
-// removeAt deletes the source at index i, preserving the order of the rest.
+// removeAt preserves the order of the remaining sources.
 func (s *RunState) removeAt(i int) {
 	s.sources = append(s.sources[:i], s.sources[i+1:]...)
 }

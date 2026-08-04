@@ -47,9 +47,8 @@ const (
 	// B = account str reg (for the error)
 	Op_AssertNonNegativeBalance Opcode = 0x03
 
-	// checks the allotment leftover portion in reg A: errors if it is negative
-	// (portions summing to > 1), and — when B == 1 (no `remaining` clause) — if it
-	// is non-zero (portions not summing to exactly 1)
+	// checks the allotment leftover portion in reg A: errors if negative (portions
+	// summing to > 1), and — when B == 1 (no `remaining` clause) — if non-zero
 	Op_AssertLeftover Opcode = 0x04
 
 	Op_CheckEnoughFunds Opcode = 0x05
@@ -67,8 +66,7 @@ const (
 
 	// 0x14 Op_LoadIntImmediate: inline i16 literal in b_c. NOT IMPLEMENTED (reserved)
 
-	// A = dest (bool reg). The two bool constants have an opcode each, so there
-	// is no operand to decode.
+	// A = dest (bool reg); one opcode per constant, so there is no operand to decode
 	Op_ConstTrue  Opcode = 0x15
 	Op_ConstFalse Opcode = 0x16
 
@@ -85,8 +83,8 @@ const (
 	Op_MetaInt     Opcode = 0x23
 	Op_MetaPortion Opcode = 0x24
 
-	// as above, but the parsed monetary needs two destinations, so the amount's
-	// goes in an ext word: A = dest asset (str reg), ext.A = dest amount (int reg)
+	// as above, but a monetary needs two destinations, so the amount's goes in an
+	// ext word: A = dest asset (str reg), ext.A = dest amount (int reg)
 	Op_MetaMonetary Opcode = 0x25
 
 	// --- arithmetic & constructors (0x30) ---
@@ -103,12 +101,11 @@ const (
 	// 0x37 was Op_StrEq: moved to the comparison group, now 0x62. Reserved, do
 	// not reuse.
 
-	// the other half of portion arithmetic; not adjacent to Op_SubPortion (0x33)
-	// because 0x32 is burned and 0x34..0x37 are taken
+	// not adjacent to Op_SubPortion (0x33) because 0x32 is burned and 0x34..0x37
+	// are taken
 	Op_AddPortion Opcode = 0x38
 
-	// completes portion arithmetic: an allotment share is a mul plus a floor
-	// (Op_PortionToInt)
+	// an allotment share is a mul plus a floor (Op_PortionToInt)
 	Op_MulPortion Opcode = 0x39
 
 	// 0x3A..0x3F reserved
@@ -116,10 +113,11 @@ const (
 	// --- unary & conversions (0x40) ---
 	// 0x40 was Op_GetAmount and 0x41 was Op_GetAsset: projecting a monetary is now
 	// just naming one of its two registers. Reserved, do not reuse.
-	// One copy per register bank: A = dest, B = src, both in that bank. There is
-	// no monetary copy, since a monetary is a (str asset, int amount) pair — copy
-	// the two halves. The family is split across 0x42..0x43 and 0x4A..0x4B
-	// because 0x44..0x49 were already spoken for.
+	//
+	// One copy per register bank: A = dest, B = src, both in that bank. There is no
+	// monetary copy — a monetary is a (str asset, int amount) pair, so copy the two
+	// halves. The family is split across 0x42..0x43 and 0x4A..0x4B because
+	// 0x44..0x49 were already spoken for.
 	Op_IntCopy     Opcode = 0x42
 	Op_PortionCopy Opcode = 0x43
 
@@ -140,8 +138,7 @@ const (
 	Op_StrCopy  Opcode = 0x4A
 	Op_BoolCopy Opcode = 0x4B
 
-	// The two directions across the int/portion boundary. Op_IntToPortion is
-	// exact; Op_PortionToInt floors.
+	// Op_IntToPortion is exact; Op_PortionToInt floors.
 	Op_IntToPortion Opcode = 0x4C
 	Op_PortionToInt Opcode = 0x4D
 
@@ -170,27 +167,22 @@ const (
 	// --- marks (oneof backtracking) ---
 	//
 	// 0x55 was Op_Snapshot and 0x56 was Op_Restore: the source-queue mark used to
-	// travel through an int register, which made it a big.Int for a small number and
-	// let any int be passed to a restore. The pair below takes no register at all;
-	// the mark lives on a LIFO owned by the run-state.
+	// travel through an int register, which let any int be passed to a restore. The
+	// pair below takes no register; the mark lives on a LIFO owned by the run-state.
 	//
-	// There is deliberately no third "rewind but keep the mark" opcode (a draft had
-	// one at 0x57). Closing is the only way to stop rewinding, so pushes and ends
-	// match strictly and "a region left open after a rewind" is not a state to
-	// detect but one that cannot be encoded. A retry is Op_MarkEnd with the rewind
-	// flag, followed by a fresh Op_MarkPush.
-	//
-	// Neither takes a register, so mark depth is a function of position in the
-	// instruction stream: a future IR verifier can prove pushes and ends balance and
-	// that no Op_SendToAccount / Op_SetCurrentAsset / Op_Save sits inside a region.
-	// Until it exists the VM enforces all of it at execution time.
+	// There is no "rewind but keep the mark" opcode: a retry is Op_MarkEnd with the
+	// rewind flag followed by a fresh Op_MarkPush, so pushes and ends match strictly
+	// and mark depth is a function of position in the instruction stream. A future
+	// IR verifier can therefore prove pushes and ends balance and that no
+	// Op_SendToAccount / Op_SetCurrentAsset / Op_Save sits inside a region; until it
+	// exists the VM enforces that at execution time.
 
 	// opens a region at the current source-queue depth and posting count
 	Op_MarkPush Opcode = 0x55
 
 	// A = rewind flag. Always pops the innermost mark; A == 1 additionally repays
 	// everything pulled and reverses everything posted since the matching
-	// Op_MarkPush, while A == 0 commits it. Flag-in-a-byte follows Op_AssertLeftover.
+	// Op_MarkPush, while A == 0 commits it.
 	Op_MarkEnd Opcode = 0x56
 
 	// reserved (0x57..0x5F) for PullAccount specializations, e.g.:
@@ -203,17 +195,16 @@ const (
 	// // cap=Some,  overdraft=Unbounded
 	// Op_PullAccountUnboundedOverdraft
 	//
-	// This block used to run to 0x8F. The comparison and bool-ops groups below
-	// took 0x60..0x7F out of it, leaving nine slots for the four specializations
-	// sketched above.
+	// This block used to run to 0x8F; the comparison and bool-ops groups below took
+	// 0x60..0x7F out of it.
 
 	// --- comparisons (0x60) ---
 	// A = dest (bool reg) for all of them; the operand banks are what the opcode
-	// implies. Op_IsZero is unary and the rest are binary, but they are one group
+	// implies. Op_IsZero is unary and the rest binary, but they are one group
 	// because they are the whole set of bool *producers*.
 	//
-	// Only `<` and `==` exist, per type. The other ten surface operators are
-	// normalised by the front end:
+	// Only `<` and `==` exist, per type. The other surface operators are normalised
+	// by the front end:
 	//
 	//	a <  b   ->  Lt(a, b)
 	//	a >  b   ->  Lt(b, a)            operands swapped
@@ -221,11 +212,6 @@ const (
 	//	a >= b   ->  Not(Lt(a, b))
 	//	a == b   ->  Eq(a, b)
 	//	a != b   ->  Not(Eq(a, b))
-	//
-	// 12 surface operators, 5 opcodes. Every extra predicate is another case in
-	// the SMT encoder and in any formal model of the VM, so the cost is paid three
-	// times over. LLVM does the same, canonicalising `sgt` to `slt` with swapped
-	// operands in InstCombine so downstream passes only see one form.
 	Op_LtInt     Opcode = 0x60
 	Op_EqInt     Opcode = 0x61
 	Op_StrEq     Opcode = 0x62 // was 0x37
@@ -233,19 +219,16 @@ const (
 	Op_LtPortion Opcode = 0x64
 	Op_EqPortion Opcode = 0x65
 
-	// reserved (0x66..0x6F) for `<` and `==` on types that don't exist yet. Str
-	// gets equality only, never ordering. Bool equality, and structural comparison
-	// of tuples/arrays, are front-end expansions rather than opcodes.
-	//
-	// Deliberately no named-but-unimplemented constants here: a live opcode with
-	// no emitter invites a second lowering path that no test exercises.
+	// reserved (0x66..0x6F) for `<` and `==` on types that don't exist yet. Str gets
+	// equality only, never ordering. Bool equality and structural comparison of
+	// tuples/arrays are front-end expansions rather than opcodes.
 
 	// --- bool ops (0x70) ---
 	// A = dest (bool reg), B = src (bool reg).
 	Op_Not Opcode = 0x70 // was 0x49
 
-	// reserved (0x71..0x7F) for and/or, if they ever pay for themselves. Both are
-	// expressible as branches, so neither is needed for completeness.
+	// reserved (0x71..0x7F) for and/or; both are expressible as branches, so
+	// neither is needed for completeness
 
 	// --- control flow (0x90) ---
 	// A = cond (bool reg); b_c = unsigned forward delta, added to the pc of the
@@ -253,8 +236,8 @@ const (
 	Op_JmpIfFalse Opcode = 0x90
 	// unconditional; b_c = unsigned forward delta, as above
 	Op_Jmp Opcode = 0x91
-	// the dual of Op_JmpIfFalse, so either edge of a bool can be the branch
-	// without a negation instruction
+	// the dual of Op_JmpIfFalse, so either edge of a bool can be the branch without
+	// a negation instruction
 	Op_JmpIfTrue Opcode = 0x92
-	// note: Label emits no instruction; it only feeds the symbol table at assemble time
+	// Label emits no instruction; it only feeds the symbol table at assemble time
 )

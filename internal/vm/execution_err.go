@@ -58,23 +58,20 @@ type (
 		Numerator big.Int
 	}
 
-	// InternalError signals a malformed program the VM cannot execute. It is a bug
-	// in whatever produced the bytecode, never a user-script error, but it is
-	// returned rather than panicked so the VM never crashes its host. These should
-	// never happen in practice, so a wrapped error is enough.
+	// InternalError signals a malformed program the VM cannot execute: a bug in
+	// whatever produced the bytecode, never a user-script error. Returned rather
+	// than panicked so the VM never crashes its host.
 	//
-	// The mark violations land here rather than getting user-facing error types of
-	// their own, because both are properties a verifier can decide from the
-	// instruction stream alone — an unbalanced mark stack, or a send / asset change /
-	// save while a mark is open. Unlike an empty balance or missing funds, neither is
-	// a legitimate outcome of running a well-formed program.
+	// The mark violations land here rather than getting user-facing error types,
+	// since both are properties a verifier can decide from the instruction stream
+	// alone and neither is a legitimate outcome of a well-formed program.
 	InternalError struct {
 		Err error
 	}
 
 	// StoreError wraps an error returned by the host Store (balance or metadata
-	// fetch). It is neither a script error nor a bytecode bug — the backing store
-	// failed — so the wrapped error is preserved for the host to inspect.
+	// fetch): neither a script error nor a bytecode bug, so the wrapped error is
+	// preserved for the host to inspect.
 	StoreError struct {
 		Wrapped error
 	}
