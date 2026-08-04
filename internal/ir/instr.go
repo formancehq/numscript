@@ -82,7 +82,7 @@ type (
 
 type MetaType interface {
 	fmt.Stringer
-	assembleMeta(a *assembler, Dest, Account, Key Reg) error
+	assembleMeta(a *assembler, Dest, Account, Key Reg, Scope *Reg) error
 }
 
 type (
@@ -93,33 +93,39 @@ type (
 
 type (
 	PullAccount struct {
-		Dest                  Reg  // int: amount pulled
-		Account               Reg  // str
-		Cap, Overdraft, Color *Reg // int, int, str
+		Dest                         Reg  // int: amount pulled
+		Account                      Reg  // str
+		Cap, Overdraft, Color, Scope *Reg // int, int, str, str
 	}
 	SendToAccount struct {
-		Account, Cap *Reg // str, int
+		Account, Cap, Scope *Reg // str, int, str
 	}
 	Save struct {
 		Account Reg  // str
 		Asset   Reg  // str
 		Amount  *Reg // int; nil = save all
+		Scope   *Reg // str
 	}
 	CheckEnoughFunds struct{ Got, Needed Reg } // int
 	AssertLeftover   struct {
 		Portion Reg  // the allotment leftover (1 - sum of the given Portions)
 		Exact   bool // no `remaining` clause: leftover must be exactly 0, else >= 0
 	}
-	SetCurrentAsset          struct{ Asset Reg }               // str
-	AssertSameAsset          struct{ Left, Right Reg }         // str, str
-	AssertValidAccount       struct{ Account Reg }             // str
-	AssertValidColor         struct{ Color Reg }               // str
-	AssertNonNegativeBalance struct{ Balance, Account Reg }    // int (the amount), str
-	SetTxMeta                struct{ Key, Value Reg }          // str, str
-	SetAccountMeta           struct{ Account, Key, Value Reg } // str, str, str
-	MetaVar                  struct {
+	SetCurrentAsset          struct{ Asset Reg }            // str
+	AssertSameAsset          struct{ Left, Right Reg }      // str, str
+	AssertValidAccount       struct{ Account Reg }          // str
+	AssertValidColor         struct{ Color Reg }            // str
+	AssertValidScope         struct{ Scope Reg }            // str
+	AssertNonNegativeBalance struct{ Balance, Account Reg } // int (the amount), str
+	SetTxMeta                struct{ Key, Value Reg }       // str, str
+	SetAccountMeta           struct {
+		Account, Key, Value Reg  // str, str, str
+		Scope               *Reg // str
+	}
+	MetaVar struct {
 		Dest         Reg
-		Account, Key Reg // str, str
+		Account, Key Reg  // str, str
+		Scope        *Reg // str
 		Typ          MetaType
 	}
 	// MetaMonetary is meta<monetary>: one store read yields both halves, so it is
@@ -129,10 +135,12 @@ type (
 		DestAmount Reg // int
 		Account    Reg // str
 		Key        Reg // str
+		Scope      *Reg
 	}
 	FetchBalance struct {
 		Dest           Reg // int (the amount; the asset is the Asset operand)
 		Account, Asset Reg // str, str
+		Scope          *Reg
 	} // reads the run-state (impure)
 	LoadVar struct {
 		Dest  Reg
@@ -200,11 +208,13 @@ type Instr interface {
 	assemble(a *assembler) error
 }
 
-func (i PullAccount) dests() []Reg   { return []Reg{i.Dest} }
-func (i PullAccount) sources() []Reg { return present(&i.Account, i.Cap, i.Overdraft, i.Color) }
+func (i PullAccount) dests() []Reg { return []Reg{i.Dest} }
+func (i PullAccount) sources() []Reg {
+	return present(&i.Account, i.Cap, i.Overdraft, i.Color, i.Scope)
+}
 
 func (i SendToAccount) dests() []Reg   { return nil }
-func (i SendToAccount) sources() []Reg { return present(i.Account, i.Cap) }
+func (i SendToAccount) sources() []Reg { return present(i.Account, i.Cap, i.Scope) }
 
 func (i CheckEnoughFunds) dests() []Reg   { return nil }
 func (i CheckEnoughFunds) sources() []Reg { return []Reg{i.Got, i.Needed} }
@@ -214,6 +224,9 @@ func (i Save) sources() []Reg {
 	regs := []Reg{i.Account, i.Asset}
 	if i.Amount != nil {
 		regs = append(regs, *i.Amount)
+	}
+	if i.Scope != nil {
+		regs = append(regs, *i.Scope)
 	}
 	return regs
 }
@@ -233,6 +246,9 @@ func (i AssertValidAccount) sources() []Reg { return []Reg{i.Account} }
 func (i AssertValidColor) dests() []Reg   { return nil }
 func (i AssertValidColor) sources() []Reg { return []Reg{i.Color} }
 
+func (i AssertValidScope) dests() []Reg   { return nil }
+func (i AssertValidScope) sources() []Reg { return []Reg{i.Scope} }
+
 func (i AssertNonNegativeBalance) dests() []Reg   { return nil }
 func (i AssertNonNegativeBalance) sources() []Reg { return []Reg{i.Balance, i.Account} }
 
@@ -240,16 +256,16 @@ func (i SetTxMeta) dests() []Reg   { return nil }
 func (i SetTxMeta) sources() []Reg { return []Reg{i.Key, i.Value} }
 
 func (i SetAccountMeta) dests() []Reg   { return nil }
-func (i SetAccountMeta) sources() []Reg { return []Reg{i.Account, i.Key, i.Value} }
+func (i SetAccountMeta) sources() []Reg { return present(&i.Account, &i.Key, &i.Value, i.Scope) }
 
 func (i MetaVar) dests() []Reg   { return []Reg{i.Dest} }
-func (i MetaVar) sources() []Reg { return []Reg{i.Account, i.Key} }
+func (i MetaVar) sources() []Reg { return present(&i.Account, &i.Key, i.Scope) }
 
 func (i MetaMonetary) dests() []Reg   { return []Reg{i.DestAsset, i.DestAmount} }
-func (i MetaMonetary) sources() []Reg { return []Reg{i.Account, i.Key} }
+func (i MetaMonetary) sources() []Reg { return present(&i.Account, &i.Key, i.Scope) }
 
 func (i FetchBalance) dests() []Reg   { return []Reg{i.Dest} }
-func (i FetchBalance) sources() []Reg { return []Reg{i.Account, i.Asset} }
+func (i FetchBalance) sources() []Reg { return present(&i.Account, &i.Asset, i.Scope) }
 
 func (i LoadVar) dests() []Reg   { return []Reg{i.Dest} }
 func (i LoadVar) sources() []Reg { return nil }

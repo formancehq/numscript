@@ -413,10 +413,10 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		default:
 			return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("meta: expected type parameter str, int or portion, got %q", typeParam)}
 		}
-		instr = MetaVar{Dest: dest, Typ: typ, Account: ap.reg(), Key: ap.reg()}
+		instr = MetaVar{Dest: dest, Typ: typ, Account: ap.reg(), Key: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "balance":
-		instr = FetchBalance{Dest: dest, Account: ap.reg(), Asset: ap.reg()}
+		instr = FetchBalance{Dest: dest, Account: ap.reg(), Asset: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "monetary_to_string":
 		instr = ap.BinaryOp(dest, OpMonetaryToString{})
@@ -475,14 +475,20 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Cap:       ap.optLabeledReg("cap"),
 			Overdraft: ap.optLabeledReg("overdraft"),
 			Color:     ap.optLabeledReg("color"),
+			Scope:     ap.optLabeledReg("scope"),
 		}
 	case "send_to_account":
-		instr = SendToAccount{Account: ap.optLabeledReg("account"), Cap: ap.optLabeledReg("cap")}
+		instr = SendToAccount{
+			Account: ap.optLabeledReg("account"),
+			Cap:     ap.optLabeledReg("cap"),
+			Scope:   ap.optLabeledReg("scope"),
+		}
 	case "save":
 		instr = Save{
 			Account: ap.reqLabeledReg("account"),
 			Asset:   ap.reqLabeledReg("asset"),
 			Amount:  ap.optLabeledReg("amount"),
+			Scope:   ap.optLabeledReg("scope"),
 		}
 
 	case "meta_monetary":
@@ -495,6 +501,7 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			DestAmount: dests[1],
 			Account:    ap.reg(),
 			Key:        ap.reg(),
+			Scope:      ap.optLabeledReg("scope"),
 		}
 
 	case "check_enough_funds":
@@ -511,6 +518,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = AssertValidAccount{Account: ap.reg()}
 	case "assert_valid_color":
 		instr = AssertValidColor{Color: ap.reg()}
+	case "assert_valid_scope":
+		instr = AssertValidScope{Scope: ap.reg()}
 	case "assert_non_negative_balance":
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
 
@@ -525,7 +534,7 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 	case "set_tx_meta":
 		instr = SetTxMeta{Key: ap.reg(), Value: ap.reg()}
 	case "set_account_meta":
-		instr = SetAccountMeta{Account: ap.reg(), Key: ap.reg(), Value: ap.reg()}
+		instr = SetAccountMeta{Account: ap.reg(), Key: ap.reg(), Value: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "jmp_if_false":
 		cond, target := ap.reg(), ap.labelRef()

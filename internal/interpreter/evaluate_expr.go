@@ -16,7 +16,7 @@ import (
 // zero — exactly the semantics this store provides.
 type zeroStore struct{}
 
-func (zeroStore) GetBalance(account, asset, color string) (*big.Int, error) {
+func (zeroStore) GetBalance(account, scope, asset, color string) (*big.Int, error) {
 	return new(big.Int), nil
 }
 

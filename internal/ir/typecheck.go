@@ -104,12 +104,18 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 			tc.useOpt(i.Cap, regInt),
 			tc.useOpt(i.Overdraft, regInt),
 			tc.useOpt(i.Color, regStr),
+			tc.useOpt(i.Scope, regStr),
 			tc.def(i.Dest, regInt),
 		)
 	case SendToAccount:
-		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt))
+		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt), tc.useOpt(i.Scope, regStr))
 	case Save:
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.useOpt(i.Amount, regInt))
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Asset, regStr),
+			tc.useOpt(i.Amount, regInt),
+			tc.useOpt(i.Scope, regStr),
+		)
 
 	case CheckEnoughFunds:
 		return firstErr(tc.use(i.Got, regInt), tc.use(i.Needed, regInt))
@@ -123,28 +129,46 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 		return tc.use(i.Account, regStr)
 	case AssertValidColor:
 		return tc.use(i.Color, regStr)
+	case AssertValidScope:
+		return tc.use(i.Scope, regStr)
 	case AssertNonNegativeBalance:
 		return firstErr(tc.use(i.Balance, regInt), tc.use(i.Account, regStr))
 
 	case SetTxMeta:
 		return firstErr(tc.use(i.Key, regStr), tc.use(i.Value, regStr))
 	case SetAccountMeta:
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.use(i.Value, regStr))
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Key, regStr),
+			tc.use(i.Value, regStr),
+			tc.useOpt(i.Scope, regStr),
+		)
 	case MetaVar:
 		t, err := metaRegType(i.Typ)
 		if err != nil {
 			return err
 		}
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Key, regStr), tc.def(i.Dest, t))
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Key, regStr),
+			tc.useOpt(i.Scope, regStr),
+			tc.def(i.Dest, t),
+		)
 	case MetaMonetary:
 		return firstErr(
 			tc.use(i.Account, regStr),
 			tc.use(i.Key, regStr),
+			tc.useOpt(i.Scope, regStr),
 			tc.def(i.DestAsset, regStr),
 			tc.def(i.DestAmount, regInt),
 		)
 	case FetchBalance:
-		return firstErr(tc.use(i.Account, regStr), tc.use(i.Asset, regStr), tc.def(i.Dest, regInt))
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Asset, regStr),
+			tc.useOpt(i.Scope, regStr),
+			tc.def(i.Dest, regInt),
+		)
 
 	case JmpIfFalse:
 		return tc.use(i.Cond, regBool)

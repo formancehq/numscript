@@ -98,7 +98,11 @@ Instructions are fetched and evaluated one at the time until they are finished (
 
 Instructions can move data by manipulating registers. Registers banks are separated by type (so that we don't have to have a single heap-allocated value, nor unsafe pointers or manually handled unsafe memory). With "type" here we mean the internal representation of data, which isn't the same as numscript types (there isn't necessarily a 1-1 relationship). For example, both strings, assets and accounts are represented via the golang `string` type. The `bool` bank is the other direction: it has no numscript counterpart at all, and exists so that a branch condition can't be a monetary quantity.
 
-> Note: we'll probably change accounts' representation when adding scopes
+> Note: scopes turned out not to need a representation change. `scoped(account, "scope")`
+> compiles to a plain second `string` register carried alongside the account's own, using
+> the same nilable-optional-operand idiom `Color`/`Overdraft` already use on `PullAccount` —
+> exactly the same non-bank treatment `Monetary` gets as a `(str, int)` pair. See
+> `compiler.compileAccountExpr`/`accountValue` and `ir.AssertValidScope`.
 
 A simple example of an instruction is:
 

@@ -39,6 +39,7 @@ func (i PullAccount) String() string {
 		optLabel("cap", i.Cap),
 		optLabel("overdraft", i.Overdraft),
 		optLabel("color", i.Color),
+		optLabel("scope", i.Scope),
 	)
 	s := fmt.Sprintf("%s = pull_account(account: %s", i.Dest, i.Account)
 	if opts != "" {
@@ -48,7 +49,7 @@ func (i PullAccount) String() string {
 }
 
 func (i SendToAccount) String() string {
-	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap))
+	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap), optLabel("scope", i.Scope))
 	return fmt.Sprintf("send_to_account(%s)", opts)
 }
 
@@ -57,10 +58,12 @@ func (i CheckEnoughFunds) String() string {
 }
 
 func (i Save) String() string {
-	if i.Amount == nil {
-		return fmt.Sprintf("save(account: %s, asset: %s)", i.Account, i.Asset)
+	opts := joinOpts(optLabel("amount", i.Amount), optLabel("scope", i.Scope))
+	s := fmt.Sprintf("save(account: %s, asset: %s", i.Account, i.Asset)
+	if opts != "" {
+		s += ", " + opts
 	}
-	return fmt.Sprintf("save(account: %s, asset: %s, amount: %s)", i.Account, i.Asset, *i.Amount)
+	return s + ")"
 }
 
 func (i AssertLeftover) String() string {
@@ -86,6 +89,10 @@ func (i AssertValidColor) String() string {
 	return fmt.Sprintf("assert_valid_color(%s)", i.Color)
 }
 
+func (i AssertValidScope) String() string {
+	return fmt.Sprintf("assert_valid_scope(%s)", i.Scope)
+}
+
 func (i AssertNonNegativeBalance) String() string {
 	return fmt.Sprintf("assert_non_negative_balance(%s, %s)", i.Balance, i.Account)
 }
@@ -95,15 +102,27 @@ func (i SetTxMeta) String() string {
 }
 
 func (i SetAccountMeta) String() string {
-	return fmt.Sprintf("set_account_meta(%s, %s, %s)", i.Account, i.Key, i.Value)
+	s := fmt.Sprintf("set_account_meta(%s, %s, %s)", i.Account, i.Key, i.Value)
+	if i.Scope != nil {
+		s = fmt.Sprintf("set_account_meta(%s, %s, %s, %s)", i.Account, i.Key, i.Value, optLabel("scope", i.Scope))
+	}
+	return s
 }
 
 func (i MetaVar) String() string {
-	return fmt.Sprintf("%s = meta<%s>(%s, %s)", i.Dest, i.Typ, i.Account, i.Key)
+	s := fmt.Sprintf("%s = meta<%s>(%s, %s)", i.Dest, i.Typ, i.Account, i.Key)
+	if i.Scope != nil {
+		s = fmt.Sprintf("%s = meta<%s>(%s, %s, %s)", i.Dest, i.Typ, i.Account, i.Key, optLabel("scope", i.Scope))
+	}
+	return s
 }
 
 func (i MetaMonetary) String() string {
-	return fmt.Sprintf("[%s, %s] = meta_monetary(%s, %s)", i.DestAsset, i.DestAmount, i.Account, i.Key)
+	s := fmt.Sprintf("[%s, %s] = meta_monetary(%s, %s)", i.DestAsset, i.DestAmount, i.Account, i.Key)
+	if i.Scope != nil {
+		s = fmt.Sprintf("[%s, %s] = meta_monetary(%s, %s, %s)", i.DestAsset, i.DestAmount, i.Account, i.Key, optLabel("scope", i.Scope))
+	}
+	return s
 }
 
 func (MetaStr) String() string     { return "str" }
@@ -111,7 +130,11 @@ func (MetaInt) String() string     { return "int" }
 func (MetaPortion) String() string { return "portion" }
 
 func (i FetchBalance) String() string {
-	return fmt.Sprintf("%s = balance(%s, %s)", i.Dest, i.Account, i.Asset)
+	s := fmt.Sprintf("%s = balance(%s, %s)", i.Dest, i.Account, i.Asset)
+	if i.Scope != nil {
+		s = fmt.Sprintf("%s = balance(%s, %s, %s)", i.Dest, i.Account, i.Asset, optLabel("scope", i.Scope))
+	}
+	return s
 }
 
 func (i LoadVar) String() string {

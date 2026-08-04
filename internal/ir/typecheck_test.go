@@ -285,8 +285,8 @@ func (unknownVarType) assembleLoad(*assembler, Reg, uint16) error { return nil }
 
 type unknownMetaType struct{}
 
-func (unknownMetaType) String() string                               { return "unknown_meta_type" }
-func (unknownMetaType) assembleMeta(*assembler, Reg, Reg, Reg) error { return nil }
+func (unknownMetaType) String() string                                     { return "unknown_meta_type" }
+func (unknownMetaType) assembleMeta(*assembler, Reg, Reg, Reg, *Reg) error { return nil }
 
 func TestBytecodeTypecheck_UnknownTags(t *testing.T) {
 	str := Reg(0)

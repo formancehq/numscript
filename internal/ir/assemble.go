@@ -427,6 +427,8 @@ func (i CheckEnoughFunds) assemble(a *assembler) error {
 	return nil
 }
 
+// Save needs a fourth operand (scope) but its base word's three slots are all
+// taken, so it spills scope into an ext word, like PullAccount.
 func (i Save) assemble(a *assembler) error {
 	account, err := a.strReg(i.Account)
 	if err != nil {
@@ -440,7 +442,18 @@ func (i Save) assemble(a *assembler) error {
 	if err != nil {
 		return err
 	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+
 	a.emit(vm.Op_Save, account, asset, amount)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      scope,
+		B:      maxReg,
+		C:      maxReg,
+	})
 	return nil
 }
 
@@ -493,13 +506,18 @@ func (i PullAccount) assemble(a *assembler) error {
 		return err
 	}
 
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+
 	a.emit(vm.Op_PullAccount, dest, account, cap)
 
 	a.instructions = append(a.instructions, vm.Instruction{
 		Opcode: maxReg,    // <- UNUSED
 		A:      overdraft, // overdraft (int)
 		B:      color,     // color (str)
-		C:      maxReg,    // <- UNUSED
+		C:      scope,     // scope (str)
 	})
 
 	return nil
@@ -516,7 +534,12 @@ func (i SendToAccount) assemble(a *assembler) error {
 		return err
 	}
 
-	a.emit(vm.Op_SendToAccount, account, cap, maxReg)
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_SendToAccount, account, cap, scope)
 	return nil
 }
 
@@ -557,6 +580,17 @@ func (i AssertValidColor) assemble(a *assembler) error {
 	return nil
 }
 
+func (i AssertValidScope) assemble(a *assembler) error {
+	scope, err := a.strReg(i.Scope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertValidScope, scope, maxReg, maxReg)
+
+	return nil
+}
+
 func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 	balance, err := a.intReg(i.Balance)
 	if err != nil {
@@ -587,7 +621,11 @@ func (i SetTxMeta) assemble(a *assembler) error {
 	return nil
 }
 
-func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key Reg) error {
+// emitMeta emits the shared base word for a meta(account, key) read (dest,
+// account, key) plus an ext word carrying scope, shared by MetaStr/Int/Portion.
+// MetaMonetary needs its ext word for a second destination too, so it builds its
+// own instead of sharing this helper.
+func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key Reg, scope *Reg) error {
 	acc, err := a.strReg(account)
 	if err != nil {
 		return err
@@ -596,40 +634,52 @@ func (a *assembler) emitMeta(opcode vm.Opcode, dest byte, account, key Reg) erro
 	if err != nil {
 		return err
 	}
+	s, err := a.optionalReg((*assembler).strReg, scope)
+	if err != nil {
+		return err
+	}
+
 	a.emit(opcode, dest, acc, k)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      s,
+		B:      maxReg,
+		C:      maxReg,
+	})
 	return nil
 }
 
-func (MetaStr) assembleMeta(a *assembler, dest, account, key Reg) error {
+func (MetaStr) assembleMeta(a *assembler, dest, account, key Reg, scope *Reg) error {
 	d, err := a.strReg(dest)
 	if err != nil {
 		return err
 	}
-	return a.emitMeta(vm.Op_MetaStr, d, account, key)
+	return a.emitMeta(vm.Op_MetaStr, d, account, key, scope)
 }
 
-func (MetaInt) assembleMeta(a *assembler, dest, account, key Reg) error {
+func (MetaInt) assembleMeta(a *assembler, dest, account, key Reg, scope *Reg) error {
 	d, err := a.intReg(dest)
 	if err != nil {
 		return err
 	}
-	return a.emitMeta(vm.Op_MetaInt, d, account, key)
+	return a.emitMeta(vm.Op_MetaInt, d, account, key, scope)
 }
 
-func (MetaPortion) assembleMeta(a *assembler, dest, account, key Reg) error {
+func (MetaPortion) assembleMeta(a *assembler, dest, account, key Reg, scope *Reg) error {
 	d, err := a.portionReg(dest)
 	if err != nil {
 		return err
 	}
-	return a.emitMeta(vm.Op_MetaPortion, d, account, key)
+	return a.emitMeta(vm.Op_MetaPortion, d, account, key, scope)
 }
 
 func (i MetaVar) assemble(a *assembler) error {
-	return i.Typ.assembleMeta(a, i.Dest, i.Account, i.Key)
+	return i.Typ.assembleMeta(a, i.Dest, i.Account, i.Key, i.Scope)
 }
 
-// MetaMonetary needs four operands, so it spills the second destination into an
-// ext word, like PullAccount.
+// MetaMonetary needs four operands plus scope, so it spills the second
+// destination and scope into its own ext word rather than sharing emitMeta
+// (which would otherwise burn a second, conflicting ext word).
 func (i MetaMonetary) assemble(a *assembler) error {
 	destAsset, err := a.strReg(i.DestAsset)
 	if err != nil {
@@ -639,18 +689,31 @@ func (i MetaMonetary) assemble(a *assembler) error {
 	if err != nil {
 		return err
 	}
-	if err := a.emitMeta(vm.Op_MetaMonetary, destAsset, i.Account, i.Key); err != nil {
+	account, err := a.strReg(i.Account)
+	if err != nil {
 		return err
 	}
+	key, err := a.strReg(i.Key)
+	if err != nil {
+		return err
+	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_MetaMonetary, destAsset, account, key)
 	a.instructions = append(a.instructions, vm.Instruction{
 		Opcode: maxReg,
 		A:      destAmount,
-		B:      maxReg,
+		B:      scope,
 		C:      maxReg,
 	})
 	return nil
 }
 
+// SetAccountMeta needs a fourth operand (scope) but its base word's three slots
+// are all taken, so it spills scope into an ext word, like Save.
 func (i SetAccountMeta) assemble(a *assembler) error {
 	account, err := a.strReg(i.Account)
 	if err != nil {
@@ -664,12 +727,24 @@ func (i SetAccountMeta) assemble(a *assembler) error {
 	if err != nil {
 		return err
 	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
 
 	a.emit(vm.Op_SetAccountMeta, account, key, value)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      scope,
+		B:      maxReg,
+		C:      maxReg,
+	})
 
 	return nil
 }
 
+// FetchBalance needs a fourth operand (scope) but its base word's three slots
+// are all taken, so it spills scope into an ext word, like Save.
 func (i FetchBalance) assemble(a *assembler) error {
 	dest, err := a.intReg(i.Dest)
 	if err != nil {
@@ -683,8 +758,18 @@ func (i FetchBalance) assemble(a *assembler) error {
 	if err != nil {
 		return err
 	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
 
 	a.emit(vm.Op_Balance, dest, account, asset)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      scope,
+		B:      maxReg,
+		C:      maxReg,
+	})
 
 	return nil
 }

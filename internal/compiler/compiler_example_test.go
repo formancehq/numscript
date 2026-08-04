@@ -76,10 +76,10 @@ func TestCompilerExample(t *testing.T) {
 
 type testStore map[string]int64
 
-func (s testStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
+func (s testStore) GetBalance(ctx context.Context, account, scope, asset, color string) (*big.Int, error) {
 	return big.NewInt(s[account]), nil
 }
 
-func (testStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
+func (testStore) GetMetadata(ctx context.Context, account, scope, key string) (string, bool, error) {
 	return "", false, nil
 }

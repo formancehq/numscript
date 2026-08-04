@@ -44,11 +44,11 @@ type mockStore struct {
 	meta map[string]map[string]string
 }
 
-func (m mockStore) GetBalance(ctx context.Context, account, asset string, color string) (*big.Int, error) {
-	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}]), nil
+func (m mockStore) GetBalance(ctx context.Context, account, scope, asset string, color string) (*big.Int, error) {
+	return big.NewInt(m.bal[runtime.PairKey{Account: account, Scope: scope, Asset: asset}]), nil
 }
 
-func (m mockStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
+func (m mockStore) GetMetadata(ctx context.Context, account, scope, key string) (string, bool, error) {
 	v, ok := m.meta[account][key]
 	return v, ok, nil
 }
@@ -73,6 +73,7 @@ func balanceNonNegativeProgram() Program {
 			bc(Op_LoadStr, 0, 0),
 			bc(Op_LoadStr, 1, 1),
 			abc(Op_Balance, 0, 0, 1),
+			abc(0, nilReg, nilReg, nilReg), // ext: no scope
 			abc(Op_AssertNonNegativeBalance, 0, 0, nilReg),
 		},
 		StringsPool: []string{"acc", "USD/2"},

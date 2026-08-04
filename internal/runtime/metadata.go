@@ -4,49 +4,27 @@ import (
 	"github.com/formancehq/numscript/internal/utils"
 )
 
-type AccountMetadata = map[string]string
-type AccountsMetadata map[string]AccountMetadata
-
-func (m AccountsMetadata) fetchAccountMetadata(account string) AccountMetadata {
-	return utils.MapGetOrPutDefault(m, account, func() AccountMetadata {
-		return AccountMetadata{}
-	})
+// AccountMetadataEntry is one piece of account metadata set during execution.
+// Scope is a second dimension of the account, like the balance PairKey: a flat
+// list rather than a nested map, since JSON object keys must be strings and
+// folding scope into the account key would need an encoding hack.
+type AccountMetadataEntry struct {
+	Account string `json:"account"`
+	Scope   string `json:"scope,omitempty"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
 }
 
-func (m AccountsMetadata) DeepClone() AccountsMetadata {
-	cloned := make(AccountsMetadata)
-	for account, accountBalances := range m {
-		for asset, metadataValue := range accountBalances {
-			clonedAccountBalances := cloned.fetchAccountMetadata(account)
-			utils.MapGetOrPutDefault(clonedAccountBalances, asset, func() string {
-				return metadataValue
-			})
-		}
-	}
-	return cloned
-}
-
-func (m AccountsMetadata) Merge(update AccountsMetadata) {
-	for acc, accBalances := range update {
-		cachedAcc := utils.MapGetOrPutDefault(m, acc, func() AccountMetadata {
-			return AccountMetadata{}
-		})
-
-		for curr, amt := range accBalances {
-			cachedAcc[curr] = amt
-		}
-	}
-}
+// AccountsMetadata is the account metadata produced by the script (the
+// execution result's accountsMeta).
+type AccountsMetadata []AccountMetadataEntry
 
 func (m AccountsMetadata) PrettyPrint() string {
-	header := []string{"Account", "Name", "Value"}
+	header := []string{"Account", "Scope", "Key", "Value"}
 
-	var rows [][]string
-	for account, accMetadata := range m {
-		for name, value := range accMetadata {
-			row := []string{account, name, value}
-			rows = append(rows, row)
-		}
+	rows := make([][]string, 0, len(m))
+	for _, e := range m {
+		rows = append(rows, []string{e.Account, e.Scope, e.Key, e.Value})
 	}
 
 	return utils.CsvPretty(header, rows, true)

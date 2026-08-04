@@ -17,14 +17,14 @@ type benchStore struct {
 	balances map[runtime.PairKey]*big.Int
 }
 
-func (s benchStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
-	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+func (s benchStore) GetBalance(ctx context.Context, account, scope, asset, color string) (*big.Int, error) {
+	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return v, nil
 	}
 	return new(big.Int), nil
 }
 
-func (benchStore) GetMetadata(ctx context.Context, k, v string) (string, bool, error) {
+func (benchStore) GetMetadata(ctx context.Context, account, scope, key string) (string, bool, error) {
 	return "", false, nil
 }
 
@@ -34,10 +34,11 @@ type runtimeStoreAdapter struct {
 
 func (s runtimeStoreAdapter) GetBalance(
 	account string,
+	scope string,
 	asset string,
 	color string,
 ) (*big.Int, error) {
-	return s.store.GetBalance(context.Background(), account, asset, color)
+	return s.store.GetBalance(context.Background(), account, scope, asset, color)
 }
 
 // Both benchmarks run the SAME program with the same starting balance; only the

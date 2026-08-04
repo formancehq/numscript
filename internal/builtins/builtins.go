@@ -8,4 +8,5 @@ const (
 	Overdraft      = "overdraft"
 	GetAsset       = "get_asset"
 	GetAmount      = "get_amount"
+	Scoped         = "scoped"
 )

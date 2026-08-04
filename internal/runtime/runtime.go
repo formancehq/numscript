@@ -31,11 +31,12 @@ import (
 // pushes to ends, so it only surfaces for hand-written IR or a hand-crafted .numb.
 var ErrNoOpenMark = errors.New("runtime: no open mark to end")
 
-// Store supplies the starting balance for an (account, asset, color) triple.
-// Implementations should return 0 (or nil, treated as 0) for unknown triples, not
-// an error. The returned *big.Int is cloned on ingest, so the Store may reuse it.
+// Store supplies the starting balance for an (account, scope, asset, color)
+// tuple. Implementations should return 0 (or nil, treated as 0) for unknown
+// tuples, not an error. The returned *big.Int is cloned on ingest, so the Store
+// may reuse it.
 type Store interface {
-	GetBalance(account, asset, color string) (*big.Int, error)
+	GetBalance(account, scope, asset, color string) (*big.Int, error)
 }
 
 // Posting is aliased as the interpreter's public Posting type, so the json tags
@@ -523,14 +524,12 @@ func (s *RunState) entryFor(key PairKey) *balanceEntry {
 }
 
 // loadBase folds e's starting balance in from the Store on first need, turning a
-// delta-only entry into an absolute one. Idempotent once baseLoaded is set. The
-// Store is scope-agnostic: scoped balances are seeded via Prewarm, and the VM (the
-// only path hitting the Store) never uses scopes.
+// delta-only entry into an absolute one. Idempotent once baseLoaded is set.
 func (s *RunState) loadBase(key PairKey, e *balanceEntry) error {
 	if e.baseLoaded {
 		return nil
 	}
-	fromStore, err := s.store.GetBalance(key.Account, key.Asset, key.Color)
+	fromStore, err := s.store.GetBalance(key.Account, key.Scope, key.Asset, key.Color)
 	if err != nil {
 		return err
 	}

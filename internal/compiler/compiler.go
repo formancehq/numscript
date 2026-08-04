@@ -67,9 +67,6 @@ type state struct {
 // register, so the comparison is compiled, not built in.
 const worldAccount = "world"
 
-// Every flag in flags.AllFlags has a check site below except
-// ExperimentalScopedFunction: scoped() isn't in typecheck's builtin table, so a
-// call to it is already rejected as an unknown function.
 func (st *state) checkFeatureFlag(rng parser.Range, flag flags.FeatureFlag) CompilerError {
 	if _, ok := st.featureFlags[flag]; ok {
 		return nil
@@ -399,6 +396,13 @@ func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, C
 	case builtins.Meta:
 		return 0, InvalidMetaPosition{Range: expr.Range}
 
+	// scoped() only ever reaches here if some caller compiled a TypeAccount
+	// expression through the generic (single-register) path instead of
+	// compileAccountExpr — every real call site is routed through the latter, so
+	// this is a defensive backstop, not an expected path.
+	case builtins.Scoped:
+		return 0, InvalidScopedAccountPosition{Range: expr.Range}
+
 	default:
 		panic("TODO compileExpr fn call " + expr.Caller.Name)
 	}
@@ -488,7 +492,7 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 
 	switch expr.Caller.Name {
 	case builtins.Balance:
-		accountReg, err := st.compileExpr(expr.Args[0])
+		acc, err := st.compileAccountExpr(expr.Args[0])
 		if err != nil {
 			return monetaryValue{}, err
 		}
@@ -497,16 +501,16 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 			return monetaryValue{}, err
 		}
 		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+			return ir.FetchBalance{Dest: dest, Account: acc.Name, Asset: assetReg, Scope: acc.Scope}
 		})
-		st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: accountReg})
+		st.Push(ir.AssertNonNegativeBalance{Balance: balReg, Account: acc.Name})
 		return monetaryValue{Asset: assetReg, Amount: balReg}, nil
 
 	case builtins.Overdraft:
 		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalOverdraftFunctionFeatureFlag); err != nil {
 			return monetaryValue{}, err
 		}
-		accountReg, err := st.compileExpr(expr.Args[0])
+		acc, err := st.compileAccountExpr(expr.Args[0])
 		if err != nil {
 			return monetaryValue{}, err
 		}
@@ -515,7 +519,7 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 			return monetaryValue{}, err
 		}
 		balReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.FetchBalance{Dest: dest, Account: accountReg, Asset: assetReg}
+			return ir.FetchBalance{Dest: dest, Account: acc.Name, Asset: assetReg, Scope: acc.Scope}
 		})
 		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
@@ -533,6 +537,63 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 	default:
 		panic("TODO compileMonetaryExpr fn call " + expr.Caller.Name)
 	}
+}
+
+// compileAccountExpr compiles a TypeAccount expression into its (name, scope)
+// pair, mirroring compileMonetaryExpr's role for TypeMonetary. Scope is nil
+// unless the expression is (or resolves, through a var, to) a scoped() call.
+func (st *state) compileAccountExpr(expr parser.ValueExpr) (accountValue, CompilerError) {
+	switch expr := expr.(type) {
+	case *parser.Variable:
+		v, ok := st.vars[expr.Name]
+		if !ok {
+			return accountValue{}, UnboundVar{Range: expr.Range, Var: expr.Name}
+		}
+		if v.Acc != nil {
+			return *v.Acc, nil
+		}
+		return accountValue{Name: v.Reg}, nil
+
+	case *parser.FnCall:
+		// scoped() is the only builtin whose return type is TypeAccount, so any
+		// FnCall reaching here (checked by typecheck already) must be it.
+		return st.compileScopedFnCall(expr, false)
+
+	default:
+		r, err := st.compileExpr(expr)
+		if err != nil {
+			return accountValue{}, err
+		}
+		return accountValue{Name: r}, nil
+	}
+}
+
+// compileScopedFnCall compiles a scoped(account, scope) call into the (name,
+// scope) pair. isVarOrigin carries the same meaning as in compileFnCall /
+// compileMonetaryFnCall: true only when this call is itself a variable's whole
+// origin expression.
+func (st *state) compileScopedFnCall(expr *parser.FnCall, isVarOrigin bool) (accountValue, CompilerError) {
+	if !isVarOrigin {
+		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
+			return accountValue{}, err
+		}
+	}
+	if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalScopedFunction); err != nil {
+		return accountValue{}, err
+	}
+
+	inner, err := st.compileAccountExpr(expr.Args[0])
+	if err != nil {
+		return accountValue{}, err
+	}
+	scopeReg, err := st.compileExpr(expr.Args[1])
+	if err != nil {
+		return accountValue{}, err
+	}
+	st.Push(ir.AssertValidScope{Scope: scopeReg})
+
+	// scoped(scoped(x, "a"), "b") overwrites: the result is scoped "b", not "a".
+	return accountValue{Name: inner.Name, Scope: &scopeReg}, nil
 }
 
 // compileColor returns nil when the source has no color clause: PullAccount with
@@ -569,14 +630,15 @@ func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerErro
 // every account, so the two arms would be identical and the branch is skipped.
 // A literal @world still gets the branch; collapsing it is a peephole's job
 // (const-fold str_eq, then drop the dead arm).
-func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *ir.Reg) ir.Reg {
+func (st *state) pullFromAccount(acc accountValue, capReg, overdraftReg, colorReg *ir.Reg) ir.Reg {
 	pull := func(dest ir.Reg, overdraft *ir.Reg) ir.Instr {
 		return ir.PullAccount{
 			Dest:      dest,
-			Account:   accReg,
+			Account:   acc.Name,
 			Cap:       capReg,
 			Overdraft: overdraft,
 			Color:     colorReg,
+			Scope:     acc.Scope,
 		}
 	}
 
@@ -585,7 +647,7 @@ func (st *state) pullFromAccount(accReg ir.Reg, capReg, overdraftReg, colorReg *
 	}
 
 	isWorld := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-		return ir.BinaryOp{Op: ir.OpStrEq{}, Left: accReg, Right: st.worldReg, Dest: dest}
+		return ir.BinaryOp{Op: ir.OpStrEq{}, Left: acc.Name, Right: st.worldReg, Dest: dest}
 	})
 	notWorldLabel := st.FreshLabel("not_world")
 	endLabel := st.FreshLabel("pull_end")
@@ -649,7 +711,7 @@ func (st *state) compileSource(
 ) (ir.Reg, CompilerError) {
 	switch src := src.(type) {
 	case *parser.SourceAccount:
-		accReg, err := st.compileExpr(src.ValueExpr)
+		acc, err := st.compileAccountExpr(src.ValueExpr)
 		if err != nil {
 			return 0, err
 		}
@@ -666,7 +728,7 @@ func (st *state) compileSource(
 			}
 		})
 
-		return st.pullFromAccount(accReg, capReg, &overdraftReg, colorReg), nil
+		return st.pullFromAccount(acc, capReg, &overdraftReg, colorReg), nil
 
 	case *parser.SourceOverdraft:
 		if src.Bounded == nil && capReg == nil {
@@ -675,7 +737,7 @@ func (st *state) compileSource(
 			}
 		}
 
-		accReg, err := st.compileExpr(src.Address)
+		acc, err := st.compileAccountExpr(src.Address)
 		if err != nil {
 			return 0, err
 		}
@@ -694,7 +756,7 @@ func (st *state) compileSource(
 			overdraftReg = &amtReg
 		}
 
-		return st.pullFromAccount(accReg, capReg, overdraftReg, colorReg), nil
+		return st.pullFromAccount(acc, capReg, overdraftReg, colorReg), nil
 
 	case *parser.SourceCapped:
 		clauseCapIntReg, err := st.compileCapAmount(src.Cap)
@@ -956,7 +1018,7 @@ func (st *state) compileDestination(
 		return nil
 
 	case *parser.DestinationAccount:
-		accReg, err := st.compileExpr(dest.ValueExpr)
+		acc, err := st.compileAccountExpr(dest.ValueExpr)
 		if err != nil {
 			return err
 		}
@@ -966,8 +1028,9 @@ func (st *state) compileDestination(
 			cap = &currentCap
 		}
 		st.Push(ir.SendToAccount{
-			Account: &accReg,
+			Account: &acc.Name,
 			Cap:     cap,
+			Scope:   acc.Scope,
 		})
 
 	case *parser.DestinationInorder:
@@ -1092,11 +1155,11 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			utils.NonExhaustiveMatchPanic[any](stmt.SentValue)
 		}
 
-		accReg, err := st.compileExpr(stmt.Account)
+		acc, err := st.compileAccountExpr(stmt.Account)
 		if err != nil {
 			return err
 		}
-		st.Push(ir.Save{Account: accReg, Asset: assetReg, Amount: amountReg})
+		st.Push(ir.Save{Account: acc.Name, Asset: assetReg, Amount: amountReg, Scope: acc.Scope})
 		return nil
 	case *parser.FnCall:
 		switch stmt.Caller.Name {
@@ -1113,7 +1176,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			return nil
 
 		case builtins.SetAccountMeta:
-			account, err := st.compileExpr(stmt.Args[0])
+			acc, err := st.compileAccountExpr(stmt.Args[0])
 			if err != nil {
 				return err
 			}
@@ -1125,7 +1188,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
-			st.Push(ir.SetAccountMeta{Account: account, Key: key, Value: value})
+			st.Push(ir.SetAccountMeta{Account: acc.Name, Key: key, Value: value, Scope: acc.Scope})
 			return nil
 
 		default:
@@ -1156,13 +1219,28 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError)
 		}), nil
 	}
 
+	// a scoped account can be the *subject* of a metadata write (compiled via
+	// compileAccountExpr elsewhere), but never the stored *value* — mirrors the
+	// interpreter's CannotStoreScopedAccountInMeta, checked here at compile time
+	// since scopedness is static.
+	if st.exprTypes[expr] == typecheck.TypeAccount {
+		acc, err := st.compileAccountExpr(expr)
+		if err != nil {
+			return 0, err
+		}
+		if acc.Scope != nil {
+			return 0, CannotStoreScopedAccountInMeta{Range: expr.GetRange()}
+		}
+		return acc.Name, nil
+	}
+
 	r, err := st.compileExpr(expr)
 	if err != nil {
 		return 0, err
 	}
 
 	switch st.exprTypes[expr] {
-	case typecheck.TypeString, typecheck.TypeAccount, typecheck.TypeAsset:
+	case typecheck.TypeString, typecheck.TypeAsset:
 		return r, nil
 	case typecheck.TypeNumber:
 		return st.PushWithDest(func(dest ir.Reg) ir.Instr {
@@ -1251,6 +1329,31 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 		return nil
 	}
 
+	if decl.Type.Name == typecheck.TypeAccount {
+		if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
+			// meta() can produce any declared type, account included (e.g.
+			// `account $seller = meta($sale, "seller")`) — a value read from
+			// metadata is always a plain, unscoped account name.
+			if fnCall.Caller.Name == builtins.Meta {
+				return st.compileMetaVar(decl, fnCall)
+			}
+			// scoped() is the only other builtin returning TypeAccount; a call
+			// that is the whole origin expression isn't a mid-script call.
+			acc, err := st.compileScopedFnCall(fnCall, true)
+			if err != nil {
+				return err
+			}
+			st.vars[decl.Name.Name] = accValue(acc)
+			return nil
+		}
+		acc, err := st.compileAccountExpr(*decl.Origin)
+		if err != nil {
+			return err
+		}
+		st.vars[decl.Name.Name] = accValue(acc)
+		return nil
+	}
+
 	var r ir.Reg
 	var err CompilerError
 	if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
@@ -1272,7 +1375,7 @@ func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError
 }
 
 func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCall) CompilerError {
-	account, err := st.compileExpr(fnCall.Args[0])
+	acc, err := st.compileAccountExpr(fnCall.Args[0])
 	if err != nil {
 		return err
 	}
@@ -1289,8 +1392,9 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 		st.Push(ir.MetaMonetary{
 			DestAsset:  destAsset,
 			DestAmount: destAmount,
-			Account:    account,
+			Account:    acc.Name,
 			Key:        key,
+			Scope:      acc.Scope,
 		})
 		st.vars[decl.Name.Name] = monValue(monetaryValue{Asset: destAsset, Amount: destAmount})
 		return nil
@@ -1309,7 +1413,7 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 	}
 
 	st.vars[decl.Name.Name] = scalarValue(st.PushWithDest(func(dest ir.Reg) ir.Instr {
-		return ir.MetaVar{Dest: dest, Account: account, Key: key, Typ: typ}
+		return ir.MetaVar{Dest: dest, Account: acc.Name, Key: key, Typ: typ, Scope: acc.Scope}
 	}))
 	return nil
 }
