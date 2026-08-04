@@ -1218,3 +1218,120 @@ func TestE2E_AllotmentBeyondInt64(t *testing.T) {
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: half},
 	}, postings)
 }
+
+// TestE2E_Oneof runs a compiled `oneof` end to end, which the IR snapshot tests
+// cannot: they check the emitted instructions, not that executing them backtracks
+// correctly. What matters here is that the single mark_pop at the join is reached
+// on every path — the branch that covered the amount jumps straight to it, and the
+// last branch falls through to it.
+func TestE2E_Oneof(t *testing.T) {
+	src := `
+		#![feature("experimental-oneof")]
+		send [USD/2 10] (
+			source = oneof {
+				@a
+				@b
+				@c
+			}
+			destination = @dest
+		)
+	`
+
+	t.Run("first branch covers it", func(t *testing.T) {
+		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "a", Asset: "USD/2"}: big.NewInt(10),
+			{Account: "b", Asset: "USD/2"}: big.NewInt(10),
+			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
+		}})
+		requirePostingsEqual(t, []runtime.Posting{
+			{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+		}, postings)
+	})
+
+	t.Run("backtracks past a short branch", func(t *testing.T) {
+		// @a can only cover 3 of the 10, so its partial funding is discarded whole
+		// rather than combined with @b's
+		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "a", Asset: "USD/2"}: big.NewInt(3),
+			{Account: "b", Asset: "USD/2"}: big.NewInt(10),
+			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
+		}})
+		requirePostingsEqual(t, []runtime.Posting{
+			{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+		}, postings)
+	})
+
+	t.Run("backtracks twice, to the last branch", func(t *testing.T) {
+		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "a", Asset: "USD/2"}: big.NewInt(3),
+			{Account: "b", Asset: "USD/2"}: big.NewInt(9),
+			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
+		}})
+		requirePostingsEqual(t, []runtime.Posting{
+			{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+		}, postings)
+	})
+
+	t.Run("no branch covers it", func(t *testing.T) {
+		// the last branch is not rewound, so check_enough_funds reports what it got
+		parsed := parser.Parse(src)
+		require.Empty(t, parsed.Errors)
+		_, program, cErr := compiler.Compile(parsed.Value, nil)
+		require.Nil(t, cErr)
+		_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{
+			balances: map[runtime.PairKey]*big.Int{
+				{Account: "a", Asset: "USD/2"}: big.NewInt(3),
+				{Account: "b", Asset: "USD/2"}: big.NewInt(4),
+				{Account: "c", Asset: "USD/2"}: big.NewInt(5),
+			},
+		})
+		require.IsType(t, vm.MissingFundsError{}, execErr)
+	})
+}
+
+// A oneof nested inside another must keep the two regions independent: the inner
+// backtrack may not discard what the outer branch already pulled.
+func TestE2E_OneofNested(t *testing.T) {
+	src := `
+		#![feature("experimental-oneof")]
+		send [USD/2 10] (
+			source = oneof {
+				{
+					@a
+					oneof { @b @c }
+				}
+				@d
+			}
+			destination = @dest
+		)
+	`
+
+	t.Run("inner backtrack keeps the outer branch's funds", func(t *testing.T) {
+		// @a gives 4, so the inner oneof needs 6: @b has only 5 -> rewind -> @c
+		// covers it. @a's 4 must survive the inner rewind.
+		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "a", Asset: "USD/2"}: big.NewInt(4),
+			{Account: "b", Asset: "USD/2"}: big.NewInt(5),
+			{Account: "c", Asset: "USD/2"}: big.NewInt(6),
+			{Account: "d", Asset: "USD/2"}: big.NewInt(10),
+		}})
+		requirePostingsEqual(t, []runtime.Posting{
+			{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
+			{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
+		}, postings)
+	})
+
+	t.Run("outer backtrack discards the whole inner region too", func(t *testing.T) {
+		// the inorder branch tops out at 4+6=10... but with @c at 5 it reaches 9,
+		// so the outer oneof rewinds @a and @c together and takes @d instead
+		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+			{Account: "a", Asset: "USD/2"}: big.NewInt(4),
+			{Account: "b", Asset: "USD/2"}: big.NewInt(3),
+			{Account: "c", Asset: "USD/2"}: big.NewInt(5),
+			{Account: "d", Asset: "USD/2"}: big.NewInt(10),
+		}})
+		requirePostingsEqual(t, []runtime.Posting{
+			{Source: "d", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
+		}, postings)
+	})
+}

@@ -58,11 +58,16 @@ type (
 		Numerator big.Int
 	}
 
-	// InternalError signals a malformed program the VM cannot execute (e.g. an
-	// unknown opcode, or an Op_Restore operand that isn't a usable snapshot id).
-	// It is a bug in whatever produced the bytecode, never a user-script error,
-	// but it is returned rather than panicked so the VM never crashes its host.
-	// These should never happen in practice, so a wrapped error is enough.
+	// InternalError signals a malformed program the VM cannot execute. It is a bug
+	// in whatever produced the bytecode, never a user-script error, but it is
+	// returned rather than panicked so the VM never crashes its host. These should
+	// never happen in practice, so a wrapped error is enough.
+	//
+	// The mark violations land here rather than getting user-facing error types of
+	// their own, because both are properties a verifier can decide from the
+	// instruction stream alone — an unbalanced mark stack, or a send / asset change /
+	// save while a mark is open. Unlike an empty balance or missing funds, neither is
+	// a legitimate outcome of running a well-formed program.
 	InternalError struct {
 		Err error
 	}

@@ -766,20 +766,19 @@ func (i LabelMarker) assemble(a *assembler) error {
 	return nil
 }
 
-func (i Snapshot) assemble(a *assembler) error {
-	dest, err := a.intReg(i.Dest)
-	if err != nil {
-		return err
-	}
-	a.emit(vm.Op_Snapshot, dest, maxReg, maxReg)
+// the mark ops take no register, so there is nothing to allocate and no way to
+// fail here
+
+func (i MarkPush) assemble(a *assembler) error {
+	a.emit(vm.Op_MarkPush, maxReg, maxReg, maxReg)
 	return nil
 }
 
-func (i Restore) assemble(a *assembler) error {
-	mark, err := a.intReg(i.Mark)
-	if err != nil {
-		return err
+func (i MarkEnd) assemble(a *assembler) error {
+	var rewind byte
+	if i.Rewind {
+		rewind = 1
 	}
-	a.emit(vm.Op_Restore, mark, maxReg, maxReg)
+	a.emit(vm.Op_MarkEnd, rewind, maxReg, maxReg)
 	return nil
 }

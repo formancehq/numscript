@@ -637,10 +637,17 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 		// empty oneof is parsing err
 		leadingSources := source.Sources[0 : len(source.Sources)-1]
 
-		for _, source := range leadingSources {
-			// do not move this line below (as .tryTakingUpTo() will mutate the source queue)
-			backtrackId := s.rs.Snapshot()
+		// Open a region before the first tryTakingUpTo, which mutates the source
+		// queue. Exactly one is open at any point below: a branch that falls short
+		// closes its own with a rewind and immediately opens the next.
+		s.rs.MarkPush()
+		// every exit — a branch covering the amount, an error, or falling through to
+		// the last branch — returns from this function, so the deferred commit closes
+		// the open region exactly once on all of them. It cannot fail: there is always
+		// one unmatched push by here, and a nested oneof balances its own.
+		defer func() { _ = s.rs.MarkEnd(false) }()
 
+		for _, source := range leadingSources {
 			sentAmt, err := s.tryTakingUpTo(source, amount)
 			if err != nil {
 				return nil, err
@@ -651,8 +658,12 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 				return amount, nil
 			}
 
-			// else, backtrack to remove this branch's sendings
-			s.rs.Restore(backtrackId)
+			// else undo this branch and reopen for the next one; after the rollback
+			// the fresh mark is identical to the one just closed
+			if err := s.rs.MarkEnd(true); err != nil {
+				return nil, QueryBalanceError{WrappedError: err}
+			}
+			s.rs.MarkPush()
 		}
 
 		return s.tryTakingUpTo(source.Sources[len(source.Sources)-1], amount)

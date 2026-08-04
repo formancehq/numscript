@@ -177,8 +177,14 @@ func (i UnaryOp) String() string {
 
 func (i LabelMarker) String() string { return i.Label.String() }
 
-func (i Snapshot) String() string { return fmt.Sprintf("%s = snapshot()", i.Dest) }
-func (i Restore) String() string  { return fmt.Sprintf("restore(%s)", i.Mark) }
+func (i MarkPush) String() string { return "mark_push()" }
+
+func (i MarkEnd) String() string {
+	if i.Rewind {
+		return "mark_rewind()"
+	}
+	return "mark_commit()"
+}
 
 // Dump renders a program: labels flush-left, instructions indented.
 func Dump(code []Instr) string {

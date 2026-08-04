@@ -799,9 +799,7 @@ func (st *state) compileSource(
 
 		endLabel := st.FreshLabel("oneof_end")
 
-		snapshotReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
-			return ir.Snapshot{Dest: dest}
-		})
+		st.Push(ir.MarkPush{})
 
 		// allocated at first use, not up front, to keep registers numbered in
 		// emission order (see ir.Builder.PushWithDest)
@@ -837,13 +835,20 @@ func (st *state) compileSource(
 				})
 
 				st.jmpIfAmountZero(missingAmt, endLabel)
-				st.Push(ir.Restore{
-					Mark: snapshotReg,
-				})
+				// this branch fell short: undo it and reopen for the next one. There
+				// is no rewind-without-closing, so a retry is a close plus a push —
+				// and after the rollback the new mark is identical to the closed one.
+				st.Push(ir.MarkEnd{Rewind: true})
+				st.Push(ir.MarkPush{})
 			}
 		}
 
 		st.Push(ir.LabelMarker{Label: endLabel})
+		// every path into endLabel — the jumps from a branch that covered the cap,
+		// and the fallthrough from the last branch — has exactly one region open, so
+		// a single commit here closes it once on all of them. Keeping it
+		// unconditional at the join is what keeps mark depth a function of position.
+		st.Push(ir.MarkEnd{Rewind: false})
 
 		return resultReg, nil
 

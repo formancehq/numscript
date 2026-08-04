@@ -330,14 +330,14 @@ func TestIRUnsentFundsAreReturnedToTheSource(t *testing.T) {
 	requirePostings(t, []runtime.Posting{posting("src", "dest", 50)}, res.Postings)
 }
 
-func TestIRSnapshotRestoreBacktracks(t *testing.T) {
-	// the `oneof` shape: try @a, and if it didn't cover the amount, rewind the
-	// funding queue and take from @b instead
+func TestIRMarkBacktracks(t *testing.T) {
+	// the `oneof` shape as the compiler emits it: a region per branch, each failed
+	// one closed with a rewind and immediately reopened, committed once at the join
 	src := `
   $asset = "USD/2"
   set_current_asset($asset)
   $amount = 10
-  $mark = snapshot()
+  mark_push()
   $a = "a"
   $overdraft = 0
   $from_a = pull_account(account: $a, cap: $amount, overdraft: $overdraft)
@@ -345,11 +345,13 @@ func TestIRSnapshotRestoreBacktracks(t *testing.T) {
   $missing = $amount - $from_a
   $covered = is_zero($missing)
   jmp_if_true($covered, #oneof_end)
-  restore($mark)
+  mark_rewind()
+  mark_push()
   $b = "b"
   $from_b = pull_account(account: $b, cap: $amount, overdraft: $overdraft)
   $result = int_copy($from_b)
 #oneof_end
+  mark_commit()
   check_enough_funds($result, $amount)
   $dest = "dest"
   send_to_account(account: $dest)
@@ -365,6 +367,266 @@ func TestIRSnapshotRestoreBacktracks(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"a": 3, "b": 10}), nil)
 		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
 	})
+}
+
+// A rewind must undo only what its own region pulled: funds queued before the
+// mark_push survive it and are still sendable afterwards.
+func TestIRMarkRewindKeepsFundsQueuedBeforeThePush(t *testing.T) {
+	res := runIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $keep_amt = 4
+  $kept = "kept"
+  $from_kept = pull_account(account: $kept, cap: $keep_amt, overdraft: $overdraft)
+  mark_push()
+  $spec_amt = 7
+  $spec = "spec"
+  $from_spec = pull_account(account: $spec, cap: $spec_amt, overdraft: $overdraft)
+  mark_rewind()
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances(map[string]int64{"kept": 100, "spec": 100}), nil)
+
+	// only the pre-mark pull reaches the destination; @spec was repaid
+	requirePostings(t, []runtime.Posting{posting("kept", "dest", 4)}, res.Postings)
+}
+
+// Nested regions must rewind independently: the inner one leaves the outer one's
+// funds alone, and the outer rewind then discards everything.
+func TestIRMarkNestedRegions(t *testing.T) {
+	src := `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $ten = 10
+  mark_push()
+  $outer = "outer"
+  $from_outer = pull_account(account: $outer, cap: $ten, overdraft: $overdraft)
+  mark_push()
+  $inner = "inner"
+  $from_inner = pull_account(account: $inner, cap: $ten, overdraft: $overdraft)
+  mark_rewind()
+`
+	balances := balances(map[string]int64{"outer": 100, "inner": 100})
+
+	t.Run("outer region commits", func(t *testing.T) {
+		res := runIR(t, src+`
+  mark_commit()
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances, nil)
+		// the inner rewind dropped @inner; @outer survived it and is committed
+		requirePostings(t, []runtime.Posting{posting("outer", "dest", 10)}, res.Postings)
+	})
+
+	t.Run("outer region rewinds too", func(t *testing.T) {
+		res := runIR(t, src+`
+  mark_rewind()
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, balances, nil)
+		requirePostings(t, []runtime.Posting{}, res.Postings)
+	})
+}
+
+// A mark op with nothing to act on is a malformed program, not a script outcome:
+// it is a bug in whatever produced the bytecode, so it surfaces as an
+// InternalError. The point is that it never panics — the old index-valued restore
+// truncated the source queue to an arbitrary int, which panicked out of range or,
+// worse, resurrected already-consumed entries.
+func TestIRMarkWithNoOpenRegionIsAnInternalError(t *testing.T) {
+	cases := map[string]string{
+		"rewind with no push": `
+  mark_rewind()
+`,
+		"commit with no push": `
+  mark_commit()
+`,
+		"one push, two ends": `
+  mark_push()
+  mark_commit()
+  mark_commit()
+`,
+		"rewind after the region closed": `
+  mark_push()
+  mark_commit()
+  mark_rewind()
+`,
+		// a rewind closes too, so a second end has nothing left to act on
+		"rewind then commit": `
+  mark_push()
+  mark_rewind()
+  mark_commit()
+`,
+	}
+
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			execErr := runIRExpectingError(t, src, balances(nil), nil)
+			require.IsType(t, vm.InternalError{}, execErr)
+			require.ErrorContains(t, execErr, "no open mark")
+		})
+	}
+}
+
+// A mark is a source-queue depth, so it only means anything while nothing drains
+// the queue from the front and the asset a repay lands on is fixed. All three ops
+// that would break it are rejected inside a region rather than silently corrupting
+// balances. Compiled numscript never emits any of them inside one — sources only
+// pull, and `save` is a statement — so this is reachable only from hand-written IR
+// (or a hand-crafted .numb), and it is exactly what a mark-depth verifier would
+// reject statically.
+func TestIRSendAndSetAssetAreRejectedInsideARegion(t *testing.T) {
+	prelude := `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $ten = 10
+  $src = "src"
+  mark_push()
+  $pulled = pull_account(account: $src, cap: $ten, overdraft: $overdraft)
+`
+	store := balances(map[string]int64{"src": 100})
+
+	t.Run("send inside a region", func(t *testing.T) {
+		execErr := runIRExpectingError(t, prelude+`
+  $dest = "dest"
+  send_to_account(account: $dest)
+`, store, nil)
+		require.IsType(t, vm.InternalError{}, execErr)
+		require.ErrorContains(t, execErr, "send while a mark is open")
+	})
+
+	t.Run("uncapped send inside a region", func(t *testing.T) {
+		execErr := runIRExpectingError(t, prelude+`
+  send_to_account()
+`, store, nil)
+		require.IsType(t, vm.InternalError{}, execErr)
+		require.ErrorContains(t, execErr, "send while a mark is open")
+	})
+
+	t.Run("set_current_asset inside a region", func(t *testing.T) {
+		execErr := runIRExpectingError(t, prelude+`
+  $other = "EUR/2"
+  set_current_asset($other)
+`, store, nil)
+		require.IsType(t, vm.InternalError{}, execErr)
+		require.ErrorContains(t, execErr, "set_current_asset while a mark is open")
+	})
+
+	// save reduces a balance, and a rewind only repays queued sources — so a save in
+	// an abandoned branch would persist. It is the one op on this list that stays
+	// forbidden no matter how much rollback is added later: its floor at zero is not
+	// invertible from a delta.
+	t.Run("save inside a region", func(t *testing.T) {
+		execErr := runIRExpectingError(t, prelude+`
+  $five = 5
+  save(account: $src, asset: $asset, amount: $five)
+`, store, nil)
+		require.IsType(t, vm.InternalError{}, execErr)
+		require.ErrorContains(t, execErr, "save while a mark is open")
+	})
+
+	t.Run("save-all inside a region", func(t *testing.T) {
+		execErr := runIRExpectingError(t, prelude+`
+  save(account: $src, asset: $asset)
+`, store, nil)
+		require.IsType(t, vm.InternalError{}, execErr)
+		require.ErrorContains(t, execErr, "save while a mark is open")
+	})
+
+	// all three are fine once the region has closed, so the check is scoped to the
+	// region and not a blanket ban
+	t.Run("all three are allowed after the region closes", func(t *testing.T) {
+		res := runIR(t, prelude+`
+  mark_commit()
+  $dest = "dest"
+  send_to_account(account: $dest)
+  $five = 5
+  save(account: $src, asset: $asset, amount: $five)
+  $other = "EUR/2"
+  set_current_asset($other)
+`, store, nil)
+		requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	})
+}
+
+// Interleaving pulls with mark ops across a jump: the region spans a branch, and
+// both paths through it reach the same single mark_commit. This is the shape the
+// compiler emits, and the reason mark depth stays a function of position.
+func TestIRMarkAcrossAJump(t *testing.T) {
+	src := `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $ten = 10
+  $zero = 0
+  mark_push()
+  $a = "a"
+  $from_a = pull_account(account: $a, cap: $ten, overdraft: $overdraft)
+  $took_nothing = is_zero($from_a)
+  jmp_if_false($took_nothing, #done)
+  $b = "b"
+  $from_b = pull_account(account: $b, cap: $ten, overdraft: $overdraft)
+#done
+  mark_commit()
+  $dest = "dest"
+  send_to_account(account: $dest)
+`
+
+	t.Run("branch taken", func(t *testing.T) {
+		// @a is empty, so the jump falls through to the @b pull
+		res := runIR(t, src, balances(map[string]int64{"a": 0, "b": 10}), nil)
+		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
+	})
+
+	t.Run("branch skipped", func(t *testing.T) {
+		res := runIR(t, src, balances(map[string]int64{"a": 10, "b": 10}), nil)
+		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+	})
+}
+
+// A run that dies inside a region must not leak the open mark into the next run
+// on the same Vm: the reused RunState drops it, so the second run's send works.
+func TestIRMarkDoesNotLeakAcrossRuns(t *testing.T) {
+	program := assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $ten = 10
+  $src = "src"
+  mark_push()
+  $pulled = pull_account(account: $src, cap: $ten, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`)
+	machine := vm.NewVm(program)
+	store := balances(map[string]int64{"src": 100})
+
+	// the send inside the region fails, leaving the mark open
+	_, execErr := vm.Exec(context.Background(), machine, nil, store)
+	require.IsType(t, vm.InternalError{}, execErr)
+
+	// a well-formed program on the same Vm must not inherit that mark
+	res, execErr := vm.Exec(context.Background(), vm.NewVm(assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $overdraft = 0
+  $ten = 10
+  $src = "src"
+  $pulled = pull_account(account: $src, cap: $ten, overdraft: $overdraft)
+  $dest = "dest"
+  send_to_account(account: $dest)
+`)), nil, store)
+	require.Nil(t, execErr)
+	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+
+	// and the same Vm, rerun, is clean too
+	res, execErr = vm.Exec(context.Background(), machine, nil, store)
+	require.IsType(t, vm.InternalError{}, execErr)
+	require.ErrorContains(t, execErr, "send while a mark is open")
+	require.Empty(t, res.Postings)
 }
 
 func TestIRStrEqAndJmp(t *testing.T) {
@@ -781,15 +1043,16 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
 	})
 }
 
-func TestIRRestoreRejectsABogusMark(t *testing.T) {
-	// a mark is a queue position, so one that can't fit an int64 is not one
-	execErr := runIRExpectingError(t, `
-  $mark = 99999999999999999999999999
-  restore($mark)
-`, balances(nil), nil)
-
-	require.IsType(t, vm.InternalError{}, execErr)
-	require.ErrorContains(t, execErr, "invalid snapshot id")
+// The bogus-mark case the old index-valued restore needed a guard for is gone:
+// with no operand there is no value to pass, so an out-of-range mark is not
+// expressible in the IR at all. Misuse can only be an unbalanced stack, covered by
+// TestIRMarkWithNoOpenRegionIsAnInternalError.
+func TestIRMarkTakesNoOperand(t *testing.T) {
+	_, errs := ir.Parse(`
+  $mark = 3
+  mark_rewind($mark)
+`)
+	require.NotEmpty(t, errs, "mark_rewind must not accept an operand")
 }
 
 func TestIRVmIsReusableAcrossRuns(t *testing.T) {

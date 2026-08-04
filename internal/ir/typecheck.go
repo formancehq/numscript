@@ -156,10 +156,12 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 	case LabelMarker:
 		return nil
 
-	case Snapshot:
-		return tc.def(i.Dest, regInt)
-	case Restore:
-		return tc.use(i.Mark, regInt)
+	// the mark ops touch no register, so there is nothing to type here. What does
+	// need checking about them — that pushes and pops balance, and that no send or
+	// asset change sits inside a region — is a control-flow property, not a
+	// register one; see the note on MarkPush in instr.go.
+	case MarkPush, MarkEnd:
+		return nil
 
 	default:
 		return fmt.Errorf("bytecode typechecker: unhandled instruction %T", instr)

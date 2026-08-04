@@ -514,10 +514,13 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 	case "assert_non_negative_balance":
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
 
-	case "snapshot":
-		instr = Snapshot{Dest: dest}
-	case "restore":
-		instr = Restore{Mark: ap.reg()}
+	// two names for one instruction, as assert_leftover/assert_leftover_exact are
+	case "mark_push":
+		instr = MarkPush{}
+	case "mark_rewind":
+		instr = MarkEnd{Rewind: true}
+	case "mark_commit":
+		instr = MarkEnd{Rewind: false}
 
 	case "set_tx_meta":
 		instr = SetTxMeta{Key: ap.reg(), Value: ap.reg()}

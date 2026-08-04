@@ -167,12 +167,31 @@ const (
 	// reads the account balance from the run-state
 	Op_Balance Opcode = 0x54
 
-	// A = dest int reg; int_regs[A] = current source-queue mark (len(sources)).
-	// Used for oneof backtracking.
-	Op_Snapshot Opcode = 0x55
+	// --- marks (oneof backtracking) ---
+	//
+	// 0x55 was Op_Snapshot and 0x56 was Op_Restore: the source-queue mark used to
+	// travel through an int register, which made it a big.Int for a small number and
+	// let any int be passed to a restore. The pair below takes no register at all;
+	// the mark lives on a LIFO owned by the run-state.
+	//
+	// There is deliberately no third "rewind but keep the mark" opcode (a draft had
+	// one at 0x57). Closing is the only way to stop rewinding, so pushes and ends
+	// match strictly and "a region left open after a rewind" is not a state to
+	// detect but one that cannot be encoded. A retry is Op_MarkEnd with the rewind
+	// flag, followed by a fresh Op_MarkPush.
+	//
+	// Neither takes a register, so mark depth is a function of position in the
+	// instruction stream: a future IR verifier can prove pushes and ends balance and
+	// that no Op_SendToAccount / Op_SetCurrentAsset / Op_Save sits inside a region.
+	// Until it exists the VM enforces all of it at execution time.
 
-	// A = int reg holding a mark; rolls the source queue back to it.
-	Op_Restore Opcode = 0x56
+	// opens a region at the current source-queue depth and posting count
+	Op_MarkPush Opcode = 0x55
+
+	// A = rewind flag. Always pops the innermost mark; A == 1 additionally repays
+	// everything pulled and reverses everything posted since the matching
+	// Op_MarkPush, while A == 0 commits it. Flag-in-a-byte follows Op_AssertLeftover.
+	Op_MarkEnd Opcode = 0x56
 
 	// reserved (0x57..0x5F) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero

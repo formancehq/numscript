@@ -2,6 +2,7 @@ package vm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -9,6 +10,19 @@ import (
 )
 
 const nilReg byte = 0xFF
+
+// The three ops a mark cannot survive, rejected by the arms below. Plain values, so
+// classifying them is a switch on the opcode that produced them rather than an
+// inspection of the error.
+//
+// save is on the list permanently, unlike the other two: it floors the balance at
+// zero, and the clamp destroys the information needed to invert it. Even a fully
+// transactional region built on deltas could not undo it.
+var (
+	errSendWhileMarkOpen     = errors.New("send while a mark is open")
+	errSetAssetWhileMarkOpen = errors.New("set_current_asset while a mark is open")
+	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
+)
 
 type Vm struct {
 	program  Program
@@ -152,6 +166,14 @@ func Exec[S Store](
 			}
 
 		case Op_SendToAccount:
+			// a send while a mark is open would consume the queue from the front and
+			// leave that mark pointing at the wrong boundary. This is the dynamic
+			// stand-in for the static check a verifier will do on mark depth; compiled
+			// numscript never emits it, since sources only pull.
+			if runstate.HasOpenMark() {
+				return runtime.ExecutionResult{}, InternalError{Err: errSendWhileMarkOpen}
+			}
+
 			var dest *string
 			if instr.A != nilReg {
 				s := stringsRegs[instr.A]
@@ -190,6 +212,13 @@ func Exec[S Store](
 			}
 
 		case Op_Save:
+			// a save while a mark is open survives the rewind: it reduces a balance,
+			// and a rewind only repays queued sources and reverses postings. Worse
+			// than the other two, its floor at zero is not invertible at all.
+			if runstate.HasOpenMark() {
+				return runtime.ExecutionResult{}, InternalError{Err: errSaveWhileMarkOpen}
+			}
+
 			account := stringsRegs[instr.A]
 			asset := stringsRegs[instr.B]
 			var amount *big.Int
@@ -200,15 +229,16 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
-		case Op_Snapshot:
-			intsRegs[instr.A].SetInt64(int64(runstate.Snapshot()))
+		// the mark ops take no register: the mark is a depth on a LIFO the run-state
+		// owns, so there is nothing to decode and no value that could name a queue
+		// depth the run-state never marked
+		case Op_MarkPush:
+			runstate.MarkPush()
 
-		case Op_Restore:
-			snap := &intsRegs[instr.A]
-			if !snap.IsInt64() {
-				return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("invalid snapshot id %s", snap.String())}
+		case Op_MarkEnd:
+			if err := runstate.MarkEnd(instr.A == 1); err != nil {
+				return runtime.ExecutionResult{}, InternalError{Err: err}
 			}
-			runstate.Restore(int(snap.Int64()))
 
 		case Op_AssertLeftover:
 			leftover := &portionsRegs[instr.A]
@@ -219,6 +249,12 @@ func Exec[S Store](
 			}
 
 		case Op_SetCurrentAsset:
+			// refused while a mark is open for the same reason as a send: a rewind
+			// repays queued funds into the current asset's balance, so changing the
+			// asset mid-region would repay the wrong one
+			if runstate.HasOpenMark() {
+				return runtime.ExecutionResult{}, InternalError{Err: errSetAssetWhileMarkOpen}
+			}
 			currentAsset = stringsRegs[instr.A]
 			runstate.SetCurrentAsset(currentAsset)
 

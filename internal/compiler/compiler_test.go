@@ -592,49 +592,52 @@ func TestSourceOneofSimple(t *testing.T) {
   $r1 = "USD/2"
   $r2 = 10
   set_current_asset($r1)
-  $r3 = snapshot()
-  $r4 = "a"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_1)
-  $r7 = pull_account(account: $r4, cap: $r2)
+  mark_push()
+  $r3 = "a"
+  $r4 = 0
+  $r5 = str_eq($r3, $r0)
+  jmp_if_false($r5, #not_world_1)
+  $r6 = pull_account(account: $r3, cap: $r2)
   jmp(#pull_end_2)
 #not_world_1
-  $r7 = pull_account(account: $r4, cap: $r2, overdraft: $r5)
+  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
 #pull_end_2
-  $r8 = int_copy($r7)
-  $r9 = $r2 - $r7
-  $r10 = is_zero($r9)
-  jmp_if_true($r10, #oneof_end_0)
-  restore($r3)
-  $r11 = "b"
-  $r12 = 0
-  $r13 = str_eq($r11, $r0)
-  jmp_if_false($r13, #not_world_3)
-  $r14 = pull_account(account: $r11, cap: $r2)
+  $r7 = int_copy($r6)
+  $r8 = $r2 - $r6
+  $r9 = is_zero($r8)
+  jmp_if_true($r9, #oneof_end_0)
+  mark_rewind()
+  mark_push()
+  $r10 = "b"
+  $r11 = 0
+  $r12 = str_eq($r10, $r0)
+  jmp_if_false($r12, #not_world_3)
+  $r13 = pull_account(account: $r10, cap: $r2)
   jmp(#pull_end_4)
 #not_world_3
-  $r14 = pull_account(account: $r11, cap: $r2, overdraft: $r12)
+  $r13 = pull_account(account: $r10, cap: $r2, overdraft: $r11)
 #pull_end_4
-  $r8 = int_copy($r14)
-  $r15 = $r2 - $r14
-  $r16 = is_zero($r15)
-  jmp_if_true($r16, #oneof_end_0)
-  restore($r3)
-  $r17 = "c"
-  $r18 = 0
-  $r19 = str_eq($r17, $r0)
-  jmp_if_false($r19, #not_world_5)
-  $r20 = pull_account(account: $r17, cap: $r2)
+  $r7 = int_copy($r13)
+  $r14 = $r2 - $r13
+  $r15 = is_zero($r14)
+  jmp_if_true($r15, #oneof_end_0)
+  mark_rewind()
+  mark_push()
+  $r16 = "c"
+  $r17 = 0
+  $r18 = str_eq($r16, $r0)
+  jmp_if_false($r18, #not_world_5)
+  $r19 = pull_account(account: $r16, cap: $r2)
   jmp(#pull_end_6)
 #not_world_5
-  $r20 = pull_account(account: $r17, cap: $r2, overdraft: $r18)
+  $r19 = pull_account(account: $r16, cap: $r2, overdraft: $r17)
 #pull_end_6
-  $r8 = int_copy($r20)
+  $r7 = int_copy($r19)
 #oneof_end_0
-  check_enough_funds($r8, $r2)
-  $r21 = "dest"
-  send_to_account(account: $r21)
+  mark_commit()
+  check_enough_funds($r7, $r2)
+  $r20 = "dest"
+  send_to_account(account: $r20)
 `))
 }
 
@@ -655,35 +658,37 @@ func TestSourceOneofBounded(t *testing.T) {
   $r1 = "USD/2"
   $r2 = 10
   set_current_asset($r1)
-  $r3 = snapshot()
-  $r4 = "a"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_1)
-  $r7 = pull_account(account: $r4, cap: $r2)
+  mark_push()
+  $r3 = "a"
+  $r4 = 0
+  $r5 = str_eq($r3, $r0)
+  jmp_if_false($r5, #not_world_1)
+  $r6 = pull_account(account: $r3, cap: $r2)
   jmp(#pull_end_2)
 #not_world_1
-  $r7 = pull_account(account: $r4, cap: $r2, overdraft: $r5)
+  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
 #pull_end_2
-  $r8 = int_copy($r7)
-  $r9 = $r2 - $r7
-  $r10 = is_zero($r9)
-  jmp_if_true($r10, #oneof_end_0)
-  restore($r3)
-  $r11 = "b"
-  $r12 = 0
-  $r13 = str_eq($r11, $r0)
-  jmp_if_false($r13, #not_world_3)
-  $r14 = pull_account(account: $r11, cap: $r2)
+  $r7 = int_copy($r6)
+  $r8 = $r2 - $r6
+  $r9 = is_zero($r8)
+  jmp_if_true($r9, #oneof_end_0)
+  mark_rewind()
+  mark_push()
+  $r10 = "b"
+  $r11 = 0
+  $r12 = str_eq($r10, $r0)
+  jmp_if_false($r12, #not_world_3)
+  $r13 = pull_account(account: $r10, cap: $r2)
   jmp(#pull_end_4)
 #not_world_3
-  $r14 = pull_account(account: $r11, cap: $r2, overdraft: $r12)
+  $r13 = pull_account(account: $r10, cap: $r2, overdraft: $r11)
 #pull_end_4
-  $r8 = int_copy($r14)
+  $r7 = int_copy($r13)
 #oneof_end_0
-  check_enough_funds($r8, $r2)
-  $r15 = "dest"
-  send_to_account(account: $r15)
+  mark_commit()
+  check_enough_funds($r7, $r2)
+  $r14 = "dest"
+  send_to_account(account: $r14)
 `))
 }
 

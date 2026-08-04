@@ -120,7 +120,6 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		{"portion_copy arg", UnaryOp{Op: OpPortionCopy{}, Dest: 9, Arg: intReg}},
 		{"str_copy arg", UnaryOp{Op: OpStrCopy{}, Dest: 9, Arg: portionReg}},
 		{"bool_copy arg", UnaryOp{Op: OpBoolCopy{}, Dest: 9, Arg: intReg}},
-		{"restore mark", Restore{Mark: strReg}},
 		{"unary arg", UnaryOp{Op: OpPortionToString{}, Dest: 9, Arg: intReg}},
 		{"mul_portion left", BinaryOp{Op: OpMulPortion{}, Dest: 9, Left: intReg, Right: portionReg}},
 		{"mul_portion right", BinaryOp{Op: OpMulPortion{}, Dest: 9, Left: portionReg, Right: intReg}},
@@ -155,13 +154,13 @@ func TestBytecodeTypecheck_TaggedDests(t *testing.T) {
 		{"meta<str>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaStr{}}, false},
 		{"meta<int>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaInt{}}, true},
 		{"meta<portion>", MetaVar{Dest: 9, Account: str, Key: str, Typ: MetaPortion{}}, false},
-		{"snapshot", Snapshot{Dest: 9}, true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// restore only accepts an int register
-			instrs := append(append([]Instr{}, prelude...), tc.instr, Restore{Mark: 9})
+			// assert_non_negative_balance only accepts an int register
+			instrs := append(append([]Instr{}, prelude...), tc.instr,
+				AssertNonNegativeBalance{Balance: 9, Account: str})
 			if tc.destIsInt {
 				require.NoError(t, Typecheck(instrs))
 			} else {
@@ -184,7 +183,7 @@ func TestBytecodeTypecheck_Bool(t *testing.T) {
 	t.Run("a bool is not an int", func(t *testing.T) {
 		err := Typecheck([]Instr{
 			ConstBool{Dest: 0, Value: true},
-			Restore{Mark: 0},
+			AssertNonNegativeBalance{Balance: 0, Account: 0},
 		})
 		require.ErrorContains(t, err, "read as int but holds bool")
 	})
@@ -247,7 +246,7 @@ func TestBytecodeTypecheck_Bool(t *testing.T) {
 		err := Typecheck([]Instr{
 			LoadInt{Dest: 0, Value: *big.NewInt(1)},
 			BinaryOp{Op: OpEqInt{}, Dest: 1, Left: 0, Right: 0},
-			Restore{Mark: 1},
+			AssertNonNegativeBalance{Balance: 1, Account: 0},
 		})
 		require.ErrorContains(t, err, "read as int but holds bool")
 	})

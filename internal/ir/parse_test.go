@@ -678,10 +678,12 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
-			name: "snapshot and restore",
+			name: "mark push, rewind and commit",
 			ir: `
-  $r0 = snapshot()
-  restore($r0)
+  mark_push()
+  mark_rewind()
+  mark_push()
+  mark_commit()
 `,
 		},
 		{

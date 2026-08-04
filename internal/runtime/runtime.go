@@ -40,7 +40,16 @@
 // copies).
 package runtime
 
-import "math/big"
+import (
+	"errors"
+	"math/big"
+)
+
+// ErrNoOpenMark is the only way to misuse a mark: MarkEnd on an empty stack. It is
+// the sole error MarkEnd returns, so a caller can map it without inspecting the
+// error at all. Well-formed bytecode matches its pushes to its ends, so this only
+// surfaces for hand-written IR or a hand-crafted .numb.
+var ErrNoOpenMark = errors.New("runtime: no open mark to end")
 
 // Store supplies the authoritative starting balance for an (account, asset,
 // color) triple. A triple never seen by the ledger is fetched once, then cached.
@@ -103,6 +112,13 @@ type balanceEntry struct {
 	baseLoaded bool
 }
 
+// mark is one open region: the source-queue depth and the posting-list
+// length at the matching MarkPush. A rewinding MarkEnd rolls both back to it.
+type mark struct {
+	sources  int32
+	postings int32
+}
+
 // RunState is the Go port of the OCaml run_state. The zero value is not usable;
 // call New. All fields are unexported to preserve the .mli interface boundary.
 type RunState struct {
@@ -111,6 +127,10 @@ type RunState struct {
 	sources      []source // FIFO: front = index 0
 	postings     []Posting
 	currentAsset string
+
+	// marks is the stack of open marks. LIFO, so the innermost open region is the
+	// last element.
+	marks []mark
 }
 
 // New creates an empty RunState backed by store.
@@ -122,15 +142,22 @@ func New(store Store) *RunState {
 }
 
 // SetCurrentAsset sets the asset used when an operation omits one.
+//
+// PRE: no mark is open (see HasOpenMark). A rewinding MarkEnd repays queued funds
+// into the current asset's balance, so changing the asset mid-region would repay
+// into the wrong one. The VM refuses the pair outright rather than relying on this.
 func (s *RunState) SetCurrentAsset(asset string) {
 	s.currentAsset = asset
 }
 
 // Reset clears all per-execution state — the balance cache, the source queue,
-// the postings, and the current asset — and rebinds the store, while retaining
-// the underlying map/slice capacity. This lets a single RunState be reused
-// across executions without reallocating its containers (the balances map and
-// the sources/postings slices keep their backing storage).
+// the postings, the mark stack, and the current asset — and rebinds the store,
+// while retaining the underlying map/slice capacity. This lets a single RunState
+// be reused across executions without reallocating its containers (the balances
+// map and the sources/postings/marks slices keep their backing storage).
+//
+// Resetting drops any mark left open by a run that failed mid-region, so a reused
+// RunState never inherits the previous run's open marks.
 //
 // Note: GetPostings returns deep copies, so a result obtained before Reset stays
 // valid afterward.
@@ -139,6 +166,7 @@ func (s *RunState) Reset(store Store) {
 	clear(s.balances)
 	s.sources = s.sources[:0]
 	s.postings = s.postings[:0]
+	s.marks = s.marks[:0]
 	s.currentAsset = ""
 }
 
@@ -338,6 +366,9 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 // dest == nil is the "keep/refund" path: the source is credited back and no
 // posting is emitted. A partially consumed source's remainder stays at its
 // position.
+//
+// PRE: no mark is open (see HasOpenMark). Draining consumes sources from the front,
+// which renumbers the queue and leaves an open mark pointing at the wrong boundary.
 func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *string) error {
 	cap = new(big.Int).Set(cap) // clone: we decrement it as sources are consumed
 	asset := s.currentAsset
@@ -373,6 +404,8 @@ func (s *RunState) Send(dest *string, destScope string, cap *big.Int, color *str
 // filter as Send: color == nil drains every queued source (each posting keeping
 // its own color); color != nil drains only matching ones, leaving others in
 // place.
+//
+// PRE: no mark is open, for the same reason as Send.
 func (s *RunState) SendUncapped(dest *string, destScope string, color *string) error {
 	asset := s.currentAsset
 	i := 0
@@ -398,6 +431,9 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 // explicit asset argument, which may differ from the current asset (a scaled
 // asset). A non-positive amount is a no-op. PRE: the caller has already checked
 // invariants (e.g. amount sign); no balance sufficiency check is performed.
+//
+// Safe inside a region, unlike Send: it touches no queue entry, so
+// a rewinding MarkEnd undoes it completely by reversing the posting.
 func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
 	if amount.Sign() <= 0 {
 		return nil
@@ -433,30 +469,117 @@ func (s *RunState) Save(account, scope, asset, color string, amount *big.Int) er
 	return nil
 }
 
-// Snapshot returns a cheap marker of the current source-queue depth, for
-// backtracking a speculative source evaluation (e.g. a `oneof` branch). It is
-// just the queue length: O(1), no allocation, no map cloning.
-func (s *RunState) Snapshot() int {
-	return len(s.sources)
+// --- marks ---
+//
+// A region lets a caller try a source evaluation and undo it if it did not work out
+// — the `oneof` shape: pull from a branch, and if the branch did not cover the cap,
+// repay what it pulled and try the next one.
+//
+// The mark is the source-queue depth, and it is deliberately NOT a value the
+// caller holds: RunState owns a LIFO of them. That is what makes the primitive
+// safe. A caller cannot name a depth that was never marked, cannot restore a mark
+// out of order, and cannot restore one twice — so the queue can never be
+// truncated to a bogus depth, which would either panic or resurrect entries the
+// queue had already handed out.
+//
+// The other half of the safety story is not enforced here: a depth only stays
+// meaningful while nothing consumes the queue from the front and the asset a repay
+// lands on is fixed, so Send, SendUncapped and SetCurrentAsset document that as a
+// precondition and callers use HasOpenMark to hold themselves to it. The VM checks
+// it at Op_SendToAccount and Op_SetCurrentAsset, where a violation is a property of
+// the program rather than of the funds state.
+//
+// A rewind undoes both pulls and postings, so a movement recorded by ForcePosting
+// inside a region is rolled back — that is what makes a scaled source usable inside
+// a `oneof` branch. What it does NOT undo is queue *consumption*, which is why Send
+// is still refused inside a region; see the INVARIANT on MarkEnd. Lifting that needs
+// a real undo log of queue mutations, and nothing in the language asks for it yet:
+// sources only pull.
+//
+// There are deliberately only two operations, MarkPush and MarkEnd, and closing is
+// the *only* way to stop rewinding — there is no "rewind but keep the mark". A caller
+// that wants to retry closes with rewind and pushes again. That keeps the grammar a
+// strict matching of pushes to ends, which makes "a region left open after a rewind"
+// not a state to detect but a state that cannot be written down. Since the ops carry
+// no operand either, mark depth is a function of the instruction stream alone, so an
+// IR verifier can prove pushes and ends balance and that no forbidden op appears
+// inside a region. No such pass exists yet.
+
+// HasOpenMark reports whether at least one mark is open.
+func (s *RunState) HasOpenMark() bool {
+	return len(s.marks) > 0
 }
 
-// Restore undoes every Pull/PullUncapped performed since the matching Snapshot:
-// it repays each source queued after the mark back to the (account, color)
-// balance it was debited from, then truncates the queue to the mark. Balances
-// are restored exactly without cloning maps — repaying the queued amounts is the
-// exact inverse of the debits Pull made.
+// MarkPush opens a region at the current source-queue depth and posting-list length.
+// O(1), and free of allocation once the stack has reached its high-water mark (the
+// backing array is retained across Reset).
+func (s *RunState) MarkPush() {
+	s.marks = append(s.marks, mark{
+		sources:  int32(len(s.sources)),
+		postings: int32(len(s.postings)),
+	})
+}
+
+// MarkEnd closes the innermost region. It always pops the mark; rewind
+// decides what happens to the work the region did.
 //
-// PRECONDITION: nothing queued after the mark has been sent, and the current
-// asset is unchanged since the Snapshot. Both hold during source evaluation,
-// which is the only place backtracking happens — Send runs later, in the
-// destination phase. (compactAt may have folded same-(account,color) funds, but
-// the fold preserves both per the merge key, so the repay still lands correctly.)
-func (s *RunState) Restore(mark int) {
-	for i := mark; i < len(s.sources); i++ {
+// rewind == false — commit. Whatever was pulled stays queued and whatever was posted
+// stays posted; only the mark goes away. This is the path a `oneof` branch that
+// covered the cap takes.
+//
+// rewind == true — roll the region back, in two parts.
+//
+// Postings emitted since the MarkPush are reversed and dropped. A posting records its
+// own source, destination, asset, colour and amount, so crediting the source and
+// debiting the destination is the exact inverse of addPosting plus the debit that
+// funded it — and because the asset comes from the posting, this part does not depend
+// on currentAsset at all.
+//
+// Sources still queued above the mark are repaid to the (account, scope, colour)
+// balance they were debited from, then the queue is truncated. Repaying the queued
+// amounts is the exact inverse of the debits Pull made. (compactAt may have folded
+// same-(account,scope,colour) funds, but the fold preserves all three per the merge
+// key, so the repay still lands correctly.)
+//
+// The two parts commute — both are additive balance adjustments — so their order is
+// the conventional undo direction rather than a requirement.
+//
+// To retry, close with rewind and MarkPush again: after the rollback the queue depth
+// and posting length are back to the old mark's values, so the new mark is identical
+// to the one just closed. There is no rewind-without-closing on purpose; see the note
+// above this block.
+//
+// INVARIANT: no Send may have run inside the region. Reversing a posting credits its
+// source back, which is only right because the queue entry that funded it was pulled
+// *inside* the region and is therefore not also being repaid by the second loop. A
+// Send can consume entries queued *below* the mark, and for those the credit and the
+// repay would both apply — double-counting, i.e. inventing money. That is why
+// Op_SendToAccount is refused while a mark is open; relaxing that guard requires
+// undoing queue consumption too, not just postings.
+func (s *RunState) MarkEnd(rewind bool) error {
+	if len(s.marks) == 0 {
+		return ErrNoOpenMark
+	}
+	m := s.marks[len(s.marks)-1]
+	s.marks = s.marks[:len(s.marks)-1]
+
+	if !rewind {
+		return nil
+	}
+
+	for i := len(s.postings) - 1; i >= int(m.postings); i-- {
+		p := s.postings[i]
+		s.subFromBalance(p.Destination, p.DestinationScope, p.Asset, p.Color, p.Amount)
+		_ = s.addToBalance(p.Source, p.SourceScope, p.Asset, p.Color, p.Amount)
+	}
+	s.postings = s.postings[:m.postings]
+
+	for i := int(m.sources); i < len(s.sources); i++ {
 		src := s.sources[i]
 		_ = s.addToBalance(src.account, src.scope, s.currentAsset, src.color, src.amount)
 	}
-	s.sources = s.sources[:mark]
+	s.sources = s.sources[:m.sources]
+	return nil
 }
 
 // GetPostings returns a copy of the recorded postings: a fresh slice, so callers
@@ -539,6 +662,15 @@ func (s *RunState) addToBalance(account, scope, asset, color string, delta *big.
 	e := s.entryFor(PairKey{account, scope, asset, color})
 	e.amount.Add(&e.amount, delta)
 	return nil
+}
+
+// subFromBalance is addToBalance with the sign flipped, so a caller undoing a
+// movement does not have to allocate a negated copy of the amount. delta is
+// read-only. No error return: like addToBalance it never fails, and unlike
+// addToBalance it has no historical call sites expecting one.
+func (s *RunState) subFromBalance(account, scope, asset, color string, delta *big.Int) {
+	e := s.entryFor(PairKey{account, scope, asset, color})
+	e.amount.Sub(&e.amount, delta)
 }
 
 // addPosting appends a posting verbatim and credits the destination balance.

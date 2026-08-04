@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/formancehq/numscript/internal/runtime"
 )
 
@@ -652,41 +654,49 @@ func TestSave_ThenPullSeesProtectedBalance(t *testing.T) {
 	wantBalance(t, rs, "A", 0)
 }
 
-// --- Snapshot / Restore (cheap oneof backtracking) -----------------------
+// --- marks (cheap oneof backtracking) ------------------------------------
 
-func TestSnapshotRestore_UndoesPullsAndBalances(t *testing.T) {
+func TestMark_RewindUndoesPullsAndBalances(t *testing.T) {
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100, {"B", "", usd, ""}: 80})
 
-	mark := rs.Snapshot() // == 0
+	rs.MarkPush() // at depth 0
 	pull(rs, "A", big.NewInt(60), big.NewInt(0), "")
 	pull(rs, "B", big.NewInt(50), big.NewInt(0), "")
 	// balances debited, two sources queued
 	wantBalance(t, rs, "A", 40)
 	wantBalance(t, rs, "B", 30)
 
-	rs.Restore(mark)
-	// balances repaid, queue emptied
+	require.NoError(t, rs.MarkEnd(true))
+	// balances repaid, queue emptied, and the region is closed by the same call
 	wantBalance(t, rs, "A", 100)
 	wantBalance(t, rs, "B", 80)
+	require.False(t, rs.HasOpenMark())
 	_ = rs.SendUncapped(strptr("X"), "", nil)
 	wantPostings(t, rs, []runtime.Posting{}) // nothing left to send
 }
 
-func TestSnapshotRestore_OneofFailedBranchThenRealBranch(t *testing.T) {
-	// Models `oneof`: try branch 1 (snapshot, pull, falls short -> restore),
-	// then commit branch 2 from the restored state.
+func TestMark_OneofFailedBranchThenRealBranch(t *testing.T) {
+	// Models `oneof` exactly as the interpreter and the compiled bytecode emit it:
+	// branch 1 falls short, so its region is closed with a rewind and a fresh one is
+	// opened for branch 2, which covers the amount and commits.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 30, {"B", "", usd, ""}: 100})
 
+	rs.MarkPush()
+
 	// branch 1: @A can only provide 30 of the needed 100 -> abandon
-	mark := rs.Snapshot()
 	got := pull(rs, "A", big.NewInt(100), big.NewInt(0), "")
 	wantReturn(t, "branch1 pull", got, 30) // short
-	rs.Restore(mark)
+	require.NoError(t, rs.MarkEnd(true))
 	wantBalance(t, rs, "A", 30) // A untouched after backtrack
+
+	// close-and-reopen: the fresh mark is identical to the one just rewound
+	rs.MarkPush()
 
 	// branch 2: @B covers it
 	got = pull(rs, "B", big.NewInt(100), big.NewInt(0), "")
 	wantReturn(t, "branch2 pull", got, 100)
+
+	require.NoError(t, rs.MarkEnd(false))
 	_ = rs.Send(strptr("X"), "", big.NewInt(100), nil)
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "B", Destination: "X", Asset: usd, Amount: big.NewInt(100)},
@@ -695,14 +705,14 @@ func TestSnapshotRestore_OneofFailedBranchThenRealBranch(t *testing.T) {
 	wantBalance(t, rs, "B", 0)
 }
 
-func TestSnapshotRestore_PartialMarkKeepsEarlierSources(t *testing.T) {
-	// A snapshot taken mid-stream must only undo what came after it.
+func TestMark_RewindKeepsSourcesQueuedBeforeThePush(t *testing.T) {
+	// A mark opened mid-stream must only undo what came after it.
 	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100, {"B", "", usd, ""}: 100})
 	pull(rs, "A", big.NewInt(40), big.NewInt(0), "") // kept
 
-	mark := rs.Snapshot()
+	rs.MarkPush()
 	pull(rs, "B", big.NewInt(70), big.NewInt(0), "") // undone
-	rs.Restore(mark)
+	require.NoError(t, rs.MarkEnd(true))
 
 	wantBalance(t, rs, "A", 60)  // still debited
 	wantBalance(t, rs, "B", 100) // repaid
@@ -710,6 +720,230 @@ func TestSnapshotRestore_PartialMarkKeepsEarlierSources(t *testing.T) {
 	wantPostings(t, rs, []runtime.Posting{
 		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(40)},
 	})
+}
+
+func TestMark_CommitKeepsWhatTheRegionPulled(t *testing.T) {
+	// The success path: a branch covered the amount, so the region is popped
+	// without a rewind and its funds stay queued.
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	rs.MarkPush()
+	pull(rs, "A", big.NewInt(70), big.NewInt(0), "")
+	require.NoError(t, rs.MarkEnd(false))
+
+	require.False(t, rs.HasOpenMark())
+	wantBalance(t, rs, "A", 30)
+	_ = rs.SendUncapped(strptr("X"), "", nil)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "X", Asset: usd, Amount: big.NewInt(70)},
+	})
+}
+
+func TestMark_NestedRegionsRewindIndependently(t *testing.T) {
+	// The inner rewind must undo only the inner region; the outer one's funds
+	// survive it and are only undone by the outer rewind.
+	rs, _ := newRS(map[runtime.PairKey]int64{
+		{"A", "", usd, ""}: 100, {"B", "", usd, ""}: 100, {"C", "", usd, ""}: 100,
+	})
+
+	rs.MarkPush()
+	pull(rs, "A", big.NewInt(10), big.NewInt(0), "")
+
+	rs.MarkPush()
+	pull(rs, "B", big.NewInt(20), big.NewInt(0), "")
+	require.NoError(t, rs.MarkEnd(true))
+
+	wantBalance(t, rs, "A", 90)  // outer pull survives the inner rewind
+	wantBalance(t, rs, "B", 100) // inner pull undone
+	require.True(t, rs.HasOpenMark(), "outer mark must still be open")
+
+	pull(rs, "C", big.NewInt(30), big.NewInt(0), "")
+	require.NoError(t, rs.MarkEnd(true)) // outer rewind: undoes A and C, and closes
+
+	require.False(t, rs.HasOpenMark())
+	wantBalance(t, rs, "A", 100)
+	wantBalance(t, rs, "C", 100)
+	_ = rs.SendUncapped(strptr("X"), "", nil)
+	wantPostings(t, rs, []runtime.Posting{})
+}
+
+// A caller cannot name a queue depth, so the only way to misuse a mark is to
+// end one that was never pushed. Both flags must report it rather than
+// panicking on an out-of-range truncation, which is what the old index-valued
+// Restore did.
+func TestMark_EndWithNoOpenMark(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	require.ErrorIs(t, rs.MarkEnd(true), runtime.ErrNoOpenMark)
+	require.ErrorIs(t, rs.MarkEnd(false), runtime.ErrNoOpenMark)
+
+	// and after a balanced region has closed
+	rs.MarkPush()
+	require.NoError(t, rs.MarkEnd(false))
+	require.ErrorIs(t, rs.MarkEnd(true), runtime.ErrNoOpenMark)
+	require.ErrorIs(t, rs.MarkEnd(false), runtime.ErrNoOpenMark)
+}
+
+// HasOpenMark is what lets a caller enforce the precondition Send and
+// SetCurrentAsset document: the VM checks it at the two opcodes instead of
+// discovering the damage afterwards.
+func TestMark_HasOpenMarkReportsAnOpenRegion(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+	require.False(t, rs.HasOpenMark())
+
+	rs.MarkPush()
+	require.True(t, rs.HasOpenMark())
+	rs.MarkPush()
+	require.True(t, rs.HasOpenMark())
+
+	require.NoError(t, rs.MarkEnd(false))
+	require.True(t, rs.HasOpenMark(), "the outer region is still open")
+	require.NoError(t, rs.MarkEnd(false))
+	require.False(t, rs.HasOpenMark())
+}
+
+// ForcePosting inside a region must be undone by a rewind: it is the one
+// posting-emitting operation that is legal inside one (it consumes no queue entry),
+// and it is what a scaled source does inside a `oneof` branch.
+func TestMark_RewindReversesForcePostings(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	rs.MarkPush()
+	require.NoError(t, rs.ForcePosting("A", "", "swap", "", usd, "", big.NewInt(30)))
+	wantBalance(t, rs, "A", 70)
+	wantBalance(t, rs, "swap", 30)
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "swap", Asset: usd, Amount: big.NewInt(30)},
+	})
+
+	require.NoError(t, rs.MarkEnd(true))
+
+	// posting dropped, and both sides of it credited back
+	wantPostings(t, rs, []runtime.Posting{})
+	wantBalance(t, rs, "A", 100)
+	wantBalance(t, rs, "swap", 0)
+	require.False(t, rs.HasOpenMark())
+}
+
+// The realistic scaling shape: a swap out and back in a different asset, plus a
+// pull, all inside one region. A rewind must leave every asset untouched.
+func TestMark_RewindReversesAScaledSwapAndItsPull(t *testing.T) {
+	const eur3 = "EUR/3"
+	rs, _ := newRS(map[runtime.PairKey]int64{
+		{"acc", "", usd, ""}:  1,
+		{"acc", "", eur3, ""}: 10,
+	})
+
+	rs.MarkPush()
+	// acc converts 10 EUR/3 through @swap into 1 more of the current asset
+	require.NoError(t, rs.ForcePosting("acc", "", "swap", "", eur3, "", big.NewInt(10)))
+	require.NoError(t, rs.ForcePosting("swap", "", "acc", "", usd, "", big.NewInt(1)))
+	// then pulls what it now holds
+	pull(rs, "acc", big.NewInt(2), big.NewInt(0), "")
+	require.Len(t, rs.GetPostings(), 2)
+
+	require.NoError(t, rs.MarkEnd(true))
+
+	wantPostings(t, rs, []runtime.Posting{})
+	wantBalance(t, rs, "acc", 1) // usd back to its starting balance
+	if got := accBal(rs, "acc", "", eur3, ""); got.Cmp(big.NewInt(10)) != 0 {
+		t.Errorf("balance(acc, %s) = %s, want 10", eur3, got)
+	}
+	if got := accBal(rs, "swap", "", eur3, ""); got.Sign() != 0 {
+		t.Errorf("balance(swap, %s) = %s, want 0", eur3, got)
+	}
+	wantBalance(t, rs, "swap", 0)
+}
+
+// A rewind must reverse only the region's own postings; ones emitted before the
+// push survive it.
+func TestMark_RewindKeepsPostingsEmittedBeforeThePush(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	require.NoError(t, rs.ForcePosting("A", "", "keep", "", usd, "", big.NewInt(10)))
+	rs.MarkPush()
+	require.NoError(t, rs.ForcePosting("A", "", "drop", "", usd, "", big.NewInt(20)))
+	require.NoError(t, rs.MarkEnd(true))
+
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "keep", Asset: usd, Amount: big.NewInt(10)},
+	})
+	wantBalance(t, rs, "A", 90)
+	wantBalance(t, rs, "keep", 10)
+	wantBalance(t, rs, "drop", 0)
+}
+
+// Nested: the inner rewind drops only the inner posting; the outer rewind then drops
+// the outer one too.
+func TestMark_NestedRegionsReversePostingsIndependently(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	rs.MarkPush()
+	require.NoError(t, rs.ForcePosting("A", "", "outer", "", usd, "", big.NewInt(10)))
+
+	rs.MarkPush()
+	require.NoError(t, rs.ForcePosting("A", "", "inner", "", usd, "", big.NewInt(20)))
+	require.NoError(t, rs.MarkEnd(true))
+
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "outer", Asset: usd, Amount: big.NewInt(10)},
+	})
+	wantBalance(t, rs, "inner", 0)
+	wantBalance(t, rs, "A", 90) // outer posting survives the inner rewind
+
+	require.NoError(t, rs.MarkEnd(true))
+
+	wantPostings(t, rs, []runtime.Posting{})
+	wantBalance(t, rs, "outer", 0)
+	wantBalance(t, rs, "A", 100)
+}
+
+// Committing keeps them: a region that succeeded emits its postings for real.
+func TestMark_CommitKeepsForcePostings(t *testing.T) {
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+
+	rs.MarkPush()
+	require.NoError(t, rs.ForcePosting("A", "", "swap", "", usd, "", big.NewInt(30)))
+	require.NoError(t, rs.MarkEnd(false))
+
+	wantPostings(t, rs, []runtime.Posting{
+		{Source: "A", Destination: "swap", Asset: usd, Amount: big.NewInt(30)},
+	})
+	wantBalance(t, rs, "A", 70)
+	wantBalance(t, rs, "swap", 30)
+}
+
+// A rewind reverses a posting using the asset recorded *on the posting*, not
+// currentAsset — so a posting in another asset is still undone correctly.
+func TestMark_RewindUsesThePostingsOwnAsset(t *testing.T) {
+	const other = "EUR/2"
+	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", other, ""}: 50})
+
+	rs.MarkPush() // currentAsset is usd, the posting is in EUR/2
+	require.NoError(t, rs.ForcePosting("A", "", "B", "", other, "", big.NewInt(20)))
+	require.NoError(t, rs.MarkEnd(true))
+
+	if got := accBal(rs, "A", "", other, ""); got.Cmp(big.NewInt(50)) != 0 {
+		t.Errorf("balance(A, %s) = %s, want 50", other, got)
+	}
+	if got := accBal(rs, "B", "", other, ""); got.Sign() != 0 {
+		t.Errorf("balance(B, %s) = %s, want 0", other, got)
+	}
+	// currentAsset untouched by the reversal
+	wantBalance(t, rs, "A", 0)
+}
+
+func TestMark_ResetDropsAnOpenMark(t *testing.T) {
+	// A run that fails mid-region must not leak its open marks into the
+	// next run on a reused RunState.
+	rs, store := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 100})
+	rs.MarkPush()
+	pull(rs, "A", big.NewInt(40), big.NewInt(0), "")
+	require.True(t, rs.HasOpenMark())
+
+	rs.Reset(store)
+	require.False(t, rs.HasOpenMark())
+	require.ErrorIs(t, rs.MarkEnd(false), runtime.ErrNoOpenMark)
 }
 
 // --- color ----------------------------------------------------------------
