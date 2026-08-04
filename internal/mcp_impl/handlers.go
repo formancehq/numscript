@@ -48,6 +48,48 @@ func addEvalTool(s *server.MCPServer) {
 	s.AddTool(tool, handleEvalTool)
 }
 
+// maxExactJSONInt is the largest integer float64 can represent without loss
+// (2^53 - 1). The MCP transport decodes incoming JSON numbers into a generic
+// float64 (via Params.Arguments any) before this handler ever runs, so a
+// balance amount past this magnitude may already have been silently rounded
+// by the time BindArguments hands it to *big.Int - it will look like a
+// perfectly valid, exact integer at that point, indistinguishable from one
+// that was never corrupted. We can't recover the original value, so we
+// refuse to execute with one instead of risking a silently wrong balance.
+const maxExactJSONInt = float64(9_007_199_254_740_991)
+
+// checkBalanceAmountsInSafeRange rejects any "balances" entry whose amount
+// falls outside the range a JSON number can represent exactly. Must run
+// before the amount is converted to *big.Int, since that conversion can no
+// longer tell a corrupted value from a genuine one.
+func checkBalanceAmountsInSafeRange(args map[string]any) *mcp.CallToolResult {
+	balancesRaw, ok := args["balances"].([]any)
+	if !ok {
+		return nil
+	}
+
+	for _, rowRaw := range balancesRaw {
+		row, ok := rowRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		amount, ok := row["amount"].(float64)
+		if !ok {
+			continue
+		}
+
+		if amount < -maxExactJSONInt || amount > maxExactJSONInt {
+			return mcp.NewToolResultError(fmt.Sprintf(
+				"amount %v for account=%v asset=%v exceeds the range a JSON number can represent exactly (±(2^53-1)); it may have already lost precision before reaching the server",
+				amount, row["account"], row["asset"],
+			))
+		}
+	}
+
+	return nil
+}
+
 func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	script, err := request.RequireString("script")
 	if err != nil {
@@ -61,6 +103,10 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 			out[index] = err.Msg
 		}
 		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
+	}
+
+	if result := checkBalanceAmountsInSafeRange(request.GetArguments()); result != nil {
+		return result, nil
 	}
 
 	var args struct {
