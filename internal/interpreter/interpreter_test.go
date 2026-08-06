@@ -548,7 +548,7 @@ func TestRejectsDuplicateRemainingAllotments(t *testing.T) {
 	)`)
 
 	tc.expected = CaseResult{
-		Error: machine.InvalidRemainingAllotment{
+		Error: interpreter.InvalidRemainingAllotment{
 			Range: parser.RangeOfIndexed(src, "remaining", 1),
 		},
 	}
