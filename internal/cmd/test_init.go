@@ -192,7 +192,9 @@ func runTestInitCmd(opts testInitArgs) error {
 
 	marshaled, _ := json.MarshalIndent(specs, "", "  ")
 
-	_ = os.WriteFile(opts.path+".specs.json", marshaled, 0644)
+	if err := os.WriteFile(opts.path+".specs.json", marshaled, 0644); err != nil {
+		return fmt.Errorf("failed to write specs file: %w", err)
+	}
 
 	fmt.Printf("✅ Created specs file: %s.specs.json\n", opts.path)
 
