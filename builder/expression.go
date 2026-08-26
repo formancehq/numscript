@@ -24,6 +24,19 @@ func ExprAccount(name string) Expression[ExprTypeAccount] {
 	}
 }
 
+// UnsafeAccount emits literal directly as an account reference (`@<literal>`),
+// bypassing the vars pool entirely. Unlike ExprAccount, literal is written
+// straight into the script text rather than passed through the vars binding
+// map, so the caller is responsible for ensuring it's a syntactically valid
+// account address (and, if it's not fully trusted, that it can't be used to
+// inject additional script content).
+func UnsafeAccount(literal string) Expression[ExprTypeAccount] {
+	return func(env *env, w int) {
+		env.builder.WriteByte('@')
+		env.builder.WriteString(literal)
+	}
+}
+
 func ExprAsset(name string) Expression[ExprTypeAsset] {
 	return func(env *env, w int) {
 		id := env.assetsPool.getItemId(name)

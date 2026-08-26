@@ -65,3 +65,28 @@ func SrcInorder(sources ...Source) Source {
 		env.builder.WriteByte('}')
 	}
 }
+
+// A source capped by a maximum amount: `max <amount> from <source>`
+func SrcCapped(max Expression[ExprTypeMonetary], source Source) Source {
+	return func(env *env, w int) {
+		env.builder.WriteString("max ")
+		max(env, w)
+		env.builder.WriteString(" from ")
+		source(env, w)
+	}
+}
+
+func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
+	return func(env *env, w int) {
+		env.builder.WriteString("{\n")
+		for _, clause := range clauses {
+			writeIndentation(env, w+1)
+			clause.Portion.render(env)
+			env.builder.WriteString(" from ")
+			clause.Payload(env, w+1)
+			env.builder.WriteByte('\n')
+		}
+		writeIndentation(env, w)
+		env.builder.WriteByte('}')
+	}
+}

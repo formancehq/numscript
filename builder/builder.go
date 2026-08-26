@@ -137,7 +137,10 @@ func renderVars(
 
 func BuildProgram(statements ...Statement) (map[string]string, VarsEnv, string) {
 	env := newEnv()
-	for _, stmt := range statements {
+	for i, stmt := range statements {
+		if i != 0 {
+			env.builder.WriteString("\n\n")
+		}
 		stmt(&env, 0)
 	}
 

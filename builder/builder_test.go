@@ -292,6 +292,217 @@ send [$asset_0 42] (
 )`))
 }
 
+func TestSrcCapped(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcCapped(
+			builder.ExprMonetary(
+				builder.ExprAsset("USD/2"),
+				builder.ExprNumberBigInt(big.NewInt(10)),
+			),
+			builder.SrcAccount(
+				builder.ExprAccount("src"),
+			),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = max [$asset_0 10] from $account_0
+  destination = $account_1
+)`))
+}
+
+func TestSrcAllotment(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAllotment(
+			builder.AllotmentClause[builder.Source]{
+				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(3)),
+				Payload: builder.SrcAccount(builder.ExprAccount("a")),
+			},
+			builder.AllotmentClause[builder.Source]{
+				Portion: builder.NewPortion(big.NewInt(2), big.NewInt(3)),
+				Payload: builder.SrcAccount(builder.ExprAccount("b")),
+			},
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  account $account_2
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = {
+    1/3 from $account_0
+    2/3 from $account_1
+  }
+  destination = $account_2
+)`))
+}
+
+func TestDestInorder(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAccount(
+			builder.ExprAccount("src"),
+		),
+		builder.DestInorder(
+			[]builder.DestInorderClause{
+				{
+					Max: builder.ExprMonetary(
+						builder.ExprAsset("USD/2"),
+						builder.ExprNumberBigInt(big.NewInt(10)),
+					),
+					Dest: builder.To(builder.DestAccount(builder.ExprAccount("a"))),
+				},
+			},
+			builder.Kept(),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = $account_0
+  destination = {
+    max [$asset_0 10] to $account_1
+    remaining kept
+  }
+)`))
+}
+
+func TestDestAllotment(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAccount(
+			builder.ExprAccount("src"),
+		),
+		builder.DestAllotment(
+			builder.AllotmentClause[builder.KeptOrDest]{
+				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Payload: builder.To(builder.DestAccount(builder.ExprAccount("a"))),
+			},
+			builder.AllotmentClause[builder.KeptOrDest]{
+				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Payload: builder.Kept(),
+			},
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = $account_0
+  destination = {
+    1/2 to $account_1
+    1/2 kept
+  }
+)`))
+}
+
+func TestUnsafeAccount(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAccount(
+			builder.UnsafeAccount("world"),
+		),
+		builder.DestAccount(
+			builder.UnsafeAccount("acc0"),
+		),
+	)
+
+	// UnsafeAccount bypasses the vars pool entirely: no account entries in
+	// the returned bindings map (the asset is still pooled as usual).
+	vars, _, script := builder.BuildProgram(stmt)
+	for k := range vars {
+		require.NotContains(t, k, "account")
+	}
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = @world
+  destination = @acc0
+)`))
+}
+
+func TestMultipleStatements(t *testing.T) {
+	stmt1 := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(1)),
+		),
+		builder.SrcAccount(builder.UnsafeAccount("a")),
+		builder.DestAccount(builder.UnsafeAccount("b")),
+	)
+	stmt2 := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(2)),
+		),
+		builder.SrcAccount(builder.UnsafeAccount("b")),
+		builder.DestAccount(builder.UnsafeAccount("c")),
+	)
+
+	_, _, script := builder.BuildProgram(stmt1, stmt2)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  asset $asset_0
+}
+
+send [$asset_0 1] (
+  source = @a
+  destination = @b
+)
+
+send [$asset_0 2] (
+  source = @b
+  destination = @c
+)`))
+}
+
 func TestWithExternVar(t *testing.T) {
 	// The builder module exposes a type-safe API to create scripts
 
