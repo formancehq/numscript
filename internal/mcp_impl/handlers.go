@@ -3,6 +3,7 @@ package mcp_impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -49,65 +50,20 @@ func addEvalTool(s *server.MCPServer) {
 	s.AddTool(tool, handleEvalTool)
 }
 
-// maxExactJSONInt bounds the magnitude of balance amounts accepted from the
-// MCP transport. The MCP transport decodes incoming JSON numbers into a
-// generic float64 (via Params.Arguments any) before this handler ever runs,
-// so by the time BindArguments hands an amount to *big.Int, any precision
-// loss has already happened silently - a corrupted value looks exactly like
-// a genuine one, and we can't tell them apart or recover the original.
-//
-// float64 can represent every integer up to 2^53-1 exactly, so it may look
-// like that's the natural bound to check against. It isn't: float64's
-// *relative* precision is constant (~15-17 significant decimal digits)
-// regardless of magnitude, so a fractional amount can silently round away to
-// a whole number anywhere its magnitude is large enough relative to the size
-// of its fractional part - not just past 2^53-1. In particular, at any
-// magnitude >= 2^50 a single stray decimal digit (e.g. "9007199254740991.1")
-// already rounds cleanly to a whole number, defeating a check pinned to
-// 2^53-1. Below 2^50, float64's absolute precision is finer than 1, so a
-// single decimal digit of drift can no longer disappear into an adjacent
-// integer.
-//
-// Capping at 2^50-1 (instead of 2^53-1) trades range for that margin: it
-// rejects some magnitudes float64 could otherwise represent exactly, but
-// closes off the single-extra-digit corruption case. It is not a rigorous
-// guarantee - a value with enough fractional digits can still round away at
-// any nonzero magnitude - just a substantially safer margin than the
-// standard "MAX_SAFE_INTEGER" bound for the realistic case of a little
-// fractional drift on the client side.
-const maxExactJSONInt = float64((1 << 50) - 1)
-
-// checkBalanceAmountsInSafeRange rejects any "balances" entry whose amount
-// falls outside the range a JSON number can represent exactly. Must run
-// before the amount is converted to *big.Int, since that conversion can no
-// longer tell a corrupted value from a genuine one.
-func checkBalanceAmountsInSafeRange(args map[string]any) *mcp.CallToolResult {
-	balancesRaw, ok := args["balances"].([]any)
-	if !ok {
-		return nil
-	}
-
-	for _, rowRaw := range balancesRaw {
-		row, ok := rowRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		amount, ok := row["amount"].(float64)
-		if !ok {
-			continue
-		}
-
-		if amount < -maxExactJSONInt || amount > maxExactJSONInt {
-			return mcp.NewToolResultError(fmt.Sprintf(
-				"amount %v for account=%v asset=%v exceeds the range this server accepts (±(2^50-1)); it may have already lost precision before reaching the server",
-				amount, row["account"], row["asset"],
-			))
-		}
-	}
-
-	return nil
-}
+// maxBalanceAmount bounds the magnitude of balance amounts. The MCP
+// transport decodes incoming JSON numbers into a generic float64 (via
+// Params.Arguments any) before BindArguments converts one to *big.Int, so an
+// amount too large - or with enough fractional digits - can silently round
+// to a different, smaller-looking whole number first. float64 represents
+// every integer up to 2^53-1 exactly, but a fractional amount can still
+// round away to a whole number anywhere its magnitude is large relative to
+// its fractional part, not just past 2^53-1: e.g. at 2^50 or above, a single
+// stray decimal digit (like "9007199254740991.1") already rounds cleanly to
+// a whole number. Below 2^50, float64's absolute precision is finer than 1,
+// so that can no longer happen. Capping here (instead of at 2^53-1) trades
+// range for that margin; it's not a rigorous guarantee against enough
+// fractional digits at any magnitude, just a much safer one in practice.
+var maxBalanceAmount = big.NewInt((1 << 50) - 1)
 
 func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	script, err := request.RequireString("script")
@@ -124,10 +80,6 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
 	}
 
-	if result := checkBalanceAmountsInSafeRange(request.GetArguments()); result != nil {
-		return result, nil
-	}
-
 	var args struct {
 		Vars     map[string]string    `json:"vars"`
 		Balances interpreter.Balances `json:"balances"`
@@ -135,6 +87,15 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	err = request.BindArguments(&args)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	for _, row := range args.Balances {
+		if row.Amount.CmpAbs(maxBalanceAmount) > 0 {
+			return mcp.NewToolResultError(fmt.Sprintf(
+				"amount %s for account=%q asset=%q exceeds the range this server accepts (±(2^50-1)); it may have already lost precision before reaching the server",
+				row.Amount, row.Account, row.Asset,
+			)), nil
+		}
 	}
 
 	if dup, ok := args.Balances.FirstDuplicate(); ok {
