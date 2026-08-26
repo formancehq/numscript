@@ -23,16 +23,20 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer os.RemoveAll(dir)
 
 	e2eBinaryPath = filepath.Join(dir, "numscript")
 	buildCmd := exec.Command("go", "build", "-o", e2eBinaryPath, "github.com/formancehq/numscript/cmd/numscript")
 	if out, err := buildCmd.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build numscript binary: %s\n%s\n", err, out)
+		_ = os.RemoveAll(dir)
 		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	// os.Exit below bypasses defers, so clean up explicitly beforehand rather
+	// than deferring it.
+	code := m.Run()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
 }
 
 const e2eNumscript = `send [USD/2 100] (
