@@ -38,7 +38,9 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 		amounts := c.DestinationInOrder().GetAmounts()
 		n := len(dests)
 
-		// initialize the `kept` accumulator
+		// initialize the `kept`/unsent-residual accumulator (an empty
+		// Funding of the right asset, obtained via a no-op TakeMax(0) so
+		// it starts out disjoint from the pool below it)
 		p.AppendInstruction(program.OP_FUNDING_SUM)
 		p.AppendInstruction(program.OP_ASSET)
 		err := p.PushInteger(machine.NewNumber(0))
@@ -46,7 +48,12 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 			return LogicError(c, err)
 		}
 		p.AppendInstruction(program.OP_MONETARY_NEW)
-
+		p.AppendInstruction(program.OP_TAKE_MAX)
+		err = p.Bump(2)
+		if err != nil {
+			return LogicError(c, err)
+		}
+		p.AppendInstruction(program.OP_DELETE)
 		err = p.Bump(1)
 		if err != nil {
 			return LogicError(c, err)
@@ -70,16 +77,10 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 			if compErr != nil {
 				return compErr
 			}
-			p.AppendInstruction(program.OP_FUNDING_SUM)
-			err = p.Bump(3)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			p.AppendInstruction(program.OP_MONETARY_ADD)
-			err = p.Bump(1)
-			if err != nil {
-				return LogicError(c, err)
-			}
+			// fold whatever wasn't routed to a real account into the repay
+			// accumulator, WITHOUT returning it to the pool: money that is
+			// `kept` (or left unsent by a nested destination) must not be
+			// visible to subsequent clauses in this same block.
 			err = p.Bump(2)
 			if err != nil {
 				return LogicError(c, err)
@@ -89,26 +90,14 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 				return LogicError(c, err)
 			}
 			p.AppendInstruction(program.OP_FUNDING_ASSEMBLE)
+			err = p.Bump(1)
+			if err != nil {
+				return LogicError(c, err)
+			}
 		}
-		p.AppendInstruction(program.OP_FUNDING_REVERSE)
-		err = p.Bump(1)
-		if err != nil {
-			return LogicError(c, err)
-		}
-		p.AppendInstruction(program.OP_TAKE)
-		p.AppendInstruction(program.OP_FUNDING_REVERSE)
-		err = p.Bump(1)
-		if err != nil {
-			return LogicError(c, err)
-		}
-		p.AppendInstruction(program.OP_FUNDING_REVERSE)
 		cerr := p.VisitKeptOrDestination(c.DestinationInOrder().GetRemainingDest())
 		if cerr != nil {
 			return cerr
-		}
-		err = p.Bump(1)
-		if err != nil {
-			return LogicError(c, err)
 		}
 		err = p.PushInteger(machine.NewNumber(2))
 		if err != nil {
