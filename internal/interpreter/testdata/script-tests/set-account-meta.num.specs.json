@@ -1,14 +1,39 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
       "it": "-",
       "expect.metadata": [
-        { "account": "acc", "key": "account", "value": "acc" },
-        { "account": "acc", "key": "asset", "value": "COIN" },
-        { "account": "acc", "key": "num", "value": "42" },
-        { "account": "acc", "key": "portion", "value": "2/7" },
-        { "account": "acc", "key": "portion-perc", "value": "1/100" },
-        { "account": "acc", "key": "str", "value": "abc" }
+        {
+          "account": "acc",
+          "key": "account",
+          "value": "acc"
+        },
+        {
+          "account": "acc",
+          "key": "asset",
+          "value": "COIN"
+        },
+        {
+          "account": "acc",
+          "key": "num",
+          "value": "42"
+        },
+        {
+          "account": "acc",
+          "key": "portion",
+          "value": "2/7"
+        },
+        {
+          "account": "acc",
+          "key": "portion-perc",
+          "value": "1/100"
+        },
+        {
+          "account": "acc",
+          "key": "str",
+          "value": "abc"
+        }
       ]
     }
   ]
