@@ -25,10 +25,10 @@ func addEvalTool(s *server.MCPServer) {
 		),
 		mcp.WithArray("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", an optional "color", and an optional "scope".
-			"amount" must be an integer with magnitude at most 2^50-1 (1125899906842623).
+			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an "amount", an optional "color", and an optional "scope".
+			"amount" must be passed as a string containing a base-10 integer (e.g. "100", not 100): JSON numbers only round-trip exactly up to 2^53-1, so an amount given as a JSON number can be silently corrupted in transit.
 			The (account, asset, color, scope) tuple of each entry must be unique within the list.
-			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
+			For example: [ { "account": "alice", "asset": "USD/2", "amount": "100" }, { "account": "alice", "asset": "EUR/2", "amount": "-42" }, { "account": "bob", "asset": "BTC", "amount": "1" } ]
 			`),
 		),
 		mcp.WithObject("vars",
@@ -50,21 +50,6 @@ func addEvalTool(s *server.MCPServer) {
 	s.AddTool(tool, handleEvalTool)
 }
 
-// maxBalanceAmount bounds the magnitude of balance amounts. The MCP
-// transport decodes incoming JSON numbers into a generic float64 (via
-// Params.Arguments any) before BindArguments converts one to *big.Int, so an
-// amount too large - or with enough fractional digits - can silently round
-// to a different, smaller-looking whole number first. float64 represents
-// every integer up to 2^53-1 exactly, but a fractional amount can still
-// round away to a whole number anywhere its magnitude is large relative to
-// its fractional part, not just past 2^53-1: e.g. at 2^50 or above, a single
-// stray decimal digit (like "9007199254740991.1") already rounds cleanly to
-// a whole number. Below 2^50, float64's absolute precision is finer than 1,
-// so that can no longer happen. Capping here (instead of at 2^53-1) trades
-// range for that margin; it's not a rigorous guarantee against enough
-// fractional digits at any magnitude, just a much safer one in practice.
-var maxBalanceAmount = big.NewInt((1 << 50) - 1)
-
 func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	script, err := request.RequireString("script")
 	if err != nil {
@@ -80,25 +65,46 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
 	}
 
+	// balances are bound with a string Amount, not interpreter.Balances'
+	// *big.Int, so this never goes through the MCP transport's generic
+	// float64 argument decoding (Params.Arguments any): a JSON string
+	// round-trips through that decode byte for byte, unlike a JSON number,
+	// which can already be silently rounded - in magnitude or, at the right
+	// magnitude, in its fractional part - by the time a handler sees it.
 	var args struct {
-		Vars     map[string]string    `json:"vars"`
-		Balances interpreter.Balances `json:"balances"`
+		Vars     map[string]string `json:"vars"`
+		Balances []struct {
+			Account string `json:"account"`
+			Asset   string `json:"asset"`
+			Amount  string `json:"amount"`
+			Color   string `json:"color"`
+			Scope   string `json:"scope"`
+		} `json:"balances"`
 	}
 	err = request.BindArguments(&args)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	for _, row := range args.Balances {
-		if row.Amount.CmpAbs(maxBalanceAmount) > 0 {
+	balances := make(interpreter.Balances, len(args.Balances))
+	for i, row := range args.Balances {
+		amount, ok := new(big.Int).SetString(row.Amount, 10)
+		if !ok {
 			return mcp.NewToolResultError(fmt.Sprintf(
-				"amount %s for account=%q asset=%q exceeds the range this server accepts (±(2^50-1)); it may have already lost precision before reaching the server",
+				"amount %q for account=%q asset=%q is not a valid base-10 integer string",
 				row.Amount, row.Account, row.Asset,
 			)), nil
 		}
+		balances[i] = interpreter.BalanceRow{
+			Account: row.Account,
+			Asset:   row.Asset,
+			Amount:  amount,
+			Color:   row.Color,
+			Scope:   row.Scope,
+		}
 	}
 
-	if dup, ok := args.Balances.FirstDuplicate(); ok {
+	if dup, ok := balances.FirstDuplicate(); ok {
 		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
 		if dup.Color != "" {
 			key += fmt.Sprintf(" color=%q", dup.Color)
@@ -114,7 +120,7 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		parsed.Value,
 		args.Vars,
 		interpreter.StaticStore{
-			Balances: args.Balances,
+			Balances: balances,
 		},
 		map[string]struct{}{},
 	)
