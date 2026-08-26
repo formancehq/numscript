@@ -55,23 +55,26 @@ func NewAsset(src string) (Asset, InterpreterError) {
 }
 
 // MetaString renders v as it appears in the metadata wire format: the value
-// written the way it would be in source, with no added delimiters.
+// written the way it would be in source, with no added delimiters. This is
+// deliberately not String(): String() delimits values so a reader can tell
+// them apart (it quotes strings and writes accounts as @name), which suits
+// diagnostics, but the metadata format is untyped by design — a value is
+// stored as its rendered text and compared as that text, so e.g.
+// set_tx_meta("k", "42") and set_tx_meta("k", 42) are indistinguishable here.
 //
-// This is deliberately not String(). String() delimits values so a reader can
-// tell them apart — it quotes strings and writes accounts as @name — which suits
-// diagnostics. The metadata format is untyped: a value is stored as its rendered
-// text and assertions compare that text, so set_tx_meta("k", "42") and
-// set_tx_meta("k", 42) are indistinguishable there. That is the same behaviour
-// the format had before values were briefly tagged.
-//
-// An account value is rendered as its bare name. Nothing is lost: a scoped
-// account cannot reach metadata at all, since setTxMeta and setAccountMeta both
-// reject one via rejectScopedAccountMeta.
+// An account value is rendered as its bare name, dropping any scope. Nothing
+// is lost in practice: a scoped account cannot reach metadata at all, since
+// setTxMeta and setAccountMeta both reject one via rejectScopedAccountMeta —
+// the panic below is a last-resort check on that invariant, not a real error
+// path.
 func MetaString(v Value) string {
 	switch v := v.(type) {
 	case String:
 		return string(v)
 	case AccountAddress:
+		if v.Scope != "" {
+			panic(fmt.Sprintf("MetaString: unexpected scoped account in metadata: %q (scope %q)", v.Name, v.Scope))
+		}
 		return v.Name
 	case Asset:
 		return string(v)

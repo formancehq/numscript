@@ -1,14 +1,31 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
       "it": "-",
       "metadata": [
-        { "account": "acc", "key": "initial", "value": "0" },
-        { "account": "acc", "key": "overridden", "value": "1" }
+        {
+          "account": "acc",
+          "key": "initial",
+          "value": "0"
+        },
+        {
+          "account": "acc",
+          "key": "overridden",
+          "value": "1"
+        }
       ],
       "expect.metadata": [
-        { "account": "acc", "key": "new", "value": "2" },
-        { "account": "acc", "key": "overridden", "value": "100" }
+        {
+          "account": "acc",
+          "key": "new",
+          "value": "2"
+        },
+        {
+          "account": "acc",
+          "key": "overridden",
+          "value": "100"
+        }
       ]
     }
   ]

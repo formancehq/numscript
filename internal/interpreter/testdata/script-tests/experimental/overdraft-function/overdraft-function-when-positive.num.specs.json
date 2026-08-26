@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "featureFlags": [
     "experimental-overdraft-function"
   ],
@@ -11,8 +12,7 @@
           "asset": "EUR/2",
           "amount": 100
         }
-      ],
-      "expect.postings": []
+      ]
     }
   ]
 }

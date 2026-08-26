@@ -1,13 +1,29 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
       "it": "-",
       "expect.txMetadata": [
-        { "key": "account", "value": "acc" },
-        { "key": "asset", "value": "COIN" },
-        { "key": "num", "value": "42" },
-        { "key": "portion", "value": "3/25" },
-        { "key": "str", "value": "abc" }
+        {
+          "key": "num",
+          "value": "42"
+        },
+        {
+          "key": "str",
+          "value": "abc"
+        },
+        {
+          "key": "asset",
+          "value": "COIN"
+        },
+        {
+          "key": "account",
+          "value": "acc"
+        },
+        {
+          "key": "portion",
+          "value": "3/25"
+        }
       ]
     }
   ]
