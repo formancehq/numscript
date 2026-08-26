@@ -25,6 +25,7 @@ func addEvalTool(s *server.MCPServer) {
 		mcp.WithArray("balances",
 			mcp.Required(),
 			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", an optional "color", and an optional "scope".
+			"amount" must be an integer with magnitude at most 2^50-1 (1125899906842623).
 			The (account, asset, color, scope) tuple of each entry must be unique within the list.
 			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
 			`),
@@ -48,15 +49,33 @@ func addEvalTool(s *server.MCPServer) {
 	s.AddTool(tool, handleEvalTool)
 }
 
-// maxExactJSONInt is the largest integer float64 can represent without loss
-// (2^53 - 1). The MCP transport decodes incoming JSON numbers into a generic
-// float64 (via Params.Arguments any) before this handler ever runs, so a
-// balance amount past this magnitude may already have been silently rounded
-// by the time BindArguments hands it to *big.Int - it will look like a
-// perfectly valid, exact integer at that point, indistinguishable from one
-// that was never corrupted. We can't recover the original value, so we
-// refuse to execute with one instead of risking a silently wrong balance.
-const maxExactJSONInt = float64(9_007_199_254_740_991)
+// maxExactJSONInt bounds the magnitude of balance amounts accepted from the
+// MCP transport. The MCP transport decodes incoming JSON numbers into a
+// generic float64 (via Params.Arguments any) before this handler ever runs,
+// so by the time BindArguments hands an amount to *big.Int, any precision
+// loss has already happened silently - a corrupted value looks exactly like
+// a genuine one, and we can't tell them apart or recover the original.
+//
+// float64 can represent every integer up to 2^53-1 exactly, so it may look
+// like that's the natural bound to check against. It isn't: float64's
+// *relative* precision is constant (~15-17 significant decimal digits)
+// regardless of magnitude, so a fractional amount can silently round away to
+// a whole number anywhere its magnitude is large enough relative to the size
+// of its fractional part - not just past 2^53-1. In particular, at any
+// magnitude >= 2^50 a single stray decimal digit (e.g. "9007199254740991.1")
+// already rounds cleanly to a whole number, defeating a check pinned to
+// 2^53-1. Below 2^50, float64's absolute precision is finer than 1, so a
+// single decimal digit of drift can no longer disappear into an adjacent
+// integer.
+//
+// Capping at 2^50-1 (instead of 2^53-1) trades range for that margin: it
+// rejects some magnitudes float64 could otherwise represent exactly, but
+// closes off the single-extra-digit corruption case. It is not a rigorous
+// guarantee - a value with enough fractional digits can still round away at
+// any nonzero magnitude - just a substantially safer margin than the
+// standard "MAX_SAFE_INTEGER" bound for the realistic case of a little
+// fractional drift on the client side.
+const maxExactJSONInt = float64((1 << 50) - 1)
 
 // checkBalanceAmountsInSafeRange rejects any "balances" entry whose amount
 // falls outside the range a JSON number can represent exactly. Must run
@@ -81,7 +100,7 @@ func checkBalanceAmountsInSafeRange(args map[string]any) *mcp.CallToolResult {
 
 		if amount < -maxExactJSONInt || amount > maxExactJSONInt {
 			return mcp.NewToolResultError(fmt.Sprintf(
-				"amount %v for account=%v asset=%v exceeds the range a JSON number can represent exactly (±(2^53-1)); it may have already lost precision before reaching the server",
+				"amount %v for account=%v asset=%v exceeds the range this server accepts (±(2^50-1)); it may have already lost precision before reaching the server",
 				amount, row["account"], row["asset"],
 			))
 		}

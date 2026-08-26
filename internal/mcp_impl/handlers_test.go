@@ -87,7 +87,8 @@ func TestHandleEvalToolRejectsAmountBeyondSafeIntegerRange(t *testing.T) {
 	// simulates the real MCP transport: the incoming JSON-RPC message is
 	// decoded generically before this handler ever runs, so an amount past
 	// float64's exact-integer range (2^53 - 1) is already rounded by the
-	// time we see it - 9007199254740993 becomes 9007199254740992.
+	// time we see it - 9007199254740993 becomes 9007199254740992. Well
+	// beyond maxExactJSONInt (2^50 - 1) either way.
 	wire := []byte(`{
 		"method": "tools/call",
 		"params": {
@@ -106,6 +107,101 @@ func TestHandleEvalToolRejectsAmountBeyondSafeIntegerRange(t *testing.T) {
 	result, err := handleEvalTool(context.Background(), request)
 	require.NoError(t, err)
 	require.True(t, result.IsError, "expected an error result for an amount beyond the safe integer range, got: %#v", result)
+}
+
+func TestHandleEvalToolRejectsAmountBeyondTightenedMagnitudeCap(t *testing.T) {
+	// 2^50, one past maxExactJSONInt (2^50 - 1). Well within float64's
+	// exact-integer range (2^53 - 1), so this only gets rejected because of
+	// the tightened cap, not because of any float64 rounding.
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "evaluate",
+			Arguments: map[string]any{
+				"script": evalScript,
+				"vars":   map[string]any{},
+				"balances": []any{
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": float64(1 << 50)},
+				},
+			},
+		},
+	}
+
+	result, err := handleEvalTool(context.Background(), request)
+	require.NoError(t, err)
+	require.True(t, result.IsError, "expected an error result for an amount beyond the tightened magnitude cap, got: %#v", result)
+}
+
+func TestHandleEvalToolAcceptsAmountAtTightenedMagnitudeCap(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "evaluate",
+			Arguments: map[string]any{
+				"script": evalScript,
+				"vars":   map[string]any{},
+				"balances": []any{
+					map[string]any{"account": "alice", "asset": "USD/2", "amount": float64((1 << 50) - 1)},
+				},
+			},
+		},
+	}
+
+	result, err := handleEvalTool(context.Background(), request)
+	require.NoError(t, err)
+	require.False(t, result.IsError, "expected a successful result, got: %#v", result)
+}
+
+func TestHandleEvalToolRejectsFractionalAmountNearOldSafeIntegerBoundary(t *testing.T) {
+	// reproduces a bypass reported against a boundary check pinned to
+	// 2^53-1: 9007199254740991.1 decodes to the float64 value
+	// 9007199254740991, which looks like a perfectly valid, unrounded
+	// integer once decoded - a check that only compared against 2^53-1
+	// would accept it. The tightened cap (2^50 - 1) rejects it outright on
+	// magnitude alone, regardless of the fractional part.
+	wire := []byte(`{
+		"method": "tools/call",
+		"params": {
+			"name": "evaluate",
+			"arguments": {
+				"script": ` + jsonString(evalScript) + `,
+				"vars": {},
+				"balances": [{"account":"alice","asset":"USD/2","amount": 9007199254740991.1}]
+			}
+		}
+	}`)
+
+	var request mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(wire, &request))
+
+	result, err := handleEvalTool(context.Background(), request)
+	require.NoError(t, err)
+	require.True(t, result.IsError, "expected an error result for a fractional amount near the old safe integer boundary, got: %#v", result)
+}
+
+func TestHandleEvalToolRejectsFractionalDriftNearTightenedBoundary(t *testing.T) {
+	// this is the property the tightened cap (2^50 - 1, instead of 2^53-1)
+	// is meant to guarantee: at this magnitude, float64's absolute
+	// precision is fine enough that a single stray decimal digit no longer
+	// rounds away into a whole number, so the corruption is still visible
+	// as a fractional value and gets rejected downstream by *big.Int's own
+	// JSON unmarshaling - it never reaches the magnitude check at all.
+	wire := []byte(`{
+		"method": "tools/call",
+		"params": {
+			"name": "evaluate",
+			"arguments": {
+				"script": ` + jsonString(evalScript) + `,
+				"vars": {},
+				"balances": [{"account":"alice","asset":"USD/2","amount": 1125899906842623.1}]
+			}
+		}
+	}`)
+
+	var request mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(wire, &request))
+
+	result, err := handleEvalTool(context.Background(), request)
+	require.NoError(t, err)
+	require.True(t, result.IsError, "expected an error result for a fractional amount near the tightened boundary, got: %#v", result)
 }
 
 func TestHandleEvalToolRejectsUnsafelyLargeNegativeAmount(t *testing.T) {
