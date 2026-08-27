@@ -829,6 +829,13 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 
 			capBi := big.Int(cap)
 
+			if capBi.Cmp(big.NewInt(0)) == -1 {
+				return NegativeAmountErr{
+					Range:  destinationClause.Cap.GetRange(),
+					Amount: MonetaryInt(capBi),
+				}
+			}
+
 			amountToReceive := utils.MaxBigInt(utils.MinBigInt(&capBi, remainingAmount), big.NewInt(0))
 			err = handler(destinationClause.To, amountToReceive)
 			if err != nil {
