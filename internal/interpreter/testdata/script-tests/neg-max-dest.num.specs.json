@@ -11,14 +11,7 @@
       ],
       "variables": {},
       "metadata": [],
-      "expect.postings": [
-        {
-          "source": "memo:main",
-          "destination": "world",
-          "asset": "EUR/2",
-          "amount": 100
-        }
-      ]
+      "expect.error.negativeAmount": true
     }
   ]
 }
