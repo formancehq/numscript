@@ -131,19 +131,41 @@ type NumExpr struct {
 	Left, Right *NumExpr
 }
 
-// VarDecl is a `vars {}` declaration whose value comes from the compiler
-// (currently only `monetary $name = balance(<account>, <asset>)` — the only
-// origin kind this generator produces; see builder.NewMonetaryVarFromBalance
-// and internal/oracle's VisitVars/OriginAccountBalanceContext).
+// VarDeclKind is the origin of a `vars {}` declaration this generator can
+// produce: either `monetary $name = balance(<account>, <asset>)` or
+// `number $name = meta(<account>, "<key>")`.
+type VarDeclKind int
+
+const (
+	VarFromBalance VarDeclKind = iota
+	VarFromMeta
+)
+
+// VarDecl is a `vars {}` declaration whose value comes from the compiler,
+// not a runtime-supplied binding. See builder.NewMonetaryVarFromBalance /
+// builder.NewNumberVarFromMeta and internal/oracle's VisitVars
+// (OriginAccountBalanceContext/OriginAccountMetaContext).
 type VarDecl struct {
+	Kind    VarDeclKind
 	Account string
-	Asset   string
+
+	// VarFromBalance only
+	Asset string
+
+	// VarFromMeta only
+	Key string
 }
 
 // BalanceKey identifies one (account, asset) starting balance.
 type BalanceKey struct {
 	Account string
 	Asset   string
+}
+
+// MetaKey identifies one (account, key) starting metadata entry.
+type MetaKey struct {
+	Account string
+	Key     string
 }
 
 // ExtraStatementKind enumerates the non-send statement kinds this generator
@@ -156,6 +178,7 @@ const (
 	ExtraSetTxMeta
 	ExtraSetAccountMeta
 	ExtraSendVar
+	ExtraSetTxMetaVar
 )
 
 // ExtraStatement is one non-send statement. Only the fields relevant to Kind
@@ -164,10 +187,13 @@ type ExtraStatement struct {
 	Kind ExtraStatementKind
 
 	// ExtraSave: the amount to save, either a literal (Monetary) or a
-	// reference to Script.Vars[*VarIdx] (a declared balance()-origin var) —
+	// reference to Script.Vars[*VarIdx] (a declared VarFromBalance var) —
 	// exactly one of the two is set.
 	Monetary *Monetary
-	VarIdx   *int
+
+	// ExtraSave, ExtraSendVar (must index a VarFromBalance decl),
+	// ExtraSetTxMetaVar (must index a VarFromMeta decl)
+	VarIdx *int
 
 	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source)
 	Account string
@@ -175,7 +201,7 @@ type ExtraStatement struct {
 	// ExtraSaveAll
 	Asset string
 
-	// ExtraSetTxMeta, ExtraSetAccountMeta
+	// ExtraSetTxMeta, ExtraSetAccountMeta, ExtraSetTxMetaVar
 	Key   string
 	Value NumExpr
 
@@ -185,12 +211,17 @@ type ExtraStatement struct {
 
 // Script is the full output of one round of generation: a `vars {}` block,
 // optional seed-funding statements, the core send-only program, extra
-// non-send statements, and/or pre-set starting balances (populated instead
-// of, or alongside, Seeds — see genBalances).
+// non-send statements, and/or pre-set starting balances/metadata (populated
+// instead of, or alongside, Seeds — see genBalances). Order records a
+// riffle-interleaving of Program and Extra (true = take next from Program,
+// false = take next from Extra), so extra statements land throughout the
+// script instead of only after every send.
 type Script struct {
 	Vars     []VarDecl
 	Seeds    Program
 	Program  Program
 	Extra    []ExtraStatement
+	Order    []bool
 	Balances map[BalanceKey]*big.Int
+	Metadata map[MetaKey]string
 }

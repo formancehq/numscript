@@ -60,32 +60,65 @@ func toBuilderNumExpr(e NumExpr) builder.Expression[builder.ExprTypeNumber] {
 	}
 }
 
-// ToBuilderScript converts a full generated Script (vars declarations,
-// seed-funding statements, the core send-only program, and extra non-send
-// statements) into a flat list of builder statements, ready for
-// builder.BuildProgram.
-func ToBuilderScript(s Script) []builder.Statement {
-	varExprs := make([]builder.Expression[builder.ExprTypeMonetary], len(s.Vars))
-	for i, v := range s.Vars {
-		account := builder.UnsafeAccount(v.Account)
-		varExprs[i] = builder.NewMonetaryVarFromBalance(account, builder.ExprAsset(v.Asset))
+// varExprs holds the converted builder expression for each declared var,
+// split by the builder type its Kind produces: a VarFromBalance decl is
+// Expression[ExprTypeMonetary], a VarFromMeta decl is
+// Expression[ExprTypeNumber]. Both are indexed by the same position in
+// Script.Vars; only the slot matching a given VarDecl's Kind is populated.
+type varExprs struct {
+	monetary []builder.Expression[builder.ExprTypeMonetary]
+	number   []builder.Expression[builder.ExprTypeNumber]
+}
+
+func toBuilderVarExprs(vars []VarDecl) varExprs {
+	ve := varExprs{
+		monetary: make([]builder.Expression[builder.ExprTypeMonetary], len(vars)),
+		number:   make([]builder.Expression[builder.ExprTypeNumber], len(vars)),
 	}
+	for i, v := range vars {
+		account := builder.UnsafeAccount(v.Account)
+		switch v.Kind {
+		case VarFromBalance:
+			ve.monetary[i] = builder.NewMonetaryVarFromBalance(account, builder.ExprAsset(v.Asset))
+		case VarFromMeta:
+			ve.number[i] = builder.NewNumberVarFromMeta(account, v.Key)
+		default:
+			panic("gen: unknown var decl kind")
+		}
+	}
+	return ve
+}
+
+// ToBuilderScript converts a full generated Script (vars declarations,
+// seed-funding statements, the core send-only program interleaved with
+// extra non-send statements per Script.Order) into a flat list of builder
+// statements, ready for builder.BuildProgram.
+func ToBuilderScript(s Script) []builder.Statement {
+	ve := toBuilderVarExprs(s.Vars)
 
 	out := make([]builder.Statement, 0, len(s.Seeds)+len(s.Program)+len(s.Extra))
 	out = append(out, ToBuilder(s.Seeds)...)
-	out = append(out, ToBuilder(s.Program)...)
-	for _, e := range s.Extra {
-		out = append(out, toBuilderExtra(e, varExprs))
+
+	pi, ei := 0, 0
+	for _, takeProgram := range s.Order {
+		if takeProgram {
+			out = append(out, toBuilderStatement(s.Program[pi]))
+			pi++
+		} else {
+			out = append(out, toBuilderExtra(s.Extra[ei], ve))
+			ei++
+		}
 	}
+
 	return out
 }
 
-func toBuilderExtra(e ExtraStatement, varExprs []builder.Expression[builder.ExprTypeMonetary]) builder.Statement {
+func toBuilderExtra(e ExtraStatement, ve varExprs) builder.Statement {
 	switch e.Kind {
 	case ExtraSave:
 		var mon builder.Expression[builder.ExprTypeMonetary]
 		if e.VarIdx != nil {
-			mon = varExprs[*e.VarIdx]
+			mon = ve.monetary[*e.VarIdx]
 		} else {
 			mon = toBuilderMonetary(*e.Monetary)
 		}
@@ -102,10 +135,13 @@ func toBuilderExtra(e ExtraStatement, varExprs []builder.Expression[builder.Expr
 
 	case ExtraSendVar:
 		return builder.StmtSend(
-			varExprs[*e.VarIdx],
+			ve.monetary[*e.VarIdx],
 			builder.SrcAccountOverdraft(builder.UnsafeAccount(e.Account), builder.UnboundedOverdraft()),
 			builder.DestAccount(builder.UnsafeAccount(e.Destination)),
 		)
+
+	case ExtraSetTxMetaVar:
+		return builder.StmtSetTxMeta(e.Key, ve.number[*e.VarIdx])
 
 	default:
 		panic("gen: unknown extra statement kind")
