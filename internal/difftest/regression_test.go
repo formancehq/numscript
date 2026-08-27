@@ -105,6 +105,29 @@ send $a (
   }
 )`,
 		},
+		{
+			// `save` for more than an account's actual balance used to leave
+			// the oracle's cached balance negative (a plain, unfloored
+			// subtraction), while the new interpreter floors at zero. That
+			// difference is invisible until a later bounded-overdraft draw
+			// on the same account computes a different available "room"
+			// from the two different balances. Fixed in
+			// internal/oracle/machine/vm/machine.go's OP_SAVE handler to
+			// floor at zero too, matching internal/interpreter's
+			// runSaveStatement.
+			name: "save more than the account's balance",
+			script: `send [COIN 100] (
+  source = @world
+  destination = @acc0
+)
+
+save [COIN 900] from @acc0
+
+send [COIN 250] (
+  source = @acc0 allowing overdraft up to [COIN 1000]
+  destination = @acc1
+)`,
+		},
 	}
 
 	for _, tc := range testCases {
