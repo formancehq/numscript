@@ -503,6 +503,91 @@ send [$asset_0 2] (
 )`))
 }
 
+func TestSaveAndSetMeta(t *testing.T) {
+	stmt1 := builder.StmtSave(
+		builder.ExprMonetary(
+			builder.ExprAsset("COIN"),
+			builder.ExprNumberBigInt(big.NewInt(10)),
+		),
+		builder.UnsafeAccount("acc0"),
+	)
+	stmt2 := builder.StmtSaveAll(
+		builder.ExprAsset("COIN"),
+		builder.UnsafeAccount("acc1"),
+	)
+	stmt3 := builder.StmtSetTxMeta(
+		"my key",
+		builder.ExprNumberBigInt(big.NewInt(42)),
+	)
+	stmt4 := builder.StmtSetAccountMeta(
+		builder.UnsafeAccount("acc2"),
+		`with "quotes"`,
+		builder.ExprString("value"),
+	)
+
+	_, _, script := builder.BuildProgram(stmt1, stmt2, stmt3, stmt4)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  string $string_0
+  asset $asset_0
+}
+
+save [$asset_0 10] from @acc0
+
+save [$asset_0 *] from @acc1
+
+set_tx_meta("my key", 42)
+
+set_account_meta(@acc2, "with \"quotes\"", $string_0)`))
+}
+
+func TestOriginVars(t *testing.T) {
+	balanceVar := builder.NewMonetaryVarFromBalance(
+		builder.World(),
+		builder.ExprAsset("COIN"),
+	)
+	metaVar := builder.NewNumberVarFromMeta(
+		builder.UnsafeAccount("acc0"),
+		"threshold",
+	)
+
+	stmt := builder.StmtSend(
+		balanceVar,
+		builder.SrcAccount(builder.UnsafeAccount("acc0")),
+		builder.DestAccount(builder.UnsafeAccount("acc1")),
+	)
+	stmt2 := builder.StmtSetTxMeta("threshold", metaVar)
+
+	_, _, script := builder.BuildProgram(stmt, stmt2)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  asset $asset_0
+  monetary $originvar_0 = balance(@world, $asset_0)
+  number $originvar_1 = meta(@acc0, "threshold")
+}
+
+send $originvar_0 (
+  source = @acc0
+  destination = @acc1
+)
+
+set_tx_meta("threshold", $originvar_1)`))
+}
+
+func TestArithmeticExpr(t *testing.T) {
+	stmt := builder.StmtSetTxMeta(
+		"sum",
+		builder.ExprSub(
+			builder.ExprAdd(
+				builder.ExprNumberBigInt(big.NewInt(1)),
+				builder.ExprNumberBigInt(big.NewInt(2)),
+			),
+			builder.ExprNumberBigInt(big.NewInt(3)),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`set_tx_meta("sum", 1 + 2 - 3)`))
+}
+
 func TestWithExternVar(t *testing.T) {
 	// The builder module exposes a type-safe API to create scripts
 

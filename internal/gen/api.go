@@ -2,6 +2,7 @@ package gen
 
 import (
 	"hash/fnv"
+	"math/big"
 	"math/rand"
 
 	"github.com/formancehq/numscript/builder"
@@ -16,13 +17,15 @@ func RandFromBytes(b []byte) *rand.Rand {
 	return rand.New(rand.NewSource(int64(h.Sum64())))
 }
 
-// GenerateScript generates a funding-seed program (world -> acc0..accN)
-// followed by a random program (send-only, matching Gen.hs's scope),
-// formatted as a single runnable script plus the vars bindings map it needs
-// at runtime. Seeding and generation share one builder pool/vars block, so
-// the whole thing is one script both engines can run as-is.
-func GenerateScript(rng *rand.Rand) (vars map[string]string, script string) {
-	stmts := append(ToBuilder(GenerateSeeds(rng)), ToBuilder(GenerateProgram(rng))...)
+// GenerateScript generates a full random Script (see GenerateScriptAST) and
+// formats it as a single runnable numscript program, alongside the vars
+// bindings map it needs at runtime and the pre-set starting balances it
+// assumes (keyed by (account, asset); see internal/difftest's runNew/
+// runOracle, which feed this into each engine's StaticStore before
+// executing).
+func GenerateScript(rng *rand.Rand) (vars map[string]string, balances map[BalanceKey]*big.Int, script string) {
+	s := GenerateScriptAST(rng)
+	stmts := ToBuilderScript(s)
 	vars, _, script = builder.BuildProgram(stmts...)
-	return vars, script
+	return vars, s.Balances, script
 }

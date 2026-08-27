@@ -5,11 +5,12 @@ import (
 	"maps"
 	"math/big"
 
+	"github.com/formancehq/numscript/internal/gen"
 	"github.com/formancehq/numscript/internal/oracle/machine/script/compiler"
 	"github.com/formancehq/numscript/internal/oracle/machine/vm"
 )
 
-func runOracle(ctx context.Context, script string, vars map[string]string) SideResult {
+func runOracle(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int) SideResult {
 	p, err := compiler.Compile(script)
 	if err != nil {
 		return SideResult{CompileErr: err.Error()}
@@ -31,6 +32,17 @@ func runOracle(ctx context.Context, script string, vars map[string]string) SideR
 	// by an earlier statement in the same script) would be silently
 	// dropped, causing spurious "missing balance" errors later on.
 	store := vm.StaticStore{}
+	for k, amount := range balances {
+		entry, ok := store[k.Account]
+		if !ok {
+			entry = &vm.AccountWithBalances{
+				Account:  vm.Account{Address: k.Account},
+				Balances: map[string]*big.Int{},
+			}
+			store[k.Account] = entry
+		}
+		entry.Balances[k.Asset] = new(big.Int).Set(amount)
+	}
 	if err := m.ResolveResources(ctx, store); err != nil {
 		return SideResult{CompileErr: err.Error()}
 	}

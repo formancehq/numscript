@@ -32,7 +32,84 @@ func toBuilderStatement(s Statement) builder.Statement {
 }
 
 func toBuilderMonetary(m Monetary) builder.Expression[builder.ExprTypeMonetary] {
+	if m.Amount.Sign() < 0 {
+		// A bracketed monetary literal's amount slot (`[ASSET N]`) only ever
+		// accepts a bare non-negative number in both grammars — there's no
+		// legal way to write `[ASSET -7]` directly. `[ASSET 0] - [ASSET 7]`
+		// is the only legal way to reach a negative monetary value
+		// (verified directly against the oracle); see
+		// builder.ExprMonetarySub.
+		abs := new(big.Int).Neg(m.Amount)
+		zero := builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(big.NewInt(0)))
+		magnitude := builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(abs))
+		return builder.ExprMonetarySub(zero, magnitude)
+	}
 	return builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(m.Amount))
+}
+
+func toBuilderNumExpr(e NumExpr) builder.Expression[builder.ExprTypeNumber] {
+	switch e.Kind {
+	case NumLit:
+		return builder.ExprNumberBigInt(e.Lit)
+	case NumAdd:
+		return builder.ExprAdd(toBuilderNumExpr(*e.Left), toBuilderNumExpr(*e.Right))
+	case NumSub:
+		return builder.ExprSub(toBuilderNumExpr(*e.Left), toBuilderNumExpr(*e.Right))
+	default:
+		panic("gen: unknown num expr kind")
+	}
+}
+
+// ToBuilderScript converts a full generated Script (vars declarations,
+// seed-funding statements, the core send-only program, and extra non-send
+// statements) into a flat list of builder statements, ready for
+// builder.BuildProgram.
+func ToBuilderScript(s Script) []builder.Statement {
+	varExprs := make([]builder.Expression[builder.ExprTypeMonetary], len(s.Vars))
+	for i, v := range s.Vars {
+		account := builder.UnsafeAccount(v.Account)
+		varExprs[i] = builder.NewMonetaryVarFromBalance(account, builder.ExprAsset(v.Asset))
+	}
+
+	out := make([]builder.Statement, 0, len(s.Seeds)+len(s.Program)+len(s.Extra))
+	out = append(out, ToBuilder(s.Seeds)...)
+	out = append(out, ToBuilder(s.Program)...)
+	for _, e := range s.Extra {
+		out = append(out, toBuilderExtra(e, varExprs))
+	}
+	return out
+}
+
+func toBuilderExtra(e ExtraStatement, varExprs []builder.Expression[builder.ExprTypeMonetary]) builder.Statement {
+	switch e.Kind {
+	case ExtraSave:
+		var mon builder.Expression[builder.ExprTypeMonetary]
+		if e.VarIdx != nil {
+			mon = varExprs[*e.VarIdx]
+		} else {
+			mon = toBuilderMonetary(*e.Monetary)
+		}
+		return builder.StmtSave(mon, builder.UnsafeAccount(e.Account))
+
+	case ExtraSaveAll:
+		return builder.StmtSaveAll(builder.ExprAsset(e.Asset), builder.UnsafeAccount(e.Account))
+
+	case ExtraSetTxMeta:
+		return builder.StmtSetTxMeta(e.Key, toBuilderNumExpr(e.Value))
+
+	case ExtraSetAccountMeta:
+		return builder.StmtSetAccountMeta(builder.UnsafeAccount(e.Account), e.Key, toBuilderNumExpr(e.Value))
+
+	case ExtraSendVar:
+		return builder.StmtSend(
+			varExprs[*e.VarIdx],
+			builder.SrcAccountOverdraft(builder.UnsafeAccount(e.Account), builder.UnboundedOverdraft()),
+			builder.DestAccount(builder.UnsafeAccount(e.Destination)),
+		)
+
+	default:
+		panic("gen: unknown extra statement kind")
+	}
 }
 
 func toBuilderPortion(r *big.Rat) builder.Portion {

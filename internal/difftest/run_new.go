@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript"
+	"github.com/formancehq/numscript/internal/gen"
 )
 
 // Posting is the normalized shape both engines' postings are reduced to for
@@ -34,16 +35,25 @@ func (r SideResult) Failed() bool {
 	return r.CompileErr != "" || r.RunErr != ""
 }
 
-func runNew(ctx context.Context, script string, vars map[string]string) SideResult {
+func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int) SideResult {
 	parseResult := numscript.Parse(script)
 	if errs := parseResult.GetParsingErrors(); len(errs) != 0 {
 		return SideResult{CompileErr: errs[0].Error()}
 	}
 
+	store := numscript.StaticStore{}
+	for k, amount := range balances {
+		store.Balances = append(store.Balances, numscript.BalanceRow{
+			Account: k.Account,
+			Asset:   k.Asset,
+			Amount:  new(big.Int).Set(amount),
+		})
+	}
+
 	// Defensive copy: vars is shared with runOracle's call in RunOne, and
 	// nothing here should depend on whether this function mutates its
 	// input (it doesn't today, but that's not a documented guarantee).
-	execResult, err := parseResult.Run(ctx, maps.Clone(vars), numscript.StaticStore{})
+	execResult, err := parseResult.Run(ctx, maps.Clone(vars), store)
 	if err != nil {
 		return SideResult{RunErr: err.Error()}
 	}
