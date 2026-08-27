@@ -25,7 +25,20 @@ func RandFromBytes(b []byte) *rand.Rand {
 // StaticStore before executing).
 func GenerateScript(rng *rand.Rand) (vars map[string]string, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, script string) {
 	s := GenerateScriptAST(rng)
-	stmts := ToBuilderScript(s)
-	vars, _, script = builder.BuildProgram(stmts...)
+	stmts, accountVarFills := ToBuilderScript(s)
+
+	var varsEnv builder.VarsEnv
+	vars, varsEnv, script = builder.BuildProgram(stmts...)
+
+	// Plain account-typed vars (see AccountVarFill) have no compiler-computed
+	// origin, so — unlike VarFromBalance/VarFromMeta vars — their value must
+	// be supplied here, the same way a real caller would.
+	for _, f := range accountVarFills {
+		name, value := varsEnv.FillAccount(f.Var, f.Value)
+		if name != "" { // "" means this var was declared but never referenced
+			vars[name] = value
+		}
+	}
+
 	return vars, s.Balances, s.Metadata, script
 }

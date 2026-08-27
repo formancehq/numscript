@@ -215,11 +215,27 @@ func varIndicesOfKind(vars []VarDecl, kind VarDeclKind) []int {
 	return idxs
 }
 
+// genAccountVarDecls generates 0-2 plain (runtime-fed) account-typed vars.
+// Value is "world" at a deliberate ~1-in-3 rate — see AccountVarDecl's doc
+// comment for why.
+func genAccountVarDecls(rng *rand.Rand, poolSize int) []AccountVarDecl {
+	n := rng.Intn(3) // 0..2
+	out := make([]AccountVarDecl, n)
+	for i := range out {
+		if rng.Intn(3) == 0 {
+			out[i] = AccountVarDecl{Value: "world"}
+		} else {
+			out[i] = AccountVarDecl{Value: account(rng, poolSize)}
+		}
+	}
+	return out
+}
+
 // genExtraStatements generates 0-3 non-send statements (save/set_tx_meta/
-// set_account_meta/a var-backed send/a meta()-var-backed set_tx_meta),
-// interspersed with the core send-only program by the caller (see
-// riffleOrder).
-func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl) []ExtraStatement {
+// set_account_meta/a var-backed send/a meta()-var-backed set_tx_meta/a
+// send through an account-typed var), interspersed with the core send-only
+// program by the caller (see riffleOrder).
+func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVars []AccountVarDecl) []ExtraStatement {
 	n := rng.Intn(4) // 0..3
 	out := make([]ExtraStatement, 0, n)
 
@@ -227,15 +243,19 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl) []ExtraSta
 	metaVarIdxs := varIndicesOfKind(vars, VarFromMeta)
 
 	for range n {
-		kind := ExtraStatementKind(rng.Intn(6))
+		kind := ExtraStatementKind(rng.Intn(8))
 		// ExtraSave/ExtraSendVar need a declared balance()-origin var to
-		// reference; ExtraSetTxMetaVar needs a declared meta()-origin var.
-		// Fall back to a plain set_tx_meta if the needed kind isn't
-		// available.
+		// reference; ExtraSetTxMetaVar needs a declared meta()-origin var;
+		// ExtraSendFromAccountVar/ExtraSendToAccountVar need a declared
+		// account-typed var. Fall back to a plain set_tx_meta if the
+		// needed kind isn't available.
 		if (kind == ExtraSave && rng.Intn(2) == 0 || kind == ExtraSendVar) && len(balanceVarIdxs) == 0 {
 			kind = ExtraSetTxMeta
 		}
 		if kind == ExtraSetTxMetaVar && len(metaVarIdxs) == 0 {
+			kind = ExtraSetTxMeta
+		}
+		if (kind == ExtraSendFromAccountVar || kind == ExtraSendToAccountVar) && len(accountVars) == 0 {
 			kind = ExtraSetTxMeta
 		}
 
@@ -289,6 +309,28 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl) []ExtraSta
 				VarIdx: &idx,
 				Key:    fmt.Sprintf("k%d", rng.Intn(5)),
 			})
+
+		case ExtraSendFromAccountVar:
+			idx := rng.Intn(len(accountVars))
+			asset := pickAsset(rng)
+			m := monetary(rng, asset)
+			out = append(out, ExtraStatement{
+				Kind:          ExtraSendFromAccountVar,
+				AccountVarIdx: &idx,
+				Monetary:      &m,
+				Account:       account(rng, poolSize), // destination
+			})
+
+		case ExtraSendToAccountVar:
+			idx := rng.Intn(len(accountVars))
+			asset := pickAsset(rng)
+			m := monetary(rng, asset)
+			out = append(out, ExtraStatement{
+				Kind:          ExtraSendToAccountVar,
+				AccountVarIdx: &idx,
+				Monetary:      &m,
+				Account:       account(rng, poolSize), // source
+			})
 		}
 	}
 	return out
@@ -331,17 +373,19 @@ func GenerateScriptAST(rng *rand.Rand) Script {
 	metadata := map[MetaKey]string{}
 	genPresetMetadata(rng, poolSize, metadata)
 	vars := genVarDecls(rng, poolSize, balances, metadata)
+	accountVars := genAccountVarDecls(rng, poolSize)
 	program := cleanupProgram(genProgram(rng, poolSize))
-	extra := genExtraStatements(rng, poolSize, vars)
+	extra := genExtraStatements(rng, poolSize, vars, accountVars)
 	order := riffleOrder(rng, len(program), len(extra))
 
 	return Script{
-		Vars:     vars,
-		Seeds:    seeds,
-		Program:  program,
-		Extra:    extra,
-		Order:    order,
-		Balances: balances,
-		Metadata: metadata,
+		Vars:        vars,
+		AccountVars: accountVars,
+		Seeds:       seeds,
+		Program:     program,
+		Extra:       extra,
+		Order:       order,
+		Balances:    balances,
+		Metadata:    metadata,
 	}
 }
