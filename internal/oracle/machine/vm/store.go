@@ -45,13 +45,15 @@ type StaticStore map[string]*AccountWithBalances
 func (s StaticStore) GetBalances(_ context.Context, query BalanceQuery) (Balances, error) {
 	ret := Balances{}
 	for accountAddress, assets := range query {
+		// ret[accountAddress] must be initialized once, before the assets
+		// loop below: allocating a fresh map on every asset iteration (as
+		// this used to do) silently discards every asset entry but the
+		// last one when an account has more than one asset queried.
+		ret[accountAddress] = make(map[string]*big.Int)
+		account, ok := s[accountAddress]
 		for _, asset := range assets {
-			ret[accountAddress] = make(map[string]*big.Int)
-			account, ok := s[accountAddress]
 			if !ok {
-				ret[accountAddress] = map[string]*big.Int{
-					asset: new(big.Int),
-				}
+				ret[accountAddress][asset] = new(big.Int)
 				continue
 			}
 			balance, ok := account.Balances[asset]
