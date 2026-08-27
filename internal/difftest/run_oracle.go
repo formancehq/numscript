@@ -5,12 +5,13 @@ import (
 	"maps"
 	"math/big"
 
+	acctmetadata "github.com/formancehq/go-libs/v5/pkg/types/metadata"
 	"github.com/formancehq/numscript/internal/gen"
 	"github.com/formancehq/numscript/internal/oracle/machine/script/compiler"
 	"github.com/formancehq/numscript/internal/oracle/machine/vm"
 )
 
-func runOracle(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int) SideResult {
+func runOracle(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string) SideResult {
 	p, err := compiler.Compile(script)
 	if err != nil {
 		return SideResult{CompileErr: err.Error()}
@@ -32,16 +33,22 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	// by an earlier statement in the same script) would be silently
 	// dropped, causing spurious "missing balance" errors later on.
 	store := vm.StaticStore{}
-	for k, amount := range balances {
-		entry, ok := store[k.Account]
+	getOrCreateEntry := func(account string) *vm.AccountWithBalances {
+		entry, ok := store[account]
 		if !ok {
 			entry = &vm.AccountWithBalances{
-				Account:  vm.Account{Address: k.Account},
+				Account:  vm.Account{Address: account, Metadata: acctmetadata.Metadata{}},
 				Balances: map[string]*big.Int{},
 			}
-			store[k.Account] = entry
+			store[account] = entry
 		}
-		entry.Balances[k.Asset] = new(big.Int).Set(amount)
+		return entry
+	}
+	for k, amount := range balances {
+		getOrCreateEntry(k.Account).Balances[k.Asset] = new(big.Int).Set(amount)
+	}
+	for k, value := range metadata {
+		getOrCreateEntry(k.Account).Metadata[k.Key] = value
 	}
 	if err := m.ResolveResources(ctx, store); err != nil {
 		return SideResult{CompileErr: err.Error()}

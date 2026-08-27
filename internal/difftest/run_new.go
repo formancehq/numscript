@@ -35,7 +35,7 @@ func (r SideResult) Failed() bool {
 	return r.CompileErr != "" || r.RunErr != ""
 }
 
-func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int) SideResult {
+func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string) SideResult {
 	parseResult := numscript.Parse(script)
 	if errs := parseResult.GetParsingErrors(); len(errs) != 0 {
 		return SideResult{CompileErr: errs[0].Error()}
@@ -47,6 +47,13 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 			Account: k.Account,
 			Asset:   k.Asset,
 			Amount:  new(big.Int).Set(amount),
+		})
+	}
+	for k, value := range metadata {
+		store.Meta = append(store.Meta, numscript.AccountMetadataRow{
+			Account: k.Account,
+			Key:     k.Key,
+			Value:   value,
 		})
 	}
 
