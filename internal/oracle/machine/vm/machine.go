@@ -29,7 +29,14 @@ type Machine struct {
 	Vars                       map[string]machine.Value
 	UnresolvedResources        []program.Resource
 	Resources                  []machine.Value // Constants and Variables
-	UnresolvedResourceBalances map[string]int
+	// UnresolvedResourceBalances maps an account address to every resource
+	// index waiting on that account's balance. This is a slice, not a
+	// single int, because more than one `balance()`-origin var can
+	// legitimately target the same account (with the same or different
+	// assets) — a single-int map here used to silently overwrite on
+	// collision, leaving every resource but the last-registered one stuck
+	// unresolved with no error.
+	UnresolvedResourceBalances map[string][]int
 	resolveCalled              bool
 	Balances                   map[machine.AccountAddress]map[machine.Asset]*machine.MonetaryInt // keeps track of balances throughout execution
 	Stack                      []machine.Value
@@ -62,7 +69,7 @@ func NewMachine(p program.Program) *Machine {
 		Postings:                   make([]Posting, 0),
 		TxMeta:                     map[string]machine.Value{},
 		AccountsMeta:               map[machine.AccountAddress]map[string]machine.Value{},
-		UnresolvedResourceBalances: map[string]int{},
+		UnresolvedResourceBalances: map[string][]int{},
 	}
 
 	return &m
@@ -491,18 +498,24 @@ func (m *Machine) Execute() error {
 
 func (m *Machine) ResolveBalances(ctx context.Context, store Store) error {
 
-	// map account/asset/resourceIndex
-	assignBalanceAsResource := map[string]map[string]int{}
+	// map account/asset/resourceIndexes. The value is a slice, not a
+	// single int, because more than one unresolved resource can
+	// legitimately want the same (account, asset) balance — e.g. two
+	// separate `vars {}` declarations both doing `balance(@acc, ASSET)`.
+	assignBalanceAsResource := map[string]map[string][]int{}
 
 	balancesQuery := BalanceQuery{}
-	for address, resourceIndex := range m.UnresolvedResourceBalances {
-		monetary := m.Resources[resourceIndex].(machine.Monetary)
-		balancesQuery[address] = append(balancesQuery[address], string(monetary.Asset))
+	for address, resourceIndexes := range m.UnresolvedResourceBalances {
+		for _, resourceIndex := range resourceIndexes {
+			monetary := m.Resources[resourceIndex].(machine.Monetary)
+			balancesQuery[address] = append(balancesQuery[address], string(monetary.Asset))
 
-		if _, ok := assignBalanceAsResource[address]; !ok {
-			assignBalanceAsResource[address] = map[string]int{}
+			if _, ok := assignBalanceAsResource[address]; !ok {
+				assignBalanceAsResource[address] = map[string][]int{}
+			}
+			asset := string(monetary.Asset)
+			assignBalanceAsResource[address][asset] = append(assignBalanceAsResource[address][asset], resourceIndex)
 		}
-		assignBalanceAsResource[address][string(monetary.Asset)] = resourceIndex
 	}
 
 	m.Balances = make(map[machine.AccountAddress]map[machine.Asset]*machine.MonetaryInt)
@@ -540,15 +553,17 @@ func (m *Machine) ResolveBalances(ctx context.Context, store Store) error {
 		for account, forAssets := range balances {
 			for asset, balance := range forAssets {
 				if assignBalanceAsResource[account] != nil {
-					resourceIndex, ok := assignBalanceAsResource[account][asset]
+					resourceIndexes, ok := assignBalanceAsResource[account][asset]
 					if ok {
 						if balance.Cmp(Zero) < 0 {
 							return machine.NewErrNegativeAmount("tried to request the balance of account %s for asset %s: received %s: monetary amounts must be non-negative",
 								account, asset, balance)
 						}
-						monetary := m.Resources[resourceIndex].(machine.Monetary)
-						monetary.Amount = machine.NewMonetaryIntFromBigInt(balance)
-						m.Resources[resourceIndex] = monetary
+						for _, resourceIndex := range resourceIndexes {
+							monetary := m.Resources[resourceIndex].(machine.Monetary)
+							monetary.Amount = machine.NewMonetaryIntFromBigInt(balance)
+							m.Resources[resourceIndex] = monetary
+						}
 					}
 				}
 
@@ -614,7 +629,7 @@ func (m *Machine) ResolveResources(ctx context.Context, store Store) error {
 			acc, _ := m.getResource(res.Account)
 			address := string((*acc).(machine.AccountAddress))
 			involvedAccountsMap[machine.Address(idx)] = address
-			m.UnresolvedResourceBalances[address] = idx
+			m.UnresolvedResourceBalances[address] = append(m.UnresolvedResourceBalances[address], idx)
 
 			ass, ok := m.getResource(res.Asset)
 			if !ok {
