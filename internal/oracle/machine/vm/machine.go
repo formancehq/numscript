@@ -454,7 +454,14 @@ func (m *Machine) tick() (bool, error) {
 		case machine.Monetary:
 			if balances, ok := m.Balances[a]; ok {
 				if balance, ok := balances[v.Asset]; ok {
-					balances[v.Asset] = balance.Sub(v.Amount)
+					newBalance := balance.Sub(v.Amount)
+					// Saving more than the account's balance floors at zero,
+					// matching the new interpreter's behavior (never go
+					// negative).
+					if newBalance.Ltz() {
+						newBalance = machine.Zero
+					}
+					balances[v.Asset] = newBalance
 				}
 			}
 		default:
