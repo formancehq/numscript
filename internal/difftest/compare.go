@@ -110,6 +110,14 @@ type postingKey struct {
 func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
 	agg := make(map[postingKey]*big.Int, len(postings))
 	for _, p := range postings {
+		if p.Amount.Sign() == 0 {
+			// A zero-amount posting is equivalent to no posting at all.
+			// Both run_oracle.go and the new interpreter itself already
+			// filter these upstream, but that makes this comparison
+			// silently dependent on an invariant it doesn't enforce —
+			// enforce it here too so the equivalence lives in one place.
+			continue
+		}
 		k := postingKey{Source: p.Source, Destination: p.Destination, Asset: p.Asset}
 		total, ok := agg[k]
 		if !ok {

@@ -32,6 +32,7 @@ type env struct {
 	stringsPool  pool[string]
 	numbersPool  pool[*big.Int]
 	varsEnv      VarsEnv
+	originVars   []varOriginDecl
 }
 
 func writeIndentation(env *env, w int) {
@@ -114,10 +115,51 @@ func renderVar[T comparable](
 
 func stringId(x string) string { return x }
 
+// writeStringLiteral writes s as a raw double-quoted numscript string
+// literal directly into env.builder, bypassing the vars pool (mirrors
+// UnsafeAccount's rationale: some grammar positions, like a meta key or a
+// set_tx_meta/set_account_meta key, only ever take a literal, never a
+// variable).
+func writeStringLiteral(env *env, s string) {
+	env.builder.WriteByte('"')
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '"' || ch == '\\' {
+			env.builder.WriteByte('\\')
+		}
+		env.builder.WriteByte(ch)
+	}
+	env.builder.WriteByte('"')
+}
+
+// renderExprToString renders r against env (which may consult/populate
+// env's pools as a side effect, same as rendering it into the program body
+// would) and returns the resulting text, without disturbing env.builder's
+// actual accumulated content.
+func renderExprToString(env *env, r render) string {
+	saved := env.builder
+	env.builder = strings.Builder{}
+	r(env, 0)
+	out := env.builder.String()
+	env.builder = saved
+	return out
+}
+
 func renderVars(
 	st *varRenderState,
 	env *env,
 ) string {
+
+	// Render every origin var's RHS to a string FIRST: doing so may lazily
+	// register new entries into env's account/string/asset/number pools
+	// (e.g. an asset literal not otherwise referenced in the program body),
+	// which must be visible to the renderVar calls below — otherwise a
+	// pool entry discovered only here would never get its own `type $name`
+	// declaration line.
+	originRHS := make([]string, len(env.originVars))
+	for id, ov := range env.originVars {
+		originRHS[id] = renderExprToString(env, ov.origin)
+	}
 
 	st.sb.WriteString("vars {\n")
 	renderVar(st, "account", env.accountsPool, accountToName, stringId)
@@ -126,6 +168,16 @@ func renderVars(
 	renderVar(st, "number", env.numbersPool, numberToName, func(bi *big.Int) string {
 		return bi.String()
 	})
+	for id, ov := range env.originVars {
+		st.hasVars = true
+		st.sb.WriteString(indentStr)
+		st.sb.WriteString(ov.typ)
+		st.sb.WriteString(" $")
+		st.sb.WriteString(itemIdToName(id, "originvar"))
+		st.sb.WriteString(" = ")
+		st.sb.WriteString(originRHS[id])
+		st.sb.WriteByte('\n')
+	}
 	st.sb.WriteString("}\n\n")
 
 	if !st.hasVars {

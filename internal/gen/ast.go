@@ -108,3 +108,89 @@ type Statement struct {
 }
 
 type Program []Statement
+
+// NumExprKind is a small arithmetic-expression AST used for
+// set_tx_meta/set_account_meta values: literals combined with +/-, the only
+// runtime operators the oracle's grammar supports (see NumScript.g4's
+// `expression` rule: ExprAddSub over literals/variables, nothing else).
+type NumExprKind int
+
+const (
+	NumLit NumExprKind = iota
+	NumAdd
+	NumSub
+)
+
+type NumExpr struct {
+	Kind NumExprKind
+
+	// NumLit only
+	Lit *big.Int
+
+	// NumAdd, NumSub only
+	Left, Right *NumExpr
+}
+
+// VarDecl is a `vars {}` declaration whose value comes from the compiler
+// (currently only `monetary $name = balance(<account>, <asset>)` — the only
+// origin kind this generator produces; see builder.NewMonetaryVarFromBalance
+// and internal/oracle's VisitVars/OriginAccountBalanceContext).
+type VarDecl struct {
+	Account string
+	Asset   string
+}
+
+// BalanceKey identifies one (account, asset) starting balance.
+type BalanceKey struct {
+	Account string
+	Asset   string
+}
+
+// ExtraStatementKind enumerates the non-send statement kinds this generator
+// can produce, on top of Program's send-only statements.
+type ExtraStatementKind int
+
+const (
+	ExtraSave ExtraStatementKind = iota
+	ExtraSaveAll
+	ExtraSetTxMeta
+	ExtraSetAccountMeta
+	ExtraSendVar
+)
+
+// ExtraStatement is one non-send statement. Only the fields relevant to Kind
+// are populated.
+type ExtraStatement struct {
+	Kind ExtraStatementKind
+
+	// ExtraSave: the amount to save, either a literal (Monetary) or a
+	// reference to Script.Vars[*VarIdx] (a declared balance()-origin var) —
+	// exactly one of the two is set.
+	Monetary *Monetary
+	VarIdx   *int
+
+	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source)
+	Account string
+
+	// ExtraSaveAll
+	Asset string
+
+	// ExtraSetTxMeta, ExtraSetAccountMeta
+	Key   string
+	Value NumExpr
+
+	// ExtraSendVar: `send $<Vars[VarIdx]> (source = Account, destination = Destination)`
+	Destination string
+}
+
+// Script is the full output of one round of generation: a `vars {}` block,
+// optional seed-funding statements, the core send-only program, extra
+// non-send statements, and/or pre-set starting balances (populated instead
+// of, or alongside, Seeds — see genBalances).
+type Script struct {
+	Vars     []VarDecl
+	Seeds    Program
+	Program  Program
+	Extra    []ExtraStatement
+	Balances map[BalanceKey]*big.Int
+}

@@ -77,7 +77,7 @@ func TestGenerateScriptParses(t *testing.T) {
 	// generator/cleanup pass produced something structurally broken.
 	for seed := range 500 {
 		rng := rand.New(rand.NewSource(int64(seed)))
-		_, script := gen.GenerateScript(rng)
+		_, _, script := gen.GenerateScript(rng)
 
 		res := parser.Parse(script)
 		require.Empty(t, res.Errors, "seed %d produced an unparseable script:\n%s", seed, script)

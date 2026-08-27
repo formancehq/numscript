@@ -28,10 +28,10 @@ type Case struct {
 // RunOne generates one program from rng, runs it against both engines, and
 // compares the results.
 func RunOne(ctx context.Context, rng *rand.Rand) Case {
-	vars, script := gen.GenerateScript(rng)
+	vars, balances, script := gen.GenerateScript(rng)
 
-	newRes := runNew(ctx, script, vars)
-	oracleRes := runOracle(ctx, script, vars)
+	newRes := runNew(ctx, script, vars, balances)
+	oracleRes := runOracle(ctx, script, vars, balances)
 
 	return Case{
 		Script:  script,
