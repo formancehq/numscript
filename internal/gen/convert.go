@@ -89,12 +89,35 @@ func toBuilderVarExprs(vars []VarDecl) varExprs {
 	return ve
 }
 
+// AccountVarFill pairs a declared account-typed var with the literal value
+// it must be bound to at run time — collected during ToBuilderScript and
+// consumed by GenerateScript (api.go), which merges it into the vars
+// bindings map builder.BuildProgram returns. Unlike a VarFromBalance/
+// VarFromMeta var (whose value the compiler computes from an origin call),
+// a plain account-typed var has no origin — its value can only come from
+// the caller-supplied vars map, exactly as GenerateScript already does for
+// the account/asset/etc. pools.
+type AccountVarFill struct {
+	Var   *builder.Var[builder.ExprTypeAccount]
+	Value string
+}
+
 // ToBuilderScript converts a full generated Script (vars declarations,
 // seed-funding statements, the core send-only program interleaved with
 // extra non-send statements per Script.Order) into a flat list of builder
-// statements, ready for builder.BuildProgram.
-func ToBuilderScript(s Script) []builder.Statement {
+// statements, ready for builder.BuildProgram, plus the account-var runtime
+// bindings the caller must additionally fill in (see AccountVarFill).
+func ToBuilderScript(s Script) ([]builder.Statement, []AccountVarFill) {
 	ve := toBuilderVarExprs(s.Vars)
+
+	accountVars := make([]builder.Var[builder.ExprTypeAccount], len(s.AccountVars))
+	accountVarExprs := make([]builder.Expression[builder.ExprTypeAccount], len(s.AccountVars))
+	fills := make([]AccountVarFill, len(s.AccountVars))
+	for i, v := range s.AccountVars {
+		accountVars[i] = builder.NewAccountVar()
+		accountVarExprs[i] = builder.ExprVar(&accountVars[i])
+		fills[i] = AccountVarFill{Var: &accountVars[i], Value: v.Value}
+	}
 
 	out := make([]builder.Statement, 0, len(s.Seeds)+len(s.Program)+len(s.Extra))
 	out = append(out, ToBuilder(s.Seeds)...)
@@ -105,15 +128,15 @@ func ToBuilderScript(s Script) []builder.Statement {
 			out = append(out, toBuilderStatement(s.Program[pi]))
 			pi++
 		} else {
-			out = append(out, toBuilderExtra(s.Extra[ei], ve))
+			out = append(out, toBuilderExtra(s.Extra[ei], ve, accountVarExprs))
 			ei++
 		}
 	}
 
-	return out
+	return out, fills
 }
 
-func toBuilderExtra(e ExtraStatement, ve varExprs) builder.Statement {
+func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Expression[builder.ExprTypeAccount]) builder.Statement {
 	switch e.Kind {
 	case ExtraSave:
 		var mon builder.Expression[builder.ExprTypeMonetary]
@@ -142,6 +165,20 @@ func toBuilderExtra(e ExtraStatement, ve varExprs) builder.Statement {
 
 	case ExtraSetTxMetaVar:
 		return builder.StmtSetTxMeta(e.Key, ve.number[*e.VarIdx])
+
+	case ExtraSendFromAccountVar:
+		return builder.StmtSend(
+			toBuilderMonetary(*e.Monetary),
+			builder.SrcAccount(accountVarExprs[*e.AccountVarIdx]),
+			builder.DestAccount(builder.UnsafeAccount(e.Account)),
+		)
+
+	case ExtraSendToAccountVar:
+		return builder.StmtSend(
+			toBuilderMonetary(*e.Monetary),
+			builder.SrcAccount(builder.UnsafeAccount(e.Account)),
+			builder.DestAccount(accountVarExprs[*e.AccountVarIdx]),
+		)
 
 	default:
 		panic("gen: unknown extra statement kind")

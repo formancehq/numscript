@@ -179,7 +179,29 @@ const (
 	ExtraSetAccountMeta
 	ExtraSendVar
 	ExtraSetTxMetaVar
+	ExtraSendFromAccountVar
+	ExtraSendToAccountVar
 )
+
+// AccountVarDecl is a plain (runtime-fed) account-typed `vars {}`
+// declaration — unlike VarDecl, its value isn't computed by the compiler
+// from an origin call; it's a literal account address supplied via the vars
+// binding map at run time, exactly like a real caller's `$var` would be.
+// Value is occasionally "world" specifically to exercise an account
+// variable that resolves to @world in source position — a real, understood
+// asymmetry between the two engines (the oracle rejects it in
+// ResolveBalances with "`@world` can only be used as a variable in the
+// experimental interpreter, or if it is never used as a source"; the new
+// interpreter accepts it transparently, same as a literal @world). Compare
+// already tolerates that specific direction (oracle rejects, new interpreter
+// accepts) as expected, not a mismatch — this exists to exercise the
+// broader var-as-account code path (previously never generated at all: see
+// ToBuilder's doc comment — every other account reference in this package
+// goes through builder.UnsafeAccount, a literal, never a $var), not just
+// that one already-understood asymmetry.
+type AccountVarDecl struct {
+	Value string
+}
 
 // ExtraStatement is one non-send statement. Only the fields relevant to Kind
 // are populated.
@@ -188,14 +210,21 @@ type ExtraStatement struct {
 
 	// ExtraSave: the amount to save, either a literal (Monetary) or a
 	// reference to Script.Vars[*VarIdx] (a declared VarFromBalance var) —
-	// exactly one of the two is set.
+	// exactly one of the two is set. ExtraSendFromAccountVar,
+	// ExtraSendToAccountVar: the send amount (always a literal).
 	Monetary *Monetary
 
 	// ExtraSave, ExtraSendVar (must index a VarFromBalance decl),
 	// ExtraSetTxMetaVar (must index a VarFromMeta decl)
 	VarIdx *int
 
-	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source)
+	// ExtraSendFromAccountVar, ExtraSendToAccountVar: index into
+	// Script.AccountVars for the account-typed var used as source/
+	// destination (respectively); the other side is the literal Account.
+	AccountVarIdx *int
+
+	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source),
+	// ExtraSendFromAccountVar (destination), ExtraSendToAccountVar (source)
 	Account string
 
 	// ExtraSaveAll
@@ -217,11 +246,12 @@ type ExtraStatement struct {
 // false = take next from Extra), so extra statements land throughout the
 // script instead of only after every send.
 type Script struct {
-	Vars     []VarDecl
-	Seeds    Program
-	Program  Program
-	Extra    []ExtraStatement
-	Order    []bool
+	Vars        []VarDecl
+	AccountVars []AccountVarDecl
+	Seeds       Program
+	Program     Program
+	Extra       []ExtraStatement
+	Order       []bool
 	Balances map[BalanceKey]*big.Int
 	Metadata map[MetaKey]string
 }
