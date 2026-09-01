@@ -13,13 +13,26 @@ type monetaryValue struct {
 	Amount ir.Reg // int
 }
 
+// accountValue is an account-typed expression after codegen. Scope is a second
+// register alongside the name, nil when the expression is provably unscoped (an
+// account literal, a plain var, or any account not produced by scoped()) — the
+// same nilable-operand idiom PullAccount already uses for Color/Overdraft.
+type accountValue struct {
+	Name  ir.Reg  // str
+	Scope *ir.Reg // str
+}
+
 // value is a compiled expression of any type. Mon is set exactly for
-// monetary-typed expressions, Reg for every other type.
+// monetary-typed expressions, Acc for account-typed ones, Reg for every other
+// type.
 type value struct {
 	Reg ir.Reg
 	Mon *monetaryValue
+	Acc *accountValue
 }
 
 func scalarValue(r ir.Reg) value { return value{Reg: r} }
 
 func monValue(m monetaryValue) value { return value{Mon: &m} }
+
+func accValue(a accountValue) value { return value{Acc: &a} }

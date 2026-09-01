@@ -23,17 +23,17 @@ type irStore struct {
 	err      error
 }
 
-func (s irStore) GetBalance(_ context.Context, account, asset, color string) (*big.Int, error) {
+func (s irStore) GetBalance(_ context.Context, account, scope, asset, color string) (*big.Int, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return new(big.Int).Set(v), nil
 	}
 	return new(big.Int), nil
 }
 
-func (s irStore) GetMetadata(_ context.Context, account, key string) (string, bool, error) {
+func (s irStore) GetMetadata(_ context.Context, account, scope, key string) (string, bool, error) {
 	if s.err != nil {
 		return "", false, s.err
 	}
@@ -714,7 +714,7 @@ func TestIRMetadata(t *testing.T) {
 `, balances(nil), nil)
 
 	require.Equal(t, map[string]string{"tx": "yes"}, res.Metadata)
-	require.Equal(t, runtime.AccountsMetadata{"acc": {"k": "v"}}, res.AccountsMetadata)
+	require.Equal(t, runtime.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
 }
 
 func TestIRReadsMetadataFromStore(t *testing.T) {

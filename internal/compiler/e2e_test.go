@@ -15,18 +15,25 @@ import (
 // e2eStore is a minimal vm.Store for the end-to-end test.
 type e2eStore struct {
 	balances map[runtime.PairKey]*big.Int
-	metadata map[string]map[string]string
+	metadata map[e2eMetaKey]string
 }
 
-func (s e2eStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
-	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+// e2eMetaKey identifies one metadata slot: account, scope and key.
+type e2eMetaKey struct {
+	account string
+	scope   string
+	key     string
+}
+
+func (s e2eStore) GetBalance(ctx context.Context, account, scope, asset, color string) (*big.Int, error) {
+	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return v, nil
 	}
 	return new(big.Int), nil
 }
 
-func (s e2eStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
-	v, ok := s.metadata[account][key]
+func (s e2eStore) GetMetadata(ctx context.Context, account, scope, key string) (string, bool, error) {
+	v, ok := s.metadata[e2eMetaKey{account: account, scope: scope, key: key}]
 	return v, ok, nil
 }
 
@@ -989,9 +996,9 @@ type countingStore struct {
 	balanceCalls int
 }
 
-func (s *countingStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
+func (s *countingStore) GetBalance(ctx context.Context, account, scope, asset, color string) (*big.Int, error) {
 	s.balanceCalls++
-	return s.e2eStore.GetBalance(ctx, account, asset, color)
+	return s.e2eStore.GetBalance(ctx, account, scope, asset, color)
 }
 
 // The compiled world arm has no overdraft operand, which is what makes the pull

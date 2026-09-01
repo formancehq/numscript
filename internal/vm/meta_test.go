@@ -16,13 +16,14 @@ func TestSetAccountMeta(t *testing.T) {
 			bc(Op_LoadStr, 1, 1),            // r_s1 = "k"
 			bc(Op_LoadStr, 2, 2),            // r_s2 = "v"
 			abc(Op_SetAccountMeta, 0, 1, 2), // set_account_meta(acc, k, v)
+			abc(0, nilReg, nilReg, nilReg),  // ext: no scope
 		},
 		StringsPool: []string{"acc", "k", "v"},
 	}
 
 	res, execErr := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	require.Nil(t, execErr)
-	require.Equal(t, runtime.AccountsMetadata{"acc": {"k": "v"}}, res.AccountsMetadata)
+	require.Equal(t, runtime.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
 }
 
 func TestMetaStr(t *testing.T) {
@@ -34,10 +35,11 @@ func TestMetaStr(t *testing.T) {
 			bc(Op_LoadStr, 1, 1),                     // s1 = "config"
 			bc(Op_LoadStr, 2, 2),                     // s2 = "beneficiary"
 			abc(Op_MetaStr, 3, 1, 2),                 // s3 = meta(config, beneficiary) = "alice"
+			abc(0, nilReg, nilReg, nilReg),           // ext: no scope
 			bc(Op_LoadStr, 4, 3),                     // s4 = "world"
 			bc(Op_LoadInt, 0, 0),                     // i0 = 100 (cap)
 			abc(Op_PullAccount, 1, 4, 0),             // i1 = pull(world, cap i0)
-			abc(0, nilReg, nilReg, 0),                // ext: no overdraft, no color
+			abc(0, nilReg, nilReg, nilReg),           // ext: no overdraft, no color, no scope
 			abc(Op_SendToAccount, 3, nilReg, nilReg), // send to s3 (alice)
 		},
 		StringsPool: []string{"USD/2", "config", "beneficiary", "world"},

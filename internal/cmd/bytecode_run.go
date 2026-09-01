@@ -41,55 +41,48 @@ type BytecodeRunArgs struct {
 	OutFormatOpt string
 }
 
+// vmMetaKey identifies one metadata slot: account, scope and key.
+type vmMetaKey struct {
+	account string
+	scope   string
+	key     string
+}
+
 // vmStore is a vm.Store over the rows of an inputs file.
 type vmStore struct {
 	balances map[runtime.PairKey]*big.Int
-	meta     map[string]map[string]string
+	meta     map[vmMetaKey]string
 }
 
-func (s vmStore) GetBalance(_ context.Context, account, asset, color string) (*big.Int, error) {
+func (s vmStore) GetBalance(_ context.Context, account, scope, asset, color string) (*big.Int, error) {
 	// the caller owns what it gets: the run state mutates balances in place
-	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return new(big.Int).Set(v), nil
 	}
 	return new(big.Int), nil
 }
 
-func (s vmStore) GetMetadata(_ context.Context, account, key string) (string, bool, error) {
-	v, ok := s.meta[account][key]
+func (s vmStore) GetMetadata(_ context.Context, account, scope, key string) (string, bool, error) {
+	v, ok := s.meta[vmMetaKey{account: account, scope: scope, key: key}]
 	return v, ok, nil
 }
 
 func newVmStore(inputsPath string, inputs BytecodeInputsFile) (vmStore, error) {
 	store := vmStore{
 		balances: make(map[runtime.PairKey]*big.Int, len(inputs.Balances)),
-		meta:     make(map[string]map[string]string),
+		meta:     make(map[vmMetaKey]string, len(inputs.Meta)),
 	}
 
 	for _, row := range inputs.Balances {
-		// the vm never sets a scope, so a scoped row could never be read back
-		if row.Scope != "" {
-			return vmStore{}, fmt.Errorf("invalid inputs file '%s': scoped balances are not supported by the vm (account=%q scope=%q)", inputsPath, row.Account, row.Scope)
-		}
-
 		amount := row.Amount
 		if amount == nil {
 			amount = new(big.Int)
 		}
-		store.balances[runtime.PairKey{Account: row.Account, Asset: row.Asset, Color: row.Color}] = amount
+		store.balances[runtime.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = amount
 	}
 
 	for _, row := range inputs.Meta {
-		if row.Scope != "" {
-			return vmStore{}, fmt.Errorf("invalid inputs file '%s': scoped metadata is not supported by the vm (account=%q scope=%q)", inputsPath, row.Account, row.Scope)
-		}
-
-		byKey, ok := store.meta[row.Account]
-		if !ok {
-			byKey = map[string]string{}
-			store.meta[row.Account] = byKey
-		}
-		byKey[row.Key] = row.Value
+		store.meta[vmMetaKey{account: row.Account, scope: row.Scope, key: row.Key}] = row.Value
 	}
 
 	return store, nil
@@ -211,15 +204,7 @@ func showBytecodePretty(result runtime.ExecutionResult) error {
 
 	if len(result.AccountsMetadata) != 0 {
 		fmt.Println("Accounts meta:")
-		accounts := make([]string, 0, len(result.AccountsMetadata))
-		for account := range result.AccountsMetadata {
-			accounts = append(accounts, account)
-		}
-		sort.Strings(accounts)
-		for _, account := range accounts {
-			fmt.Printf("@%s\n", account)
-			fmt.Print(prettyPrintStringMeta(result.AccountsMetadata[account]))
-		}
+		fmt.Print(result.AccountsMetadata.PrettyPrint())
 	}
 
 	return nil

@@ -56,6 +56,9 @@ const (
 	// errors if the color in str reg A is not well-formed
 	Op_AssertValidColor Opcode = 0x06
 
+	// errors if the scope in str reg A is not well-formed
+	Op_AssertValidScope Opcode = 0x07
+
 	// --- constants & variables (0x10) ---
 	// may split into one opcode per expr_typ later
 	Op_LoadInt Opcode = 0x10 // LoadConst (`Int)    -> b_c = const-pool index
@@ -74,17 +77,20 @@ const (
 	// A = key (str reg), B = value (str reg)
 	Op_SetTxMeta Opcode = 0x20
 
-	// A = account (str reg), B = key (str reg), C = value (str reg)
+	// A = account (str reg), B = key (str reg), C = value (str reg); ext.A =
+	// scope (str reg, 0xFF = unscoped)
 	Op_SetAccountMeta Opcode = 0x21
 
 	// meta(account, key) read, dispatched on the target type.
-	// A = dest, B = account (str reg), C = key (str reg)
+	// A = dest, B = account (str reg), C = key (str reg); ext.A = scope (str reg,
+	// 0xFF = unscoped)
 	Op_MetaStr     Opcode = 0x22
 	Op_MetaInt     Opcode = 0x23
 	Op_MetaPortion Opcode = 0x24
 
 	// as above, but a monetary needs two destinations, so the amount's goes in an
-	// ext word: A = dest asset (str reg), ext.A = dest amount (int reg)
+	// ext word: A = dest asset (str reg), ext.A = dest amount (int reg), ext.B =
+	// scope (str reg, 0xFF = unscoped)
 	Op_MetaMonetary Opcode = 0x25
 
 	// --- arithmetic & constructors (0x30) ---
@@ -146,22 +152,24 @@ const (
 
 	// --- funds & postings (0x50) ---
 
-	// The most general form: account,cap,overdraft,color
-	// The 0xFF special register means NULL for cap,overdraft and color
+	// The most general form: account,cap,overdraft,color,scope
+	// The 0xFF special register means NULL for cap,overdraft,color and scope
+	// ext.A = overdraft (int reg), ext.B = color (str reg), ext.C = scope (str reg)
 	Op_PullAccount Opcode = 0x50
 
-	// account?, cap?, color?
+	// account?, cap?, scope?
 	Op_SendToAccount Opcode = 0x51
 
 	// save: reduce balance of account A for asset B by amount C (C == nilReg =>
-	// save all), floored at 0
+	// save all), floored at 0; ext.A = scope (str reg, 0xFF = unscoped)
 	Op_Save Opcode = 0x52
 
 	// 0x53 was Op_MkAllotment: an allotment share is now built out of pure ops
 	// (Op_IntToPortion, Op_MulPortion, Op_PortionToInt plus the leftover fixup),
 	// so there is no variadic domain instruction. Reserved, do not reuse.
 
-	// reads the account balance from the run-state
+	// reads the account balance from the run-state; A = dest, B = account, C =
+	// asset; ext.A = scope (str reg, 0xFF = unscoped)
 	Op_Balance Opcode = 0x54
 
 	// --- marks (oneof backtracking) ---

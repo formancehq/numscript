@@ -21,19 +21,10 @@ import (
 
 const scriptsFolder = "../interpreter/testdata/script-tests"
 
-// scriptsBlacklist lists spec files the compiler+VM can't run yet. What's left is
-// the three experimental features the compiler has no lowering for: scopes,
-// colors and scaling. Delete entries as features land, until it's empty.
+// scriptsBlacklist lists spec files the compiler+VM can't run yet. What's left
+// is asset-scaling, which the compiler has no lowering for. Delete entries as
+// features land, until it's empty.
 var scriptsBlacklist = []string{
-	"experimental/scoped-function/allotment.num",
-	"experimental/scoped-function/balance.num",
-	"experimental/scoped-function/capped.num",
-	"experimental/scoped-function/color-and-scope.num",
-	"experimental/scoped-function/overdraft.num",
-	"experimental/scoped-function/read-account-meta.num",
-	"experimental/scoped-function/save.num",
-	"experimental/scoped-function/set-account-meta.num",
-	"experimental/scoped-function/simple.num",
 	"experimental/asset-scaling/no-solution.num",
 	"experimental/asset-scaling/scaling-all-allotment.num",
 	"experimental/asset-scaling/scaling-allotment.num",
@@ -164,8 +155,8 @@ func vmMetaValue(v interpreter.Value) string {
 	}
 }
 
-func txMetaAsStrings(rows specs_format.ExpectedTxMeta) runtime.AccountMetadata {
-	out := runtime.AccountMetadata{}
+func txMetaAsStrings(rows specs_format.ExpectedTxMeta) map[string]string {
+	out := map[string]string{}
 	for _, row := range rows {
 		out[row.Key] = vmMetaValue(row.Value)
 	}
@@ -173,12 +164,14 @@ func txMetaAsStrings(rows specs_format.ExpectedTxMeta) runtime.AccountMetadata {
 }
 
 func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) runtime.AccountsMetadata {
-	out := runtime.AccountsMetadata{}
+	out := make(runtime.AccountsMetadata, 0, len(rows))
 	for _, row := range rows {
-		if out[row.Account] == nil {
-			out[row.Account] = runtime.AccountMetadata{}
-		}
-		out[row.Account][row.Key] = vmMetaValue(row.Value)
+		out = append(out, runtime.AccountMetadataEntry{
+			Account: row.Account,
+			Scope:   row.Scope,
+			Key:     row.Key,
+			Value:   vmMetaValue(row.Value),
+		})
 	}
 	return out
 }
@@ -186,16 +179,13 @@ func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) runtime.Account
 func scriptStore(balances interpreter.Balances, metaOuter, metaInner interpreter.AccountsMetadata) e2eStore {
 	m := map[runtime.PairKey]*big.Int{}
 	for _, b := range balances {
-		m[runtime.PairKey{Account: b.Account, Asset: b.Asset, Color: b.Color}] = b.Amount
+		m[runtime.PairKey{Account: b.Account, Scope: b.Scope, Asset: b.Asset, Color: b.Color}] = b.Amount
 	}
 
-	meta := map[string]map[string]string{}
+	meta := map[e2eMetaKey]string{}
 	for _, src := range []interpreter.AccountsMetadata{metaOuter, metaInner} {
 		for _, row := range src {
-			if meta[row.Account] == nil {
-				meta[row.Account] = map[string]string{}
-			}
-			meta[row.Account][row.Key] = row.Value
+			meta[e2eMetaKey{account: row.Account, scope: row.Scope, key: row.Key}] = row.Value
 		}
 	}
 

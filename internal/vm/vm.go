@@ -5,11 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/formancehq/numscript/internal/runtime"
 )
 
 const nilReg byte = 0xFF
+
+// accountMetaKey identifies one set_account_meta slot during a run, so repeated
+// writes to the same (account, scope, key) upsert rather than accumulating
+// duplicate rows.
+type accountMetaKey struct {
+	account string
+	scope   string
+	key     string
+}
 
 // The three ops a mark cannot survive, rejected by the arms below. save is on the
 // list permanently, unlike the other two: it floors the balance at zero, and the
@@ -44,6 +54,7 @@ type Store interface {
 	GetBalance(
 		ctx context.Context,
 		account string,
+		scope string,
 		asset string,
 		color string,
 	) (*big.Int, error)
@@ -51,12 +62,13 @@ type Store interface {
 	GetMetadata(
 		ctx context.Context,
 		account,
+		scope,
 		key string,
 	) (string, bool, error)
 }
 
-func lookupMeta(ctx context.Context, store Store, account, key string) (string, ExecutionError) {
-	v, ok, err := store.GetMetadata(ctx, account, key)
+func lookupMeta(ctx context.Context, store Store, account, scope, key string) (string, ExecutionError) {
+	v, ok, err := store.GetMetadata(ctx, account, scope, key)
 	if err != nil {
 		return "", StoreError{Wrapped: err}
 	}
@@ -73,10 +85,11 @@ type runtimeStoreAdapter struct {
 
 func (s runtimeStoreAdapter) GetBalance(
 	account string,
+	scope string,
 	asset string,
 	color string,
 ) (*big.Int, error) {
-	return s.store.GetBalance(s.ctx, account, asset, color)
+	return s.store.GetBalance(s.ctx, account, scope, asset, color)
 }
 
 func Exec[S Store](
@@ -99,7 +112,10 @@ func Exec[S Store](
 	runstate := vm.runstate
 
 	var txMeta map[string]string
-	var accountsMeta runtime.AccountsMetadata
+	// accountsMeta accumulates with upsert semantics (last write to a given
+	// (account, scope, key) wins), so it is keyed during the run and only
+	// flattened into the row-based runtime.AccountsMetadata at the very end.
+	var accountsMeta map[accountMetaKey]string
 
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
@@ -147,14 +163,19 @@ func Exec[S Store](
 				color = stringsRegs[instrExt.B]
 			}
 
+			var scope string
+			if instrExt.C != nilReg {
+				scope = stringsRegs[instrExt.C]
+			}
+
 			out := &intsRegs[instr.A]
 			switch {
 			case cap != nil:
-				if err := runstate.Pull(out, account, "", cap, overdraft, color); err != nil {
+				if err := runstate.Pull(out, account, scope, cap, overdraft, color); err != nil {
 					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			case overdraft != nil:
-				if err := runstate.PullUncapped(out, account, "", overdraft, color); err != nil {
+				if err := runstate.PullUncapped(out, account, scope, overdraft, color); err != nil {
 					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			default:
@@ -180,17 +201,17 @@ func Exec[S Store](
 				cap = &intsRegs[instr.B]
 			}
 
-			var color *string
+			var scope string
 			if instr.C != nilReg {
-				color = &stringsRegs[instr.C]
+				scope = stringsRegs[instr.C]
 			}
 
 			if cap == nil {
-				if err := runstate.SendUncapped(dest, "", color); err != nil {
+				if err := runstate.SendUncapped(dest, scope, nil); err != nil {
 					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			} else {
-				if err := runstate.Send(dest, "", cap, color); err != nil {
+				if err := runstate.Send(dest, scope, cap, nil); err != nil {
 					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			}
@@ -213,13 +234,20 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, InternalError{Err: errSaveWhileMarkOpen}
 			}
 
+			instrExt := instrs[pc]
+			pc++
+
 			account := stringsRegs[instr.A]
 			asset := stringsRegs[instr.B]
 			var amount *big.Int
 			if instr.C != nilReg {
 				amount = &intsRegs[instr.C]
 			}
-			if err := runstate.Save(account, "", asset, "", amount); err != nil {
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
+			if err := runstate.Save(account, scope, asset, "", amount); err != nil {
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
@@ -272,6 +300,12 @@ func Exec[S Store](
 				return runtime.ExecutionResult{}, InvalidColor{Color: color}
 			}
 
+		case Op_AssertValidScope:
+			scope := stringsRegs[instr.A]
+			if !runtime.ValidateScope(scope) {
+				return runtime.ExecutionResult{}, InvalidScope{Scope: scope}
+			}
+
 		case Op_AssertNonNegativeBalance:
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {
@@ -288,27 +322,47 @@ func Exec[S Store](
 			txMeta[stringsRegs[instr.A]] = stringsRegs[instr.B]
 
 		case Op_SetAccountMeta:
+			instrExt := instrs[pc]
+			pc++
+
 			if accountsMeta == nil {
-				accountsMeta = runtime.AccountsMetadata{}
+				accountsMeta = map[accountMetaKey]string{}
 			}
-			account := stringsRegs[instr.A]
-			accMeta := accountsMeta[account]
-			if accMeta == nil {
-				accMeta = runtime.AccountMetadata{}
-				accountsMeta[account] = accMeta
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
 			}
-			accMeta[stringsRegs[instr.B]] = stringsRegs[instr.C]
+			key := accountMetaKey{
+				account: stringsRegs[instr.A],
+				scope:   scope,
+				key:     stringsRegs[instr.B],
+			}
+			accountsMeta[key] = stringsRegs[instr.C]
 
 		case Op_MetaStr:
-			v, err := lookupMeta(ctx, store, stringsRegs[instr.B], stringsRegs[instr.C])
+			instrExt := instrs[pc]
+			pc++
+
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
+			v, err := lookupMeta(ctx, store, stringsRegs[instr.B], scope, stringsRegs[instr.C])
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
 			stringsRegs[instr.A] = v
 
 		case Op_MetaInt:
+			instrExt := instrs[pc]
+			pc++
+
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
-			v, err := lookupMeta(ctx, store, account, key)
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
+			v, err := lookupMeta(ctx, store, account, scope, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -319,8 +373,15 @@ func Exec[S Store](
 			intsRegs[instr.A].Set(n)
 
 		case Op_MetaPortion:
+			instrExt := instrs[pc]
+			pc++
+
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
-			v, err := lookupMeta(ctx, store, account, key)
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
+			v, err := lookupMeta(ctx, store, account, scope, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -337,7 +398,11 @@ func Exec[S Store](
 			pc++
 
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
-			v, err := lookupMeta(ctx, store, account, key)
+			var scope string
+			if instrExt.B != nilReg {
+				scope = stringsRegs[instrExt.B]
+			}
+			v, err := lookupMeta(ctx, store, account, scope, key)
 			if err != nil {
 				return runtime.ExecutionResult{}, err
 			}
@@ -454,10 +519,17 @@ func Exec[S Store](
 			portionsRegs[instr.A].SetFrac(num, den)
 
 		case Op_Balance:
+			instrExt := instrs[pc]
+			pc++
+
 			account := stringsRegs[instr.B]
 			asset := stringsRegs[instr.C]
+			var scope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
 
-			bal, err := runstate.GetAccountBalance(account, "", asset, "")
+			bal, err := runstate.GetAccountBalance(account, scope, asset, "")
 			if err != nil {
 				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
 			}
@@ -504,9 +576,34 @@ func Exec[S Store](
 		}
 	}
 
+	var accountsMetaRows runtime.AccountsMetadata
+	if len(accountsMeta) != 0 {
+		accountsMetaRows = make(runtime.AccountsMetadata, 0, len(accountsMeta))
+		for k, v := range accountsMeta {
+			accountsMetaRows = append(accountsMetaRows, runtime.AccountMetadataEntry{
+				Account: k.account,
+				Scope:   k.scope,
+				Key:     k.key,
+				Value:   v,
+			})
+		}
+		// deterministic output: accountsMeta was built from a map, whose iteration
+		// order is random
+		sort.Slice(accountsMetaRows, func(i, j int) bool {
+			a, b := accountsMetaRows[i], accountsMetaRows[j]
+			if a.Account != b.Account {
+				return a.Account < b.Account
+			}
+			if a.Scope != b.Scope {
+				return a.Scope < b.Scope
+			}
+			return a.Key < b.Key
+		})
+	}
+
 	return runtime.ExecutionResult{
 		Postings:         runstate.GetPostings(),
 		Metadata:         txMeta,
-		AccountsMetadata: accountsMeta,
+		AccountsMetadata: accountsMetaRows,
 	}, nil
 }
