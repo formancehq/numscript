@@ -38,6 +38,7 @@ func TestSimpleProgram(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "src"
   $r4 = 0
@@ -68,6 +69,7 @@ func TestIntAddition(t *testing.T) {
   $r2 = 4
   $r3 = 6
   $r4 = $r2 + $r3
+  assert_non_negative_amount($r4)
   set_current_asset($r1)
   $r5 = "src"
   $r6 = 0
@@ -98,6 +100,7 @@ func TestIntSubtraction(t *testing.T) {
   $r2 = 16
   $r3 = 6
   $r4 = $r2 - $r3
+  assert_non_negative_amount($r4)
   set_current_asset($r1)
   $r5 = "src"
   $r6 = 0
@@ -134,6 +137,7 @@ func TestMonetaryAddition(t *testing.T) {
   $r4 = 7
   assert_same_asset($r1, $r3)
   $r5 = $r2 + $r4
+  assert_non_negative_amount($r5)
   set_current_asset($r1)
   $r6 = "src"
   $r7 = 0
@@ -170,6 +174,7 @@ func TestMonetarySubtraction(t *testing.T) {
   $r4 = 20
   assert_same_asset($r1, $r3)
   $r5 = $r2 - $r4
+  assert_non_negative_amount($r5)
   set_current_asset($r1)
   $r6 = "src"
   $r7 = 0
@@ -204,6 +209,7 @@ func TestGetAmount(t *testing.T) {
   $r1 = "USD/2"
   $r2 = 42
   $r3 = "USD/2"
+  assert_non_negative_amount($r2)
   set_current_asset($r3)
   $r4 = "src"
   $r5 = 0
@@ -238,6 +244,7 @@ func TestGetAsset(t *testing.T) {
   $r1 = "USD/2"
   $r2 = 42
   $r3 = 10
+  assert_non_negative_amount($r3)
   set_current_asset($r1)
   $r4 = "src"
   $r5 = 0
@@ -272,6 +279,7 @@ func TestPrefixMinusMonetary(t *testing.T) {
   $r2 = 10
   $r3 = neg_int($r2)
   $r4 = neg_int($r3)
+  assert_non_negative_amount($r4)
   set_current_asset($r1)
   $r5 = "src"
   $r6 = 0
@@ -305,6 +313,7 @@ func TestBalance(t *testing.T) {
   $r2 = "USD/2"
   $r3 = balance($r1, $r2)
   assert_non_negative_balance($r3, $r1)
+  assert_non_negative_amount($r3)
   set_current_asset($r2)
   $r4 = "src"
   $r5 = 0
@@ -338,6 +347,7 @@ func TestAccountInterpolation(t *testing.T) {
   $r1 = "alice"
   $r2 = "USD/2"
   $r3 = 10
+  assert_non_negative_amount($r3)
   set_current_asset($r2)
   $r4 = "world"
   $r5 = 0
@@ -379,6 +389,7 @@ func TestAccountInterpolationInt(t *testing.T) {
   $r1 = 42
   $r2 = "USD/2"
   $r3 = 10
+  assert_non_negative_amount($r3)
   set_current_asset($r2)
   $r4 = "world"
   $r5 = 0
@@ -416,6 +427,7 @@ func TestInorder(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = 0
   $r4 = int_copy($r2)
@@ -478,6 +490,7 @@ func TestInorderWithCap(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = 0
   $r4 = int_copy($r2)
@@ -547,6 +560,7 @@ func TestDestInorder(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "world"
   $r4 = 0
@@ -562,6 +576,7 @@ func TestDestInorder(t *testing.T) {
   $r8 = "USD/2"
   $r9 = 4
   assert_same_asset($r8, $r1)
+  assert_non_negative_amount($r9)
   $r10 = int_copy($r7)
   $r11 = lt_int($r7, $r9)
   jmp_if_true($r11, #min_end_2)
@@ -591,6 +606,7 @@ func TestSourceOneofSimple(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   mark_push()
   $r3 = "a"
@@ -657,6 +673,7 @@ func TestSourceOneofBounded(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   mark_push()
   $r3 = "a"
@@ -707,6 +724,7 @@ func TestDestOneof(t *testing.T) {
   $r0 = "world"
   $r1 = "USD/2"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "world"
   $r4 = 0
@@ -753,6 +771,7 @@ func TestColoredSource(t *testing.T) {
   $r0 = "world"
   $r1 = "COIN"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "src"
   $r4 = "RED"
@@ -784,6 +803,7 @@ func TestColoredOverdraftSource(t *testing.T) {
   $r0 = "world"
   $r1 = "COIN"
   $r2 = 10
+  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "src"
   $r4 = "RED"

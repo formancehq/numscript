@@ -115,6 +115,7 @@ type (
 	AssertValidAccount       struct{ Account Reg }             // str
 	AssertValidColor         struct{ Color Reg }               // str
 	AssertNonNegativeBalance struct{ Balance, Account Reg }    // int (the amount), str
+	AssertNonNegativeAmount  struct{ Amount Reg }              // int (a sent/saved amount, not tied to an account)
 	SetTxMeta                struct{ Key, Value Reg }          // str, str
 	SetAccountMeta           struct{ Account, Key, Value Reg } // str, str, str
 	MetaVar                  struct {
@@ -235,6 +236,9 @@ func (i AssertValidColor) sources() []Reg { return []Reg{i.Color} }
 
 func (i AssertNonNegativeBalance) dests() []Reg   { return nil }
 func (i AssertNonNegativeBalance) sources() []Reg { return []Reg{i.Balance, i.Account} }
+
+func (i AssertNonNegativeAmount) dests() []Reg   { return nil }
+func (i AssertNonNegativeAmount) sources() []Reg { return []Reg{i.Amount} }
 
 func (i SetTxMeta) dests() []Reg   { return nil }
 func (i SetTxMeta) sources() []Reg { return []Reg{i.Key, i.Value} }

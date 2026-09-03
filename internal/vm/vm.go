@@ -281,6 +281,12 @@ func Exec[S Store](
 				}
 			}
 
+		case Op_AssertNonNegativeAmount:
+			amount := &intsRegs[instr.A]
+			if amount.Sign() < 0 {
+				return runtime.ExecutionResult{}, NegativeAmountError{Amount: *amount}
+			}
+
 		case Op_SetTxMeta:
 			if txMeta == nil {
 				txMeta = map[string]string{}

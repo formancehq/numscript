@@ -513,6 +513,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = AssertValidColor{Color: ap.reg()}
 	case "assert_non_negative_balance":
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
+	case "assert_non_negative_amount":
+		instr = AssertNonNegativeAmount{Amount: ap.reg()}
 
 	// two names for one instruction, as assert_leftover/assert_leftover_exact are
 	case "mark_push":

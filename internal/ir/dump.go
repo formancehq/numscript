@@ -90,6 +90,10 @@ func (i AssertNonNegativeBalance) String() string {
 	return fmt.Sprintf("assert_non_negative_balance(%s, %s)", i.Balance, i.Account)
 }
 
+func (i AssertNonNegativeAmount) String() string {
+	return fmt.Sprintf("assert_non_negative_amount(%s)", i.Amount)
+}
+
 func (i SetTxMeta) String() string {
 	return fmt.Sprintf("set_tx_meta(%s, %s)", i.Key, i.Value)
 }

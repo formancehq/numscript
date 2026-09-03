@@ -91,13 +91,6 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		if tc.Skip || (hasFocused && !tc.Focus) {
 			continue
 		}
-		if tc.ExpectNegativeAmount {
-			// internal/vm has no negative-amount error: `send [USD/2 -1]` returns no
-			// error and no postings, where the interpreter returns NegativeAmountErr.
-			t.Logf("case %q: skipped, the VM has no negative-amount error", tc.It)
-			continue
-		}
-
 		caseVars := map[string]string{}
 		maps.Copy(caseVars, specs.Vars)
 		maps.Copy(caseVars, tc.Vars)
@@ -112,6 +105,10 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)
+			continue
+		}
+		if tc.ExpectNegativeAmount {
+			require.IsType(t, vm.NegativeAmountError{}, execErr, "case %q", tc.It)
 			continue
 		}
 		require.Nil(t, execErr, "case %q: unexpected error: %v", tc.It, execErr)

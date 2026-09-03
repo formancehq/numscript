@@ -695,6 +695,17 @@ func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 	return nil
 }
 
+func (i AssertNonNegativeAmount) assemble(a *assembler) error {
+	amount, err := a.intReg(i.Amount)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertNonNegativeAmount, amount, maxReg, maxReg)
+
+	return nil
+}
+
 func (i SetTxMeta) assemble(a *assembler) error {
 	key, err := a.strReg(i.Key)
 	if err != nil {

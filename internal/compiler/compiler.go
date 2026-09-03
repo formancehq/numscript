@@ -979,6 +979,12 @@ func (st *state) compileDestination(
 			if err != nil {
 				return err
 			}
+			// mirrors internal/interpreter's sendTo, *parser.DestinationInorder
+			// case: a negative `max` clause amount here is a hard error, not a
+			// clamp-to-zero. Source-side `max ... from` caps and the
+			// experimental oneof destination have no equivalent check on
+			// either engine, so this is deliberately scoped to just this case.
+			st.Push(ir.AssertNonNegativeAmount{Amount: capAmtReg})
 			amtReg := st.minInt(remaining, capAmtReg)
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
@@ -1032,6 +1038,7 @@ func (st *state) compileSentValue(
 		if err != nil {
 			return 0, err
 		}
+		st.Push(ir.AssertNonNegativeAmount{Amount: mon.Amount})
 		st.Push(ir.SetCurrentAsset{
 			Asset: mon.Asset,
 		})
@@ -1080,6 +1087,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			if err != nil {
 				return err
 			}
+			st.Push(ir.AssertNonNegativeAmount{Amount: mon.Amount})
 			assetReg = mon.Asset
 			amountReg = &mon.Amount
 		case *parser.SentValueAll:

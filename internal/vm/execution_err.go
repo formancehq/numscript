@@ -54,6 +54,12 @@ type (
 		Amount  big.Int
 	}
 
+	// NegativeAmountError is a sent/saved amount that evaluated to negative —
+	// unlike NegativeBalanceError, it is not tied to any account.
+	NegativeAmountError struct {
+		Amount big.Int
+	}
+
 	DivideByZeroError struct {
 		Numerator big.Int
 	}
@@ -111,6 +117,10 @@ func (e NegativeBalanceError) Error() string {
 	return fmt.Sprintf("cannot fetch negative balance from account @%s", e.Account)
 }
 
+func (e NegativeAmountError) Error() string {
+	return fmt.Sprintf("cannot send negative amount: %s", e.Amount.String())
+}
+
 func (e InvalidAllotmentSum) Error() string {
 	return fmt.Sprintf("invalid allotment: portions must sum to 1, got %s", e.ActualSum.String())
 }
@@ -135,6 +145,7 @@ func (BadMetaValueError) execErr()     {}
 func (InvalidAccountName) execErr()    {}
 func (InvalidColor) execErr()          {}
 func (NegativeBalanceError) execErr()  {}
+func (NegativeAmountError) execErr()   {}
 func (DivideByZeroError) execErr()     {}
 func (InternalError) execErr()         {}
 func (StoreError) execErr()            {}
@@ -149,6 +160,7 @@ var (
 	_ ExecutionError = (*InvalidAccountName)(nil)
 	_ ExecutionError = (*InvalidColor)(nil)
 	_ ExecutionError = (*NegativeBalanceError)(nil)
+	_ ExecutionError = (*NegativeAmountError)(nil)
 	_ ExecutionError = (*DivideByZeroError)(nil)
 	_ ExecutionError = (*InternalError)(nil)
 	_ ExecutionError = (*StoreError)(nil)
