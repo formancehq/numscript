@@ -7,6 +7,7 @@ import (
 
 	acctmetadata "github.com/formancehq/go-libs/v5/pkg/types/metadata"
 	"github.com/formancehq/numscript/internal/gen"
+	"github.com/formancehq/numscript/internal/oracle/machine"
 	"github.com/formancehq/numscript/internal/oracle/machine/script/compiler"
 	"github.com/formancehq/numscript/internal/oracle/machine/vm"
 )
@@ -58,7 +59,7 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	}
 
 	if err := m.Execute(); err != nil {
-		return SideResult{RunErr: err.Error()}
+		return SideResult{RunErr: err.Error(), MissingFunds: machine.IsInsufficientFundError(err)}
 	}
 
 	// The legacy machine, unlike the rewrite, still emits zero-amount

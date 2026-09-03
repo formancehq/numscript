@@ -27,6 +27,15 @@ type SideResult struct {
 	CompileErr string
 	// RunErr is set if compilation succeeded but execution failed.
 	RunErr string
+	// MissingFunds is only meaningful when RunErr is set: true iff the
+	// failure was specifically an insufficient/missing-funds error, as
+	// opposed to some other runtime rejection (e.g. a negative amount).
+	// Compare() treats this classification, not the exact RunErr text, as
+	// the thing that must agree across engines — see its doc comment for
+	// why (source-side negative max-clause amounts are a known, deliberately
+	// unfixed gap that produces different non-funds RunErr text without
+	// being a funds-adequacy bug).
+	MissingFunds bool
 	// Postings is nil unless both CompileErr and RunErr are empty.
 	Postings []Posting
 }
@@ -62,7 +71,8 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 	// input (it doesn't today, but that's not a documented guarantee).
 	execResult, err := parseResult.Run(ctx, maps.Clone(vars), store)
 	if err != nil {
-		return SideResult{RunErr: err.Error()}
+		_, missingFunds := err.(numscript.MissingFundsErr)
+		return SideResult{RunErr: err.Error(), MissingFunds: missingFunds}
 	}
 
 	postings := make([]Posting, 0, len(execResult.Postings))

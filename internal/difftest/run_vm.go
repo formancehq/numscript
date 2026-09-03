@@ -6,6 +6,7 @@ import (
 
 	"github.com/formancehq/numscript"
 	"github.com/formancehq/numscript/internal/gen"
+	"github.com/formancehq/numscript/internal/vm"
 )
 
 // vmStore is a numscript.VMStore over the same (account, asset) -> amount /
@@ -45,7 +46,8 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 
 	execResult, execErr := numscript.ExecVm(ctx, numscript.NewVm(program), &encodedVars, store)
 	if execErr != nil {
-		return SideResult{RunErr: execErr.Error()}
+		_, missingFunds := execErr.(vm.MissingFundsError)
+		return SideResult{RunErr: execErr.Error(), MissingFunds: missingFunds}
 	}
 
 	postings := make([]Posting, 0, len(execResult.Postings))

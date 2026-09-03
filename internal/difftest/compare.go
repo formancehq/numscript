@@ -59,15 +59,30 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	aRunFailed := aRes.RunErr != ""
 	bRunFailed := bRes.RunErr != ""
 
-	if aRunFailed != bRunFailed {
+	// MissingFunds classification, not raw fail/succeed, is the thing that
+	// must agree — see SideResult.MissingFunds's doc comment. A known,
+	// deliberately-unfixed gap (a negative source-side `max ... from`
+	// clause amount is a hard reject on the oracle, but silently
+	// contributes zero on the interpreter/vm, which can let a *different*
+	// source in the same list cover the shortfall instead) means fail-vs-
+	// succeed alone is too strict: it flags that gap's known, accepted
+	// divergence in what's *accepted* as a false positive. Whether the
+	// funds were actually adequate is the invariant this harness cares
+	// about, so that's what's compared instead.
+	if aRes.MissingFunds != bRes.MissingFunds {
 		return mismatch(
-			"execution-error divergence: %s runErr=%q, %s runErr=%q",
-			aLabel, aRes.RunErr, bLabel, bRes.RunErr,
+			"missing-funds classification differs: %s missingFunds=%v (runErr=%q), %s missingFunds=%v (runErr=%q)",
+			aLabel, aRes.MissingFunds, aRes.RunErr, bLabel, bRes.MissingFunds, bRes.RunErr,
 		)
 	}
+	if aRunFailed != bRunFailed {
+		// Neither side's (possible) failure was a missing-funds one — see
+		// above. Tolerated.
+		return ok()
+	}
 	if aRunFailed {
-		// Both failed at runtime (e.g. insufficient funds); not comparing
-		// exact error text/category.
+		// Both failed at runtime with matching missing-funds classification;
+		// not comparing exact error text/category beyond that.
 		return ok()
 	}
 

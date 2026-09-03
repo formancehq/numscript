@@ -143,3 +143,89 @@ send [COIN 250] (
 		})
 	}
 }
+
+// TestSourceSideNegativeMaxClauseTolerated locks in a deliberate, accepted
+// gap: a negative amount in a source-side `max ... from` clause is a hard
+// reject on the oracle, but the interpreter and vm both silently treat it as
+// contributing zero instead (the same "clamp instead of error" bug class
+// already fixed on the destination side — see "negative max-clause amount"
+// in TestKnownBugRepros above — but deliberately left unfixed here, since
+// closing it would mean changing the interpreter's "ground truth" behavior,
+// not just the vm catching up to it). With a fallback source in the same
+// list, the interpreter/vm draw the shortfall from there and succeed, while
+// the oracle never gets that far. SideResult.MissingFunds and Compare's
+// classification-based tolerance (see its doc comment) exist specifically
+// so this doesn't produce fuzzer noise: as long as the underlying
+// funds-adequacy outcome agrees across engines, this divergence in what's
+// *accepted* is tolerated.
+func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
+	script := `send [EUR/2 100] (
+  source = {
+    max [EUR/2 0] - [EUR/2 35] from @acc2 allowing unbounded overdraft
+    @acc3 allowing unbounded overdraft
+  }
+  destination = @acc1
+)`
+
+	ctx := context.Background()
+	newRes := runNew(ctx, script, nil, nil, nil)
+	oracleRes := runOracle(ctx, script, nil, nil, nil)
+	vmRes := runVM(ctx, script, nil, nil, nil)
+
+	for _, pair := range []struct {
+		name string
+		v    Verdict
+	}{
+		{"new vs oracle", Compare(newRes, oracleRes, "new interpreter", "oracle")},
+		{"vm vs oracle", Compare(vmRes, oracleRes, "vm", "oracle")},
+		{"new vs vm", Compare(vmRes, newRes, "vm", "new interpreter")},
+	} {
+		if pair.v.Mismatch {
+			t.Errorf("%s: unexpected mismatch: %s\nnew: %+v\noracle: %+v\nvm: %+v",
+				pair.name, pair.v.Reason, newRes, oracleRes, vmRes)
+		}
+	}
+
+	// Pin down *why* this is expected to be tolerated, so the test fails
+	// loudly (for the right reason) if the underlying gap ever gets fixed,
+	// instead of silently passing on a script that no longer exercises it.
+	if oracleRes.RunErr == "" {
+		t.Fatalf("expected the oracle to reject this script; it didn't: %+v", oracleRes)
+	}
+	if newRes.Failed() || vmRes.Failed() {
+		t.Fatalf("expected the interpreter and vm to both succeed; got new=%+v vm=%+v", newRes, vmRes)
+	}
+}
+
+// TestMissingFundsClassificationMismatchStillCaught is
+// TestSourceSideNegativeMaxClauseTolerated's companion: the same underlying
+// gap, but without a fallback source, so the zeroed-out clause leaves
+// nothing to cover the send and the interpreter/vm both fail — specifically
+// with a missing-funds error, whereas the oracle fails for an unrelated
+// reason (the negative amount itself). This asymmetry is exactly what
+// Compare's relaxation does NOT tolerate (see SideResult.MissingFunds and
+// Compare's doc comments): it must still be flagged as a mismatch.
+func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
+	script := `send [EUR/2 100] (
+  source = max [EUR/2 0] - [EUR/2 35] from @acc2 allowing unbounded overdraft
+  destination = @acc1
+)`
+	ctx := context.Background()
+	newRes := runNew(ctx, script, nil, nil, nil)
+	oracleRes := runOracle(ctx, script, nil, nil, nil)
+	vmRes := runVM(ctx, script, nil, nil, nil)
+
+	if !oracleRes.Failed() || oracleRes.MissingFunds {
+		t.Fatalf("expected the oracle to fail for a non-missing-funds reason; got %+v", oracleRes)
+	}
+	if !newRes.MissingFunds || !vmRes.MissingFunds {
+		t.Fatalf("expected the interpreter and vm to fail specifically due to missing funds; got new=%+v vm=%+v", newRes, vmRes)
+	}
+
+	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
+		t.Fatalf("expected new-vs-oracle to be flagged as a mismatch, got none")
+	}
+	if v := Compare(vmRes, oracleRes, "vm", "oracle"); !v.Mismatch {
+		t.Fatalf("expected vm-vs-oracle to be flagged as a mismatch, got none")
+	}
+}
