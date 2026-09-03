@@ -16,28 +16,50 @@ import (
 	"github.com/formancehq/numscript/internal/gen"
 )
 
-// Case is one generated script plus both engines' results and the verdict.
+// Case is one generated script plus all three engines' results and the
+// pairwise verdicts between them.
 type Case struct {
-	Script  string
-	Vars    map[string]string
-	New     SideResult
-	Oracle  SideResult
-	Verdict Verdict
+	Script string
+	Vars   map[string]string
+	New    SideResult
+	Oracle SideResult
+	VM     SideResult
+
+	// OracleVsNew is the original oracle-vs-tree-walking-interpreter
+	// comparison. OracleVsVM and NewVsVM extend it to the compiler+VM
+	// engine — NewVsVM in particular has no independent "ground truth"
+	// (both live in this repo), so a mismatch there means the interpreter
+	// and the compiler+VM disagree with each other, not just with the
+	// legacy oracle.
+	OracleVsNew Verdict
+	OracleVsVM  Verdict
+	NewVsVM     Verdict
 }
 
-// RunOne generates one program from rng, runs it against both engines, and
-// compares the results.
+// RunOne generates one program from rng, runs it against all three engines,
+// and compares the results pairwise.
 func RunOne(ctx context.Context, rng *rand.Rand) Case {
 	vars, balances, metadata, script := gen.GenerateScript(rng)
 
 	newRes := runNew(ctx, script, vars, balances, metadata)
 	oracleRes := runOracle(ctx, script, vars, balances, metadata)
+	vmRes := runVM(ctx, script, vars, balances, metadata)
 
 	return Case{
-		Script:  script,
-		Vars:    vars,
-		New:     newRes,
-		Oracle:  oracleRes,
-		Verdict: Compare(newRes, oracleRes),
+		Script: script,
+		Vars:   vars,
+		New:    newRes,
+		Oracle: oracleRes,
+		VM:     vmRes,
+
+		OracleVsNew: Compare(newRes, oracleRes, "new interpreter", "oracle"),
+		OracleVsVM:  Compare(vmRes, oracleRes, "vm", "oracle"),
+		NewVsVM:     Compare(vmRes, newRes, "vm", "new interpreter"),
 	}
+}
+
+// AnyMismatch reports whether any of the three pairwise verdicts found a
+// divergence.
+func (c Case) AnyMismatch() bool {
+	return c.OracleVsNew.Mismatch || c.OracleVsVM.Mismatch || c.NewVsVM.Mismatch
 }

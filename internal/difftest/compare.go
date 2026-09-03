@@ -17,15 +17,18 @@ func mismatch(format string, args ...any) Verdict {
 	return Verdict{Mismatch: true, Reason: fmt.Sprintf(format, args...)}
 }
 
-// Compare normalizes and diffs the two engines' results for the same
-// script. It intentionally does NOT compare exact error strings (wording
-// legitimately differs between the two implementations) — only whether an
-// error occurred at all, and at which stage.
-func Compare(newRes, oracleRes SideResult) Verdict {
-	newCompileFailed := newRes.CompileErr != ""
-	oracleCompileFailed := oracleRes.CompileErr != ""
+// Compare normalizes and diffs two engines' results for the same script.
+// aLabel/bLabel name the two sides (e.g. "new interpreter"/"oracle",
+// "vm"/"oracle") in mismatch messages only — comparison logic is symmetric
+// modulo which side's rejection is treated as "expected" (see below).
+// It intentionally does NOT compare exact error strings (wording
+// legitimately differs between implementations) — only whether an error
+// occurred at all, and at which stage.
+func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+	aCompileFailed := aRes.CompileErr != ""
+	bCompileFailed := bRes.CompileErr != ""
 
-	if oracleCompileFailed && !newCompileFailed {
+	if bCompileFailed && !aCompileFailed {
 		// Expected, not a mismatch: internal/gen's cleanup pass (a port of
 		// Utils.hs's cleanupNumscript) is a best-effort heuristic, not a
 		// complete guarantee — e.g. it doesn't track unboundedness that
@@ -33,34 +36,36 @@ func Compare(newRes, oracleRes SideResult) Verdict {
 		// limitation of the original Haskell tool. The real reference
 		// tool's own differential harness (numscript_gen/app/Main.hs)
 		// explicitly buckets "oracle rejected" as an expected outcome
-		// rather than a hard mismatch, for the same reason.
+		// rather than a hard mismatch, for the same reason. The same
+		// tolerance applies to any b-side (oracle, or the vm compiler)
+		// rejecting something a-side accepts.
 		return ok()
 	}
-	if newCompileFailed && !oracleCompileFailed {
+	if aCompileFailed && !bCompileFailed {
 		// The interesting direction: the generator only ever emits syntax
-		// within the old machine's grammar, and the new interpreter is a
-		// strict superset of it, so the new interpreter rejecting a script
-		// the oracle accepted is a genuine, worth-investigating divergence.
+		// within the b-side's grammar, and a-side is expected to be a
+		// strict superset of it, so a-side rejecting a script b-side
+		// compiled is a genuine, worth-investigating divergence.
 		return mismatch(
-			"new interpreter rejected a script the oracle compiled: compileErr=%q",
-			newRes.CompileErr,
+			"%s rejected a script %s compiled: compileErr=%q",
+			aLabel, bLabel, aRes.CompileErr,
 		)
 	}
-	if newCompileFailed {
+	if aCompileFailed {
 		// Both rejected the script; nothing further to compare.
 		return ok()
 	}
 
-	newRunFailed := newRes.RunErr != ""
-	oracleRunFailed := oracleRes.RunErr != ""
+	aRunFailed := aRes.RunErr != ""
+	bRunFailed := bRes.RunErr != ""
 
-	if newRunFailed != oracleRunFailed {
+	if aRunFailed != bRunFailed {
 		return mismatch(
-			"execution-error divergence: new interpreter runErr=%q, oracle runErr=%q",
-			newRes.RunErr, oracleRes.RunErr,
+			"execution-error divergence: %s runErr=%q, %s runErr=%q",
+			aLabel, aRes.RunErr, bLabel, bRes.RunErr,
 		)
 	}
-	if newRunFailed {
+	if aRunFailed {
 		// Both failed at runtime (e.g. insufficient funds); not comparing
 		// exact error text/category.
 		return ok()
@@ -75,22 +80,22 @@ func Compare(newRes, oracleRes SideResult) Verdict {
 	// non-adjacent draws from the same real account in a source list).
 	// That's a posting-granularity difference, not a change in what moved
 	// where — so it's intentionally not treated as a mismatch here.
-	newAgg := aggregatePostings(newRes.Postings)
-	oracleAgg := aggregatePostings(oracleRes.Postings)
+	aAgg := aggregatePostings(aRes.Postings)
+	bAgg := aggregatePostings(bRes.Postings)
 
-	if len(newAgg) != len(oracleAgg) {
+	if len(aAgg) != len(bAgg) {
 		return mismatch(
-			"aggregated posting set differs: new interpreter has %d distinct (source,destination,asset), oracle has %d\nnew: %+v\noracle: %+v",
-			len(newAgg), len(oracleAgg), newRes.Postings, oracleRes.Postings,
+			"aggregated posting set differs: %s has %d distinct (source,destination,asset), %s has %d\n%s: %+v\n%s: %+v",
+			aLabel, len(aAgg), bLabel, len(bAgg), aLabel, aRes.Postings, bLabel, bRes.Postings,
 		)
 	}
 
-	for k, newAmount := range newAgg {
-		oracleAmount, ok := oracleAgg[k]
-		if !ok || newAmount.Cmp(oracleAmount) != 0 {
+	for k, aAmount := range aAgg {
+		bAmount, ok := bAgg[k]
+		if !ok || aAmount.Cmp(bAmount) != 0 {
 			return mismatch(
-				"aggregated amount differs for source=%q destination=%q asset=%q: new interpreter=%v, oracle=%v\nnew: %+v\noracle: %+v",
-				k.Source, k.Destination, k.Asset, newAmount, oracleAmount, newRes.Postings, oracleRes.Postings,
+				"aggregated amount differs for source=%q destination=%q asset=%q: %s=%v, %s=%v\n%s: %+v\n%s: %+v",
+				k.Source, k.Destination, k.Asset, aLabel, aAmount, bLabel, bAmount, aLabel, aRes.Postings, bLabel, bRes.Postings,
 			)
 		}
 	}

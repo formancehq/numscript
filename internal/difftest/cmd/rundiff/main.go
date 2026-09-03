@@ -39,11 +39,20 @@ func main() {
 			fmt.Printf("--- seed %d ---\n%s\n\n", rngSeed, c.Script)
 		}
 
-		if c.Verdict.Mismatch {
-			mismatches++
-			fmt.Printf("MISMATCH at seed %d: %s\n\nvars: %v\n\nscript:\n%s\n\n", rngSeed, c.Verdict.Reason, c.Vars, c.Script)
-			if *stopOnFirst {
-				os.Exit(1)
+		for _, v := range []struct {
+			pair    string
+			verdict difftest.Verdict
+		}{
+			{"oracle-vs-new", c.OracleVsNew},
+			{"oracle-vs-vm", c.OracleVsVM},
+			{"new-vs-vm", c.NewVsVM},
+		} {
+			if v.verdict.Mismatch {
+				mismatches++
+				fmt.Printf("MISMATCH (%s) at seed %d: %s\n\nvars: %v\n\nscript:\n%s\n\n", v.pair, rngSeed, v.verdict.Reason, c.Vars, c.Script)
+				if *stopOnFirst {
+					os.Exit(1)
+				}
 			}
 		}
 	}

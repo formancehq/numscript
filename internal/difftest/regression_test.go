@@ -136,7 +136,7 @@ send [COIN 250] (
 			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
 			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
 
-			v := Compare(newRes, oracleRes)
+			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
 				t.Fatalf("mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 			}
