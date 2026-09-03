@@ -10,14 +10,59 @@ import (
 
 const maxReg = 0xFF
 
+// regPool assigns each virtual Reg a physical bank index (0..maxReg-1),
+// reusing an index once its Reg's last reference has been processed.
+//
+// Correctness of a plain linear scan (rather than full dataflow liveness
+// analysis) hinges on IR control flow being forward-jump-only, which
+// Assemble's patch-resolution pass already enforces ("backward jump to
+// label" is a hard error): program order is then a superset of every
+// possible runtime execution order, so a Reg's last *textual* reference is
+// also its true last possible use, and freeing its slot right after is
+// always safe — nothing later in the stream can reach back to read it.
+//
+// Assemble runs the instruction list through this twice: once in scanning
+// mode (via newScanRegPool) purely to record each Reg's last-referenced
+// instruction position, discarding everything else it produces, and once
+// for real (via newAllocRegPool, seeded with that position map) to hand out
+// and reuse physical slots. Freeing is deferred to instruction boundaries
+// (endInstr), not individual references, so that two unrelated Regs which
+// both happen to make their last appearance in the same instruction (e.g.
+// dest and an operand) never get aliased onto the same physical slot before
+// that instruction has finished reading them.
 type regPool struct {
-	indexByReg map[Reg]byte
-	next       int
+	scanning bool
+	curPos   int // current instruction position, set by the assembler driver
+
+	// scanning mode: last instruction position, so far, referencing each Reg
+	lastUse map[Reg]int
+
+	// allocation mode
+	indexByReg  map[Reg]byte
+	freeList    []byte
+	next        int
+	pendingFree map[Reg]struct{} // regs to free once endInstr() runs for curPos
 }
 
-func newRegPool() regPool {
+func newScanRegPool() regPool {
+	return regPool{scanning: true, lastUse: map[Reg]int{}}
+}
+
+func newAllocRegPool(lastUse map[Reg]int) regPool {
 	return regPool{
-		indexByReg: map[Reg]byte{},
+		lastUse:     lastUse,
+		indexByReg:  map[Reg]byte{},
+		pendingFree: map[Reg]struct{}{},
+	}
+}
+
+// endInstr frees every register whose last reference was curPos. Called by
+// the assembler driver after an instruction has been fully assembled.
+func (b *regPool) endInstr() {
+	for r := range b.pendingFree {
+		b.freeList = append(b.freeList, b.indexByReg[r])
+		delete(b.indexByReg, r)
+		delete(b.pendingFree, r)
 	}
 }
 
@@ -51,15 +96,30 @@ func (p *constPool[T]) alloc(item T) (uint16, error) {
 }
 
 func (b *regPool) Index(r Reg) (byte, error) {
-	if idx, ok := b.indexByReg[r]; ok {
-		return idx, nil
+	if b.scanning {
+		b.lastUse[r] = b.curPos
+		return 0, nil
 	}
-	if b.next >= maxReg {
-		return 0, fmt.Errorf("register bank overflow: more than %d registers in one bank (register allocation not implemented yet)", maxReg)
+
+	idx, ok := b.indexByReg[r]
+	if !ok {
+		if n := len(b.freeList); n > 0 {
+			idx = b.freeList[n-1]
+			b.freeList = b.freeList[:n-1]
+		} else {
+			if b.next >= maxReg {
+				return 0, fmt.Errorf("register bank overflow: more than %d registers live at once in one bank", maxReg)
+			}
+			idx = byte(b.next)
+			b.next++
+		}
+		b.indexByReg[r] = idx
 	}
-	idx := byte(b.next)
-	b.next++
-	b.indexByReg[r] = idx
+
+	if b.lastUse[r] == b.curPos {
+		b.pendingFree[r] = struct{}{}
+	}
+
 	return idx, nil
 }
 
@@ -87,13 +147,11 @@ type assembler struct {
 	stringsPool constPool[string]
 }
 
-func Assemble(instrs []Instr) (vm.Program, error) {
+// newAssembler builds an assembler over fresh int/string/portion/bool
+// register pools — scanning ones if lastUse is nil (see regPool's doc
+// comment), real allocating ones (seeded with lastUse) otherwise.
+func newAssembler(lastUse *regUsage) *assembler {
 	a := &assembler{
-		ints:     newRegPool(),
-		strings:  newRegPool(),
-		Portions: newRegPool(),
-		bools:    newRegPool(),
-
 		labels: map[Label]uint16{},
 
 		intsPool: newConstPool(func(i big.Int) string {
@@ -103,10 +161,75 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 			return s
 		}),
 	}
-	for _, instr := range instrs {
+
+	if lastUse == nil {
+		a.ints, a.strings, a.Portions, a.bools = newScanRegPool(), newScanRegPool(), newScanRegPool(), newScanRegPool()
+	} else {
+		a.ints = newAllocRegPool(lastUse.ints)
+		a.strings = newAllocRegPool(lastUse.strings)
+		a.Portions = newAllocRegPool(lastUse.portions)
+		a.bools = newAllocRegPool(lastUse.bools)
+	}
+
+	return a
+}
+
+// setPos moves every bank's current instruction position, used to key
+// live-range tracking (see regPool's doc comment).
+func (a *assembler) setPos(pos int) {
+	a.ints.curPos = pos
+	a.strings.curPos = pos
+	a.Portions.curPos = pos
+	a.bools.curPos = pos
+}
+
+// endInstr frees, in every bank, any register whose last reference was the
+// instruction just assembled.
+func (a *assembler) endInstr() {
+	a.ints.endInstr()
+	a.strings.endInstr()
+	a.Portions.endInstr()
+	a.bools.endInstr()
+}
+
+type regUsage struct {
+	ints, strings, portions, bools map[Reg]int
+}
+
+// scanRegUsage dry-runs instrs through the same assemble() dispatch used for
+// real emission, to learn each Reg's last-referenced instruction position
+// per bank. Everything else the dry run produces (instructions, patches,
+// labels, const pools) is discarded — only the position maps survive.
+func scanRegUsage(instrs []Instr) (regUsage, error) {
+	scan := newAssembler(nil)
+	for i, instr := range instrs {
+		scan.setPos(i)
+		if err := instr.assemble(scan); err != nil {
+			return regUsage{}, err
+		}
+		// no endInstr(): scanning mode never frees, it only records
+	}
+	return regUsage{
+		ints:     scan.ints.lastUse,
+		strings:  scan.strings.lastUse,
+		portions: scan.Portions.lastUse,
+		bools:    scan.bools.lastUse,
+	}, nil
+}
+
+func Assemble(instrs []Instr) (vm.Program, error) {
+	lastUse, err := scanRegUsage(instrs)
+	if err != nil {
+		return vm.Program{}, err
+	}
+
+	a := newAssembler(&lastUse)
+	for i, instr := range instrs {
+		a.setPos(i)
 		if err := instr.assemble(a); err != nil {
 			return vm.Program{}, err
 		}
+		a.endInstr()
 	}
 
 	// now we run the patches

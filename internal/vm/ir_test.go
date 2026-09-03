@@ -1097,7 +1097,10 @@ func TestIRConstBool(t *testing.T) {
   send_to_account(account: $dest)
 `)
 
-	require.Equal(t, byte(2), program.MaxRegBool)
+	// $t and $f are never read again after being set, so the allocator frees
+	// $t's slot right after it and reuses it for $f — both share bool bank
+	// index 0.
+	require.Equal(t, byte(1), program.MaxRegBool)
 	// $amount, $overdraft, $pulled — the two bools are not among them
 	require.Equal(t, byte(3), program.MaxRegInt, "bools don't consume int registers")
 

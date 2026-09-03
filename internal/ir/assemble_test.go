@@ -80,8 +80,11 @@ func TestAssemble_MaxRegPerBank(t *testing.T) {
 	require.Equal(t, byte(0), prog.MaxRegBool, "no bool reg")
 }
 
-// The bool value is in the opcode, so the two constants differ only there, and
-// bool registers are indexed in their own bank.
+// The bool value is in the opcode, so the two constants differ only there,
+// and bool registers are indexed in their own bank. Neither constant is
+// read again after being set, so the allocator frees the first one's slot
+// right after it and reuses it for the second — they end up sharing bank
+// index 0.
 func TestAssemble_ConstBool(t *testing.T) {
 	prog, err := Assemble([]Instr{
 		LoadInt{Dest: 0, Value: *big.NewInt(1)},
@@ -93,42 +96,70 @@ func TestAssemble_ConstBool(t *testing.T) {
 	require.Equal(t, []vm.Instruction{
 		vm.NewBC(vm.Op_LoadInt, 0, 0),
 		{Opcode: byte(vm.Op_ConstTrue), A: 0, B: 0xFF, C: 0xFF},
-		{Opcode: byte(vm.Op_ConstFalse), A: 1, B: 0xFF, C: 0xFF},
+		{Opcode: byte(vm.Op_ConstFalse), A: 0, B: 0xFF, C: 0xFF},
 	}, prog.Instructions)
 
 	require.Equal(t, byte(1), prog.MaxRegInt)
-	require.Equal(t, byte(2), prog.MaxRegBool)
+	require.Equal(t, byte(1), prog.MaxRegBool)
 }
 
-// 255 registers per bank, because 0xFF is the "operand unset" sentinel.
+// 255 registers per bank, because 0xFF is the "operand unset" sentinel. The
+// allocator reuses a slot once its register's last reference has passed, so
+// the cap is only reachable when that many registers are genuinely live at
+// once — not merely ever defined (see TestAssemble_SingleUseRegistersDontAccumulate).
 func TestAssemble_RegisterBankOverflow(t *testing.T) {
-	loadInts := func(n int) []Instr {
-		instrs := make([]Instr, n)
-		for i := range instrs {
-			instrs[i] = LoadInt{Dest: Reg(i), Value: *big.NewInt(int64(i))}
+	// liveInts defines n distinct int registers, then reads every one of
+	// them back (via CheckEnoughFunds, which takes two int operands and
+	// produces no destination register, so the read-back itself never adds
+	// extra pressure), so all n stay simultaneously live right up until the
+	// last definition runs — the peak liveness a real allocator has to
+	// accommodate.
+	liveInts := func(n int) []Instr {
+		instrs := make([]Instr, 0, 2*n)
+		for i := range n {
+			instrs = append(instrs, LoadInt{Dest: Reg(i), Value: *big.NewInt(int64(i))})
+		}
+		for i := range n {
+			instrs = append(instrs, CheckEnoughFunds{Got: Reg(i), Needed: Reg(i)})
 		}
 		return instrs
 	}
 
-	t.Run("255 registers fit", func(t *testing.T) {
-		prog, err := Assemble(loadInts(255))
+	t.Run("255 simultaneously live registers fit", func(t *testing.T) {
+		prog, err := Assemble(liveInts(255))
 		require.NoError(t, err)
 		require.Equal(t, byte(255), prog.MaxRegInt)
 	})
 
-	t.Run("256 do not", func(t *testing.T) {
-		_, err := Assemble(loadInts(256))
+	t.Run("256 simultaneously live registers do not", func(t *testing.T) {
+		_, err := Assemble(liveInts(256))
 		require.ErrorContains(t, err, "register bank overflow")
 	})
 
 	t.Run("banks are counted separately", func(t *testing.T) {
-		instrs := loadInts(255)
+		instrs := liveInts(255)
 		for i := range 255 {
-			instrs = append(instrs, LoadStr{Dest: Reg(1000 + i), Value: "x"})
+			instrs = append(instrs, LoadStr{Dest: Reg(2000 + i), Value: "x"})
+		}
+		for i := range 255 {
+			instrs = append(instrs, AssertSameAsset{Left: Reg(2000 + i), Right: Reg(2000 + i)})
 		}
 		_, err := Assemble(instrs)
 		require.NoError(t, err)
 	})
+}
+
+// Unlike liveInts above, each register here is used exactly once, at
+// definition, and never read again — so however many are defined, only one
+// physical slot is ever needed at a time.
+func TestAssemble_SingleUseRegistersDontAccumulate(t *testing.T) {
+	instrs := make([]Instr, 300)
+	for i := range instrs {
+		instrs[i] = LoadInt{Dest: Reg(i), Value: *big.NewInt(int64(i))}
+	}
+	prog, err := Assemble(instrs)
+	require.NoError(t, err)
+	require.Equal(t, byte(1), prog.MaxRegInt)
 }
 
 func TestAssemble_JmpDelta(t *testing.T) {
