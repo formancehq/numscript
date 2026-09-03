@@ -171,11 +171,26 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 		}
 		out[j].Kind = out[i].Kind
 		out[j].Account = out[i].Account
-		if out[i].Kind == VarFromBalance && rng.Intn(2) == 0 {
-			out[j].Asset = out[i].Asset // exact duplicate (same account+asset)
-		}
-		if out[i].Kind == VarFromMeta && rng.Intn(2) == 0 {
-			out[j].Key = out[i].Key
+		// out[j] may have started life as the *other* Kind, in which case
+		// its Asset (VarFromMeta never sets one) or Key (VarFromBalance
+		// never sets one) is still its zero value at this point — the
+		// "different" branch below must not leave that empty string in
+		// place, or it silently produces a var with an invalid origin
+		// (e.g. balance(@acc, "")) instead of the intended "different
+		// asset/key" collision.
+		switch out[i].Kind {
+		case VarFromBalance:
+			if rng.Intn(2) == 0 {
+				out[j].Asset = out[i].Asset // exact duplicate (same account+asset)
+			} else if out[j].Asset == "" {
+				out[j].Asset = pickAsset(rng)
+			}
+		case VarFromMeta:
+			if rng.Intn(2) == 0 {
+				out[j].Key = out[i].Key // exact duplicate (same account+key)
+			} else if out[j].Key == "" {
+				out[j].Key = metaKeyPool[rng.Intn(len(metaKeyPool))]
+			}
 		}
 	}
 
