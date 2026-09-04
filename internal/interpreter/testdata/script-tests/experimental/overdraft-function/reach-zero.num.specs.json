@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/29a351f9aa5ae03d72b85f55981e52dd57e81c07/specs.schema.json",
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "variables": {
     "amt": "100"
   },

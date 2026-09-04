@@ -1,9 +1,13 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
       "it": "-",
       "expect.txMetadata": [
-        { "key": "k", "value": { "type": "monetary", "asset": "USD/2", "amount": "7" } }
+        {
+          "key": "k",
+          "value": "USD/2 7"
+        }
       ]
     }
   ]

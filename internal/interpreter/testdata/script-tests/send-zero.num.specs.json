@@ -1,9 +1,8 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
-      "it": "-",
-      "balances": [],
-      "expect.postings": []
+      "it": "-"
     }
   ]
 }

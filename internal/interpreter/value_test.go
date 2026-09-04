@@ -1,7 +1,6 @@
 package interpreter_test
 
 import (
-	"encoding/json"
 	"math/big"
 	"testing"
 
@@ -10,98 +9,63 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMarshalMonetaryInt(t *testing.T) {
+func TestMetaString(t *testing.T) {
 	t.Parallel()
 
-	x := interpreter.NewMonetaryInt(42)
-
-	j, err := json.Marshal(x)
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"number","value":"42"}`, string(j))
-}
-
-func TestMarshalString(t *testing.T) {
-	t.Parallel()
-
-	x := interpreter.String("abc")
-
-	j, err := json.Marshal(x)
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"string","value":"abc"}`, string(j))
-}
-
-func TestMarshalAsset(t *testing.T) {
-	t.Parallel()
-
-	x := interpreter.Asset("EUR/2")
-
-	j, err := json.Marshal(x)
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"asset","name":"EUR/2"}`, string(j))
-}
-
-func TestMarshalAddress(t *testing.T) {
-	t.Parallel()
-
-	j, err := json.Marshal(interpreter.AccountAddress{Name: "abc"})
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"account","name":"abc"}`, string(j))
-
-	j, err = json.Marshal(interpreter.AccountAddress{Name: "abc", Scope: "s"})
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"account","name":"abc","scope":"s"}`, string(j))
-}
-
-func TestMarshalPortion(t *testing.T) {
-	t.Parallel()
-
-	x := interpreter.Portion(*big.NewRat(2, 3))
-
-	j, err := json.Marshal(x)
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"portion","numerator":"2","denominator":"3"}`, string(j))
-}
-
-func TestMarshalMonetary(t *testing.T) {
-	t.Parallel()
-
-	x := interpreter.Monetary{
-		Asset:  interpreter.Asset("USD/2"),
-		Amount: interpreter.NewMonetaryInt(100),
-	}
-
-	j, err := json.Marshal(x)
-	require.Nil(t, err)
-	require.JSONEq(t, `{"type":"monetary","asset":"USD/2","amount":"100"}`, string(j))
-}
-
-func TestParseTaggedValueRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	values := []interpreter.Value{
-		interpreter.String("abc"),
-		interpreter.Asset("EUR/2"),
-		interpreter.AccountAddress{Name: "alice"},
-		interpreter.AccountAddress{Name: "alice", Scope: "reserve"},
-		interpreter.NewMonetaryInt(42),
-		interpreter.Monetary{Asset: "USD/2", Amount: interpreter.NewMonetaryInt(100)},
-		interpreter.Portion(*big.NewRat(2, 3)),
-	}
-
-	for _, v := range values {
-		j, err := json.Marshal(v)
-		require.Nil(t, err)
-
-		parsed, err := interpreter.ParseTaggedValue(j)
-		require.Nil(t, err)
-		// compare on the canonical source form
-		require.Equal(t, v.String(), parsed.String())
+	for _, tc := range []struct {
+		name     string
+		value    interpreter.Value
+		expected string
+	}{
+		{"string is not quoted", interpreter.String("abc"), "abc"},
+		{"empty string", interpreter.String(""), ""},
+		{"a string that looks like a number", interpreter.String("42"), "42"},
+		{"asset", interpreter.Asset("EUR/2"), "EUR/2"},
+		{"account has no @ prefix", interpreter.AccountAddress{Name: "alice"}, "alice"},
+		{"number", interpreter.NewMonetaryInt(42), "42"},
+		{"negative number", interpreter.NewMonetaryInt(-7), "-7"},
+		{"monetary", interpreter.Monetary{Asset: "USD/2", Amount: interpreter.NewMonetaryInt(100)}, "USD/2 100"},
+		{"portion", interpreter.Portion(*big.NewRat(2, 3)), "2/3"},
+		{"portion is normalized", interpreter.Portion(*big.NewRat(2, 4)), "1/2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expected, interpreter.MetaString(tc.value))
+		})
 	}
 }
 
-func TestParseTaggedValueRejectsUnknownType(t *testing.T) {
+// The metadata format is untyped on purpose: it stores the rendered value, so
+// values of different types that render the same are indistinguishable there.
+// This is the trade-off that keeps the format stringly-typed, and it is what the
+// pre-tagged format did too.
+func TestMetaStringConflatesTypesThatRenderAlike(t *testing.T) {
 	t.Parallel()
 
-	_, err := interpreter.ParseTaggedValue([]byte(`{"type":"bogus"}`))
-	require.Error(t, err)
+	require.Equal(t,
+		interpreter.MetaString(interpreter.String("42")),
+		interpreter.MetaString(interpreter.NewMonetaryInt(42)),
+	)
+
+	require.Equal(t,
+		interpreter.MetaString(interpreter.String("COIN")),
+		interpreter.MetaString(interpreter.Asset("COIN")),
+	)
+
+	require.Equal(t,
+		interpreter.MetaString(interpreter.String("alice")),
+		interpreter.MetaString(interpreter.AccountAddress{Name: "alice"}),
+	)
+}
+
+// String() is the diagnostic form and stays delimited, so error messages can
+// still tell a string from an account. MetaString is the wire form.
+func TestStringDiffersFromMetaString(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, `"abc"`, interpreter.String("abc").String())
+	require.Equal(t, "abc", interpreter.MetaString(interpreter.String("abc")))
+
+	require.Equal(t, "@alice", interpreter.AccountAddress{Name: "alice"}.String())
+	require.Equal(t, "alice", interpreter.MetaString(interpreter.AccountAddress{Name: "alice"}))
 }
