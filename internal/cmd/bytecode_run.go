@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/interpreter"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 
 	"github.com/spf13/cobra"
@@ -50,13 +50,13 @@ type vmMetaKey struct {
 
 // vmStore is a vm.Store over the rows of an inputs file.
 type vmStore struct {
-	balances map[runtime.PairKey]*big.Int
+	balances map[funds.PairKey]*big.Int
 	meta     map[vmMetaKey]string
 }
 
 func (s vmStore) GetBalance(_ context.Context, account, scope, asset, color string) (*big.Int, error) {
 	// the caller owns what it gets: the run state mutates balances in place
-	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[funds.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return new(big.Int).Set(v), nil
 	}
 	return new(big.Int), nil
@@ -69,7 +69,7 @@ func (s vmStore) GetMetadata(_ context.Context, account, scope, key string) (str
 
 func newVmStore(inputsPath string, inputs BytecodeInputsFile) (vmStore, error) {
 	store := vmStore{
-		balances: make(map[runtime.PairKey]*big.Int, len(inputs.Balances)),
+		balances: make(map[funds.PairKey]*big.Int, len(inputs.Balances)),
 		meta:     make(map[vmMetaKey]string, len(inputs.Meta)),
 	}
 
@@ -78,7 +78,7 @@ func newVmStore(inputsPath string, inputs BytecodeInputsFile) (vmStore, error) {
 		if amount == nil {
 			amount = new(big.Int)
 		}
-		store.balances[runtime.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = amount
+		store.balances[funds.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = amount
 	}
 
 	for _, row := range inputs.Meta {
@@ -181,7 +181,7 @@ func bytecodeRun(bytecodePath string, opts BytecodeRunArgs) error {
 	}
 }
 
-func showBytecodeJson(result runtime.ExecutionResult) error {
+func showBytecodeJson(result funds.ExecutionResult) error {
 	out, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("error marshaling result to JSON: %w", err)
@@ -191,7 +191,7 @@ func showBytecodeJson(result runtime.ExecutionResult) error {
 	return err
 }
 
-func showBytecodePretty(result runtime.ExecutionResult) error {
+func showBytecodePretty(result funds.ExecutionResult) error {
 	fmt.Println("Postings:")
 	fmt.Println(interpreter.PrettyPrintPostings(result.Postings))
 

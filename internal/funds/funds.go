@@ -1,4 +1,4 @@
-// Package runtime is the funds engine shared by the VM and the tree-walking
+// Package funds is the funds engine shared by the VM and the tree-walking
 // interpreter: per-(account, scope, asset, color) balances, a FIFO queue of
 // funding sources fed by Pull/PullUncapped, and the postings produced by
 // Send/SendUncapped.
@@ -20,7 +20,7 @@
 // it ingests from the Store and amounts it intends to mutate, only mutates
 // big.Ints it privately owns (queued source amounts), and never hands out a live
 // reference to internal state.
-package runtime
+package funds
 
 import (
 	"errors"
@@ -29,7 +29,7 @@ import (
 
 // ErrNoOpenMark is the only error MarkEnd returns. Well-formed bytecode matches
 // pushes to ends, so it only surfaces for hand-written IR or a hand-crafted .numb.
-var ErrNoOpenMark = errors.New("runtime: no open mark to end")
+var ErrNoOpenMark = errors.New("funds: no open mark to end")
 
 // Store supplies the starting balance for an (account, scope, asset, color)
 // tuple. Implementations should return 0 (or nil, treated as 0) for unknown

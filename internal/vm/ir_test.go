@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/ir"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ import (
 
 // irStore is a vm.Store backed by plain maps. A non-nil err fails every lookup.
 type irStore struct {
-	balances map[runtime.PairKey]*big.Int
+	balances map[funds.PairKey]*big.Int
 	metadata map[string]map[string]string
 	err      error
 }
@@ -27,7 +27,7 @@ func (s irStore) GetBalance(_ context.Context, account, scope, asset, color stri
 	if s.err != nil {
 		return nil, s.err
 	}
-	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[funds.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return new(big.Int).Set(v), nil
 	}
 	return new(big.Int), nil
@@ -46,9 +46,9 @@ func meta(rows map[string]map[string]string) irStore {
 }
 
 func balances(pairs map[string]int64) irStore {
-	b := map[runtime.PairKey]*big.Int{}
+	b := map[funds.PairKey]*big.Int{}
 	for account, amount := range pairs {
-		b[runtime.PairKey{Account: account, Asset: "USD/2"}] = big.NewInt(amount)
+		b[funds.PairKey{Account: account, Asset: "USD/2"}] = big.NewInt(amount)
 	}
 	return irStore{balances: b}
 }
@@ -94,7 +94,7 @@ func assembleIR(t *testing.T, src string) vm.Program {
 }
 
 // runIR assembles and runs an IR text, requiring it to succeed.
-func runIR(t *testing.T, src string, store irStore, vars *vm.Vars) runtime.ExecutionResult {
+func runIR(t *testing.T, src string, store irStore, vars *vm.Vars) funds.ExecutionResult {
 	t.Helper()
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(assembleIR(t, src)), vars, store)
@@ -111,7 +111,7 @@ func runIRExpectingError(t *testing.T, src string, store irStore, vars *vm.Vars)
 	return execErr
 }
 
-func requirePostings(t *testing.T, want, got []runtime.Posting) {
+func requirePostings(t *testing.T, want, got []funds.Posting) {
 	t.Helper()
 
 	require.Len(t, got, len(want))
@@ -125,8 +125,8 @@ func requirePostings(t *testing.T, want, got []runtime.Posting) {
 	}
 }
 
-func posting(source, destination string, amount int64) runtime.Posting {
-	return runtime.Posting{Source: source, Destination: destination, Asset: "USD/2", Amount: big.NewInt(amount)}
+func posting(source, destination string, amount int64) funds.Posting {
+	return funds.Posting{Source: source, Destination: destination, Asset: "USD/2", Amount: big.NewInt(amount)}
 }
 
 func TestIRSend(t *testing.T) {
@@ -142,7 +142,7 @@ func TestIRSend(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(map[string]int64{"src": 100}), nil)
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 }
 
 // The `max [USD/2 20] from @src` shape: the cap is the smaller of the two. There
@@ -182,7 +182,7 @@ func TestIRSourceCappedByMin(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			vars := &vm.Vars{IntsPool: []big.Int{*big.NewInt(tc.amount), *big.NewInt(tc.max)}}
 			res := runIR(t, src, balances(map[string]int64{"src": 100}), vars)
-			requirePostings(t, []runtime.Posting{posting("src", "dest", tc.wantSent)}, res.Postings)
+			requirePostings(t, []funds.Posting{posting("src", "dest", tc.wantSent)}, res.Postings)
 		})
 	}
 }
@@ -213,12 +213,12 @@ func TestIRComparisonBranch(t *testing.T) {
 
 	t.Run("balance differs, so it is sent whole", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"src": 4}), nil)
-		requirePostings(t, []runtime.Posting{posting("src", "dest", 4)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("src", "dest", 4)}, res.Postings)
 	})
 
 	t.Run("balance equals the amount, so the amount is sent", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"src": 10}), nil)
-		requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -248,12 +248,12 @@ func TestIRInorderSourcesStopAtFirstThatCovers(t *testing.T) {
 
 	t.Run("first source covers it", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"a": 100, "b": 100}), nil)
-		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("a", "dest", 10)}, res.Postings)
 	})
 
 	t.Run("falls through to the second", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"a": 4, "b": 100}), nil)
-		requirePostings(t, []runtime.Posting{
+		requirePostings(t, []funds.Posting{
 			posting("a", "dest", 4),
 			posting("b", "dest", 6),
 		}, res.Postings)
@@ -287,7 +287,7 @@ func TestIRAllotmentDestination(t *testing.T) {
   send_to_account(account: $big, cap: $big_share)
 `, balances(nil), nil)
 
-	requirePostings(t, []runtime.Posting{
+	requirePostings(t, []funds.Posting{
 		posting("world", "small", 25),
 		posting("world", "big", 75),
 	}, res.Postings)
@@ -308,7 +308,7 @@ func TestIRBalanceReadFromStore(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(map[string]int64{"src": 42}), nil)
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 42)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 42)}, res.Postings)
 }
 
 func TestIRUnsentFundsAreReturnedToTheSource(t *testing.T) {
@@ -327,7 +327,7 @@ func TestIRUnsentFundsAreReturnedToTheSource(t *testing.T) {
   send_to_account()
 `, balances(map[string]int64{"src": 100}), nil)
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 50)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 50)}, res.Postings)
 }
 
 func TestIRMarkBacktracks(t *testing.T) {
@@ -359,13 +359,13 @@ func TestIRMarkBacktracks(t *testing.T) {
 
 	t.Run("first branch covers it", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"a": 10, "b": 10}), nil)
-		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("a", "dest", 10)}, res.Postings)
 	})
 
 	t.Run("rewinds to the second branch", func(t *testing.T) {
 		// @a can only cover part of it, so its partial funding must be discarded
 		res := runIR(t, src, balances(map[string]int64{"a": 3, "b": 10}), nil)
-		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("b", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -389,7 +389,7 @@ func TestIRMarkRewindKeepsFundsQueuedBeforeThePush(t *testing.T) {
 `, balances(map[string]int64{"kept": 100, "spec": 100}), nil)
 
 	// only the pre-mark pull reaches the destination; @spec was repaid
-	requirePostings(t, []runtime.Posting{posting("kept", "dest", 4)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("kept", "dest", 4)}, res.Postings)
 }
 
 // Nested regions must rewind independently: the inner one leaves the outer one's
@@ -417,7 +417,7 @@ func TestIRMarkNestedRegions(t *testing.T) {
   send_to_account(account: $dest)
 `, balances, nil)
 		// the inner rewind dropped @inner; @outer survived it and is committed
-		requirePostings(t, []runtime.Posting{posting("outer", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("outer", "dest", 10)}, res.Postings)
 	})
 
 	t.Run("outer region rewinds too", func(t *testing.T) {
@@ -426,7 +426,7 @@ func TestIRMarkNestedRegions(t *testing.T) {
   $dest = "dest"
   send_to_account(account: $dest)
 `, balances, nil)
-		requirePostings(t, []runtime.Posting{}, res.Postings)
+		requirePostings(t, []funds.Posting{}, res.Postings)
 	})
 }
 
@@ -548,7 +548,7 @@ func TestIRSendAndSetAssetAreRejectedInsideARegion(t *testing.T) {
   $other = "EUR/2"
   set_current_asset($other)
 `, store, nil)
-		requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -578,12 +578,12 @@ func TestIRMarkAcrossAJump(t *testing.T) {
 	t.Run("branch taken", func(t *testing.T) {
 		// @a is empty, so the jump falls through to the @b pull
 		res := runIR(t, src, balances(map[string]int64{"a": 0, "b": 10}), nil)
-		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("b", "dest", 10)}, res.Postings)
 	})
 
 	t.Run("branch skipped", func(t *testing.T) {
 		res := runIR(t, src, balances(map[string]int64{"a": 10, "b": 10}), nil)
-		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("a", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -620,7 +620,7 @@ func TestIRMarkDoesNotLeakAcrossRuns(t *testing.T) {
   send_to_account(account: $dest)
 `)), nil, store)
 	require.Nil(t, execErr)
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 
 	// and the same Vm, rerun, is clean too
 	res, execErr = vm.Exec(context.Background(), machine, nil, store)
@@ -657,12 +657,12 @@ func TestIRStrEqAndJmp(t *testing.T) {
 
 	t.Run("equal strings take the then arm", func(t *testing.T) {
 		res := runIR(t, src, store, &vm.Vars{StringsPool: []string{"yes"}})
-		requirePostings(t, []runtime.Posting{posting("a", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("a", "dest", 10)}, res.Postings)
 	})
 
 	t.Run("and jmp skips it otherwise", func(t *testing.T) {
 		res := runIR(t, src, store, &vm.Vars{StringsPool: []string{"no"}})
-		requirePostings(t, []runtime.Posting{posting("b", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("b", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -682,7 +682,7 @@ func TestIRSaveWithholdsFunds(t *testing.T) {
 `
 
 	res := runIR(t, src, balances(map[string]int64{"src": 100}), nil)
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 70)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 70)}, res.Postings)
 }
 
 func TestIROverdraftAllowsNegativeBalance(t *testing.T) {
@@ -699,7 +699,7 @@ func TestIROverdraftAllowsNegativeBalance(t *testing.T) {
 `, balances(map[string]int64{"src": 15}), nil)
 
 	// 15 on the account plus 25 of allowed overdraft
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 40)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 40)}, res.Postings)
 }
 
 func TestIRMetadata(t *testing.T) {
@@ -714,13 +714,13 @@ func TestIRMetadata(t *testing.T) {
 `, balances(nil), nil)
 
 	require.Equal(t, map[string]string{"tx": "yes"}, res.Metadata)
-	require.Equal(t, runtime.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
+	require.Equal(t, funds.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
 }
 
 func TestIRReadsMetadataFromStore(t *testing.T) {
 	// the amount to send is an int read out of @src's metadata
 	store := irStore{
-		balances: map[runtime.PairKey]*big.Int{
+		balances: map[funds.PairKey]*big.Int{
 			{Account: "src", Asset: "USD/2"}: big.NewInt(100),
 		},
 		metadata: map[string]map[string]string{
@@ -741,7 +741,7 @@ func TestIRReadsMetadataFromStore(t *testing.T) {
   send_to_account(account: $dest)
 `, store, nil)
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 7)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 7)}, res.Postings)
 }
 
 func TestIRMissingMetadataIsAnError(t *testing.T) {
@@ -773,7 +773,7 @@ func TestIRLoadsVars(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(map[string]int64{"src": 100}), vars)
 
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 }
 
 func TestIRAssertions(t *testing.T) {
@@ -811,7 +811,7 @@ func TestIRAssertions(t *testing.T) {
 	})
 
 	t.Run("negative balance", func(t *testing.T) {
-		store := irStore{balances: map[runtime.PairKey]*big.Int{
+		store := irStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "src", Asset: "USD/2"}: big.NewInt(-1),
 		}}
 		execErr := runIRExpectingError(t, `
@@ -850,7 +850,7 @@ func TestIRUncappedPull(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(map[string]int64{"src": 70}), nil)
 
-		requirePostings(t, []runtime.Posting{posting("src", "dest", 70)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("src", "dest", 70)}, res.Postings)
 	})
 
 	t.Run("without one it is unbounded and rejected", func(t *testing.T) {
@@ -928,7 +928,7 @@ func TestIRMetaTypes(t *testing.T) {
   send_to_account(account: $b, cap: $b_share)
 `, store, nil)
 
-		requirePostings(t, []runtime.Posting{
+		requirePostings(t, []funds.Posting{
 			posting("world", "a", 25),
 			posting("world", "b", 75),
 		}, res.Postings)
@@ -947,7 +947,7 @@ func TestIRMetaTypes(t *testing.T) {
   send_to_account(account: $dest)
 `, store, nil)
 
-		requirePostings(t, []runtime.Posting{posting("acc", "dest", 250)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("acc", "dest", 250)}, res.Postings)
 	})
 
 	t.Run("a value of the wrong shape is an error", func(t *testing.T) {
@@ -1039,7 +1039,7 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
   $dest = "dest"
   send_to_account(account: $dest)
 `, failing, nil)
-		requirePostings(t, []runtime.Posting{posting("world", "dest", 10)}, res.Postings)
+		requirePostings(t, []funds.Posting{posting("world", "dest", 10)}, res.Postings)
 	})
 }
 
@@ -1071,7 +1071,7 @@ func TestIRVmIsReusableAcrossRuns(t *testing.T) {
 	machine := vm.NewVm(program)
 	store := balances(map[string]int64{"src": 100})
 
-	want := []runtime.Posting{posting("src", "dest", 10)}
+	want := []funds.Posting{posting("src", "dest", 10)}
 	for run := 1; run <= 3; run++ {
 		res, execErr := vm.Exec(context.Background(), machine, nil, store)
 		require.Nil(t, execErr, "run %d", run)
@@ -1107,7 +1107,7 @@ func TestIRConstBool(t *testing.T) {
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(decoded), nil, balances(map[string]int64{"src": 10}))
 	require.Nil(t, execErr, "unexpected execution error: %v", execErr)
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 }
 
 func TestIRSurvivesTheWireFormat(t *testing.T) {
@@ -1136,7 +1136,7 @@ func TestIRSurvivesTheWireFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, program, decoded, "the program changed shape on the way through")
 
-	want := []runtime.Posting{posting("src", "a", 50), posting("src", "b", 50)}
+	want := []funds.Posting{posting("src", "a", 50), posting("src", "b", 50)}
 	for name, prog := range map[string]vm.Program{"in memory": program, "decoded": decoded} {
 		res, execErr := vm.Exec(context.Background(), vm.NewVm(prog), nil, balances(map[string]int64{"src": 100}))
 		require.Nil(t, execErr, "%s: %v", name, execErr)
@@ -1167,7 +1167,7 @@ func TestIRVarsSurviveTheWireFormat(t *testing.T) {
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), &decoded, balances(map[string]int64{"src": 100}))
 	require.Nil(t, execErr)
-	requirePostings(t, []runtime.Posting{posting("src", "dest", 10)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 }
 
 // --- The int/portion boundary ops -------------------------------------------
@@ -1188,7 +1188,7 @@ func TestIRPortionToIntFloors(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(nil), nil)
 
-	requirePostings(t, []runtime.Posting{posting("world", "dest", 3)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("world", "dest", 3)}, res.Postings)
 }
 
 func TestIRIntToPortionAndMul(t *testing.T) {
@@ -1210,7 +1210,7 @@ func TestIRIntToPortionAndMul(t *testing.T) {
   send_to_account(account: $dest)
 `, balances(nil), nil)
 
-	requirePostings(t, []runtime.Posting{posting("world", "dest", 25)}, res.Postings)
+	requirePostings(t, []funds.Posting{posting("world", "dest", 25)}, res.Postings)
 }
 
 // A three-way split written out of pure ops: floor each share, then hand the
@@ -1263,7 +1263,7 @@ const allotThirdsIR = `
 func TestIRAllotmentFromPureOps(t *testing.T) {
 	res := runIR(t, allotThirdsIR, balances(nil), nil)
 
-	requirePostings(t, []runtime.Posting{
+	requirePostings(t, []funds.Posting{
 		posting("world", "a", 34),
 		posting("world", "b", 33),
 		posting("world", "c", 33),

@@ -9,8 +9,8 @@ import (
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/utils"
 )
 
@@ -23,10 +23,10 @@ type InterpreterError interface {
 
 type Metadata = map[string]Value
 
-type Posting = runtime.Posting
+type Posting = funds.Posting
 
 // AccountBalance is a single (asset, color, amount) balance entry for an account.
-type AccountBalance = runtime.AccountBalance
+type AccountBalance = funds.AccountBalance
 
 type ExecutionResult struct {
 	Postings []Posting `json:"postings"`
@@ -45,7 +45,7 @@ func parseMonetary(source string) (Monetary, InterpreterError) {
 	asset := parts[0]
 
 	rawAmount := parts[1]
-	n, ok := runtime.ParseNumber(rawAmount)
+	n, ok := funds.ParseNumber(rawAmount)
 	if !ok {
 		return Monetary{}, InvalidNumberLiteral{Source: rawAmount}
 	}
@@ -78,7 +78,7 @@ func parseVar(type_ string, rawValue string, r parser.Range) (Value, Interpreter
 	case analysis.TypeAsset:
 		return NewAsset(rawValue)
 	case analysis.TypeNumber:
-		n, ok := runtime.ParseNumber(rawValue)
+		n, ok := funds.ParseNumber(rawValue)
 		if !ok {
 			return nil, InvalidNumberLiteral{Source: rawValue}
 		}
@@ -107,9 +107,9 @@ func checkPostingInvariants(posting Posting) InterpreterError {
 	isAmtNegative := posting.Amount.Cmp(big.NewInt(0)) == -1
 
 	isInvalidPosting := (isAmtNegative ||
-		!runtime.ValidateAsset(posting.Asset) ||
-		!runtime.ValidateAccount(posting.Source) ||
-		!runtime.ValidateAccount(posting.Destination))
+		!funds.ValidateAsset(posting.Asset) ||
+		!funds.ValidateAccount(posting.Source) ||
+		!funds.ValidateAccount(posting.Destination))
 
 	if isInvalidPosting {
 		return InternalError{Posting: posting}
@@ -140,7 +140,7 @@ func RunProgram(
 		flagSet[flag.String] = struct{}{}
 	}
 
-	rs := runtime.New(zeroStore{})
+	rs := funds.New(zeroStore{})
 	env, err := newEvalEnv(
 		ctx,
 		store,
@@ -202,7 +202,7 @@ type programState struct {
 	// rs owns the funds state: the write-through balance cache (seeded via
 	// Prewarm from the batched Store fetch), the FIFO funding-source queue, and
 	// the emitted postings. evalEnv's getBalance reader closes over this same rs.
-	rs *runtime.RunState
+	rs *funds.RunState
 
 	// Asset of the send statement currently being executed.
 	//
@@ -413,7 +413,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, err
 		}
 
-		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
+		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
 		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
 		if balErr != nil {
 			return nil, QueryBalanceError{WrappedError: balErr}
@@ -422,10 +422,10 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, totSent := runtime.FindScalingSolution(
+		sol, totSent := funds.FindScalingSolution(
 			nil,
 			assetScale,
-			runtime.GetAssets(acc, baseAsset),
+			funds.GetAssets(acc, baseAsset),
 		)
 
 		for _, convAmt := range sol {
@@ -433,7 +433,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 				account,
 				scalingAccount,
 				MonetaryInt(*new(big.Int).Set(convAmt.Amount)),
-				Asset(runtime.BuildScaledAsset(baseAsset, convAmt.Scale)),
+				Asset(funds.BuildScaledAsset(baseAsset, convAmt.Scale)),
 			); err != nil {
 				return nil, err
 			}
@@ -567,7 +567,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, err
 		}
 
-		baseAsset, assetScale := runtime.GetBaseAndScale(string(s.CurrentAsset))
+		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
 
 		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
 		if balErr != nil {
@@ -577,10 +577,10 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 			return nil, InvalidUnboundedAddressInScalingAddress{Range: source.Range}
 		}
 
-		sol, swappedAmt := runtime.FindScalingSolution(
+		sol, swappedAmt := funds.FindScalingSolution(
 			amount,
 			assetScale,
-			runtime.GetAssets(acc, baseAsset),
+			funds.GetAssets(acc, baseAsset),
 		)
 
 		for _, pair := range sol {
@@ -588,7 +588,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 				account,
 				scalingAccount,
 				NewMonetaryIntBig(pair.Amount),
-				Asset(runtime.BuildScaledAsset(baseAsset, pair.Scale)),
+				Asset(funds.BuildScaledAsset(baseAsset, pair.Scale)),
 			); err != nil {
 				return nil, err
 			}
@@ -904,7 +904,7 @@ func evaluateSentAmt(env *evalEnv, sentValue parser.SentValue) (Asset, *big.Int,
 }
 
 func ParsePortionSpecific(input string) (*big.Rat, InterpreterError) {
-	res, err := runtime.ParsePortion(input)
+	res, err := funds.ParsePortion(input)
 	if err != nil {
 		return nil, BadPortionParsingErr{Reason: err.Error(), Source: input}
 	}

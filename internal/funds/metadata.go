@@ -1,4 +1,4 @@
-package runtime
+package funds
 
 import (
 	"github.com/formancehq/numscript/internal/utils"

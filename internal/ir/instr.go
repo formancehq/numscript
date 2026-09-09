@@ -37,7 +37,7 @@ type (
 	OpMulPortion  struct{}
 	OpMakePortion struct{}
 	// OpMonetaryToString takes the asset (str) and the amount (int) of a monetary
-	// and produces its "ASSET AMOUNT" form, the inverse of runtime.ParseMonetary.
+	// and produces its "ASSET AMOUNT" form, the inverse of funds.ParseMonetary.
 	OpMonetaryToString struct{}
 )
 

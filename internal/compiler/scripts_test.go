@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/formancehq/numscript/internal/vm"
 
@@ -163,10 +163,10 @@ func txMetaAsStrings(rows specs_format.ExpectedTxMeta) map[string]string {
 	return out
 }
 
-func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) runtime.AccountsMetadata {
-	out := make(runtime.AccountsMetadata, 0, len(rows))
+func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) funds.AccountsMetadata {
+	out := make(funds.AccountsMetadata, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, runtime.AccountMetadataEntry{
+		out = append(out, funds.AccountMetadataEntry{
 			Account: row.Account,
 			Scope:   row.Scope,
 			Key:     row.Key,
@@ -177,9 +177,9 @@ func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) runtime.Account
 }
 
 func scriptStore(balances interpreter.Balances, metaOuter, metaInner interpreter.AccountsMetadata) e2eStore {
-	m := map[runtime.PairKey]*big.Int{}
+	m := map[funds.PairKey]*big.Int{}
 	for _, b := range balances {
-		m[runtime.PairKey{Account: b.Account, Scope: b.Scope, Asset: b.Asset, Color: b.Color}] = b.Amount
+		m[funds.PairKey{Account: b.Account, Scope: b.Scope, Asset: b.Asset, Color: b.Color}] = b.Amount
 	}
 
 	meta := map[e2eMetaKey]string{}

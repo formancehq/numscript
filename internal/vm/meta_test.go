@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +23,7 @@ func TestSetAccountMeta(t *testing.T) {
 
 	res, execErr := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	require.Nil(t, execErr)
-	require.Equal(t, runtime.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
+	require.Equal(t, funds.AccountsMetadata{{Account: "acc", Key: "k", Value: "v"}}, res.AccountsMetadata)
 }
 
 func TestMetaStr(t *testing.T) {
@@ -52,7 +52,7 @@ func TestMetaStr(t *testing.T) {
 
 	res, execErr := Exec(context.Background(), NewVm(prog), nil, store)
 	require.Nil(t, execErr)
-	require.Equal(t, []runtime.Posting{
+	require.Equal(t, []funds.Posting{
 		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, res.Postings)
 }

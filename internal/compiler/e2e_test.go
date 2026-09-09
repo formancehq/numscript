@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
 
 // e2eStore is a minimal vm.Store for the end-to-end test.
 type e2eStore struct {
-	balances map[runtime.PairKey]*big.Int
+	balances map[funds.PairKey]*big.Int
 	metadata map[e2eMetaKey]string
 }
 
@@ -26,7 +26,7 @@ type e2eMetaKey struct {
 }
 
 func (s e2eStore) GetBalance(ctx context.Context, account, scope, asset, color string) (*big.Int, error) {
-	if v, ok := s.balances[runtime.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[funds.PairKey{Account: account, Scope: scope, Asset: asset, Color: color}]; ok {
 		return v, nil
 	}
 	return new(big.Int), nil
@@ -53,7 +53,7 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
@@ -61,7 +61,7 @@ func TestE2E_CompileAssembleRun(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}
 	requirePostingsEqual(t, want, res.Postings)
@@ -88,7 +88,7 @@ func TestE2E_Inorder(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(6),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(10),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
@@ -98,7 +98,7 @@ func TestE2E_Inorder(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
 	}
@@ -126,7 +126,7 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
@@ -136,7 +136,7 @@ func TestE2E_InorderWithCap(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(3)},
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
 		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(2)},
@@ -161,7 +161,7 @@ func TestE2E_InsufficientFunds(t *testing.T) {
 	require.Nil(t, cErr)
 
 	// src only has 4, but 10 is required.
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(4),
 	}}
 
@@ -190,13 +190,13 @@ func TestE2E_DestinationInorder(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{}}
 
 	machine := vm.NewVm(program)
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "world", Destination: "x", Asset: "USD/2", Amount: big.NewInt(30)},
 		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
 	}
@@ -222,14 +222,14 @@ func TestE2E_DestinationKept(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{}}
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{}}
 
 	machine := vm.NewVm(program)
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
 	// only the remaining 70 is posted; the kept 30 produces no posting
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "world", Destination: "y", Asset: "USD/2", Amount: big.NewInt(70)},
 	}
 	requirePostingsEqual(t, want, res.Postings)
@@ -247,8 +247,8 @@ func TestE2E_DestinationAllotment(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(50)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(50)},
 	}, postings)
@@ -267,8 +267,8 @@ func TestE2E_DestinationAllotmentThirds(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(34)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(33)},
 		{Source: "world", Destination: "c", Asset: "USD/2", Amount: big.NewInt(33)},
@@ -288,11 +288,11 @@ func TestE2E_SourceAllotment(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 		{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(25)},
 		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(75)},
 	}, postings)
@@ -311,12 +311,12 @@ func TestE2E_SourceAllotmentThirds(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(34)},
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(33)},
 		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(33)},
@@ -339,7 +339,7 @@ func TestE2E_SourceAllotmentInsufficient(t *testing.T) {
 	require.Empty(t, parsed.Errors)
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(10),
 		{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}}
@@ -364,7 +364,7 @@ func TestE2E_AllotmentOverSum(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
 	allotErr := execErr.(vm.InvalidAllotmentSum)
 	require.Equal(t, "4/3", allotErr.ActualSum.String())
@@ -388,7 +388,7 @@ func TestE2E_AllotmentUnderSum(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
 }
 
@@ -404,8 +404,8 @@ func TestE2E_AllotmentExactNoRemaining(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(25)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(75)},
 	}, postings)
@@ -422,8 +422,8 @@ func TestE2E_AllotmentRemainingOnly(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, postings)
 }
@@ -442,14 +442,14 @@ func TestE2E_IntAddition(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, res.Postings)
 }
@@ -468,14 +468,14 @@ func TestE2E_IntSubtraction(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, res.Postings)
 }
@@ -498,14 +498,14 @@ func TestE2E_MonetaryAddition(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, res.Postings)
 }
@@ -521,10 +521,10 @@ func TestE2E_MonetarySubtraction(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -544,7 +544,7 @@ func TestE2E_MonetarySubtractionAssetMismatch(t *testing.T) {
 	require.Empty(t, parsed.Errors)
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
-	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
 	require.IsType(t, vm.AssetMismatchError{}, execErr)
@@ -568,7 +568,7 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
@@ -595,14 +595,14 @@ func TestE2E_GetAmount(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
 	}, res.Postings)
 }
@@ -626,14 +626,14 @@ func TestE2E_GetAsset(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, res.Postings)
 }
@@ -650,10 +650,10 @@ func TestE2E_PrefixMinusNumber(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -670,10 +670,10 @@ func TestE2E_PrefixMinusMonetary(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -689,10 +689,10 @@ func TestE2E_Balance(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, postings)
 }
@@ -709,8 +709,8 @@ func TestE2E_AccountInterpolation(t *testing.T) {
 			destination = @users:$id:wallet
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "users:alice:wallet", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -727,8 +727,8 @@ func TestE2E_AccountInterpolationInt(t *testing.T) {
 			destination = @account:$n
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "account:42", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -740,10 +740,10 @@ func TestE2E_BoundedOverdraft(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(40),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
 	}, postings)
 }
@@ -761,8 +761,8 @@ func TestE2E_NestedDestination(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "x", Asset: "USD/2", Amount: big.NewInt(10)},
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(40)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(50)},
@@ -771,10 +771,10 @@ func TestE2E_NestedDestination(t *testing.T) {
 
 func TestE2E_SendAll(t *testing.T) {
 	src := `send [USD/2 *] (source = @a destination = @dest)`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(30),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(30)},
 	}, postings)
 }
@@ -786,10 +786,10 @@ func TestE2E_UncappedBoundedOverdraft(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(40),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(45)},
 	}, postings)
 }
@@ -806,12 +806,12 @@ func TestE2E_SendAllMultiSource(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(10),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(7),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 		{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(5)},
 		{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(7)},
@@ -827,10 +827,10 @@ func TestE2E_SendAllNegativeOverdraftBoundClamped(t *testing.T) {
 			destination = @dest
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "s", Asset: "COIN", Color: ""}: big.NewInt(1),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "s", Destination: "dest", Asset: "COIN", Amount: big.NewInt(1)},
 	}, postings)
 }
@@ -847,7 +847,7 @@ func TestE2E_CapAssetMismatch(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.IsType(t, vm.AssetMismatchError{}, execErr)
 }
 
@@ -863,7 +863,7 @@ func TestE2E_OverdraftAssetMismatch(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.IsType(t, vm.AssetMismatchError{}, execErr)
 }
 
@@ -873,10 +873,10 @@ func TestE2E_Save(t *testing.T) {
 		save [USD/2 30] from @a
 		send [USD/2 *] (source = @a destination = @dest)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(70)},
 	}, postings)
 }
@@ -886,10 +886,10 @@ func TestE2E_InternalVar(t *testing.T) {
 		vars { account $acc = @src }
 		send [USD/2 10] (source = $acc destination = @dest)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 	}, postings)
 }
@@ -901,18 +901,18 @@ func TestE2E_OverdraftFunction(t *testing.T) {
 		send $od (source = @world destination = @dest)
 	`
 	// negative balance -> overdraft is the debt
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(-100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, postings)
 
 	// positive balance -> overdraft is 0, nothing sent
-	postings = runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	postings = runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	requirePostingsEqual(t, []runtime.Posting{}, postings)
+	requirePostingsEqual(t, []funds.Posting{}, postings)
 }
 
 func TestE2E_BalanceNegativeErrors(t *testing.T) {
@@ -925,7 +925,7 @@ func TestE2E_BalanceNegativeErrors(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(-1),
 	}})
 	require.IsType(t, vm.NegativeBalanceError{}, execErr)
@@ -946,12 +946,12 @@ func TestE2E_DivideByZero(t *testing.T) {
 	_, program, cErr := compiler.Compile(parsed.Value, nil)
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.IsType(t, vm.DivideByZeroError{}, execErr)
 }
 
 func TestE2E_ColoredSource(t *testing.T) {
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "COIN", Color: ""}:    big.NewInt(100),
 		{Account: "src", Asset: "COIN", Color: "RED"}: big.NewInt(30),
 	}}
@@ -964,7 +964,7 @@ func TestE2E_ColoredSource(t *testing.T) {
 		)
 	`, store)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "src", Destination: "dest", Asset: "COIN", Color: "RED", Amount: big.NewInt(10)},
 	}
 	requirePostingsEqual(t, want, got)
@@ -1016,7 +1016,7 @@ func TestE2E_WorldSourceReadsNoBalance(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), machine, nil, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, res.Postings)
 	require.Zero(t, store.balanceCalls, "a world source must not read any balance")
@@ -1040,7 +1040,7 @@ func TestE2E_DynamicWorldSourceReadsNoBalance(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), machine, &vars, store)
 	require.Nil(t, execErr)
 
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, res.Postings)
 	require.Zero(t, store.balanceCalls, "a world source must not read any balance")
@@ -1081,7 +1081,7 @@ func TestE2E_SendAllFromDynamicWorldErrors(t *testing.T) {
 	require.Equal(t, vm.InvalidUncappedSource{Account: "world"}, execErr)
 }
 
-func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
+func runE2E(t *testing.T, src string, store e2eStore) []funds.Posting {
 	t.Helper()
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
@@ -1093,7 +1093,7 @@ func runE2E(t *testing.T, src string, store e2eStore) []runtime.Posting {
 	return res.Postings
 }
 
-func requirePostingsEqual(t *testing.T, want, got []runtime.Posting) {
+func requirePostingsEqual(t *testing.T, want, got []funds.Posting) {
 	t.Helper()
 	require.Len(t, got, len(want))
 	for i := range want {
@@ -1123,8 +1123,8 @@ func TestE2E_AllotmentLeftoverTwoUnits(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(17)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(17)},
 		{Source: "world", Destination: "c", Asset: "USD/2", Amount: big.NewInt(66)},
@@ -1142,8 +1142,8 @@ func TestE2E_AllotmentHalvesOfOddAmount(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(4)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(3)},
 	}, postings)
@@ -1159,8 +1159,8 @@ func TestE2E_AllotmentSinglePortionWhole(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, postings)
 }
@@ -1176,8 +1176,8 @@ func TestE2E_AllotmentPercentagesDivideExactly(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
-	requirePostingsEqual(t, []runtime.Posting{
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: big.NewInt(1900)},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: big.NewInt(8100)},
 	}, postings)
@@ -1196,7 +1196,7 @@ func TestE2E_AllotmentPartsSumToAmount(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 
 	total := new(big.Int)
 	for _, p := range postings {
@@ -1216,11 +1216,11 @@ func TestE2E_AllotmentBeyondInt64(t *testing.T) {
 			}
 		)
 	`
-	postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 
 	amount, _ := new(big.Int).SetString("1000000000000000000000000001", 10)
 	half := new(big.Int).Div(amount, big.NewInt(2))
-	requirePostingsEqual(t, []runtime.Posting{
+	requirePostingsEqual(t, []funds.Posting{
 		{Source: "world", Destination: "a", Asset: "USD/2", Amount: new(big.Int).Add(half, big.NewInt(1))},
 		{Source: "world", Destination: "b", Asset: "USD/2", Amount: half},
 	}, postings)
@@ -1245,12 +1245,12 @@ func TestE2E_Oneof(t *testing.T) {
 	`
 
 	t.Run("first branch covers it", func(t *testing.T) {
-		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "a", Asset: "USD/2"}: big.NewInt(10),
 			{Account: "b", Asset: "USD/2"}: big.NewInt(10),
 			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
 		}})
-		requirePostingsEqual(t, []runtime.Posting{
+		requirePostingsEqual(t, []funds.Posting{
 			{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, postings)
 	})
@@ -1258,23 +1258,23 @@ func TestE2E_Oneof(t *testing.T) {
 	t.Run("backtracks past a short branch", func(t *testing.T) {
 		// @a can only cover 3 of the 10, so its partial funding is discarded whole
 		// rather than combined with @b's
-		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "a", Asset: "USD/2"}: big.NewInt(3),
 			{Account: "b", Asset: "USD/2"}: big.NewInt(10),
 			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
 		}})
-		requirePostingsEqual(t, []runtime.Posting{
+		requirePostingsEqual(t, []funds.Posting{
 			{Source: "b", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, postings)
 	})
 
 	t.Run("backtracks twice, to the last branch", func(t *testing.T) {
-		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "a", Asset: "USD/2"}: big.NewInt(3),
 			{Account: "b", Asset: "USD/2"}: big.NewInt(9),
 			{Account: "c", Asset: "USD/2"}: big.NewInt(10),
 		}})
-		requirePostingsEqual(t, []runtime.Posting{
+		requirePostingsEqual(t, []funds.Posting{
 			{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, postings)
 	})
@@ -1286,7 +1286,7 @@ func TestE2E_Oneof(t *testing.T) {
 		_, program, cErr := compiler.Compile(parsed.Value, nil)
 		require.Nil(t, cErr)
 		_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{
-			balances: map[runtime.PairKey]*big.Int{
+			balances: map[funds.PairKey]*big.Int{
 				{Account: "a", Asset: "USD/2"}: big.NewInt(3),
 				{Account: "b", Asset: "USD/2"}: big.NewInt(4),
 				{Account: "c", Asset: "USD/2"}: big.NewInt(5),
@@ -1316,13 +1316,13 @@ func TestE2E_OneofNested(t *testing.T) {
 	t.Run("inner backtrack keeps the outer branch's funds", func(t *testing.T) {
 		// @a gives 4, so the inner oneof needs 6: @b has only 5 -> rewind -> @c
 		// covers it. @a's 4 must survive the inner rewind.
-		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "a", Asset: "USD/2"}: big.NewInt(4),
 			{Account: "b", Asset: "USD/2"}: big.NewInt(5),
 			{Account: "c", Asset: "USD/2"}: big.NewInt(6),
 			{Account: "d", Asset: "USD/2"}: big.NewInt(10),
 		}})
-		requirePostingsEqual(t, []runtime.Posting{
+		requirePostingsEqual(t, []funds.Posting{
 			{Source: "a", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
 			{Source: "c", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		}, postings)
@@ -1331,13 +1331,13 @@ func TestE2E_OneofNested(t *testing.T) {
 	t.Run("outer backtrack discards the whole inner region too", func(t *testing.T) {
 		// the inorder branch tops out at 4+6=10... but with @c at 5 it reaches 9,
 		// so the outer oneof rewinds @a and @c together and takes @d instead
-		postings := runE2E(t, src, e2eStore{balances: map[runtime.PairKey]*big.Int{
+		postings := runE2E(t, src, e2eStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "a", Asset: "USD/2"}: big.NewInt(4),
 			{Account: "b", Asset: "USD/2"}: big.NewInt(3),
 			{Account: "c", Asset: "USD/2"}: big.NewInt(5),
 			{Account: "d", Asset: "USD/2"}: big.NewInt(10),
 		}})
-		requirePostingsEqual(t, []runtime.Posting{
+		requirePostingsEqual(t, []funds.Posting{
 			{Source: "d", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10)},
 		}, postings)
 	})

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/ir"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -185,7 +185,7 @@ func TestLoadVarsFromEncodedFile(t *testing.T) {
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(program), vars, store)
 	require.Nil(t, execErr)
 	require.Len(t, res.Postings, 1)
-	require.Equal(t, runtime.Posting{
+	require.Equal(t, funds.Posting{
 		Source: "src", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(10),
 	}, res.Postings[0])
 }
