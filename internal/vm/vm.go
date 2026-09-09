@@ -36,17 +36,28 @@ type Vm struct {
 
 	// a monetary is not a bank of its own: it travels as a (str asset, int amount)
 	// register pair
-	stringsRegs  [256]string // asset,string,account
-	intsRegs     [256]big.Int
-	portionsRegs [256]big.Rat
-	boolsRegs    [256]bool
+	stringsRegs  []string // asset,string,account
+	intsRegs     []big.Int
+	portionsRegs []big.Rat
+	boolsRegs    []bool
 }
 
+// NewVm sizes each register bank from the count the program declares. MaxRegX is
+// a count and 0xFF is the nil-register sentinel, so the real indices are
+// 0..MaxRegX-1 and this is exact rather than an upper bound.
+//
+// Nothing here re-derives those counts: a program whose instructions name a
+// register beyond its own declaration is malformed, and Exec is entitled to
+// assume it isn't — see Verify, which is what checks it.
 func NewVm(
 	program Program,
 ) *Vm {
 	return &Vm{
-		program: program,
+		program:      program,
+		stringsRegs:  make([]string, program.MaxRegString),
+		intsRegs:     make([]big.Int, program.MaxRegInt),
+		portionsRegs: make([]big.Rat, program.MaxRegPortion),
+		boolsRegs:    make([]bool, program.MaxRegBool),
 	}
 }
 
@@ -120,10 +131,10 @@ func Exec[S Store](
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
 	// access.
-	intsRegs := &vm.intsRegs
-	stringsRegs := &vm.stringsRegs
-	portionsRegs := &vm.portionsRegs
-	boolsRegs := &vm.boolsRegs
+	intsRegs := vm.intsRegs
+	stringsRegs := vm.stringsRegs
+	portionsRegs := vm.portionsRegs
+	boolsRegs := vm.boolsRegs
 	intsPool := vm.program.IntsPool
 	stringsPool := vm.program.StringsPool
 

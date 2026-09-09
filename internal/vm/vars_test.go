@@ -101,7 +101,7 @@ func TestLoadVarOpcodes(t *testing.T) {
 		StringsPool: []string{"USD/2"},
 	}
 
-	res, execErr := Exec(context.Background(), NewVm(prog), &vars, mockStore{})
+	res, execErr := Exec(context.Background(), newTestVm(prog), &vars, mockStore{})
 	require.Nil(t, execErr)
 
 	want := []funds.Posting{

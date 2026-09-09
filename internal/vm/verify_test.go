@@ -7,13 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fullBanks declares every bank at its maximum, so a test that isn't about the
-// MaxReg check doesn't have to count registers.
-func fullBanks(p Program) Program {
-	p.MaxRegString, p.MaxRegInt, p.MaxRegPortion, p.MaxRegBool = 255, 255, 255, 255
-	return p
-}
-
 func mustReject(t *testing.T, p Program) {
 	t.Helper()
 	require.Error(t, Verify(fullBanks(p)))

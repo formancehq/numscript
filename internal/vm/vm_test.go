@@ -33,6 +33,18 @@ func abc(op Opcode, a, b, c byte) Instruction {
 	return Instruction{Opcode: byte(op), A: a, B: b, C: c}
 }
 
+// fullBanks declares every register bank at its maximum. NewVm sizes the banks
+// from these counts, and the Program literals in these files don't set them —
+// counting registers by hand would be noise in tests that aren't about
+// allocation. 255 is what the fixed [256] banks gave before sizing became a
+// function of the program.
+func fullBanks(p Program) Program {
+	p.MaxRegString, p.MaxRegInt, p.MaxRegPortion, p.MaxRegBool = 255, 255, 255, 255
+	return p
+}
+
+func newTestVm(p Program) *Vm { return NewVm(fullBanks(p)) }
+
 func bc(op Opcode, a byte, v uint16) Instruction {
 	return Instruction{Opcode: byte(op), A: a, B: byte(v), C: byte(v >> 8)}
 }
@@ -82,12 +94,12 @@ func balanceNonNegativeProgram() Program {
 
 func TestAssertNonNegativeBalance(t *testing.T) {
 	store := mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
-	if _, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
+	if _, err := Exec(context.Background(), newTestVm(balanceNonNegativeProgram()), nil, store); err != nil {
 		t.Fatalf("non-negative balance rejected: %v", err)
 	}
 
 	store = mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
-	_, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store)
+	_, err := Exec(context.Background(), newTestVm(balanceNonNegativeProgram()), nil, store)
 	if _, ok := err.(NegativeBalanceError); !ok {
 		t.Fatalf("expected NegativeBalanceError, got %v", err)
 	}
@@ -95,7 +107,7 @@ func TestAssertNonNegativeBalance(t *testing.T) {
 
 func TestUnknownOpcode(t *testing.T) {
 	prog := Program{Instructions: []Instruction{abc(0xFE, 0, 0, 0)}}
-	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
+	_, err := Exec(context.Background(), newTestVm(prog), nil, mockStore{})
 	if _, ok := err.(InternalError); !ok {
 		t.Fatalf("expected InternalError, got %v", err)
 	}
@@ -110,19 +122,19 @@ func TestMkPortionDivideByZero(t *testing.T) {
 		},
 		IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(0)},
 	}
-	_, err := Exec(context.Background(), NewVm(prog), nil, mockStore{})
+	_, err := Exec(context.Background(), newTestVm(prog), nil, mockStore{})
 	if _, ok := err.(DivideByZeroError); !ok {
 		t.Fatalf("expected DivideByZeroError, got %v", err)
 	}
 }
 
 func TestAssertValidAccount(t *testing.T) {
-	_, err := Exec(context.Background(), NewVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
+	_, err := Exec(context.Background(), newTestVm(assertValidAccountProgram("users:001:wallet")), nil, mockStore{})
 	if err != nil {
 		t.Fatalf("valid account rejected: %v", err)
 	}
 
-	_, err = Exec(context.Background(), NewVm(assertValidAccountProgram("bad name!")), nil, mockStore{})
+	_, err = Exec(context.Background(), newTestVm(assertValidAccountProgram("bad name!")), nil, mockStore{})
 	if _, ok := err.(InvalidAccountName); !ok {
 		t.Fatalf("expected InvalidAccountName, got %v", err)
 	}
@@ -140,7 +152,7 @@ func TestConstBool(t *testing.T) {
 		},
 	}
 
-	vm := NewVm(prog)
+	vm := newTestVm(prog)
 	_, err := Exec(context.Background(), vm, nil, mockStore{})
 	require.Nil(t, err)
 
@@ -173,7 +185,7 @@ func TestIsZero(t *testing.T) {
 				IntsPool: []big.Int{*big.NewInt(tc.value)},
 			}
 
-			vm := NewVm(prog)
+			vm := newTestVm(prog)
 			_, err := Exec(context.Background(), vm, nil, mockStore{})
 			require.Nil(t, err)
 			require.Equal(t, tc.want, vm.boolsRegs[0])
@@ -216,7 +228,7 @@ func TestPortionArithmetic(t *testing.T) {
 				},
 			}
 
-			vm := NewVm(prog)
+			vm := newTestVm(prog)
 			_, err := Exec(context.Background(), vm, nil, mockStore{})
 			require.Nil(t, err)
 			want := big.NewRat(tc.wantNum, tc.wantDen)
@@ -238,7 +250,7 @@ func TestBankCopies(t *testing.T) {
 			},
 			IntsPool: []big.Int{*big.NewInt(-42)},
 		}
-		vm := NewVm(prog)
+		vm := newTestVm(prog)
 		_, err := Exec(context.Background(), vm, nil, mockStore{})
 		require.Nil(t, err)
 		require.Zero(t, vm.intsRegs[0].Cmp(big.NewInt(-42)))
@@ -254,7 +266,7 @@ func TestBankCopies(t *testing.T) {
 			},
 			IntsPool: []big.Int{*big.NewInt(1), *big.NewInt(3)},
 		}
-		vm := NewVm(prog)
+		vm := newTestVm(prog)
 		_, err := Exec(context.Background(), vm, nil, mockStore{})
 		require.Nil(t, err)
 		require.Zero(t, vm.portionsRegs[0].Cmp(big.NewRat(1, 3)))
@@ -268,7 +280,7 @@ func TestBankCopies(t *testing.T) {
 			},
 			StringsPool: []string{"USD/2"},
 		}
-		vm := NewVm(prog)
+		vm := newTestVm(prog)
 		_, err := Exec(context.Background(), vm, nil, mockStore{})
 		require.Nil(t, err)
 		require.Equal(t, "USD/2", vm.stringsRegs[0])
@@ -285,7 +297,7 @@ func TestBankCopies(t *testing.T) {
 				abc(Op_BoolCopy, 2, 3, nilReg),
 			},
 		}
-		vm := NewVm(prog)
+		vm := newTestVm(prog)
 		_, err := Exec(context.Background(), vm, nil, mockStore{})
 		require.Nil(t, err)
 		require.True(t, vm.boolsRegs[0])
@@ -305,7 +317,7 @@ func TestCopiesAreNotAliases(t *testing.T) {
 		},
 		IntsPool: []big.Int{*big.NewInt(7), *big.NewInt(9)},
 	}
-	vm := NewVm(prog)
+	vm := newTestVm(prog)
 	_, err := Exec(context.Background(), vm, nil, mockStore{})
 	require.Nil(t, err)
 	require.Zero(t, vm.intsRegs[0].Cmp(big.NewInt(7)), "the copy tracked its source")
@@ -345,7 +357,7 @@ func TestIntComparisons(t *testing.T) {
 				IntsPool: []big.Int{*big.NewInt(tc.left), *big.NewInt(tc.right)},
 			}
 
-			vm := NewVm(prog)
+			vm := newTestVm(prog)
 			_, err := Exec(context.Background(), vm, nil, mockStore{})
 			require.Nil(t, err)
 			require.Equal(t, tc.want, vm.boolsRegs[0])
@@ -398,7 +410,7 @@ func TestDerivedComparisonLowerings(t *testing.T) {
 						IntsPool:     []big.Int{*big.NewInt(l), *big.NewInt(r)},
 					}
 
-					vm := NewVm(prog)
+					vm := newTestVm(prog)
 					_, err := Exec(context.Background(), vm, nil, mockStore{})
 					require.Nil(t, err)
 					require.Equal(t, tc.want(l, r), vm.boolsRegs[0], "l=%d r=%d", l, r)
@@ -427,7 +439,7 @@ func TestPortionComparisons(t *testing.T) {
 				*big.NewInt(numR), *big.NewInt(denR),
 			},
 		}
-		vm := NewVm(prog)
+		vm := newTestVm(prog)
 		_, err := Exec(context.Background(), vm, nil, mockStore{})
 		require.Nil(t, err)
 		return vm.boolsRegs[0]
@@ -474,7 +486,7 @@ func TestConditionalJumps(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			vm := NewVm(prog(tc.jmp, tc.cond))
+			vm := newTestVm(prog(tc.jmp, tc.cond))
 			_, err := Exec(context.Background(), vm, nil, mockStore{})
 			require.Nil(t, err)
 			require.Equal(t, tc.taken, !vm.boolsRegs[1], "jump taken")
