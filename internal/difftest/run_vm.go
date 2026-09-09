@@ -12,21 +12,21 @@ import (
 // vmStore is a numscript.VMStore over the same (account, asset) -> amount /
 // (account, key) -> value maps runNew/runOracle already build their stores
 // from. internal/gen never produces colored assets or scoped constructs, so
-// the color parameter is ignored (the vm never queries anything but the
-// empty color for generator output).
+// the color and scope parameters are ignored (the vm never queries anything
+// but the empty color and scope for generator output).
 type vmStore struct {
 	balances map[gen.BalanceKey]*big.Int
 	metadata map[gen.MetaKey]string
 }
 
-func (s vmStore) GetBalance(_ context.Context, account, asset, _ string) (*big.Int, error) {
+func (s vmStore) GetBalance(_ context.Context, account, _, asset, _ string) (*big.Int, error) {
 	if amount, ok := s.balances[gen.BalanceKey{Account: account, Asset: asset}]; ok {
 		return new(big.Int).Set(amount), nil
 	}
 	return new(big.Int), nil
 }
 
-func (s vmStore) GetMetadata(_ context.Context, account, key string) (string, bool, error) {
+func (s vmStore) GetMetadata(_ context.Context, account, _, key string) (string, bool, error) {
 	value, ok := s.metadata[gen.MetaKey{Account: account, Key: key}]
 	return value, ok, nil
 }
