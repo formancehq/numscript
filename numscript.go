@@ -168,6 +168,19 @@ func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (V
 
 var DecodeCompiledProgram = vm.DecodeProgram
 
+// VerifyCompiledProgram statically checks that a program is safe to execute:
+// ExecVm assumes well-formed bytecode and will panic rather than error on a
+// program that is not. Compile's output always is, so this is for programs that
+// came from somewhere else — DecodeCompiledProgram, most obviously.
+//
+// VerifyCompiledProgramWithVars additionally checks the program against the vars
+// it will be given; prefer it whenever vars are in play, since a program that
+// loads a variable is only safe against a pool that actually has it.
+var (
+	VerifyCompiledProgram         = vm.Verify
+	VerifyCompiledProgramWithVars = vm.VerifyWithVars
+)
+
 func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
 	res, execErr := vm.Exec(ctx, machine, vars, store)
 	if execErr != nil {

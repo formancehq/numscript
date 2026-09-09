@@ -25,6 +25,17 @@ func mismatch(format string, args ...any) Verdict {
 // legitimately differs between implementations) — only whether an error
 // occurred at all, and at which stage.
 func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+	// Checked before anything else, and symmetrically: an engine breaking its
+	// own contract is never an expected outcome, and every tolerance below is
+	// about the two engines legitimately disagreeing. Ordering matters — the
+	// next branch tolerates a b-side rejection, which would otherwise hide this.
+	if aRes.InternalErr != "" {
+		return mismatch("%s reported an internal error: %s", aLabel, aRes.InternalErr)
+	}
+	if bRes.InternalErr != "" {
+		return mismatch("%s reported an internal error: %s", bLabel, bRes.InternalErr)
+	}
+
 	aCompileFailed := aRes.CompileErr != ""
 	bCompileFailed := bRes.CompileErr != ""
 

@@ -42,6 +42,18 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 		return SideResult{CompileErr: err.Error()}
 	}
 
+	// The verifier is opt-in and the compiler is trusted not to need it, so this
+	// is not defending the run — it is checking that claim on every generated
+	// script. A failure means the compiler emitted bytecode the VM's own static
+	// rules reject, which is a bug in this repo rather than a disagreement with
+	// the oracle, hence InternalErr and not CompileErr.
+	//
+	// Worth having here specifically because internal/gen reaches shapes the
+	// hand-written corpus doesn't, and it does so on inputs nobody chose.
+	if err := numscript.VerifyCompiledProgramWithVars(program, &encodedVars); err != nil {
+		return SideResult{InternalErr: "compiled program failed verification: " + err.Error()}
+	}
+
 	store := vmStore{balances: balances, metadata: metadata}
 
 	execResult, execErr := numscript.ExecVm(ctx, numscript.NewVm(program), &encodedVars, store)

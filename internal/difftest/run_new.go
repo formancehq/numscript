@@ -36,6 +36,16 @@ type SideResult struct {
 	// unfixed gap that produces different non-funds RunErr text without
 	// being a funds-adequacy bug).
 	MissingFunds bool
+	// InternalErr is set when an engine broke its own contract, as opposed to
+	// rejecting the script. It is deliberately NOT CompileErr: Compare tolerates
+	// one side rejecting what the other accepted (see its doc comment), so a
+	// self-inconsistency reported as a compile error would be silently swallowed
+	// as an expected outcome. Compare treats a non-empty InternalErr on either
+	// side as an unconditional mismatch.
+	//
+	// Today the only producer is the vm side, where it means the compiler emitted
+	// bytecode the verifier rejects.
+	InternalErr string
 	// Postings is nil unless both CompileErr and RunErr are empty.
 	Postings []Posting
 }
