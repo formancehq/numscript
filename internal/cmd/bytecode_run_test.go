@@ -262,3 +262,31 @@ func TestVmStoreSupportsScopedRows(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "unscoped", unscopedMeta)
 }
+
+// A .numb file is the one thing this toolchain reads that it did not produce
+// itself, so bytecodeRun verifies before executing. Without that, a single
+// flipped byte reaches Exec, which is entitled to assume it never sees one.
+func TestBytecodeRunRejectsAMalformedFile(t *testing.T) {
+	dir := t.TempDir()
+	irPath := filepath.Join(dir, "prog.ir")
+	require.NoError(t, os.WriteFile(irPath, []byte(varsIR), 0o644))
+	require.NoError(t, assemble(irPath, AssembleArgs{}))
+
+	bytecodePath := filepath.Join(dir, "prog.numb")
+	bytecode, err := os.ReadFile(bytecodePath)
+	require.NoError(t, err)
+
+	// point the last instruction's first register operand at a register the
+	// program never declared
+	program, err := vm.DecodeProgram(bytecode)
+	require.NoError(t, err)
+	require.NotEmpty(t, program.Instructions)
+	program.Instructions[len(program.Instructions)-1].A = 0xFE
+	require.NoError(t, os.WriteFile(bytecodePath, program.Encode(), 0o644))
+
+	inputsPath := filepath.Join(dir, "prog.numb.inputs.json")
+	require.NoError(t, os.WriteFile(inputsPath, []byte(`{"balances": []}`), 0o644))
+
+	err = bytecodeRun(bytecodePath, BytecodeRunArgs{OutFormatOpt: OutputFormatJson})
+	require.ErrorContains(t, err, "is malformed")
+}

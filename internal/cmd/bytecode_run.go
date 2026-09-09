@@ -39,6 +39,7 @@ type BytecodeRunArgs struct {
 	InputsPath   string
 	VarsPath     string
 	OutFormatOpt string
+	SkipVerify   bool
 }
 
 // vmMetaKey identifies one metadata slot: account, scope and key.
@@ -165,6 +166,15 @@ func bytecodeRun(bytecodePath string, opts BytecodeRunArgs) error {
 		return err
 	}
 
+	// this command is the one place bytecode arrives from outside the process,
+	// so it is the one place that has to assume nothing about it: Exec would
+	// crash rather than error on a malformed program
+	if !opts.SkipVerify {
+		if err := vm.VerifyWithVars(program, vars); err != nil {
+			return fmt.Errorf("bytecode file '%s' is malformed: %w", bytecodePath, err)
+		}
+	}
+
 	result, execErr := vm.Exec(context.Background(), vm.NewVm(program), vars, store)
 	if execErr != nil {
 		fmt.Fprintln(os.Stderr, execErr.Error())
@@ -260,6 +270,7 @@ The bytecode format tracks an unstable instruction set and is not a public inter
 	cmd.Flags().StringVar(&opts.InputsPath, "inputs", "", "Path of a json file containing the inputs")
 	cmd.Flags().StringVar(&opts.VarsPath, "vars", "", "Path of a file containing an encoded vars payload")
 	cmd.Flags().StringVarP(&opts.OutFormatOpt, "output-format", "o", OutputFormatPretty, "Set the output format. Available options: pretty, json.")
+	cmd.Flags().BoolVar(&opts.SkipVerify, "skip-verify", false, "Skip the static check of the bytecode. Only safe for a file this toolchain just produced.")
 
 	return &cmd
 }
