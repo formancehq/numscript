@@ -188,12 +188,12 @@ func pick[T any](rng *rand.Rand, branches []weighted[T]) T {
 
 type sourceOptions struct {
 	sentAmt                *big.Int
-	isToplevel              bool
-	isUnbounded             bool
-	keepNestingProbability  ratio
-	poolSize                int
-	asset                   string
-	depth                   int
+	isToplevel             bool
+	isUnbounded            bool
+	keepNestingProbability ratio
+	poolSize               int
+	asset                  string
+	depth                  int
 }
 
 func defaultSourceOptions(sentAmt *big.Int, unbounded bool, poolSize int, asset string) sourceOptions {

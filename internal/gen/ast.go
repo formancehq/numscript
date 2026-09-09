@@ -252,6 +252,6 @@ type Script struct {
 	Program     Program
 	Extra       []ExtraStatement
 	Order       []bool
-	Balances map[BalanceKey]*big.Int
-	Metadata map[MetaKey]string
+	Balances    map[BalanceKey]*big.Int
+	Metadata    map[MetaKey]string
 }
