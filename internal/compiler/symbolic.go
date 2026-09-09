@@ -530,7 +530,7 @@ func (it *interp) assertLeftover(in assertLeftover) error {
 	return nil
 }
 
-// makeAllotment encodes runtime.MakeAllotment: two passes over literal portions
+// makeAllotment encodes funds.MakeAllotment: two passes over literal portions
 // applied to an Int amount. Pass 1 floors each portion*amount; pass 2 hands out
 // the flooring remainder one unit at a time to the earliest portions until the
 // parts sum back to amount. The pass-2 carry is a genuine prefix dependency.

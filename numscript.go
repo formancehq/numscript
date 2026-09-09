@@ -159,7 +159,7 @@ func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (E
 		return ExecutionResult{}, execErr
 	}
 
-	// Postings share one type now (runtime.Posting); the VM leaves scope fields
+	// Postings share one type now (funds.Posting); the VM leaves scope fields
 	// empty. TODO map VM tx/account metadata (stringified) onto the typed
 	// contract; deferred together with scopes/colors in the VM.
 	return ExecutionResult{Postings: res.Postings}, nil

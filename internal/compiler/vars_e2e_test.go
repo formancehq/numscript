@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -37,10 +37,10 @@ func TestE2E_ExternalVars(t *testing.T) {
 	require.NoError(t, err)
 
 	machine := vm.NewVm(program)
-	res, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	res, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
 	}
 	requirePostingsEqual(t, want, res.Postings)
@@ -61,7 +61,7 @@ func TestE2E_InvalidInterpolatedAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	machine := vm.NewVm(program)
-	_, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[runtime.PairKey]*big.Int{}})
+	_, execErr := vm.Exec(context.Background(), machine, &vars, e2eStore{balances: map[funds.PairKey]*big.Int{}})
 	require.Equal(t, vm.InvalidAccountName{Name: "user:!invalid acc.."}, execErr)
 }
 

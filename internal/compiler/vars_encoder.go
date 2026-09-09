@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/vm"
 )
@@ -45,7 +45,7 @@ func (e VarsEncoder) Encode(vars map[string]string) (vm.Vars, error) {
 func appendVar(strs []string, ints []big.Int, typ typecheck.Type, raw string) ([]string, []big.Int, error) {
 	switch typ {
 	case typecheck.TypeNumber:
-		n, ok := runtime.ParseNumber(raw)
+		n, ok := funds.ParseNumber(raw)
 		if !ok {
 			return strs, ints, fmt.Errorf("invalid number: %q", raw)
 		}
@@ -55,26 +55,26 @@ func appendVar(strs []string, ints []big.Int, typ typecheck.Type, raw string) ([
 		strs = append(strs, raw)
 
 	case typecheck.TypeAccount:
-		if !runtime.ValidateAccount(raw) {
+		if !funds.ValidateAccount(raw) {
 			return strs, ints, fmt.Errorf("invalid account: %q", raw)
 		}
 		strs = append(strs, raw)
 
 	case typecheck.TypeAsset:
-		if !runtime.ValidateAsset(raw) {
+		if !funds.ValidateAsset(raw) {
 			return strs, ints, fmt.Errorf("invalid asset: %q", raw)
 		}
 		strs = append(strs, raw)
 
 	case typecheck.TypePortion:
-		r, err := runtime.ParsePortion(raw)
+		r, err := funds.ParsePortion(raw)
 		if err != nil {
 			return strs, ints, err
 		}
 		ints = append(ints, *r.Num(), *r.Denom())
 
 	case typecheck.TypeMonetary:
-		asset, amount, err := runtime.ParseMonetary(raw)
+		asset, amount, err := funds.ParseMonetary(raw)
 		if err != nil {
 			return strs, ints, err
 		}
