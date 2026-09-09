@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -35,7 +35,7 @@ func FuzzMutatedBytecode(f *testing.F) {
 		f.Fatalf("compile: %v", cErr)
 	}
 
-	store := e2eStore{balances: map[runtime.PairKey]*big.Int{
+	store := e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}

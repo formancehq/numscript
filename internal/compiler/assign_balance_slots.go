@@ -12,7 +12,7 @@ package compiler
 // set_current_asset, also a constant) are known; a variable account or asset
 // leaves it dynamic (map), and — because a slot caches the SAME entry the map
 // holds — a mix of slotted and dynamic accesses to one account stays coherent
-// (see runtime.entryForSlot). Slots must fit a byte; past 254 distinct pairs the
+// (see funds.entryForSlot). Slots must fit a byte; past 254 distinct pairs the
 // rest stay dynamic.
 func assignBalanceSlots(instrs []vInstr) []vInstr {
 	ids := map[[2]string]int{}

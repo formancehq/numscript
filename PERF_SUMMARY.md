@@ -20,7 +20,7 @@ Three reference points per script:
 - **TreeWalker** — the tree-walking interpreter on a pre-parsed AST.
 - **CompiledVM / …Opt** — compiled bytecode on the register VM (naive vs
   `CompileWithOptimizations`).
-- **RuntimeBaseline** — the **floor**: `runtime.RunState` driven directly, doing
+- **RuntimeBaseline** — the **floor**: `funds.RunState` driven directly, doing
   exactly the funds ops the script lowers to, with no AST walk and no bytecode
   dispatch. The gap VM→floor is dispatch overhead; the gap interpreter→floor is
   front-end overhead.
@@ -38,7 +38,7 @@ the reused store adapter), compounded by the peepholes (opt-in), the unbounded
 fast path, and balance slots.
 
 **The last allocation.** The warm path sat at 1 alloc/op for a while: `Exec`
-boxed a fresh `runtimeStoreAdapter` value into `RunState`'s `Store` interface
+boxed a fresh `fundsStoreAdapter` value into `RunState`'s `Store` interface
 field every call (that field outlives the call — the runstate fetches balances
 lazily). Reusing one adapter on the `Vm` and handing it over **by pointer**
 (boxing a pointer into an interface stores it in the interface word, no heap

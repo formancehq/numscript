@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 )
 
 // send [USD/2 42] (source = @world ; destination = @dest)
@@ -18,7 +18,7 @@ const benchSrcWorld = `send [USD/2 42] (
 
 func worldStore() benchStore {
 	// @world is unbounded; no balance entry needed.
-	return benchStore{balances: map[runtime.PairKey]*big.Int{}}
+	return benchStore{balances: map[funds.PairKey]*big.Int{}}
 }
 
 // TestDumpWorld prints the naive and optimized bytecode for the world script so
@@ -53,8 +53,8 @@ func BenchmarkWorldOpt(b *testing.B) {
 // (unbounded world: set cap + record the world-balance debit delta) followed by
 // a PostDirect. This is what Op_Take + Op_Post lower to, minus VM dispatch.
 func BenchmarkWorldBaselineTakePost(b *testing.B) {
-	store := runtimeStoreAdapter{store: worldStore()}
-	rs := runtime.New(store)
+	store := fundsStoreAdapter{store: worldStore()}
+	rs := funds.New(store)
 	fortyTwo := big.NewInt(42)
 	out := new(big.Int)
 
@@ -74,8 +74,8 @@ func BenchmarkWorldBaselineTakePost(b *testing.B) {
 // tracking. Just append the {world -> dest, amount} posting. This is what a
 // hypothetical Op_PostFromWorld would do.
 func BenchmarkWorldBaselineDirectPost(b *testing.B) {
-	store := runtimeStoreAdapter{store: worldStore()}
-	rs := runtime.New(store)
+	store := fundsStoreAdapter{store: worldStore()}
+	rs := funds.New(store)
 	fortyTwo := big.NewInt(42)
 
 	b.ReportAllocs()

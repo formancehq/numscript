@@ -8,9 +8,9 @@ Two layers, with different opt-in status:
 
 - **Peepholes** are opt-in at compile time: `Compile` is unchanged and naive;
   `CompileWithOptimizations` runs them. Nothing else changes the bytecode.
-- **Runtime & VM changes** (the allocation/queue work below) are always active —
+- **Funds & VM changes** (the allocation/queue work below) are always active —
   they speed up any compiled program, naive or optimized, since both execute on
-  the same VM and `runtime.RunState`.
+  the same VM and `funds.RunState`.
 
 Most of these target the **warm** path (a reused `Vm`/`RunState` across many
 runs); allocations they remove are per-run, so the win compounds with reuse.
@@ -24,7 +24,7 @@ fixpoint. `defaultPeepholes()` = `monetaryFold`, `fundsBypass`,
 - **`monetaryFold`** — removes the `mk_monetary(A,M)` → `get_asset`/`get_amount`
   round-trip: consumers read the asset/amount registers directly. The dead
   `mk_monetary` is then dropped by `deadCode`.
-- **`fundsBypass`** — skips the `runtime` funds queue for `send`s whose
+- **`fundsBypass`** — skips the `funds` queue for `send`s whose
   source→destination pairing is static, rewriting `pull_account` →
   `take_account` (debit, no queue) and `send_to_account` → `post_account`
   (posting, no debit). It segments the stream into send-statement regions (by
@@ -112,15 +112,15 @@ Compact / specialized forms to cut per-instruction work:
   debit and no funds check** — the fused unbounded-source fast path.
 - **`Op_PostFromUnboundedLeaf`** — same as `Op_PostFromUnbounded` but for a
   **leaf** destination: also skips the `dst` credit (and its balance-map lookup)
-  via `runtime.PostDirectNoCredit`. Emitted only when the credit is provably
+  via `funds.PostDirectNoCredit`. Emitted only when the credit is provably
   dead.
 - **`Op_TakeCapZeroSlot` / `Op_PostSlot`** — two-word `Op_TakeCapZero` /
   `Op_Post` carrying a compile-assigned **balance slot** in the second word
-  (`ext.A`). The slot indexes `runtime`'s `balanceSlots` array instead of hashing
+  (`ext.A`). The slot indexes `funds`'s `balanceSlots` array instead of hashing
   the `PairKey` balance map. Emitted by `assignBalanceSlots` for constant
   `(account, asset)` accesses.
 
-## Balance slots (`internal/compiler/assign_balance_slots.go`, `internal/runtime/slots.go`)
+## Balance slots (`internal/compiler/assign_balance_slots.go`, `internal/funds/slots.go`)
 
 The balance store keys entries by a 4-string `PairKey{account, scope, asset,
 color}` map. That lookup (`entryFor`) is ~40 ns — about **half a warm send**, more
@@ -132,7 +132,7 @@ pass, optimized build only) turns the common case into an array index:
   (also a constant). The two ops a single→single bypass lowers to — the
   bounded-zero `take_account` (source debit) and `post_account` (destination
   credit) — are annotated and assembled as `Op_TakeCapZeroSlot` / `Op_PostSlot`.
-- `runtime.entryForSlot(slot, key)` indexes a `[]*balanceEntry` (`balanceSlots`)
+- `funds.entryForSlot(slot, key)` indexes a `[]*balanceEntry` (`balanceSlots`)
   instead of the map. The slot table persists across `Reset` (entries are pooled,
   never freed; `freshen` re-stamps on first touch per generation).
 
@@ -159,11 +159,11 @@ dynamic (map).
 ## Store adapter reuse (`internal/vm/vm.go`) — the last allocation
 
 The warm path sat at 1 alloc/op long after the funds work was pooled: `Exec`
-boxed a fresh `runtimeStoreAdapter` **value** into `RunState`'s `Store` interface
+boxed a fresh `fundsStoreAdapter` **value** into `RunState`'s `Store` interface
 field every call (that field outlives the call — the runstate fetches balances
 lazily through it, once per distinct account per run). The fix keeps one adapter
 on the `Vm` and hands it to the runstate **by pointer**: boxing a
-`*runtimeStoreAdapter` into an interface stores the pointer in the interface word
+`*fundsStoreAdapter` into an interface stores the pointer in the interface word
 (no heap copy), so a warm `Exec` allocates nothing for the store plumbing. The
 `ctx`/`store` fields are refreshed in place each call (safe for the
 single-threaded, one-`Exec`-at-a-time VM); this also wires `ctx` through, which
@@ -171,13 +171,13 @@ was previously dropped. Impact: **1 → 0 alloc/op**, and removing even the 32 B
 malloc is worth real time (`world → dest` 44 → 30 ns, −32%; simple send
 119 → 103 ns, −13%).
 
-## Runtime (`internal/runtime/`)
+## Funds (`internal/funds/`)
 
 The bulk of the win is here: driving per-run heap allocation on the hot (warm,
 reused-VM) path **to zero** (see the store-adapter fix above for the final
 alloc). Grouped by what they attack.
 
-### Funds queue (`runtime.go`)
+### Funds queue (`funds.go`)
 
 - **`free` pool (`takeBig`/`putBig`)** — recycles `big.Int`s across `Reset`:
   queued-source amounts (reclaimed when consumed/merged/dropped) and posting
@@ -190,7 +190,7 @@ alloc). Grouped by what they attack.
 - **`PostingsRef()`** — returns the internal postings slice with no copy, for
   hot-loop callers that consume it immediately (vs `GetPostings`, which copies).
 
-### Balance cache — generation-stamped (`runtime.go`)
+### Balance cache — generation-stamped (`funds.go`)
 
 - Balances live in `map[PairKey]*balanceEntry`. `Reset` bumps a **generation
   counter** (`s.gen`) instead of `clear`-ing the map; each `balanceEntry` records
@@ -206,9 +206,9 @@ alloc). Grouped by what they attack.
   version needs a size cap (the gen doubles as an LRU clock; pin the
   compiler-known static keys as the floor).
 
-### Portions & allotments — integer, no `big.Rat` (`allotment.go`, `runtime.go`)
+### Portions & allotments — integer, no `big.Rat` (`allotment.go`, `funds.go`)
 
-- **`runtime.Portion{Num, Den big.Int}`** (unreduced, `Den > 0`) replaces
+- **`funds.Portion{Num, Den big.Int}`** (unreduced, `Den > 0`) replaces
   `big.Rat` in the VM's `portionsRegs`. The portion ops (`MkPortion`,
   `SubPortion`, `PortionCopy`) run integer-only and **in place** (reusing the
   register's `big.Int` backing; `SubPortion` uses a VM `portScratch [2]big.Int`).

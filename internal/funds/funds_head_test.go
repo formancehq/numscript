@@ -1,11 +1,11 @@
-package runtime_test
+package funds_test
 
 import (
 	"fmt"
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 func acct(i int) string { return fmt.Sprintf("acc%d", i) }
@@ -14,9 +14,9 @@ func acct(i int) string { return fmt.Sprintf("acc%d", i) }
 // that the front pop is head++ instead of a slice shift.
 func TestSend_ManySourcesDrainInFIFOOrder(t *testing.T) {
 	const n = 64
-	initial := map[runtime.PairKey]int64{}
+	initial := map[funds.PairKey]int64{}
 	for i := 0; i < n; i++ {
-		initial[runtime.PairKey{acct(i), "", usd, ""}] = 1
+		initial[funds.PairKey{acct(i), "", usd, ""}] = 1
 	}
 	rs, _ := newRS(initial)
 	for i := 0; i < n; i++ {
@@ -42,7 +42,7 @@ func TestSend_ManySourcesDrainInFIFOOrder(t *testing.T) {
 // array to the front (rewindIfEmpty) without corrupting anything across many
 // pull/send cycles — this is the path that keeps the backing bounded.
 func TestQueue_ReusedAcrossPullSendCycles(t *testing.T) {
-	rs, _ := newRS(map[runtime.PairKey]int64{{"A", "", usd, ""}: 1000})
+	rs, _ := newRS(map[funds.PairKey]int64{{"A", "", usd, ""}: 1000})
 	const cycles = 20
 	for k := 0; k < cycles; k++ {
 		pull(rs, "A", big.NewInt(10), big.NewInt(0), "")
@@ -65,7 +65,7 @@ func TestQueue_ReusedAcrossPullSendCycles(t *testing.T) {
 // then consumes a matching one behind the skip (a mid removal with head > 0) must
 // remain correct, leaving the skipped source live for a later drain.
 func TestSend_ColoredDrainWithDeadPrefix(t *testing.T) {
-	rs, _ := newRS(map[runtime.PairKey]int64{
+	rs, _ := newRS(map[funds.PairKey]int64{
 		{"A", "", usd, "red"}:  10,
 		{"B", "", usd, "blue"}: 10,
 		{"C", "", usd, "red"}:  10,
@@ -76,14 +76,14 @@ func TestSend_ColoredDrainWithDeadPrefix(t *testing.T) {
 
 	// drain reds: A (front → head++), skip B, C (mid removal with head==1)
 	rs.Send(strptr("dest"), "", big.NewInt(100), strptr("red"))
-	wantPostings(t, rs, []runtime.Posting{
+	wantPostings(t, rs, []funds.Posting{
 		{Source: "A", Destination: "dest", Amount: big.NewInt(10), Asset: usd, Color: "red"},
 		{Source: "C", Destination: "dest", Amount: big.NewInt(10), Asset: usd, Color: "red"},
 	})
 
 	// the skipped blue source is still queued; drain it now (front → head++)
 	rs.SendUncapped(strptr("dest2"), "", nil)
-	wantPostings(t, rs, []runtime.Posting{
+	wantPostings(t, rs, []funds.Posting{
 		{Source: "A", Destination: "dest", Amount: big.NewInt(10), Asset: usd, Color: "red"},
 		{Source: "C", Destination: "dest", Amount: big.NewInt(10), Asset: usd, Color: "red"},
 		{Source: "B", Destination: "dest2", Amount: big.NewInt(10), Asset: usd, Color: "blue"},
@@ -94,7 +94,7 @@ func TestSend_ColoredDrainWithDeadPrefix(t *testing.T) {
 // send left a dead prefix (head > 0) so the mark is taken over a partially
 // consumed queue.
 func TestSnapshotRestore_OverDeadPrefix(t *testing.T) {
-	rs, _ := newRS(map[runtime.PairKey]int64{
+	rs, _ := newRS(map[funds.PairKey]int64{
 		{"A", "", usd, ""}: 50,
 		{"B", "", usd, ""}: 50,
 		{"C", "", usd, ""}: 100,
@@ -115,7 +115,7 @@ func TestSnapshotRestore_OverDeadPrefix(t *testing.T) {
 
 	// B must still be intact and drainable
 	rs.SendUncapped(strptr("Y"), "", nil)
-	wantPostings(t, rs, []runtime.Posting{
+	wantPostings(t, rs, []funds.Posting{
 		{Source: "A", Destination: "X", Amount: big.NewInt(50), Asset: usd},
 		{Source: "B", Destination: "Y", Amount: big.NewInt(50), Asset: usd},
 	})
@@ -126,8 +126,8 @@ func TestSnapshotRestore_OverDeadPrefix(t *testing.T) {
 // produce correct, independent results each run (no stale/aliased amounts), and
 // PostingsRef must agree with GetPostings within a run.
 func TestReset_PooledPostingAmountsStayCorrect(t *testing.T) {
-	store := newMockStore(map[runtime.PairKey]int64{{"A", "", usd, ""}: 1000})
-	rs := runtime.New(store)
+	store := newMockStore(map[funds.PairKey]int64{{"A", "", usd, ""}: 1000})
+	rs := funds.New(store)
 	for run := 1; run <= 10; run++ {
 		rs.Reset(store)
 		rs.SetCurrentAsset(usd)
@@ -150,12 +150,12 @@ func TestReset_PooledPostingAmountsStayCorrect(t *testing.T) {
 // per-pop cost is O(1), so the whole drain is O(n) rather than O(n^2).
 func BenchmarkSend_ManySources(b *testing.B) {
 	const n = 512
-	initial := map[runtime.PairKey]int64{}
+	initial := map[funds.PairKey]int64{}
 	for i := 0; i < n; i++ {
-		initial[runtime.PairKey{acct(i), "", usd, ""}] = 1
+		initial[funds.PairKey{acct(i), "", usd, ""}] = 1
 	}
 	store := newMockStore(initial)
-	rs := runtime.New(store)
+	rs := funds.New(store)
 	dest := "dest"
 	one := big.NewInt(1)
 	zero := big.NewInt(0)

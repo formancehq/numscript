@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/formancehq/numscript/internal/flags"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 )
 
-// zeroStore backs the runtime.RunState's lazy balance fallback. The interpreter
+// zeroStore backs the funds.RunState's lazy balance fallback. The interpreter
 // fetches every needed balance through its own scope-aware Store and Prewarms it
 // into the runtime, treating any un-fetched (account, scope, asset, color) as
 // zero — exactly the semantics this store provides.
@@ -23,7 +23,7 @@ func (zeroStore) GetBalance(account, asset, color string) (*big.Int, error) {
 // fetchAndPrewarm fetches the not-yet-cached tuples of query from the scope-aware
 // Store in one round-trip and seeds them into rs, so later reads hit the cache.
 // Shared by the single-key balance reader and the batched pre-execution pass.
-func fetchAndPrewarm(ctx context.Context, store Store, rs *runtime.RunState, query BalanceQuery) error {
+func fetchAndPrewarm(ctx context.Context, store Store, rs *funds.RunState, query BalanceQuery) error {
 	var missing BalanceQuery
 	for _, item := range query {
 		if !rs.Has(item.Account, item.Scope, item.Asset, item.Color) {
@@ -37,9 +37,9 @@ func fetchAndPrewarm(ctx context.Context, store Store, rs *runtime.RunState, que
 	if err != nil {
 		return err
 	}
-	seed := make(map[runtime.PairKey]*big.Int, len(rows))
+	seed := make(map[funds.PairKey]*big.Int, len(rows))
 	for _, row := range rows {
-		seed[runtime.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = row.Amount
+		seed[funds.PairKey{Account: row.Account, Scope: row.Scope, Asset: row.Asset, Color: row.Color}] = row.Amount
 	}
 	rs.Prewarm(seed)
 	return nil
@@ -96,7 +96,7 @@ func (env *evalEnv) checkFeatureFlag(flag string) InterpreterError {
 // newBalanceGetter builds the balance reader used during evaluation: a lazy,
 // write-through fetch over the batched, scope-aware Store into rs, so a mid-script
 // balance() sees running balances mutated by funds execution (both share rs).
-func newBalanceGetter(ctx context.Context, store Store, rs *runtime.RunState) func(AccountAddress, Asset) (*big.Int, InterpreterError) {
+func newBalanceGetter(ctx context.Context, store Store, rs *funds.RunState) func(AccountAddress, Asset) (*big.Int, InterpreterError) {
 	return func(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
 		color := String("")
 		query := BalanceQuery{
@@ -290,7 +290,7 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, Interp
 		return "", err
 	}
 
-	if !runtime.ValidateColor(string(color)) {
+	if !funds.ValidateColor(string(color)) {
 		return "", InvalidColor{
 			Range: colorExpr.GetRange(),
 			Color: string(color),
