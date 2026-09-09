@@ -554,6 +554,24 @@ func TestInvalidDestinationAllotmentSum(t *testing.T) {
 	test(t, tc)
 }
 
+func TestRejectsDuplicateRemainingAllotments(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `send [COIN 100] (
+		source = {
+			remaining from @a
+			remaining from @b
+		}
+		destination = @dest
+	)`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidRemainingAllotment{
+			Range: parser.RangeOfIndexed(src, "remaining", 1),
+		},
+	}
+	test(t, tc)
+}
+
 func TestSourceAllotmentInvalidAmt(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [COIN 100] (

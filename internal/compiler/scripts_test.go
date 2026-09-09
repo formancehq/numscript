@@ -137,25 +137,10 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	}
 }
 
-// vmMetaValue projects a spec's typed metadata value onto the flat string the VM
-// stores, since the compiler stringifies metadata values at compile time. Only
-// String and AccountAddress need unwrapping: Value.String() quotes the former and
-// prefixes the latter with '@'.
-func vmMetaValue(v interpreter.Value) string {
-	switch v := v.(type) {
-	case interpreter.String:
-		return string(v)
-	case interpreter.AccountAddress:
-		return v.Name
-	default:
-		return v.String()
-	}
-}
-
 func txMetaAsStrings(rows specs_format.ExpectedTxMeta) map[string]string {
 	out := map[string]string{}
 	for _, row := range rows {
-		out[row.Key] = vmMetaValue(row.Value)
+		out[row.Key] = row.Value
 	}
 	return out
 }
@@ -167,7 +152,7 @@ func accountsMetaAsStrings(rows interpreter.SetAccountsMetadata) funds.AccountsM
 			Account: row.Account,
 			Scope:   row.Scope,
 			Key:     row.Key,
-			Value:   vmMetaValue(row.Value),
+			Value:   row.Value,
 		})
 	}
 	return out

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "featureFlags": [
     "experimental-asset-colors",
     "experimental-oneof"
@@ -10,14 +11,14 @@
         {
           "account": "src",
           "asset": "COIN",
-          "color": "RED",
-          "amount": 10
+          "amount": 10,
+          "color": "RED"
         },
         {
           "account": "src",
           "asset": "COIN",
-          "color": "BLUE",
-          "amount": 50
+          "amount": 50,
+          "color": "BLUE"
         }
       ],
       "expect.postings": [
@@ -33,20 +34,20 @@
         {
           "account": "src",
           "asset": "COIN",
-          "color": "RED",
-          "amount": 10
+          "amount": 10,
+          "color": "RED"
         },
         {
           "account": "src",
           "asset": "COIN",
-          "color": "BLUE",
-          "amount": 0
+          "amount": 0,
+          "color": "BLUE"
         },
         {
           "account": "dest",
           "asset": "COIN",
-          "color": "BLUE",
-          "amount": 50
+          "amount": 50,
+          "color": "BLUE"
         }
       ]
     }

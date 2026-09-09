@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "featureFlags": [
     "experimental-asset-colors"
   ],
@@ -14,8 +15,8 @@
         {
           "account": "acc",
           "asset": "COIN",
-          "color": "RED",
-          "amount": 40
+          "amount": 40,
+          "color": "RED"
         }
       ],
       "expect.postings": [
@@ -31,8 +32,8 @@
         {
           "account": "acc",
           "asset": "COIN",
-          "color": "RED",
-          "amount": -60
+          "amount": -60,
+          "color": "RED"
         },
         {
           "account": "acc",

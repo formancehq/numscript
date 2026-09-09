@@ -458,7 +458,7 @@ set_tx_meta(
 	// (@bob is an unbounded source, so its balance is never fetched; @alice's
 	// starting balance is fetched lazily by the mid-script balance() call.)
 	require.Equal(t, interpreter.Metadata{
-		"k": interpreter.Monetary{Asset: "USD/2", Amount: interpreter.NewMonetaryInt(120)},
+		"k": "USD/2 120",
 	}, res.Metadata)
 
 	require.Equal(t,
@@ -536,6 +536,59 @@ send [USD/2 10] (
 		store.GetBalancesCalls,
 	)
 
+}
+
+// AliasingStore mimics a real-world Store (e.g. DB-backed with an in-memory
+// cache) that returns the *same* *big.Int pointers it keeps in its own internal
+// state, instead of defensively cloning them the way StaticStore does.
+// If the interpreter mutates the amounts it receives in place, this store's
+// internal state gets silently corrupted.
+type AliasingStore struct {
+	internal map[string]*big.Int // key: account -> amount (single COIN asset, no color)
+}
+
+func (s *AliasingStore) GetBalances(_ context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
+	var out interpreter.Balances
+	for _, item := range q {
+		amt, ok := s.internal[item.Account]
+		if !ok {
+			amt = big.NewInt(0)
+			s.internal[item.Account] = amt
+		}
+		// NOTE: returns the retained pointer directly, no clone.
+		out = append(out, interpreter.BalanceRow{
+			Account: item.Account,
+			Asset:   item.Asset,
+			Amount:  amt,
+		})
+	}
+	return out, nil
+}
+
+func (s *AliasingStore) GetAccountsMetadata(_ context.Context, _ interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
+	return nil, nil
+}
+
+func TestStoreBalancesNotMutatedInPlace(t *testing.T) {
+	parseResult := numscript.Parse(`send [COIN 100] (
+	source = @alice
+	destination = @bob
+)
+`)
+	require.Empty(t, parseResult.GetParsingErrors(), "There should not be parsing errors")
+
+	store := &AliasingStore{
+		internal: map[string]*big.Int{
+			"alice": big.NewInt(500),
+		},
+	}
+
+	_, err := parseResult.Run(context.Background(), numscript.VariablesMap{}, store)
+	require.Nil(t, err)
+
+	// The store's own internal balance for @alice must be untouched by the run.
+	require.Equal(t, big.NewInt(500), store.internal["alice"],
+		"interpreter mutated the Store's balance pointer in place")
 }
 
 type ObservableStore struct {

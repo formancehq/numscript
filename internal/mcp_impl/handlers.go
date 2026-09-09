@@ -3,6 +3,7 @@ package mcp_impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
@@ -24,9 +25,10 @@ func addEvalTool(s *server.MCPServer) {
 		),
 		mcp.WithArray("balances",
 			mcp.Required(),
-			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an integer "amount", an optional "color", and an optional "scope".
+			mcp.Description(`The accounts' balances. A list of entries, each an object with an "account", an "asset", an "amount", an optional "color", and an optional "scope".
+			"amount" must be passed as a string containing a base-10 integer (e.g. "100", not 100): JSON numbers only round-trip exactly up to 2^53-1, so an amount given as a JSON number can be silently corrupted in transit.
 			The (account, asset, color, scope) tuple of each entry must be unique within the list.
-			For example: [ { "account": "alice", "asset": "USD/2", "amount": 100 }, { "account": "alice", "asset": "EUR/2", "amount": -42 }, { "account": "bob", "asset": "BTC", "amount": 1 } ]
+			For example: [ { "account": "alice", "asset": "USD/2", "amount": "100" }, { "account": "alice", "asset": "EUR/2", "amount": "-42" }, { "account": "bob", "asset": "BTC", "amount": "1" } ]
 			`),
 		),
 		mcp.WithObject("vars",
@@ -63,16 +65,46 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(strings.Join(out, ", ")), nil
 	}
 
+	// balances are bound with a string Amount, not interpreter.Balances'
+	// *big.Int, so this never goes through the MCP transport's generic
+	// float64 argument decoding (Params.Arguments any): a JSON string
+	// round-trips through that decode byte for byte, unlike a JSON number,
+	// which can already be silently rounded - in magnitude or, at the right
+	// magnitude, in its fractional part - by the time a handler sees it.
 	var args struct {
-		Vars     map[string]string    `json:"vars"`
-		Balances interpreter.Balances `json:"balances"`
+		Vars     map[string]string `json:"vars"`
+		Balances []struct {
+			Account string `json:"account"`
+			Asset   string `json:"asset"`
+			Amount  string `json:"amount"`
+			Color   string `json:"color"`
+			Scope   string `json:"scope"`
+		} `json:"balances"`
 	}
 	err = request.BindArguments(&args)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	if dup, ok := args.Balances.FirstDuplicate(); ok {
+	balances := make(interpreter.Balances, len(args.Balances))
+	for i, row := range args.Balances {
+		amount, ok := new(big.Int).SetString(row.Amount, 10)
+		if !ok {
+			return mcp.NewToolResultError(fmt.Sprintf(
+				"amount %q for account=%q asset=%q is not a valid base-10 integer string",
+				row.Amount, row.Account, row.Asset,
+			)), nil
+		}
+		balances[i] = interpreter.BalanceRow{
+			Account: row.Account,
+			Asset:   row.Asset,
+			Amount:  amount,
+			Color:   row.Color,
+			Scope:   row.Scope,
+		}
+	}
+
+	if dup, ok := balances.FirstDuplicate(); ok {
 		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
 		if dup.Color != "" {
 			key += fmt.Sprintf(" color=%q", dup.Color)
@@ -88,7 +120,7 @@ func handleEvalTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		parsed.Value,
 		args.Vars,
 		interpreter.StaticStore{
-			Balances: args.Balances,
+			Balances: balances,
 		},
 		map[string]struct{}{},
 	)

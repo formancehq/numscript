@@ -78,6 +78,10 @@
 
         "expect.error.missingFunds": {
           "type": "boolean"
+        },
+
+        "expect.error.negativeAmount": {
+          "type": "boolean"
         }
       }
     },
@@ -156,13 +160,13 @@
 
     "SetAccountsMetadata": {
       "type": "array",
-      "description": "List of account metadata entries set during execution. Each value is a tagged value.",
+      "description": "List of account metadata entries set during execution. The (account, key, scope) tuple of each entry must be unique within the list.",
       "items": { "$ref": "#/definitions/SetAccountMetadataRow" }
     },
 
     "SetAccountMetadataRow": {
       "type": "object",
-      "description": "A single set metadata entry: the tagged value of a given (account, key, scope)",
+      "description": "A single set metadata entry: the value of a given (account, key, scope)",
       "additionalProperties": false,
       "required": ["account", "key", "value"],
       "properties": {
@@ -174,7 +178,7 @@
           "type": "string"
         },
         "value": {
-          "$ref": "#/definitions/Value"
+          "$ref": "#/definitions/MetaValue"
         },
         "scope": {
           "type": "string",
@@ -191,7 +195,7 @@
 
     "TxMetadataRow": {
       "type": "object",
-      "description": "A single transaction metadata entry: the tagged value of a given key",
+      "description": "A single transaction metadata entry: the value of a given key",
       "additionalProperties": false,
       "required": ["key", "value"],
       "properties": {
@@ -199,67 +203,14 @@
           "type": "string"
         },
         "value": {
-          "$ref": "#/definitions/Value"
+          "$ref": "#/definitions/MetaValue"
         }
       }
     },
 
-    "Value": {
-      "type": "object",
-      "description": "A tagged value, discriminated by its \"type\"",
-      "oneOf": [
-        {
-          "additionalProperties": false,
-          "required": ["type", "value"],
-          "properties": {
-            "type": { "const": "string" },
-            "value": { "type": "string" }
-          }
-        },
-        {
-          "additionalProperties": false,
-          "required": ["type", "value"],
-          "properties": {
-            "type": { "const": "number" },
-            "value": { "type": "string", "pattern": "^-?[0-9]+$" }
-          }
-        },
-        {
-          "additionalProperties": false,
-          "required": ["type", "name"],
-          "properties": {
-            "type": { "const": "asset" },
-            "name": { "type": "string", "pattern": "^([A-Z]+(/[0-9]+)?)$" }
-          }
-        },
-        {
-          "additionalProperties": false,
-          "required": ["type", "name"],
-          "properties": {
-            "type": { "const": "account" },
-            "name": { "type": "string", "pattern": "^([a-zA-Z0-9_-]+(:[a-zA-Z0-9_-]+)*)$" },
-            "scope": { "type": "string", "pattern": "^[a-z0-9_]*$" }
-          }
-        },
-        {
-          "additionalProperties": false,
-          "required": ["type", "asset", "amount"],
-          "properties": {
-            "type": { "const": "monetary" },
-            "asset": { "type": "string", "pattern": "^([A-Z]+(/[0-9]+)?)$" },
-            "amount": { "type": "string", "pattern": "^-?[0-9]+$" }
-          }
-        },
-        {
-          "additionalProperties": false,
-          "required": ["type", "numerator", "denominator"],
-          "properties": {
-            "type": { "const": "portion" },
-            "numerator": { "type": "string", "pattern": "^-?[0-9]+$" },
-            "denominator": { "type": "string", "pattern": "^-?[0-9]+$" }
-          }
-        }
-      ]
+    "MetaValue": {
+      "type": "string",
+      "description": "A metadata value, as rendered in source form: a string as-is (abc), an account as its bare name (alice), an asset (COIN, USD/2), a number (42, -7), a monetary (USD/2 100), or a portion (1/2). The format is untyped: values of different types that render alike are not distinguished."
     },
 
     "Movements": {

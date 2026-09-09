@@ -2,7 +2,6 @@ package specs_format
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -14,46 +13,25 @@ import (
 )
 
 // TxMetadataRow is a single transaction metadata entry. Like SetAccountMetadataRow,
-// the value's type is known, so it is carried as a typed Value written in the tagged
-// value format (e.g. {"type":"account","name":"x"}).
+// the value is the rendered text produced by interpreter.MetaString: the wire
+// format is untyped.
 type TxMetadataRow struct {
-	Key   string            `json:"key"`
-	Value interpreter.Value `json:"value"`
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // ExpectedTxMeta is a test case's expected transaction metadata: a list of rows,
 // mirroring expect.metadata. Comparison ignores order (see compareTxMeta).
 type ExpectedTxMeta []TxMetadataRow
 
-func (r *TxMetadataRow) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Key   string          `json:"key"`
-		Value json.RawMessage `json:"value"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	value, err := interpreter.ParseTaggedValue(raw.Value)
-	if err != nil {
-		return err
-	}
-	r.Key, r.Value = raw.Key, value
-	return nil
-}
-
 // compareTxMeta reports whether two lists hold the same rows, ignoring order but
-// respecting multiplicity (so [x, x] != [x, y]). Values are compared on their
-// canonical source form, so a string "42" and the number 42 are not conflated.
+// respecting multiplicity (so [x, x] != [x, y]).
 func compareTxMeta(a ExpectedTxMeta, b ExpectedTxMeta) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	key := func(r TxMetadataRow) string {
-		value := ""
-		if r.Value != nil {
-			value = r.Value.String()
-		}
-		return r.Key + "\x00" + value
+		return r.Key + "\x00" + r.Value
 	}
 	counts := make(map[string]int, len(a))
 	for _, r := range a {
@@ -78,6 +56,13 @@ func txMetaToRows(m interpreter.Metadata) ExpectedTxMeta {
 	}
 	return rows
 }
+
+// SchemaURL is the canonical $schema of the current specs format. Generated
+// files point at it, and it is what a migration rewrites a stale $schema to.
+const SchemaURL = "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json"
+
+// InputsSchemaURL is the equivalent for the inputs format.
+const InputsSchemaURL = "https://raw.githubusercontent.com/formancehq/numscript/main/v1.inputs.schema.json"
 
 // --- Specs:
 type Specs struct {

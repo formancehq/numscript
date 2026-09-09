@@ -383,7 +383,7 @@ parser.Program{
                     },
                     Name: "asset",
                 },
-                Origin: &nil,
+                Origin: (*parser.ValueExpr)(nil),
             },
         },
     },

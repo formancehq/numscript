@@ -21,7 +21,10 @@ type InterpreterError interface {
 	parser.Ranged
 }
 
-type Metadata = map[string]Value
+// Metadata is the external representation of transaction metadata: keys mapped
+// to their rendered value (see MetaString). The runtime keeps the typed values in
+// programState.TxMeta and renders them when building the ExecutionResult.
+type Metadata = map[string]string
 
 type Posting = funds.Posting
 
@@ -190,7 +193,7 @@ func RunProgram(
 
 	res := &ExecutionResult{
 		Postings:         postings,
-		Metadata:         st.TxMeta,
+		Metadata:         st.txMetaToRendered(),
 		AccountsMetadata: st.SetAccountsMeta.toRows(),
 	}
 	return res, nil
@@ -214,6 +217,16 @@ type programState struct {
 	SetAccountsMeta internalSetAccountsMeta
 
 	CurrentBalanceQuery BalanceQuery
+}
+
+// txMetaToRendered renders the typed transaction metadata into the external,
+// untyped Metadata form.
+func (st *programState) txMetaToRendered() Metadata {
+	meta := make(Metadata, len(st.TxMeta))
+	for k, v := range st.TxMeta {
+		meta[k] = MetaString(v)
+	}
+	return meta
 }
 
 // Append a posting without checking if account has enough balance.
@@ -847,9 +860,13 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			allotments = append(allotments, rat)
 
 		case *parser.RemainingAllotment:
+			if remainingAllotmentIndex != -1 {
+				return nil, InvalidRemainingAllotment{
+					Range: allotment.Range,
+				}
+			}
 			remainingAllotmentIndex = i
 			allotments = append(allotments, new(big.Rat))
-			// TODO check there are not duplicate remaining clause
 		}
 	}
 
@@ -940,10 +957,5 @@ func PrettyPrintPostings(postings []Posting) string {
 }
 
 func PrettyPrintMeta(meta Metadata) string {
-	m := map[string]string{}
-	for k, v := range meta {
-		m[k] = v.String()
-	}
-
-	return utils.CsvPrettyMap("Name", "Value", m)
+	return utils.CsvPrettyMap("Name", "Value", meta)
 }
