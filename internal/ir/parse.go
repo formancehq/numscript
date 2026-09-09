@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/ir/internal/syntax"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 )
 
 // Error is something wrong with an IR text: either the grammar rejected it, or
@@ -363,14 +363,14 @@ var takesTypeParam = map[string]bool{
 	"set_account_meta": true,
 }
 
-func parseMetaValueType(name, typeParam string, rng parser.Range) (runtime.MetaValueType, *Error) {
-	for _, typ := range []runtime.MetaValueType{
-		runtime.MetaValueStr,
-		runtime.MetaValueAccount,
-		runtime.MetaValueAsset,
-		runtime.MetaValueInt,
-		runtime.MetaValuePortion,
-		runtime.MetaValueMonetary,
+func parseMetaValueType(name, typeParam string, rng parser.Range) (funds.MetaValueType, *Error) {
+	for _, typ := range []funds.MetaValueType{
+		funds.MetaValueStr,
+		funds.MetaValueAccount,
+		funds.MetaValueAsset,
+		funds.MetaValueInt,
+		funds.MetaValuePortion,
+		funds.MetaValueMonetary,
 	} {
 		if typeParam == typ.String() {
 			return typ, nil

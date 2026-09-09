@@ -5,7 +5,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -540,15 +540,15 @@ func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 
 // metaValueReg resolves the value operand against the bank its meta type implies,
 // so the VM reads it from there and stringifies it itself.
-func (a *assembler) metaValueReg(typ runtime.MetaValueType, r Reg) (byte, error) {
+func (a *assembler) metaValueReg(typ funds.MetaValueType, r Reg) (byte, error) {
 	switch typ {
-	case runtime.MetaValueStr, runtime.MetaValueAccount, runtime.MetaValueAsset:
+	case funds.MetaValueStr, funds.MetaValueAccount, funds.MetaValueAsset:
 		return a.strReg(r)
-	case runtime.MetaValueInt:
+	case funds.MetaValueInt:
 		return a.intReg(r)
-	case runtime.MetaValuePortion:
+	case funds.MetaValuePortion:
 		return a.portionReg(r)
-	case runtime.MetaValueMonetary:
+	case funds.MetaValueMonetary:
 		return a.monetaryReg(r)
 	default:
 		return 0, fmt.Errorf("assembler: unknown meta value type %d", typ)

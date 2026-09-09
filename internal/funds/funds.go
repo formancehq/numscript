@@ -1,4 +1,4 @@
-// Package runtime is a Go port of the OCaml run_state module, extended with
+// Package funds is a Go port of the OCaml run_state module, extended with
 // color (sub-asset fungibility) support. It is the shared funds engine driven by
 // both the VM and the tree-walking interpreter.
 //
@@ -34,7 +34,7 @@
 // big.Ints it privately owns (queued source amounts), and it never hands out a
 // live reference to its internal state (GetAccountBalance / GetPostings return
 // copies).
-package runtime
+package funds
 
 import "math/big"
 

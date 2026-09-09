@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 type Reg uint
@@ -100,11 +100,11 @@ type (
 	// it was stringified from, so the execution result can carry a typed value.
 	SetTxMeta struct {
 		Key, Value Reg // str, str
-		Typ        runtime.MetaValueType
+		Typ        funds.MetaValueType
 	}
 	SetAccountMeta struct {
 		Account, Key, Value Reg // str, str, str
-		Typ                 runtime.MetaValueType
+		Typ                 funds.MetaValueType
 	}
 	MetaVar struct {
 		Dest         Reg

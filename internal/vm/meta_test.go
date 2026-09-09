@@ -5,26 +5,26 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSetAccountMeta(t *testing.T) {
 	prog := Program{
 		Instructions: []Instruction{
-			bc(Op_LoadStr, 0, 0),                               // r_s0 = "acc"
-			bc(Op_LoadStr, 1, 1),                               // r_s1 = "k"
-			bc(Op_LoadStr, 2, 2),                               // r_s2 = "v"
-			abc(Op_SetAccountMeta, 0, 1, 2),                    // set_account_meta<str>(acc, k, v)
-			abc(0, byte(runtime.MetaValueStr), nilReg, nilReg), // ext: the value's meta type
+			bc(Op_LoadStr, 0, 0),                             // r_s0 = "acc"
+			bc(Op_LoadStr, 1, 1),                             // r_s1 = "k"
+			bc(Op_LoadStr, 2, 2),                             // r_s2 = "v"
+			abc(Op_SetAccountMeta, 0, 1, 2),                  // set_account_meta<str>(acc, k, v)
+			abc(0, byte(funds.MetaValueStr), nilReg, nilReg), // ext: the value's meta type
 		},
 		StringsPool: []string{"acc", "k", "v"},
 	}
 
 	res, execErr := Exec(context.Background(), NewVm(prog), nil, mockStore{})
 	require.Nil(t, execErr)
-	require.Equal(t, runtime.AccountsMetadata{
-		"acc": {"k": {Value: "v", Typ: runtime.MetaValueStr}},
+	require.Equal(t, funds.AccountsMetadata{
+		"acc": {"k": {Value: "v", Typ: funds.MetaValueStr}},
 	}, res.AccountsMetadata)
 }
 
@@ -53,7 +53,7 @@ func TestMetaStr(t *testing.T) {
 
 	res, execErr := Exec(context.Background(), NewVm(prog), nil, store)
 	require.Nil(t, execErr)
-	require.Equal(t, []runtime.Posting{
+	require.Equal(t, []funds.Posting{
 		{Source: "world", Destination: "alice", Asset: "USD/2", Amount: big.NewInt(100)},
 	}, res.Postings)
 }

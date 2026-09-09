@@ -117,7 +117,7 @@ Note that this model plays very well with golang's `big.Int` mutable API.
 The instruction set has
 
 - a few pure, binary or unary arithmetic/logic operations (int min, string add, int add, portion sub, etc)
-- a few domain instructions which call the `runtime.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitives can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
+- a few domain instructions which call the `funds.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitives can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
 - conditional jumps (`JMP_IF_ZERO`), which can only jump forward (so that the vm always halts by design)
 - a `MK_ALLOTMENT` instruction which computes the allotment-related calculations
 - constant pool loading instructions: `LOAD_STR(dest:u8, idx:u16)`, which performs `str_regs[dest] = program.str_pool[idx]`, and `LOAD_INT`.

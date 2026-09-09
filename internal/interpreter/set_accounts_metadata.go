@@ -5,28 +5,28 @@ import (
 	"sort"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 )
 
 // MetaValueToValue rebuilds the typed Value behind a metadata entry the VM
 // produced. The VM stores metadata stringified, plus the type it was stringified
 // from; this is the inverse of that stringification, so a compiled run can report
 // the same typed values a tree-walking run does.
-func MetaValueToValue(mv runtime.MetaValue) (Value, InterpreterError) {
+func MetaValueToValue(mv funds.MetaValue) (Value, InterpreterError) {
 	var typ string
 	switch mv.Typ {
-	case runtime.MetaValueStr:
+	case funds.MetaValueStr:
 		typ = analysis.TypeString
-	case runtime.MetaValueAccount:
+	case funds.MetaValueAccount:
 		typ = analysis.TypeAccount
-	case runtime.MetaValueAsset:
+	case funds.MetaValueAsset:
 		typ = analysis.TypeAsset
-	case runtime.MetaValueInt:
+	case funds.MetaValueInt:
 		typ = analysis.TypeNumber
-	case runtime.MetaValuePortion:
+	case funds.MetaValuePortion:
 		typ = analysis.TypePortion
-	case runtime.MetaValueMonetary:
+	case funds.MetaValueMonetary:
 		typ = analysis.TypeMonetary
 	default:
 		return nil, InvalidTypeErr{Name: mv.Typ.String()}
@@ -36,7 +36,7 @@ func MetaValueToValue(mv runtime.MetaValue) (Value, InterpreterError) {
 
 // MetadataFromVM converts the VM's transaction metadata into the typed Metadata
 // the execution result exposes.
-func MetadataFromVM(m map[string]runtime.MetaValue) (Metadata, InterpreterError) {
+func MetadataFromVM(m map[string]funds.MetaValue) (Metadata, InterpreterError) {
 	if m == nil {
 		return nil, nil
 	}
@@ -54,7 +54,7 @@ func MetadataFromVM(m map[string]runtime.MetaValue) (Metadata, InterpreterError)
 // SetAccountsMetadataFromVM converts the VM's account metadata into the typed
 // row form, sorted by (account, key) to match internalSetAccountsMeta.toRows.
 // Scope is left empty: the VM has no scopes yet.
-func SetAccountsMetadataFromVM(m runtime.AccountsMetadata) (SetAccountsMetadata, InterpreterError) {
+func SetAccountsMetadataFromVM(m funds.AccountsMetadata) (SetAccountsMetadata, InterpreterError) {
 	if m == nil {
 		return nil, nil
 	}

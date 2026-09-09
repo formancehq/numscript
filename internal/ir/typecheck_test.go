@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,7 +51,7 @@ func TestBytecodeTypecheck_MetaValueBankMatchesType(t *testing.T) {
 		instrs := []Instr{
 			LoadStr{Dest: 0, Value: "k"},
 			LoadInt{Dest: 1, Value: *big.NewInt(42)},
-			SetTxMeta{Typ: runtime.MetaValueInt, Key: 0, Value: 1},
+			SetTxMeta{Typ: funds.MetaValueInt, Key: 0, Value: 1},
 		}
 		require.NoError(t, Typecheck(instrs))
 	})
@@ -61,7 +61,7 @@ func TestBytecodeTypecheck_MetaValueBankMatchesType(t *testing.T) {
 		instrs := []Instr{
 			LoadStr{Dest: 0, Value: "k"},
 			LoadStr{Dest: 1, Value: "42"},
-			SetTxMeta{Typ: runtime.MetaValueInt, Key: 0, Value: 1},
+			SetTxMeta{Typ: funds.MetaValueInt, Key: 0, Value: 1},
 		}
 		require.ErrorContains(t, Typecheck(instrs), "read as int but holds string")
 	})

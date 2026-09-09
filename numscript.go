@@ -174,7 +174,7 @@ func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (E
 		return ExecutionResult{}, execErr
 	}
 
-	// Postings share one type now (runtime.Posting); the VM leaves scope fields
+	// Postings share one type now (funds.Posting); the VM leaves scope fields
 	// empty. Metadata is stored stringified plus the type it was stringified from,
 	// so it maps back onto the typed contract here.
 	txMeta, err := interpreter.MetadataFromVM(res.Metadata)

@@ -8,9 +8,9 @@ import (
 
 	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/utils"
 	"github.com/formancehq/numscript/internal/vm"
@@ -1040,7 +1040,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 // the register its own type lives in, and the VM stringifies it when it stores it
 // (see Vm.metaValue) — so the type is stated once, on the instruction, instead of
 // being implied by a conversion op and then restated.
-func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, runtime.MetaValueType, CompilerError) {
+func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, funds.MetaValueType, CompilerError) {
 	r, err := st.compileExpr(expr)
 	if err != nil {
 		return 0, 0, err
@@ -1048,17 +1048,17 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, runtime.MetaVa
 
 	switch t := st.exprTypes[expr]; t {
 	case typecheck.TypeString:
-		return r, runtime.MetaValueStr, nil
+		return r, funds.MetaValueStr, nil
 	case typecheck.TypeAccount:
-		return r, runtime.MetaValueAccount, nil
+		return r, funds.MetaValueAccount, nil
 	case typecheck.TypeAsset:
-		return r, runtime.MetaValueAsset, nil
+		return r, funds.MetaValueAsset, nil
 	case typecheck.TypeNumber:
-		return r, runtime.MetaValueInt, nil
+		return r, funds.MetaValueInt, nil
 	case typecheck.TypePortion:
-		return r, runtime.MetaValuePortion, nil
+		return r, funds.MetaValuePortion, nil
 	case typecheck.TypeMonetary:
-		return r, runtime.MetaValueMonetary, nil
+		return r, funds.MetaValueMonetary, nil
 	default:
 		panic("TODO meta value of type " + t)
 	}
