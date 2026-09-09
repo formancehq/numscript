@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/formancehq/numscript/internal/vm"
 
@@ -140,9 +140,9 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 }
 
 func scriptStore(balancesOuter, balancesInner interpreter.Balances, metaOuter, metaInner interpreter.AccountsMetadata) e2eStore {
-	m := map[runtime.PairKey]*big.Int{}
+	m := map[funds.PairKey]*big.Int{}
 	for _, b := range append(append(interpreter.Balances{}, balancesOuter...), balancesInner...) {
-		m[runtime.PairKey{Account: b.Account, Asset: b.Asset, Color: b.Color}] = b.Amount
+		m[funds.PairKey{Account: b.Account, Asset: b.Asset, Color: b.Color}] = b.Amount
 	}
 
 	meta := map[string]map[string]string{}

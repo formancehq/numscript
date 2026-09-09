@@ -10,9 +10,9 @@ package vm
 //     intsPool []big.Int}.
 //   - Instruction has exported {Opcode, A, B, C byte} and GetBC() uint16.
 //   - nilReg (==0xFF) and worldAccount are package-level identifiers.
-//   - Vm has a `program Program` and a `runstate *runtime.RunState`.
+//   - Vm has a `program Program` and a `runstate *funds.RunState`.
 //   - One Store interface, GetBalance(account, asset string) int64, shared by
-//     the generic Exec constraint and runtime.New.
+//     the generic Exec constraint and funds.New.
 //
 // REQUIRED FIXES for this to PASS (see notes at bottom): SetCurrentAsset must
 // propagate to vm.runstate; CheckEnoughFunds comparison is inverted;
@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 // --- register allocation: one $rN namespace -> typed banks ----------------
@@ -155,12 +155,12 @@ func inorderProgram() Program {
 // --- mock store -----------------------------------------------------------
 
 type mockStore struct {
-	bal  map[runtime.PairKey]int64
+	bal  map[funds.PairKey]int64
 	meta map[string]map[string]string
 }
 
 func (m mockStore) GetBalance(ctx context.Context, account, asset string, color string) (*big.Int, error) {
-	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}]), nil
+	return big.NewInt(m.bal[funds.PairKey{Account: account, Asset: asset}]), nil
 }
 
 func (m mockStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
@@ -178,7 +178,7 @@ func TestInorderSend(t *testing.T) {
 	prog := inorderProgram()
 
 	// s1 has 6, s2 has 10; sending 10 USD/2 => s1 gives 6, s2 gives 4.
-	store := mockStore{bal: map[runtime.PairKey]int64{
+	store := mockStore{bal: map[funds.PairKey]int64{
 		{Account: "s1", Asset: "USD/2"}: 6,
 		{Account: "s2", Asset: "USD/2"}: 10,
 	}}
@@ -190,7 +190,7 @@ func TestInorderSend(t *testing.T) {
 		t.Fatalf("Exec returned error: %v", err)
 	}
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "s1", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(6)},
 		{Source: "s2", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(4)},
 	}
@@ -222,12 +222,12 @@ func balanceNonNegativeProgram() Program {
 }
 
 func TestAssertNonNegativeBalance(t *testing.T) {
-	store := mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
+	store := mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
 	if _, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
 		t.Fatalf("non-negative balance rejected: %v", err)
 	}
 
-	store = mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
+	store = mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
 	_, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store)
 	if _, ok := err.(NegativeBalanceError); !ok {
 		t.Fatalf("expected NegativeBalanceError, got %v", err)

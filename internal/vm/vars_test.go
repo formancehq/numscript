@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +44,7 @@ func TestLoadVarOpcodes(t *testing.T) {
 	res, execErr := Exec(context.Background(), NewVm(sizeProgram(prog)), &vars, mockStore{})
 	require.Nil(t, execErr)
 
-	want := []runtime.Posting{
+	want := []funds.Posting{
 		{Source: "world", Destination: "dest", Asset: "USD/2", Amount: big.NewInt(42)},
 	}
 	require.Equal(t, want, res.Postings)

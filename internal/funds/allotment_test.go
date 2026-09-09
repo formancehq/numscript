@@ -1,10 +1,10 @@
-package runtime_test
+package funds_test
 
 import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 func rat(num, denom int64) big.Rat { return *big.NewRat(num, denom) }
@@ -12,7 +12,7 @@ func rat(num, denom int64) big.Rat { return *big.NewRat(num, denom) }
 // allot fills a fresh buffer via MakeAllotment and returns it, for ergonomics.
 func allot(amount int64, portions []big.Rat) []big.Int {
 	out := make([]big.Int, len(portions))
-	runtime.MakeAllotment(out, big.NewInt(amount), portions)
+	funds.MakeAllotment(out, big.NewInt(amount), portions)
 	return out
 }
 
@@ -61,7 +61,7 @@ func TestMakeAllotment_ZeroAmount(t *testing.T) {
 
 func TestMakeAllotment_EmptyPortions(t *testing.T) {
 	out := []big.Int{}
-	runtime.MakeAllotment(out, big.NewInt(100), []big.Rat{})
+	funds.MakeAllotment(out, big.NewInt(100), []big.Rat{})
 	if len(out) != 0 {
 		t.Errorf("len = %d, want 0", len(out))
 	}
@@ -76,7 +76,7 @@ func TestMakeAllotment_PartsAlwaysSumToAmount(t *testing.T) {
 	// A spread that floors awkwardly must still sum exactly to the amount.
 	amount := big.NewInt(1001)
 	out := make([]big.Int, 3)
-	runtime.MakeAllotment(out, amount, []big.Rat{rat(1, 7), rat(2, 7), rat(4, 7)})
+	funds.MakeAllotment(out, amount, []big.Rat{rat(1, 7), rat(2, 7), rat(4, 7)})
 	sum := new(big.Int)
 	for i := range out {
 		sum.Add(sum, &out[i])
@@ -89,7 +89,7 @@ func TestMakeAllotment_PartsAlwaysSumToAmount(t *testing.T) {
 func TestMakeAllotment_BeyondInt64(t *testing.T) {
 	amount, _ := new(big.Int).SetString("1000000000000000000000000001", 10) // ~1e27 + 1, odd
 	out := make([]big.Int, 2)
-	runtime.MakeAllotment(out, amount, []big.Rat{rat(1, 2), rat(1, 2)})
+	funds.MakeAllotment(out, amount, []big.Rat{rat(1, 2), rat(1, 2)})
 	// floor halves are equal; the odd unit goes to the first
 	half := new(big.Int).Div(amount, big.NewInt(2)) // floor(amount/2)
 	first := new(big.Int).Add(half, big.NewInt(1))
@@ -108,7 +108,7 @@ func TestMakeAllotment_ModifiesCallerSliceAndOverwritesStale(t *testing.T) {
 	out := make([]big.Int, 2)
 	out[0].SetInt64(999)
 	out[1].SetInt64(-7)
-	runtime.MakeAllotment(out, big.NewInt(100), []big.Rat{rat(1, 4), rat(3, 4)})
+	funds.MakeAllotment(out, big.NewInt(100), []big.Rat{rat(1, 4), rat(3, 4)})
 	wantParts(t, out, []int64{25, 75})
 }
 
@@ -117,7 +117,7 @@ func TestMakeAllotment_DoesNotMutateInputs(t *testing.T) {
 	p0, p1 := rat(1, 3), rat(2, 3)
 	amount := big.NewInt(100)
 	out := make([]big.Int, 2)
-	runtime.MakeAllotment(out, amount, portions)
+	funds.MakeAllotment(out, amount, portions)
 	if portions[0].Cmp(&p0) != 0 || portions[1].Cmp(&p1) != 0 {
 		t.Errorf("portions mutated: %v %v", portions[0].String(), portions[1].String())
 	}
