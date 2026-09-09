@@ -90,6 +90,11 @@ func assembleIR(t *testing.T, src string) vm.Program {
 
 	program, err := ir.Assemble(instrs)
 	require.NoError(t, err)
+
+	// every assembled program in this file goes through the verifier, so these
+	// tests double as its corpus for sequences the compiler never emits
+	require.NoError(t, vm.Verify(program))
+
 	return program
 }
 
