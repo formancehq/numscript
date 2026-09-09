@@ -95,7 +95,7 @@ func TestLoadVarOpcodes(t *testing.T) {
 			bc(Op_LoadVarStr, 2, 1),                  // r_s2 = var strings[1] = "dest"
 			bc(Op_LoadVarInt, 0, 0),                  // r_i0 = var ints[0] = 42
 			abc(Op_PullAccount, 1, 1, 0),             // r_i1 = pull(world, cap r_i0)
-			abc(0, nilReg, nilReg, 0),                // ext: no overdraft, no color
+			abc(0, nilReg, nilReg, nilReg),           // ext: no overdraft, no color, no scope
 			abc(Op_SendToAccount, 2, nilReg, nilReg), // send to dest
 		},
 		StringsPool: []string{"USD/2"},

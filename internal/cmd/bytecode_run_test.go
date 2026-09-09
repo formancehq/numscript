@@ -210,7 +210,7 @@ func TestVmStoreReturnsACopyOfTheBalance(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err := store.GetBalance(context.Background(), "src", "USD/2", "")
+	got, err := store.GetBalance(context.Background(), "src", "", "USD/2", "")
 	require.NoError(t, err)
 	require.Zero(t, got.Cmp(big.NewInt(100)))
 
@@ -222,27 +222,43 @@ func TestVmStoreUnknownAccountIsZeroNotAnError(t *testing.T) {
 	store, err := newVmStore("in.json", BytecodeInputsFile{})
 	require.NoError(t, err)
 
-	got, err := store.GetBalance(context.Background(), "nobody", "USD/2", "")
+	got, err := store.GetBalance(context.Background(), "nobody", "", "USD/2", "")
 	require.NoError(t, err)
 	require.Zero(t, got.Sign())
 
-	_, ok, err := store.GetMetadata(context.Background(), "nobody", "k")
+	_, ok, err := store.GetMetadata(context.Background(), "nobody", "", "k")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
 
-func TestVmStoreRejectsScopedRows(t *testing.T) {
-	_, err := newVmStore("in.json", BytecodeInputsFile{
+func TestVmStoreSupportsScopedRows(t *testing.T) {
+	store, err := newVmStore("in.json", BytecodeInputsFile{
 		Balances: interpreter.Balances{
 			{Account: "src", Asset: "USD/2", Amount: big.NewInt(1), Scope: "reserve"},
+			{Account: "src", Asset: "USD/2", Amount: big.NewInt(100)},
 		},
-	})
-	require.ErrorContains(t, err, "scoped balances are not supported by the vm")
-
-	_, err = newVmStore("in.json", BytecodeInputsFile{
 		Meta: interpreter.AccountsMetadata{
-			{Account: "src", Key: "k", Value: "v", Scope: "reserve"},
+			{Account: "src", Key: "k", Value: "scoped", Scope: "reserve"},
+			{Account: "src", Key: "k", Value: "unscoped"},
 		},
 	})
-	require.ErrorContains(t, err, "scoped metadata is not supported by the vm")
+	require.NoError(t, err)
+
+	scopedBal, err := store.GetBalance(context.Background(), "src", "reserve", "USD/2", "")
+	require.NoError(t, err)
+	require.Zero(t, scopedBal.Cmp(big.NewInt(1)))
+
+	unscopedBal, err := store.GetBalance(context.Background(), "src", "", "USD/2", "")
+	require.NoError(t, err)
+	require.Zero(t, unscopedBal.Cmp(big.NewInt(100)))
+
+	scopedMeta, ok, err := store.GetMetadata(context.Background(), "src", "reserve", "k")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "scoped", scopedMeta)
+
+	unscopedMeta, ok, err := store.GetMetadata(context.Background(), "src", "", "k")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "unscoped", unscopedMeta)
 }

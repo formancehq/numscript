@@ -27,8 +27,8 @@ func newMockStore(initial map[funds.PairKey]int64) *mockStore {
 	return &mockStore{balances: b, calls: make(map[funds.PairKey]int)}
 }
 
-func (m *mockStore) GetBalance(account, asset, color string) (*big.Int, error) {
-	k := funds.PairKey{account, "", asset, color}
+func (m *mockStore) GetBalance(account, scope, asset, color string) (*big.Int, error) {
+	k := funds.PairKey{account, scope, asset, color}
 	m.calls[k]++
 	if v, ok := m.balances[k]; ok {
 		return v, nil

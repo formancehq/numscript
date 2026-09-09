@@ -128,6 +128,7 @@ var builtinSigs = map[string]fnSig{
 	builtins.Overdraft:      {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
 	builtins.GetAsset:       {params: []Type{TypeMonetary}, ret: TypeAsset},
 	builtins.GetAmount:      {params: []Type{TypeMonetary}, ret: TypeNumber},
+	builtins.Scoped:         {params: []Type{TypeAccount, TypeString}, ret: TypeAccount},
 }
 
 // --- Result / entrypoint

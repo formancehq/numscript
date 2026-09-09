@@ -49,6 +49,10 @@ type (
 		Color string
 	}
 
+	InvalidScope struct {
+		Scope string
+	}
+
 	NegativeBalanceError struct {
 		Account string
 		Amount  big.Int
@@ -113,6 +117,10 @@ func (e InvalidColor) Error() string {
 	return fmt.Sprintf("invalid color name: %q", e.Color)
 }
 
+func (e InvalidScope) Error() string {
+	return fmt.Sprintf("invalid scope name: %q", e.Scope)
+}
+
 func (e NegativeBalanceError) Error() string {
 	return fmt.Sprintf("cannot fetch negative balance from account @%s", e.Account)
 }
@@ -144,6 +152,7 @@ func (MetadataNotFoundError) execErr() {}
 func (BadMetaValueError) execErr()     {}
 func (InvalidAccountName) execErr()    {}
 func (InvalidColor) execErr()          {}
+func (InvalidScope) execErr()          {}
 func (NegativeBalanceError) execErr()  {}
 func (NegativeAmountError) execErr()   {}
 func (DivideByZeroError) execErr()     {}
@@ -159,6 +168,7 @@ var (
 	_ ExecutionError = (*BadMetaValueError)(nil)
 	_ ExecutionError = (*InvalidAccountName)(nil)
 	_ ExecutionError = (*InvalidColor)(nil)
+	_ ExecutionError = (*InvalidScope)(nil)
 	_ ExecutionError = (*NegativeBalanceError)(nil)
 	_ ExecutionError = (*NegativeAmountError)(nil)
 	_ ExecutionError = (*DivideByZeroError)(nil)

@@ -206,30 +206,32 @@ a != b   ->   $t = eq_int($a, $b)  ;  not($t)
 
 | syntax | signature |
 | --- | --- |
-| `$d = balance($account, $asset)` | `(str, str) -> int` — the amount only; the monetary's asset is the `$asset` operand you already hold |
-| `$d = meta<str>($account, $key)` | `(str, str) -> str` |
-| `$d = meta<int>($account, $key)` | `(str, str) -> int` |
-| `$d = meta<portion>($account, $key)` | `(str, str) -> portion` |
-| `[$asset, $amt] = meta_monetary($account, $key)` | `(str, str) -> (str, int)` |
+| `$d = balance($account, $asset, scope: $s)` | `(str, str) -> int` — the amount only; the monetary's asset is the `$asset` operand you already hold |
+| `$d = meta<str>($account, $key, scope: $s)` | `(str, str) -> str` |
+| `$d = meta<int>($account, $key, scope: $s)` | `(str, str) -> int` |
+| `$d = meta<portion>($account, $key, scope: $s)` | `(str, str) -> portion` |
+| `[$asset, $amt] = meta_monetary($account, $key, scope: $s)` | `(str, str) -> (str, int)` |
 
 `meta_monetary` is not `meta<monetary>`: one store read yields both halves, so it is the only instruction that writes a **dest list**, and its list must be exactly two registers (asset then amount).
+
+`scope` is optional on all five (omitted means unscoped) and, like `pull_account`'s `color`, is a labeled argument — `balance($account, $asset)` and `balance($account, $asset, scope: $s)`.
 
 ### Funds movement
 
 ```
-  $pulled = pull_account(account: $a, cap: $c, overdraft: $o, color: $col)
+  $pulled = pull_account(account: $a, cap: $c, overdraft: $o, color: $col, scope: $s)
 ```
-`account: str` is required; `cap: int`, `overdraft: int`, `color: str` are optional. Writes the amount actually pulled (`int`) into the destination. No `cap` means uncapped. Canonical dump order: `account, cap, overdraft, color`.
+`account: str` is required; `cap: int`, `overdraft: int`, `color: str`, `scope: str` are optional. Writes the amount actually pulled (`int`) into the destination. No `cap` means uncapped. Canonical dump order: `account, cap, overdraft, color, scope`.
 
 ```
-  send_to_account(account: $a, cap: $c)
+  send_to_account(account: $a, cap: $c, scope: $s)
 ```
-No destination. Both arguments are optional: no `cap` sends everything currently queued; **no `account` refunds the funds to their sources without emitting postings**.
+No destination. All arguments are optional: no `cap` sends everything currently queued; **no `account` refunds the funds to their sources without emitting postings**; no `scope` sends to the unscoped destination.
 
 ```
-  save(account: $a, asset: $as, amount: $amt)
+  save(account: $a, asset: $as, amount: $amt, scope: $s)
 ```
-No destination. `account: str` and `asset: str` are required, `amount: int` is optional — omitting it saves the whole balance.
+No destination. `account: str` and `asset: str` are required, `amount: int` and `scope: str` are optional — omitting `amount` saves the whole balance, omitting `scope` saves the unscoped balance.
 
 There is no allotment instruction. Splitting an amount across portions is built out of the pure ops above: each share is `portion_to_int(mul_portion($p_i, int_to_portion($amount)))`, and the leftover from flooring is then handed to the earliest shares a unit at a time, using `lt_int` and forward jumps to a shared exit. See `compileAllotmentSplit` in `internal/compiler/compiler.go`.
 

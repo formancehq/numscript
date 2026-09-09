@@ -45,6 +45,24 @@ type (
 		Type typecheck.Type
 	}
 
+	// CannotStoreScopedAccountInMeta is reported when a scoped account (the
+	// result of scoped()) is used as the *value* stored by set_tx_meta or
+	// set_account_meta. Mirrors the interpreter's runtime error of the same name,
+	// but caught at compile time since the compiler already knows an expression's
+	// scopedness statically.
+	CannotStoreScopedAccountInMeta struct {
+		parser.Range
+	}
+
+	// InvalidScopedAccountPosition is reported when scoped() is reached from a
+	// position that only wants a plain string/generic value (e.g. account
+	// interpolation, or any other non-account context) — a defensive check that
+	// should be unreachable given the compiler's other call sites already route
+	// account-typed expressions through compileAccountExpr.
+	InvalidScopedAccountPosition struct {
+		parser.Range
+	}
+
 	// FeatureNotImplemented is returned (never panicked) when the compiler meets a
 	// construct it does not support yet — e.g. colors or scoped accounts — so the
 	// host gets an error instead of a crash.
@@ -69,15 +87,17 @@ type (
 	}
 )
 
-func (UnboundVar) compileError()            {}
-func (TypeError) compileError()             {}
-func (InvalidUncappedSource) compileError() {}
-func (DuplicateRemaining) compileError()    {}
-func (InvalidMetaPosition) compileError()   {}
-func (CannotCastToString) compileError()    {}
-func (FeatureNotImplemented) compileError() {}
-func (ExperimentalFeature) compileError()   {}
-func (InvalidFeature) compileError()        {}
+func (UnboundVar) compileError()                     {}
+func (TypeError) compileError()                      {}
+func (InvalidUncappedSource) compileError()          {}
+func (DuplicateRemaining) compileError()             {}
+func (InvalidMetaPosition) compileError()            {}
+func (CannotCastToString) compileError()             {}
+func (CannotStoreScopedAccountInMeta) compileError() {}
+func (InvalidScopedAccountPosition) compileError()   {}
+func (FeatureNotImplemented) compileError()          {}
+func (ExperimentalFeature) compileError()            {}
+func (InvalidFeature) compileError()                 {}
 
 func (e FeatureNotImplemented) Error() string {
 	return "internal error: feature not implemented: " + e.Feature
@@ -98,6 +118,12 @@ func (InvalidMetaPosition) Error() string {
 func (e CannotCastToString) Error() string {
 	return "cannot cast a value of type " + string(e.Type) + " to string"
 }
+func (CannotStoreScopedAccountInMeta) Error() string {
+	return "cannot store a scoped account as a metadata value"
+}
+func (InvalidScopedAccountPosition) Error() string {
+	return "a scoped account cannot be used here"
+}
 func (e ExperimentalFeature) Error() string {
 	return fmt.Sprintf("this feature is experimental. You need the '%s' feature flag to enable it", e.FlagName)
 }
@@ -112,6 +138,8 @@ var (
 	_ CompilerError = (*DuplicateRemaining)(nil)
 	_ CompilerError = (*InvalidMetaPosition)(nil)
 	_ CompilerError = (*CannotCastToString)(nil)
+	_ CompilerError = (*CannotStoreScopedAccountInMeta)(nil)
+	_ CompilerError = (*InvalidScopedAccountPosition)(nil)
 	_ CompilerError = (*FeatureNotImplemented)(nil)
 	_ CompilerError = (*ExperimentalFeature)(nil)
 	_ CompilerError = (*InvalidFeature)(nil)
