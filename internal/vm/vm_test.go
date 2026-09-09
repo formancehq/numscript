@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,12 +40,12 @@ func bc(op Opcode, a byte, v uint16) Instruction {
 // --- mock store -----------------------------------------------------------
 
 type mockStore struct {
-	bal  map[runtime.PairKey]int64
+	bal  map[funds.PairKey]int64
 	meta map[string]map[string]string
 }
 
 func (m mockStore) GetBalance(ctx context.Context, account, asset string, color string) (*big.Int, error) {
-	return big.NewInt(m.bal[runtime.PairKey{Account: account, Asset: asset}]), nil
+	return big.NewInt(m.bal[funds.PairKey{Account: account, Asset: asset}]), nil
 }
 
 func (m mockStore) GetMetadata(ctx context.Context, account, key string) (string, bool, error) {
@@ -80,12 +80,12 @@ func balanceNonNegativeProgram() Program {
 }
 
 func TestAssertNonNegativeBalance(t *testing.T) {
-	store := mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
+	store := mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: 50}}
 	if _, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store); err != nil {
 		t.Fatalf("non-negative balance rejected: %v", err)
 	}
 
-	store = mockStore{bal: map[runtime.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
+	store = mockStore{bal: map[funds.PairKey]int64{{Account: "acc", Asset: "USD/2"}: -50}}
 	_, err := Exec(context.Background(), NewVm(balanceNonNegativeProgram()), nil, store)
 	if _, ok := err.(NegativeBalanceError); !ok {
 		t.Fatalf("expected NegativeBalanceError, got %v", err)

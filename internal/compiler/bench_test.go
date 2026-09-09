@@ -6,19 +6,19 @@ import (
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
 // benchStore is a minimal vm.Store for the benchmarks.
 type benchStore struct {
-	balances map[runtime.PairKey]*big.Int
+	balances map[funds.PairKey]*big.Int
 }
 
 func (s benchStore) GetBalance(ctx context.Context, account, asset, color string) (*big.Int, error) {
-	if v, ok := s.balances[runtime.PairKey{Account: account, Asset: asset, Color: color}]; ok {
+	if v, ok := s.balances[funds.PairKey{Account: account, Asset: asset, Color: color}]; ok {
 		return v, nil
 	}
 	return new(big.Int), nil
@@ -28,11 +28,11 @@ func (benchStore) GetMetadata(ctx context.Context, k, v string) (string, bool, e
 	return "", false, nil
 }
 
-type runtimeStoreAdapter struct {
+type fundsStoreAdapter struct {
 	store vm.Store
 }
 
-func (s runtimeStoreAdapter) GetBalance(
+func (s fundsStoreAdapter) GetBalance(
 	account string,
 	asset string,
 	color string,
@@ -70,20 +70,20 @@ func BenchmarkTreeWalker(b *testing.B) {
 	}
 }
 
-// BenchmarkRuntimeBaseline is the floor: it drives runtime.RunState directly,
+// BenchmarkRuntimeBaseline is the floor: it drives funds.RunState directly,
 // performing exactly the funds operations the program lowers to — with no AST
 // walk and no bytecode dispatch. It reuses one RunState (like the VM reuses its
 // runstate) and hoists the constants (the compiler would pool them). The gap
 // between this and BenchmarkCompiledVM is the VM's dispatch/register overhead;
 // the gap to BenchmarkTreeWalker is the interpreter's front-end overhead.
 func BenchmarkRuntimeBaseline(b *testing.B) {
-	store := runtimeStoreAdapter{
-		store: benchStore{balances: map[runtime.PairKey]*big.Int{
+	store := fundsStoreAdapter{
+		store: benchStore{balances: map[funds.PairKey]*big.Int{
 			{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		}},
 	}
 
-	rs := runtime.New(store)
+	rs := funds.New(store)
 
 	ten := big.NewInt(10)  // the sent amount / pull cap
 	zero := big.NewInt(0)  // bounded overdraft of 0
@@ -113,7 +113,7 @@ func BenchmarkCompiledVM(b *testing.B) {
 	if err != nil {
 		b.Fatalf("compile: %v", err)
 	}
-	store := benchStore{balances: map[runtime.PairKey]*big.Int{
+	store := benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 
@@ -168,20 +168,20 @@ func BenchmarkTreeWalkerCapped(b *testing.B) {
 }
 
 func cappedStore() benchStore {
-	return benchStore{balances: map[runtime.PairKey]*big.Int{
+	return benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(3),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}}
 }
 
-// BenchmarkRuntimeBaselineCapped is the floor: it drives runtime.RunState
+// BenchmarkRuntimeBaselineCapped is the floor: it drives funds.RunState
 // directly, performing the funds ops the capped-inorder script lowers to (with
 // the cap/running-total/early-exit arithmetic done inline on reused big.Ints) —
 // no AST walk, no bytecode dispatch. RunState reused across iterations.
 func BenchmarkRuntimeBaselineCapped(b *testing.B) {
-	store := runtimeStoreAdapter{store: cappedStore()}
-	rs := runtime.New(store)
+	store := fundsStoreAdapter{store: cappedStore()}
+	rs := funds.New(store)
 
 	zero := big.NewInt(0)
 	ten := big.NewInt(10)
@@ -292,7 +292,7 @@ const benchSrcAllotment = `send [USD/2 100] (
 )`
 
 func BenchmarkCompiledVMAllotment(b *testing.B) {
-	benchCompiledVM(b, benchSrcAllotment, benchStore{balances: map[runtime.PairKey]*big.Int{
+	benchCompiledVM(b, benchSrcAllotment, benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}})
 }
@@ -309,7 +309,7 @@ const benchSrcAllotmentThirds = `send [USD/2 100] (
 )`
 
 func BenchmarkCompiledVMAllotmentThirds(b *testing.B) {
-	benchCompiledVM(b, benchSrcAllotmentThirds, benchStore{balances: map[runtime.PairKey]*big.Int{
+	benchCompiledVM(b, benchSrcAllotmentThirds, benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}})
 }
@@ -326,7 +326,7 @@ const benchSrcFanIn = `send [USD/2 30] (
 )`
 
 func BenchmarkCompiledVMFanIn(b *testing.B) {
-	benchCompiledVM(b, benchSrcFanIn, benchStore{balances: map[runtime.PairKey]*big.Int{
+	benchCompiledVM(b, benchSrcFanIn, benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),

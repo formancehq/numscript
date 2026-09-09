@@ -6,8 +6,8 @@ import (
 	"math/big"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/runtime"
 )
 
 type Value interface {
@@ -41,14 +41,14 @@ func (Portion) value()        {}
 func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
-	if !runtime.ValidateAccount(src) {
+	if !funds.ValidateAccount(src) {
 		return AccountAddress{}, InvalidAccountName{Name: src}
 	}
 	return AccountAddress{Name: src}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
-	if !runtime.ValidateAsset(src) {
+	if !funds.ValidateAsset(src) {
 		return Asset(""), InvalidAsset{Name: src}
 	}
 	return Asset(src), nil
@@ -125,10 +125,10 @@ func ParseTaggedValue(data []byte) (Value, error) {
 		if err := json.Unmarshal(data, &v); err != nil {
 			return nil, err
 		}
-		if !runtime.ValidateAccount(v.Name) {
+		if !funds.ValidateAccount(v.Name) {
 			return nil, fmt.Errorf("invalid account name: %q", v.Name)
 		}
-		if !runtime.ValidateScope(v.Scope) {
+		if !funds.ValidateScope(v.Scope) {
 			return nil, fmt.Errorf("invalid account scope: %q", v.Scope)
 		}
 		return AccountAddress{Name: v.Name, Scope: v.Scope}, nil

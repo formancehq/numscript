@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/numscript/internal/runtime"
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 const nilReg byte = 0xFF
@@ -22,7 +22,7 @@ var (
 
 type Vm struct {
 	program  Program
-	runstate *runtime.RunState
+	runstate *funds.RunState
 
 	// a monetary is not a bank of its own: it travels as a (str asset, int amount)
 	// register pair
@@ -66,12 +66,12 @@ func lookupMeta(ctx context.Context, store Store, account, key string) (string, 
 	return v, nil
 }
 
-type runtimeStoreAdapter struct {
+type fundsStoreAdapter struct {
 	ctx   context.Context
 	store Store
 }
 
-func (s runtimeStoreAdapter) GetBalance(
+func (s fundsStoreAdapter) GetBalance(
 	account string,
 	asset string,
 	color string,
@@ -84,22 +84,22 @@ func Exec[S Store](
 	vm *Vm,
 	vars *Vars,
 	store S, // a generic S should allow monomorphisation of the Store
-) (runtime.ExecutionResult, ExecutionError) {
-	runtimeStore := runtimeStoreAdapter{
+) (funds.ExecutionResult, ExecutionError) {
+	fundsStore := fundsStoreAdapter{
 		ctx:   ctx,
 		store: store,
 	}
 	// RunState fetches balances lazily through this store; a fetch error surfaces
 	// from the RunState call that triggered it, wrapped in StoreError below.
 	if vm.runstate == nil {
-		vm.runstate = runtime.New(runtimeStore)
+		vm.runstate = funds.New(fundsStore)
 	} else {
-		vm.runstate.Reset(runtimeStore)
+		vm.runstate.Reset(fundsStore)
 	}
 	runstate := vm.runstate
 
 	var txMeta map[string]string
-	var accountsMeta runtime.AccountsMetadata
+	var accountsMeta funds.AccountsMetadata
 
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
@@ -151,14 +151,14 @@ func Exec[S Store](
 			switch {
 			case cap != nil:
 				if err := runstate.Pull(out, account, "", cap, overdraft, color); err != nil {
-					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			case overdraft != nil:
 				if err := runstate.PullUncapped(out, account, "", overdraft, color); err != nil {
-					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			default:
-				return runtime.ExecutionResult{}, InvalidUncappedSource{Account: account}
+				return funds.ExecutionResult{}, InvalidUncappedSource{Account: account}
 			}
 
 		case Op_SendToAccount:
@@ -166,7 +166,7 @@ func Exec[S Store](
 			// leave that mark pointing at the wrong boundary. Compiled numscript never
 			// emits it, since sources only pull.
 			if runstate.HasOpenMark() {
-				return runtime.ExecutionResult{}, InternalError{Err: errSendWhileMarkOpen}
+				return funds.ExecutionResult{}, InternalError{Err: errSendWhileMarkOpen}
 			}
 
 			var dest *string
@@ -187,11 +187,11 @@ func Exec[S Store](
 
 			if cap == nil {
 				if err := runstate.SendUncapped(dest, "", color); err != nil {
-					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			} else {
 				if err := runstate.Send(dest, "", cap, color); err != nil {
-					return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
 				}
 			}
 
@@ -199,7 +199,7 @@ func Exec[S Store](
 			got := &intsRegs[instr.A]
 			needed := &intsRegs[instr.B]
 			if got.Cmp(needed) == -1 {
-				return runtime.ExecutionResult{}, MissingFundsError{
+				return funds.ExecutionResult{}, MissingFundsError{
 					Asset:  currentAsset,
 					Got:    got,
 					Needed: needed,
@@ -210,7 +210,7 @@ func Exec[S Store](
 			// a save while a mark is open survives the rewind, which only repays queued
 			// sources and reverses postings; its floor at zero is not invertible at all.
 			if runstate.HasOpenMark() {
-				return runtime.ExecutionResult{}, InternalError{Err: errSaveWhileMarkOpen}
+				return funds.ExecutionResult{}, InternalError{Err: errSaveWhileMarkOpen}
 			}
 
 			account := stringsRegs[instr.A]
@@ -220,7 +220,7 @@ func Exec[S Store](
 				amount = &intsRegs[instr.C]
 			}
 			if err := runstate.Save(account, "", asset, "", amount); err != nil {
-				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				return funds.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
 		// the mark ops take no register: the mark is a depth on a LIFO the run-state
@@ -230,7 +230,7 @@ func Exec[S Store](
 
 		case Op_MarkEnd:
 			if err := runstate.MarkEnd(instr.A == 1); err != nil {
-				return runtime.ExecutionResult{}, InternalError{Err: err}
+				return funds.ExecutionResult{}, InternalError{Err: err}
 			}
 
 		case Op_AssertLeftover:
@@ -238,14 +238,14 @@ func Exec[S Store](
 			sign := leftover.Sign()
 			if sign < 0 || (instr.B == 1 && sign != 0) {
 				sum := new(big.Rat).Sub(big.NewRat(1, 1), leftover)
-				return runtime.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *sum}
+				return funds.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *sum}
 			}
 
 		case Op_SetCurrentAsset:
 			// a rewind repays queued funds into the current asset's balance, so
 			// changing the asset mid-region would repay the wrong one
 			if runstate.HasOpenMark() {
-				return runtime.ExecutionResult{}, InternalError{Err: errSetAssetWhileMarkOpen}
+				return funds.ExecutionResult{}, InternalError{Err: errSetAssetWhileMarkOpen}
 			}
 			currentAsset = stringsRegs[instr.A]
 			runstate.SetCurrentAsset(currentAsset)
@@ -254,7 +254,7 @@ func Exec[S Store](
 			left := stringsRegs[instr.A]
 			right := stringsRegs[instr.B]
 			if left != right {
-				return runtime.ExecutionResult{}, AssetMismatchError{
+				return funds.ExecutionResult{}, AssetMismatchError{
 					Expected: left,
 					Got:      right,
 				}
@@ -262,20 +262,20 @@ func Exec[S Store](
 
 		case Op_AssertValidAccount:
 			account := stringsRegs[instr.A]
-			if !runtime.ValidateAccount(account) {
-				return runtime.ExecutionResult{}, InvalidAccountName{Name: account}
+			if !funds.ValidateAccount(account) {
+				return funds.ExecutionResult{}, InvalidAccountName{Name: account}
 			}
 
 		case Op_AssertValidColor:
 			color := stringsRegs[instr.A]
-			if !runtime.ValidateColor(color) {
-				return runtime.ExecutionResult{}, InvalidColor{Color: color}
+			if !funds.ValidateColor(color) {
+				return funds.ExecutionResult{}, InvalidColor{Color: color}
 			}
 
 		case Op_AssertNonNegativeBalance:
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {
-				return runtime.ExecutionResult{}, NegativeBalanceError{
+				return funds.ExecutionResult{}, NegativeBalanceError{
 					Account: stringsRegs[instr.B],
 					Amount:  *amount,
 				}
@@ -284,7 +284,7 @@ func Exec[S Store](
 		case Op_AssertNonNegativeAmount:
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {
-				return runtime.ExecutionResult{}, NegativeAmountError{Amount: *amount}
+				return funds.ExecutionResult{}, NegativeAmountError{Amount: *amount}
 			}
 
 		case Op_SetTxMeta:
@@ -295,12 +295,12 @@ func Exec[S Store](
 
 		case Op_SetAccountMeta:
 			if accountsMeta == nil {
-				accountsMeta = runtime.AccountsMetadata{}
+				accountsMeta = funds.AccountsMetadata{}
 			}
 			account := stringsRegs[instr.A]
 			accMeta := accountsMeta[account]
 			if accMeta == nil {
-				accMeta = runtime.AccountMetadata{}
+				accMeta = funds.AccountMetadata{}
 				accountsMeta[account] = accMeta
 			}
 			accMeta[stringsRegs[instr.B]] = stringsRegs[instr.C]
@@ -308,7 +308,7 @@ func Exec[S Store](
 		case Op_MetaStr:
 			v, err := lookupMeta(ctx, store, stringsRegs[instr.B], stringsRegs[instr.C])
 			if err != nil {
-				return runtime.ExecutionResult{}, err
+				return funds.ExecutionResult{}, err
 			}
 			stringsRegs[instr.A] = v
 
@@ -316,11 +316,11 @@ func Exec[S Store](
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
 			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
-				return runtime.ExecutionResult{}, err
+				return funds.ExecutionResult{}, err
 			}
-			n, ok := runtime.ParseNumber(v)
+			n, ok := funds.ParseNumber(v)
 			if !ok {
-				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+				return funds.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
 			}
 			intsRegs[instr.A].Set(n)
 
@@ -328,11 +328,11 @@ func Exec[S Store](
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
 			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
-				return runtime.ExecutionResult{}, err
+				return funds.ExecutionResult{}, err
 			}
-			r, perr := runtime.ParsePortion(v)
+			r, perr := funds.ParsePortion(v)
 			if perr != nil {
-				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+				return funds.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
 			}
 			portionsRegs[instr.A].Set(r)
 
@@ -345,11 +345,11 @@ func Exec[S Store](
 			account, key := stringsRegs[instr.B], stringsRegs[instr.C]
 			v, err := lookupMeta(ctx, store, account, key)
 			if err != nil {
-				return runtime.ExecutionResult{}, err
+				return funds.ExecutionResult{}, err
 			}
-			asset, amount, merr := runtime.ParseMonetary(v)
+			asset, amount, merr := funds.ParseMonetary(v)
 			if merr != nil {
-				return runtime.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
+				return funds.ExecutionResult{}, BadMetaValueError{Account: account, Key: key, Raw: v}
 			}
 			stringsRegs[instr.A] = asset
 			intsRegs[instrExt.A].Set(amount)
@@ -455,7 +455,7 @@ func Exec[S Store](
 			num := &intsRegs[instr.B]
 			den := &intsRegs[instr.C]
 			if den.Sign() == 0 {
-				return runtime.ExecutionResult{}, DivideByZeroError{Numerator: *num}
+				return funds.ExecutionResult{}, DivideByZeroError{Numerator: *num}
 			}
 			portionsRegs[instr.A].SetFrac(num, den)
 
@@ -465,7 +465,7 @@ func Exec[S Store](
 
 			bal, err := runstate.GetAccountBalance(account, "", asset, "")
 			if err != nil {
-				return runtime.ExecutionResult{}, StoreError{Wrapped: err}
+				return funds.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 			// only the amount: the asset of the result is the asset operand, which
 			// the caller already holds in reg C
@@ -506,11 +506,11 @@ func Exec[S Store](
 			boolsRegs[instr.A] = !boolsRegs[instr.B]
 
 		default:
-			return runtime.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}
+			return funds.ExecutionResult{}, InternalError{Err: fmt.Errorf("unknown opcode %d", instr.Opcode)}
 		}
 	}
 
-	return runtime.ExecutionResult{
+	return funds.ExecutionResult{
 		Postings:         runstate.GetPostings(),
 		Metadata:         txMeta,
 		AccountsMetadata: accountsMeta,
