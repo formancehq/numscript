@@ -128,11 +128,17 @@ func checkAccountName(addr string) bool {
 	return accountNameRegex.Match([]byte(addr))
 }
 
-var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(_[A-Z]{1,16})?(\/\d{1,6})?$`)
+var assetNameRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9]{0,16}(\/\d{1,6})?$`)
 
 // https://github.com/formancehq/ledger/blob/main/pkg/assets/asset.go
 func checkAssetName(v string) bool {
 	return assetNameRegexp.Match([]byte(v))
+}
+
+var colorRegexp = regexp.MustCompile(`^[A-Z]{1,16}$`)
+
+func checkColor(color string) bool {
+	return color == "" || colorRegexp.MatchString(color)
 }
 
 var scopeRegex = regexp.MustCompile(`^[a-z0-9_]*$`)
@@ -145,11 +151,13 @@ func checkScopeName(scope string) bool {
 //   - no negative postings
 //   - no invalid account names
 //   - no invalid asset names
+//   - no invalid colors
 func checkPostingInvariants(posting Posting) InterpreterError {
 	isAmtNegative := posting.Amount.Cmp(big.NewInt(0)) == -1
 
 	isInvalidPosting := (isAmtNegative ||
 		!checkAssetName(posting.Asset) ||
+		!checkColor(posting.Color) ||
 		!checkAccountName(posting.Source) ||
 		!checkAccountName(posting.Destination))
 
