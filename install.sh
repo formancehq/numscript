@@ -25,7 +25,6 @@ echo "✅ Platform: $PLATFORM"
 echo "✅ Architecture: $ARCH"
 
 
-# https://github.com/formancehq/numscript/releases/download/v0.0.18/numscript_.0.0.18_Darwin_arm64.tar.gz
 # Get latest release tag
 LATEST_TAG=$(curl -sI https://github.com/formancehq/numscript/releases/latest | grep -i location | awk -F '/' '{print $NF}' | tr -d '\r')
 
@@ -39,7 +38,7 @@ else
 fi
 
 # Build file name and URL
-FILENAME="numscript_.${LATEST_TAG#v}_${PLATFORM}_${ARCH}.${EXT}"
+FILENAME="numscript_${LATEST_TAG#v}_${PLATFORM}_${ARCH}.${EXT}"
 URL="https://github.com/formancehq/numscript/releases/download/$LATEST_TAG/$FILENAME"
 
 echo "⬇️ Downloading: $URL"
