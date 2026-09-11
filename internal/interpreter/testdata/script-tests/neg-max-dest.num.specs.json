@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "testCases": [
     {
       "it": "-",
@@ -9,14 +10,12 @@
           "amount": 99999999
         }
       ],
-      "variables": {},
-      "metadata": [],
       "expect.postings": [
         {
           "source": "memo:main",
           "destination": "world",
-          "asset": "EUR/2",
-          "amount": 100
+          "amount": 100,
+          "asset": "EUR/2"
         }
       ]
     }

@@ -1,11 +1,11 @@
 {
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "featureFlags": [
     "experimental-mid-script-function-call"
   ],
   "testCases": [
     {
-      "it": "-",
-      "expect.postings": []
+      "it": "-"
     }
   ]
 }

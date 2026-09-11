@@ -455,7 +455,7 @@ set_tx_meta(
 	require.Nil(t, err)
 
 	require.Equal(t, interpreter.Metadata{
-		"k": interpreter.NewMonetary("USD/2", 100),
+		"k": "USD/2 100",
 	}, res.Metadata)
 
 	require.Equal(t,
