@@ -143,3 +143,117 @@ func TestMigrateSpecsContentUnsupportedShapeStillErrors(t *testing.T) {
 	_, _, err := specs_format.MigrateSpecsContent(raw)
 	require.Error(t, err)
 }
+
+// A v0.0.24 file that used colors but no nested balance/metadata maps parses
+// cleanly as the current shape, so the encoded assets are the only thing left
+// to migrate. This is the case the structural check alone can't catch.
+func TestMigrateSpecsContentDecodesColorsInCurrentShape(t *testing.T) {
+	raw := []byte(`{
+  "featureFlags": ["experimental-asset-colors"],
+  "balances": [
+    { "account": "acc", "asset": "COIN_RED", "amount": 1 }
+  ],
+  "testCases": [
+    {
+      "it": "-",
+      "expect.postings": [
+        { "source": "src", "destination": "dest", "amount": 10, "asset": "USD_COL/4" }
+      ],
+      "expect.movements": [
+        { "source": "src", "destination": "dest", "amount": 10, "asset": "USD_COL/4" }
+      ],
+      "expect.endBalances": [
+        { "account": "dest", "asset": "USD_COL/4", "amount": 10 }
+      ]
+    }
+  ]
+}
+`)
+
+	out, changed, err := specs_format.MigrateSpecsContent(raw)
+	require.NoError(t, err)
+	require.True(t, changed)
+
+	var specs specs_format.Specs
+	require.NoError(t, json.Unmarshal(out, &specs))
+
+	require.Equal(t, interpreter.Balances{
+		{Account: "acc", Asset: "COIN", Color: "RED", Amount: big.NewInt(1)},
+	}, specs.Balances)
+
+	tc := specs.TestCases[0]
+	require.Equal(t, "USD/4", tc.ExpectPostings[0].Asset)
+	require.Equal(t, "COL", tc.ExpectPostings[0].Color)
+	require.Equal(t, "USD/4", tc.ExpectMovements[0].Asset)
+	require.Equal(t, "COL", tc.ExpectMovements[0].Color)
+	require.Equal(t, "USD/4", tc.ExpectEndBalances[0].Asset)
+	require.Equal(t, "COL", tc.ExpectEndBalances[0].Color)
+}
+
+// Both migrations at once: the nested-map structure AND encoded assets inside it.
+func TestMigrateSpecsContentDecodesColorsInLegacyShape(t *testing.T) {
+	raw := []byte(`{
+  "testCases": [
+    {
+      "it": "-",
+      "balances": { "acc": { "COIN_RED": 1, "COIN": 100 } }
+    }
+  ]
+}
+`)
+
+	out, changed, err := specs_format.MigrateSpecsContent(raw)
+	require.NoError(t, err)
+	require.True(t, changed)
+
+	var specs specs_format.Specs
+	require.NoError(t, json.Unmarshal(out, &specs))
+
+	require.ElementsMatch(t, interpreter.Balances{
+		{Account: "acc", Asset: "COIN", Amount: big.NewInt(100)},
+		{Account: "acc", Asset: "COIN", Color: "RED", Amount: big.NewInt(1)},
+	}, specs.TestCases[0].Balances)
+}
+
+// A row that already carries a color can't be a legacy row, so it is left
+// exactly as-is — including its asset, however odd it looks.
+func TestMigrateSpecsContentLeavesExplicitColorAlone(t *testing.T) {
+	raw := []byte(`{
+  "balances": [
+    { "account": "acc", "asset": "COIN_RED", "color": "BLUE", "amount": 1 }
+  ]
+}
+`)
+
+	out, changed, err := specs_format.MigrateSpecsContent(raw)
+	require.NoError(t, err)
+	require.False(t, changed)
+	require.Equal(t, raw, out)
+}
+
+// Assets that merely resemble the encoding must not be split: the separator is
+// a single underscore between an asset name and a [A-Z]{1,16} color.
+func TestMigrateSpecsContentLeavesNonEncodedAssetsAlone(t *testing.T) {
+	for _, asset := range []string{
+		"USD/2",     // no underscore at all
+		"COIN",      // ditto
+		"USD_",      // empty color
+		"USD_red/2", // colors are upper-case
+		"USD_A_B",   // two separators
+		"_RED",      // empty asset name
+	} {
+		t.Run(asset, func(t *testing.T) {
+			raw := []byte(`{
+  "balances": [
+    { "account": "acc", "asset": "` + asset + `", "amount": 1 }
+  ]
+}
+`)
+
+			out, changed, err := specs_format.MigrateSpecsContent(raw)
+			require.NoError(t, err)
+			require.False(t, changed)
+			require.Equal(t, raw, out)
+		})
+	}
+}

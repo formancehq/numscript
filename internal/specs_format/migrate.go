@@ -4,17 +4,25 @@ import (
 	"encoding/json"
 )
 
-// MigrateSpecsContent rewrites a specs file's raw JSON to the current format:
-// v0.0.24's nested-map balances/metadata are flattened to today's row arrays
-// (see migrate_v0024.go). It reports whether anything changed, so a caller can
-// gate writing the result behind a flag while still surfacing that a file is
-// stale.
+// MigrateSpecsContent rewrites a specs file's raw JSON to the current format.
+// Two things can be outdated, independently of each other:
 //
-// Staleness is decided by structure alone: $schema is an editor hint, not part
-// of the format, and nothing in the CLI reads it to parse, validate or
-// dispatch. A file's shape is what says which format it is, and
-// parseSpecsForMigration already determines that by parsing. A migrated file
-// does get its $schema pointed at SchemaURL, since its shape really did change.
+//   - the file's structure: v0.0.24's nested-map balances/metadata are
+//     flattened to today's row arrays (see migrate_v0024.go);
+//   - its asset names: v0.0.24's ASSET_COLOR encoding is split back into the
+//     separate asset/color fields (see decodeLegacyColors).
+//
+// The second can be stale on its own, since the encoding hides inside a string
+// field whose surrounding structure never changed — so it is checked on every
+// file, not only on ones that failed to parse as the current shape.
+//
+// It reports whether anything changed, so a caller can gate writing the result
+// behind a flag while still surfacing that a file is stale.
+//
+// Staleness is decided by content alone: $schema is an editor hint, not part of
+// the format, and nothing in the CLI reads it to parse, validate or dispatch. A
+// migrated file does get its $schema pointed at SchemaURL, since the file
+// really did change.
 //
 // Once a file IS stale, the rewrite re-marshals the whole struct, so it also
 // canonicalizes formatting to match what the rest of the CLI generates (e.g.
@@ -25,7 +33,9 @@ func MigrateSpecsContent(raw []byte) (out []byte, changed bool, err error) {
 		return nil, false, err
 	}
 
-	if !structureChanged {
+	colorsDecoded := decodeLegacyColors(&specs)
+
+	if !structureChanged && !colorsDecoded {
 		return raw, false, nil
 	}
 

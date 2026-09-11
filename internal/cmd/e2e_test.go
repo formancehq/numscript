@@ -171,3 +171,57 @@ func TestE2ETestMigrateConvertsLegacyV0024Shape(t *testing.T) {
 	rerunOut, err := rerun.CombinedOutput()
 	require.NoError(t, err, string(rerunOut))
 }
+
+// e2eLegacyColorNumscript and e2eLegacyColorSpecs are the exact script and
+// specs file v0.0.24 generated for a colored send (its
+// asset-colors/color-with-asset-precision fixture). The specs file is
+// structurally current — its only outdated part is the ASSET_COLOR encoding in
+// expect.postings, so it is the case a structural check alone cannot catch.
+const e2eLegacyColorNumscript = `send [USD/4 10] (
+	source = @src \ "COL" allowing unbounded overdraft
+	destination = @dest
+)
+`
+
+const e2eLegacyColorSpecs = `{
+	"featureFlags": [
+		"experimental-asset-colors"
+	],
+	"testCases": [
+		{
+			"it": "-",
+			"expect.postings": [
+				{ "source": "src", "destination": "dest", "amount": 10, "asset": "USD_COL/4" }
+			]
+		}
+	]
+}
+`
+
+func TestE2ETestMigrateDecodesLegacyColors(t *testing.T) {
+	dir := t.TempDir()
+	specsPath := filepath.Join(dir, "main.num.specs.json")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.num"), []byte(e2eLegacyColorNumscript), 0644))
+	require.NoError(t, os.WriteFile(specsPath, []byte(e2eLegacyColorSpecs), 0644))
+
+	// Before migrating, the encoded asset makes the expectation fail: the
+	// interpreter reports asset USD/4 with color COL.
+	before := exec.Command(e2eBinaryPath, "test", dir)
+	beforeOut, err := before.CombinedOutput()
+	require.Error(t, err, string(beforeOut))
+
+	cmd := exec.Command(e2eBinaryPath, "test", "--migrate", dir)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	require.Contains(t, string(out), "migrated")
+
+	migrated, err := os.ReadFile(specsPath)
+	require.NoError(t, err)
+	require.Contains(t, string(migrated), `"asset": "USD/4"`)
+	require.Contains(t, string(migrated), `"color": "COL"`)
+	require.NotContains(t, string(migrated), "USD_COL")
+
+	rerun := exec.Command(e2eBinaryPath, "test", dir)
+	rerunOut, err := rerun.CombinedOutput()
+	require.NoError(t, err, string(rerunOut))
+}
