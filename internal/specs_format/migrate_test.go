@@ -27,15 +27,20 @@ func TestMigrateSpecsContentAlreadyCurrent(t *testing.T) {
 	out, changed, err := specs_format.MigrateSpecsContent(raw)
 	require.NoError(t, err)
 	require.False(t, changed)
-
-	// re-marshaling is still idempotent, even though nothing was reported changed
-	var specs specs_format.Specs
-	require.NoError(t, json.Unmarshal(out, &specs))
-	require.Equal(t, specs_format.SchemaURL, specs.Schema)
+	require.Equal(t, raw, out)
 }
 
-func TestMigrateSpecsContentMissingSchema(t *testing.T) {
-	raw := []byte(`{
+// $schema is an editor hint, not part of the format: a file whose structure is
+// already current is left byte-for-byte alone, whatever its $schema says.
+func TestMigrateSpecsContentLeavesSchemaAlone(t *testing.T) {
+	for name, schemaLine := range map[string]string{
+		"missing":      "",
+		"stale":        `"$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",`,
+		"foreign host": `"$schema": "https://example.invalid/v1.specs.schema.json",`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw := []byte(`{
+  ` + schemaLine + `
   "testCases": [
     {
       "it": "d1",
@@ -47,30 +52,12 @@ func TestMigrateSpecsContentMissingSchema(t *testing.T) {
 }
 `)
 
-	out, changed, err := specs_format.MigrateSpecsContent(raw)
-	require.NoError(t, err)
-	require.True(t, changed)
-
-	var specs specs_format.Specs
-	require.NoError(t, json.Unmarshal(out, &specs))
-	require.Equal(t, specs_format.SchemaURL, specs.Schema)
-	require.Equal(t, "USD/2 100", specs.TestCases[0].ExpectAccountsMeta[0].Value)
-}
-
-func TestMigrateSpecsContentStaleSchema(t *testing.T) {
-	raw := []byte(`{
-  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/specs.schema.json",
-  "testCases": [{ "it": "d1" }]
-}
-`)
-
-	out, changed, err := specs_format.MigrateSpecsContent(raw)
-	require.NoError(t, err)
-	require.True(t, changed)
-
-	var specs specs_format.Specs
-	require.NoError(t, json.Unmarshal(out, &specs))
-	require.Equal(t, specs_format.SchemaURL, specs.Schema)
+			out, changed, err := specs_format.MigrateSpecsContent(raw)
+			require.NoError(t, err)
+			require.False(t, changed)
+			require.Equal(t, raw, out)
+		})
+	}
 }
 
 func TestMigrateSpecsContentParseErr(t *testing.T) {
@@ -113,6 +100,9 @@ func TestMigrateSpecsContentLegacyV0024Shape(t *testing.T) {
 
 	var specs specs_format.Specs
 	require.NoError(t, json.Unmarshal(out, &specs))
+
+	// a structural migration does point $schema at the current schema: the
+	// file's shape really did change.
 	require.Equal(t, specs_format.SchemaURL, specs.Schema)
 
 	tc := specs.TestCases[0]

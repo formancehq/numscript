@@ -46,9 +46,9 @@ const e2eNumscript = `send [USD/2 100] (
 set_account_meta(@dest, "k", [USD/2 100])
 `
 
-// e2eSpecsMissingSchema deliberately has no $schema: that's the only thing
-// --migrate fixes, and it should not affect whether the tests pass either
-// way ($schema is an editor hint, not part of the format).
+// e2eSpecsMissingSchema deliberately has no $schema: it's an editor hint, not
+// part of the format, so it affects neither whether the tests pass nor whether
+// --migrate considers the file stale.
 const e2eSpecsMissingSchema = `{
 	"testCases": [
 		{
@@ -81,24 +81,21 @@ func TestE2ETestPassesWithoutSchema(t *testing.T) {
 	require.NoError(t, err, string(out))
 }
 
-func TestE2ETestMigrateAddsSchema(t *testing.T) {
+// --migrate only rewrites files whose structure is outdated. A current-shape
+// file is left byte-for-byte alone, even with no $schema to point at the
+// current schema: reformatting a file to insert an editor hint isn't a
+// migration.
+func TestE2ETestMigrateLeavesCurrentShapeAlone(t *testing.T) {
 	dir, specsPath := writeE2ESpecsFixture(t)
 
 	cmd := exec.Command(e2eBinaryPath, "test", "--migrate", dir)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
-	require.Contains(t, string(out), "migrated")
+	require.NotContains(t, string(out), "migrated")
 
-	migrated, err := os.ReadFile(specsPath)
+	after, err := os.ReadFile(specsPath)
 	require.NoError(t, err)
-	require.Contains(t, string(migrated), `"$schema"`)
-	require.Contains(t, string(migrated), `"value": "USD/2 100"`)
-
-	// running again against the now-migrated file passes cleanly, with no
-	// further migration needed.
-	rerun := exec.Command(e2eBinaryPath, "test", dir)
-	rerunOut, err := rerun.CombinedOutput()
-	require.NoError(t, err, string(rerunOut))
+	require.Equal(t, e2eSpecsMissingSchema, string(after))
 }
 
 // e2eLegacyV0024Numscript and e2eLegacyV0024Specs are the exact script and
