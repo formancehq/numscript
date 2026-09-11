@@ -14,7 +14,8 @@
         },
         {
           "account": "acc",
-          "asset": "COIN_RED",
+          "asset": "COIN",
+          "color": "RED",
           "amount": 1
         }
       ],

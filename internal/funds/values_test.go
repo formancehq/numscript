@@ -23,8 +23,8 @@ func TestValidate(t *testing.T) {
 		{
 			name:  "asset",
 			fn:    ValidateAsset,
-			valid: []string{"COIN", "USD/2", "EUR", "A", "TOKEN_X", "USD/123456"},
-			bad:   []string{"", "usd", "1USD", "USD/", "USD/1234567", "USD 2"},
+			valid: []string{"COIN", "USD/2", "EUR", "A", "USD/123456"},
+			bad:   []string{"", "usd", "1USD", "USD/", "USD/1234567", "USD 2", "TOKEN_X"},
 		},
 		{
 			name:  "color",
