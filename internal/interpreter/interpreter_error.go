@@ -313,7 +313,7 @@ type InvalidColor struct {
 }
 
 func (e InvalidColor) Error() string {
-	return fmt.Sprintf("Invalid color name: '%s'. Only uppercase letters are allowed.", e.Color)
+	return fmt.Sprintf("Invalid color name: '%s'. A color must be 1 to 16 uppercase letters.", e.Color)
 }
 
 type InvalidUnboundedAddressInScalingAddress struct {

@@ -234,7 +234,7 @@ func (s *programState) evaluateColor(colorExpr parser.ValueExpr) (String, Interp
 		return "", err
 	}
 
-	isValidColor := colorRe.Match([]byte(string(color)))
+	isValidColor := checkColor(string(color))
 	if !isValidColor {
 		return "", InvalidColor{
 			Range: colorExpr.GetRange(),

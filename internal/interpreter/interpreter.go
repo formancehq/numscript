@@ -582,8 +582,6 @@ func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) 
 	return nil
 }
 
-var colorRe = regexp.MustCompile("^[A-Z]*$")
-
 // PRE: overdraft >= 0
 func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
 	if colorExpr != nil {
