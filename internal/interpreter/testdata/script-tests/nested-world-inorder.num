@@ -1,0 +1,14 @@
+send [COIN 100] (
+  source = {
+    {
+      @a
+      {
+        @b
+        @world
+      }
+      @never_reached
+    }
+    @also_never_reached
+  }
+  destination = @dest
+)

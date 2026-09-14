@@ -1,0 +1,14 @@
+
+// Destination oneof nested in an allotment: only half (50) is routed to the
+// oneof, which is less than the full pull (100) — this exercises the capped send
+// path. The first clause can hold 50, so @a gets it; @c gets the other half.
+send [GEM 100] (
+  source = @world
+  destination = {
+    1/2 to oneof {
+      max [GEM 999] to @a
+      remaining to @b
+    }
+    1/2 to @c
+  }
+)

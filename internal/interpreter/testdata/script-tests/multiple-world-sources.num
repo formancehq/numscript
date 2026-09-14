@@ -1,0 +1,18 @@
+send [COIN 10] (
+  source = {
+    @world
+    @world
+  }
+  destination = @dest1
+)
+send [COIN 20] (
+  source = {
+    @a
+    @world
+  }
+  destination = @dest2
+)
+send [COIN 30] (
+  source = @world
+  destination = @dest3
+)

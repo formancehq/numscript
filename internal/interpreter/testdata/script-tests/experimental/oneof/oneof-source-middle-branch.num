@@ -1,0 +1,11 @@
+
+// The middle branch commits: @a fails (empty) and is rolled back, @b covers the
+// whole amount so we stop there, and @c is never pulled.
+send [GEM 100] (
+  source = oneof {
+    @a
+    @b
+    @c
+  }
+  destination = @dest
+)
