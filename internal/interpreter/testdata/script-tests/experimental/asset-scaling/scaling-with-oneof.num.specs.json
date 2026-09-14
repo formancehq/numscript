@@ -53,6 +53,35 @@
           "asset": "EUR/2"
         }
       ]
+    },
+    {
+      "it": "discards the swap postings when the scaled branch falls short (acc1 holds a second scale, so unlike the cases above the swap is not a no-op)",
+      "balances": [
+        {
+          "account": "acc1",
+          "asset": "EUR/2",
+          "amount": 1
+        },
+        {
+          "account": "acc1",
+          "asset": "EUR/3",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "acc1",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "EUR/2"
+        },
+        {
+          "source": "acc2",
+          "destination": "dest",
+          "amount": 99,
+          "asset": "EUR/2"
+        }
+      ]
     }
   ]
 }

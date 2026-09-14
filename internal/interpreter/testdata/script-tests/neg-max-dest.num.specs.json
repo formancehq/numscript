@@ -10,14 +10,7 @@
           "amount": 99999999
         }
       ],
-      "expect.postings": [
-        {
-          "source": "memo:main",
-          "destination": "world",
-          "amount": 100,
-          "asset": "EUR/2"
-        }
-      ]
+      "expect.error.negativeAmount": true
     }
   ]
 }
