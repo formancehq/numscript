@@ -3,6 +3,7 @@ package interpreter
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/parser"
@@ -78,7 +79,26 @@ func ResolveDependencies(ctx context.Context, store Store, vars map[string]strin
 
 	// binding the vars evaluates their origins, so balance()/overdraft()/meta()
 	// origins already get recorded through the store here.
-	env, err := newEvalEnv(ctx, recording, nil, program.Vars, vars)
+	//
+	// dep resolution only needs the read to be recorded, not its value (a
+	// balance() yields a Monetary, which can't name an account), so getBalance
+	// just hits the recording store and returns zero — no funds engine involved.
+	getBalance := func(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
+		_, err := recording.GetBalances(ctx, BalanceQuery{
+			{Account: account.Name, Asset: string(asset), Color: "", Scope: account.Scope},
+		})
+		if err != nil {
+			return nil, QueryBalanceError{WrappedError: err}
+		}
+		return new(big.Int), nil
+	}
+	env, err := newEvalEnv(
+		ctx,
+		recording,
+		nil,
+		getBalance,
+		program.Vars, vars,
+	)
 	if err != nil {
 		return ResolvedDependencies{}, err
 	}
