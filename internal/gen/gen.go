@@ -153,6 +153,19 @@ func account(rng *rand.Rand, poolSize int) string {
 	return fmt.Sprintf("acc%d", rng.Intn(poolSize))
 }
 
+// accountAsVar decides the form of one account occurrence. "world" always stays
+// inline: the oracle rejects any script in which a variable resolves to @world
+// in source position, and Compare tolerates an oracle-side rejection, so a
+// world-valued account var would silently skip the comparison instead of
+// testing anything. The deliberate exploration of that asymmetry lives in
+// AccountVarDecl, which is rationed; this is not.
+func accountAsVar(rng *rand.Rand, account string) bool {
+	if account == "world" {
+		return false
+	}
+	return asVar(rng)
+}
+
 // asVar decides whether one value occurrence is written through a `vars {}`
 // variable instead of inline. It is rolled per occurrence, so the same
 // account or asset routinely appears both ways inside one script: that mix is
@@ -231,7 +244,7 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 		{
 			zeroFreqIf(5, opts.isUnbounded),
 			func() Source {
-				return Source{Kind: SrcAccount, Account: "world", AccountAsVar: asVar(rng)}
+				return Source{Kind: SrcAccount, Account: "world"}
 			},
 		},
 		{
@@ -288,7 +301,7 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 				portions := portionsList(rng)
 				clauses := make([]SourceAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = SourceAllotmentClause{Portion: p, PortionAsVar: asVar(rng), Source: genSource(rng, innerOpts)}
+					clauses[i] = SourceAllotmentClause{Portion: p, Source: genSource(rng, innerOpts)}
 				}
 				return Source{Kind: SrcAllotment, Clauses: clauses}
 			},
@@ -340,7 +353,7 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 				portions := portionsList(rng)
 				clauses := make([]DestAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = DestAllotmentClause{Portion: p, PortionAsVar: asVar(rng), KeptOrDest: genKeptOrDest(rng, nestedOpts)}
+					clauses[i] = DestAllotmentClause{Portion: p, KeptOrDest: genKeptOrDest(rng, nestedOpts)}
 				}
 				return Destination{Kind: DestAllotment, AllotClauses: clauses}
 			},

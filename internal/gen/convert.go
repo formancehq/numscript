@@ -225,12 +225,18 @@ func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Exp
 	}
 }
 
-// toBuilderPortion renders one portion occurrence, inline (`n/d`) or through a
-// pooled var bound to the same "n/d" text.
-func toBuilderPortion(r *big.Rat, asVar bool) builder.Expression[builder.ExprTypePortion] {
-	if asVar {
-		return builder.ExprPortionVar(r.Num().String() + "/" + r.Denom().String())
-	}
+// toBuilderPortion renders a portion inline, as an `n/d` literal.
+//
+// Portions are deliberately NOT routed through vars, even though
+// builder.ExprPortionVar exists and both grammars accept a portion variable in
+// allotment position. The compiler must prove an allotment sums to 100%, and it
+// cannot see through a variable, so it rejects the script ("the sum of portions
+// might be less than 100%") unless the block ends in a `remaining` clause —
+// which this generator does not emit for allotments. Routing portions through
+// vars therefore turned ~63% of scripts into oracle-side compile failures,
+// which Compare tolerates, silently skipping the comparison. Supporting it
+// needs `remaining` support in allotments first.
+func toBuilderPortion(r *big.Rat) builder.Expression[builder.ExprTypePortion] {
 	return builder.ExprPortion(builder.NewPortion(new(big.Int).Set(r.Num()), new(big.Int).Set(r.Denom())))
 }
 
@@ -262,7 +268,7 @@ func toBuilderSource(s Source) builder.Source {
 		clauses := make([]builder.AllotmentClause[builder.Source], len(s.Clauses))
 		for i, c := range s.Clauses {
 			clauses[i] = builder.AllotmentClause[builder.Source]{
-				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
+				Portion: toBuilderPortion(c.Portion),
 				Payload: toBuilderSource(c.Source),
 			}
 		}
@@ -292,7 +298,7 @@ func toBuilderDestination(d Destination) builder.Destination {
 		clauses := make([]builder.AllotmentClause[builder.KeptOrDest], len(d.AllotClauses))
 		for i, c := range d.AllotClauses {
 			clauses[i] = builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
+				Portion: toBuilderPortion(c.Portion),
 				Payload: toBuilderKeptOrDest(c.KeptOrDest),
 			}
 		}

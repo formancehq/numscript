@@ -69,9 +69,7 @@ type Source struct {
 
 type SourceAllotmentClause struct {
 	Portion *big.Rat
-	// Render Portion through a var rather than inline.
-	PortionAsVar bool
-	Source       Source
+	Source  Source
 }
 
 type DestKind int
@@ -104,10 +102,8 @@ type DestInorderClause struct {
 }
 
 type DestAllotmentClause struct {
-	Portion *big.Rat
-	// Render Portion through a var rather than inline.
-	PortionAsVar bool
-	KeptOrDest   KeptOrDest
+	Portion    *big.Rat
+	KeptOrDest KeptOrDest
 }
 
 type KeptOrDestKind int

@@ -9,9 +9,14 @@ import (
 	"github.com/formancehq/numscript/internal/gen"
 )
 
-// Every value type must be reachable in BOTH forms, and the two forms must
-// co-occur inside one script — that co-occurrence is what makes two resources
-// alias one account (formancehq/ledger#2056).
+// Every value type must be reachable in both var and inline form, and the two
+// forms must co-occur inside one script — that co-occurrence is what makes two
+// resources alias one account (formancehq/ledger#2056).
+//
+// Portion is the exception: it is inline-only. See toBuilderPortion — a portion
+// variable is valid syntax, but the compiler cannot prove an allotment sums to
+// 100%% through one, so the oracle rejects the whole script unless the block
+// ends in `remaining`, which this generator does not emit for allotments.
 func TestEveryValueTypeReachesBothForms(t *testing.T) {
 	varRe := map[string]*regexp.Regexp{
 		"account":  regexp.MustCompile(`\$account_\d+`),
@@ -65,13 +70,20 @@ func TestEveryValueTypeReachesBothForms(t *testing.T) {
 		}
 	}
 
+	inlineOnly := map[string]bool{"portion": true}
 	for _, k := range []string{"account", "asset", "number", "string", "monetary", "portion"} {
 		t.Logf("%-9s var=%3d  inline=%3d  both-in-one-script=%3d  (of %d)", k, varSeen[k], litSeen[k], bothSeen[k], n)
-		if varSeen[k] == 0 {
-			t.Errorf("%s never generated in var form", k)
-		}
 		if litSeen[k] == 0 {
 			t.Errorf("%s never generated in inline form", k)
+		}
+		if inlineOnly[k] {
+			if varSeen[k] != 0 {
+				t.Errorf("%s is inline-only but was generated in var form", k)
+			}
+			continue
+		}
+		if varSeen[k] == 0 {
+			t.Errorf("%s never generated in var form", k)
 		}
 	}
 	t.Logf("@world as literal AND as a var value  : %d/%d", worldBoth, n)

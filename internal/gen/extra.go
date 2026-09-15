@@ -30,7 +30,7 @@ func genSeedStatements(rng *rand.Rand, poolSize int, assets []string) Program {
 			stmts = append(stmts, Statement{
 				IsSendAll: false,
 				Amount:    Monetary{Asset: asset, AssetAsVar: asVar(rng), Amount: seedAmount(rng)},
-				Source:    Source{Kind: SrcAccount, Account: "world", AccountAsVar: asVar(rng)},
+				Source:    Source{Kind: SrcAccount, Account: "world"},
 				Destination: Destination{
 					Kind:         DestAccount,
 					Account:      fmt.Sprintf("acc%d", i),
@@ -163,16 +163,16 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 	for i := range out {
 		if len(metaKeys) > 0 && rng.Intn(3) == 0 {
 			k := metaKeys[rng.Intn(len(metaKeys))]
-			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: asVar(rng), Key: k.Key}
+			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Key: k.Key}
 			continue
 		}
 		if rng.Intn(4) == 0 {
-			out[i] = VarDecl{Kind: VarFromBalance, Account: "world", AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
+			out[i] = VarDecl{Kind: VarFromBalance, Account: "world", Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
 			continue
 		}
 		if len(fundedKeys) > 0 && rng.Intn(2) == 0 {
 			k := fundedKeys[rng.Intn(len(fundedKeys))]
-			out[i] = VarDecl{Kind: VarFromBalance, Account: k.Account, AccountAsVar: asVar(rng), Asset: k.Asset, AssetAsVar: asVar(rng)}
+			out[i] = VarDecl{Kind: VarFromBalance, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Asset: k.Asset, AssetAsVar: asVar(rng)}
 			continue
 		}
 		out[i] = VarDecl{Kind: VarFromBalance, Account: account(rng, poolSize), AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
