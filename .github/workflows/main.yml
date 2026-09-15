@@ -47,6 +47,8 @@ jobs:
 
   Difftest:
     runs-on: ubuntu-latest
+    # -fuzztime bounds the fuzzing phase only, not module downloads or builds.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

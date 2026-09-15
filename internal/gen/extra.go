@@ -1,9 +1,11 @@
 package gen
 
 import (
+	"cmp"
 	"fmt"
 	"math/big"
 	"math/rand"
+	"slices"
 )
 
 // seedAmount is used for `world -> accN` funding statements — always
@@ -131,14 +133,30 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 		return nil
 	}
 
+	// Both pools come from maps, whose iteration order Go randomizes. They are
+	// then indexed with the seeded rng, so leaving them unsorted would make the
+	// same fuzz seed generate different programs from run to run — which breaks
+	// corpus replay and shrinking, the two things a saved divergence depends on.
 	fundedKeys := make([]BalanceKey, 0, len(balances))
 	for k := range balances {
 		fundedKeys = append(fundedKeys, k)
 	}
+	slices.SortFunc(fundedKeys, func(a, b BalanceKey) int {
+		if c := cmp.Compare(a.Account, b.Account); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Asset, b.Asset)
+	})
 	metaKeys := make([]MetaKey, 0, len(metadata))
 	for k := range metadata {
 		metaKeys = append(metaKeys, k)
 	}
+	slices.SortFunc(metaKeys, func(a, b MetaKey) int {
+		if c := cmp.Compare(a.Account, b.Account); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Key, b.Key)
+	})
 
 	out := make([]VarDecl, n)
 	for i := range out {
