@@ -165,6 +165,20 @@ const (
 	VarFromMeta
 )
 
+// MetaType is the numscript type a `meta()` origin var is declared as. meta()
+// returns TypeAny: the declaration decides how the stored string is parsed, so
+// a var only compiles if its type matches the preset value it reads.
+type MetaType int
+
+const (
+	MetaNumber MetaType = iota
+	MetaString
+	MetaMonetary
+	MetaAsset
+	MetaAccount
+	MetaPortion
+)
+
 // VarDecl is a `vars {}` declaration whose value comes from the compiler,
 // not a runtime-supplied binding. See builder.NewMonetaryVarFromBalance /
 // builder.NewNumberVarFromMeta and internal/oracle's VisitVars
@@ -184,6 +198,9 @@ type VarDecl struct {
 
 	// VarFromMeta only
 	Key string
+	// VarFromMeta only: the type to declare the var as, which must match how
+	// the preset value at (Account, Key) is written.
+	MetaType MetaType
 }
 
 // BalanceKey identifies one (account, asset) starting balance.

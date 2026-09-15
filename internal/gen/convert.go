@@ -101,12 +101,19 @@ func toBuilderNumExpr(e NumExpr) builder.Expression[builder.ExprTypeNumber] {
 type varExprs struct {
 	monetary []builder.Expression[builder.ExprTypeMonetary]
 	number   []builder.Expression[builder.ExprTypeNumber]
+	// setTxMeta[i] emits `set_tx_meta(<key>, $var_i)` for a VarFromMeta decl.
+	// A meta var can be declared as any of the six types, and Go cannot hold
+	// those differently-typed Expression[T] values in one slice, so the
+	// statement is built here — where the type is still known — and the
+	// consumer only supplies the key.
+	setTxMeta []func(key string) builder.Statement
 }
 
 func toBuilderVarExprs(vars []VarDecl) varExprs {
 	ve := varExprs{
-		monetary: make([]builder.Expression[builder.ExprTypeMonetary], len(vars)),
-		number:   make([]builder.Expression[builder.ExprTypeNumber], len(vars)),
+		monetary:  make([]builder.Expression[builder.ExprTypeMonetary], len(vars)),
+		number:    make([]builder.Expression[builder.ExprTypeNumber], len(vars)),
+		setTxMeta: make([]func(string) builder.Statement, len(vars)),
 	}
 	for i, v := range vars {
 		account := toBuilderAccount(v.Account, v.AccountAsVar)
@@ -114,7 +121,27 @@ func toBuilderVarExprs(vars []VarDecl) varExprs {
 		case VarFromBalance:
 			ve.monetary[i] = builder.NewMonetaryVarFromBalance(account, toBuilderAsset(v.Asset, v.AssetAsVar))
 		case VarFromMeta:
-			ve.number[i] = builder.NewNumberVarFromMeta(account, v.Key)
+			switch v.MetaType {
+			case MetaString:
+				x := builder.NewStringVarFromMeta(account, v.Key)
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			case MetaMonetary:
+				x := builder.NewMonetaryVarFromMeta(account, v.Key)
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			case MetaAsset:
+				x := builder.NewAssetVarFromMeta(account, v.Key)
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			case MetaAccount:
+				x := builder.NewAccountVarFromMeta(account, v.Key)
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			case MetaPortion:
+				x := builder.NewPortionVarFromMeta(account, v.Key)
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			default:
+				x := builder.NewNumberVarFromMeta(account, v.Key)
+				ve.number[i] = x
+				ve.setTxMeta[i] = func(k string) builder.Statement { return builder.StmtSetTxMeta(k, x) }
+			}
 		default:
 			panic("gen: unknown var decl kind")
 		}
@@ -204,7 +231,7 @@ func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Exp
 		)
 
 	case ExtraSetTxMetaVar:
-		return builder.StmtSetTxMeta(e.Key, ve.number[*e.VarIdx])
+		return ve.setTxMeta[*e.VarIdx](e.Key)
 
 	case ExtraSendFromAccountVar:
 		return builder.StmtSend(

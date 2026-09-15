@@ -104,15 +104,44 @@ func genBalances(rng *rand.Rand, poolSize int, assets []string) (map[BalanceKey]
 // machine.NewValueFromString both just do a base-10 big.Int parse for a
 // `number`-typed var), so a decimal string is all a `number`-typed
 // meta()-origin var needs.
-func genPresetMetadata(rng *rand.Rand, poolSize int, metadata map[MetaKey]string) {
+// genPresetMetadata fills the starting account metadata both engines are given,
+// and records the numscript type each value is written as. meta() is typed by
+// the reading declaration rather than the stored value, so genVarDecls needs
+// the type to declare a var that actually parses.
+func genPresetMetadata(rng *rand.Rand, poolSize int, metadata map[MetaKey]string) map[MetaKey]MetaType {
+	types := map[MetaKey]MetaType{}
 	for i := range poolSize {
 		acc := fmt.Sprintf("acc%d", i)
 		for _, key := range metaKeyPool {
 			if rng.Intn(2) != 0 {
 				continue
 			}
-			metadata[MetaKey{Account: acc, Key: key}] = fmt.Sprintf("%d", rng.Intn(2000)-500)
+			k := MetaKey{Account: acc, Key: key}
+			metadata[k], types[k] = genMetaValue(rng, poolSize)
 		}
+	}
+	return types
+}
+
+// genMetaValue produces one starting metadata value along with the type it is
+// written as. Numbers stay the common case, matching the original generator;
+// the other five types exist so meta() is exercised in every form both engines
+// accept, not just as a number.
+func genMetaValue(rng *rand.Rand, poolSize int) (string, MetaType) {
+	switch rng.Intn(10) {
+	case 0:
+		return fmt.Sprintf("str%d", rng.Intn(4)), MetaString
+	case 1:
+		return fmt.Sprintf("%s %d", pickAsset(rng), rng.Intn(1000)), MetaMonetary
+	case 2:
+		return pickAsset(rng), MetaAsset
+	case 3:
+		return account(rng, poolSize), MetaAccount
+	case 4:
+		den := rng.Intn(9) + 2
+		return fmt.Sprintf("%d/%d", rng.Intn(den)+1, den), MetaPortion
+	default:
+		return fmt.Sprintf("%d", rng.Intn(2000)-500), MetaNumber
 	}
 }
 
@@ -128,7 +157,7 @@ var metaKeyPool = []string{"k0", "k1", "k2"}
 // picked at a deliberate elevated rate (~1 in 4) specifically to exercise
 // balance(@world, ASSET) — confirmed directly against the oracle to be a
 // legal, always-zero read (never an error).
-func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string) []VarDecl {
+func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, metaTypes map[MetaKey]MetaType) []VarDecl {
 	n := rng.Intn(4) // 0..3
 	if n == 0 {
 		return nil
@@ -163,7 +192,7 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 	for i := range out {
 		if len(metaKeys) > 0 && rng.Intn(3) == 0 {
 			k := metaKeys[rng.Intn(len(metaKeys))]
-			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Key: k.Key}
+			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Key: k.Key, MetaType: metaTypes[k]}
 			continue
 		}
 		if rng.Intn(4) == 0 {
@@ -205,11 +234,16 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 				out[j].Asset = pickAsset(rng)
 			}
 		case VarFromMeta:
-			if rng.Intn(2) == 0 {
+			if rng.Intn(2) != 0 && out[j].Key != "" && out[j].Key != out[i].Key {
+				// keep j's own key: a different key on the same account
+			} else {
 				out[j].Key = out[i].Key // exact duplicate (same account+key)
-			} else if out[j].Key == "" {
-				out[j].Key = metaKeyPool[rng.Intn(len(metaKeyPool))]
 			}
+			// The origin now reads a different (account, key) than j was built
+			// for, so its declared type has to follow the value actually stored
+			// there — otherwise the var does not parse and the whole script is
+			// rejected rather than compared.
+			out[j].MetaType = metaTypes[MetaKey{Account: out[j].Account, Key: out[j].Key}]
 		}
 	}
 
@@ -445,8 +479,8 @@ func GenerateScriptAST(rng *rand.Rand) Script {
 
 	balances, seeds := genBalances(rng, poolSize, assetPool)
 	metadata := map[MetaKey]string{}
-	genPresetMetadata(rng, poolSize, metadata)
-	vars := genVarDecls(rng, poolSize, balances, metadata)
+	metaTypes := genPresetMetadata(rng, poolSize, metadata)
+	vars := genVarDecls(rng, poolSize, balances, metadata, metaTypes)
 	accountVars := genAccountVarDecls(rng, poolSize)
 	program := cleanupProgram(genProgram(rng, poolSize))
 	extra := genExtraStatements(rng, poolSize, vars, accountVars)
