@@ -14,7 +14,7 @@ Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main.
 | § | kind | count | state |
 |---|---|---|---|
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
-| 2 | Oracle fixes **not** in ledger main | 1 | raise upstream |
+| 2 | Oracle fixes **not** in ledger main | 1 | filed: ledger PR #2060 |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
 | 4 | Local workarounds since replaced by upstream's own fixes | 2 | done |
 
@@ -80,9 +80,13 @@ looking in the wrong place.
 swept scripts (5.4%) diverge, all on the same missing-funds-vs-invalid-amount
 classification.
 
-**Status: keep, and report upstream.** It is the one place the oracle is
-knowingly ahead of ledger; everything else in §1 aside, `vm/machine.go` is
-otherwise identical to upstream.
+**Status: reported upstream — ledger PR #2060**
+(`fix/machine-negative-amount-op-take`), which adds the same guard, with the
+same message, to `OP_TAKE`. When that merges, drop this guard from the oracle
+and re-vendor; this section then becomes empty.
+
+It is the one place the oracle is knowingly ahead of ledger; §1 aside,
+`vm/machine.go` is otherwise identical to upstream.
 
 ## 3. Genuine numscript ↔ ledger semantic differences
 
