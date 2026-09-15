@@ -60,7 +60,7 @@ func TestCompareNeverSwallowsAnInternalError(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := difftest.Compare(tc.a, tc.b, "new interpreter", "oracle")
+			v := difftest.Compare("", tc.a, tc.b, "new interpreter", "oracle")
 			if !v.Mismatch {
 				t.Fatalf("internal error was swallowed: verdict = %+v", v)
 			}
@@ -71,7 +71,7 @@ func TestCompareNeverSwallowsAnInternalError(t *testing.T) {
 // The converse: a plain b-side rejection stays tolerated, so the guard above
 // didn't just turn every rejection into a mismatch.
 func TestCompareStillToleratesAPlainRejection(t *testing.T) {
-	v := difftest.Compare(difftest.SideResult{}, difftest.SideResult{CompileErr: "rejected"}, "new interpreter", "oracle")
+	v := difftest.Compare("", difftest.SideResult{}, difftest.SideResult{CompileErr: "rejected"}, "new interpreter", "oracle")
 	if v.Mismatch {
 		t.Fatalf("a plain b-side rejection should be tolerated, got %+v", v)
 	}

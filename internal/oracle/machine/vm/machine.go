@@ -309,12 +309,16 @@ func (m *Machine) tick() (bool, error) {
 
 	case program.OP_TAKE:
 		mon := pop[machine.Monetary](m)
+		funding := pop[machine.Funding](m)
+		// Not upstream: ledger guards OP_TAKE_MAX only (0cc2844e4, 2023), so
+		// a negative send amount reaches Take() and comes back out as an
+		// insufficient-funds error instead of a rejected script. See
+		// internal/oracle/DIVERGENCES.md §2.
 		if mon.Amount.Ltz() {
 			return true, fmt.Errorf(
 				"cannot send a monetary with a negative amount: [%s %s]",
 				string(mon.Asset), mon.Amount)
 		}
-		funding := pop[machine.Funding](m)
 		if funding.Asset != mon.Asset {
 			return true, machine.NewErrInvalidScript("cannot take from different assets: %v and %v", funding.Asset, mon.Asset)
 		}
@@ -404,7 +408,8 @@ func (m *Machine) tick() (bool, error) {
 		}
 
 	case program.OP_REPAY:
-		m.repay(pop[machine.Funding](m))
+		f := pop[machine.Funding](m)
+		m.repay(f)
 
 	case program.OP_SEND:
 		dest := pop[machine.AccountAddress](m)
@@ -452,14 +457,7 @@ func (m *Machine) tick() (bool, error) {
 		case machine.Monetary:
 			if balances, ok := m.Balances[a]; ok {
 				if balance, ok := balances[v.Asset]; ok {
-					newBalance := balance.Sub(v.Amount)
-					// Saving more than the account's balance floors at zero,
-					// matching the new interpreter's behavior (never go
-					// negative).
-					if newBalance.Ltz() {
-						newBalance = machine.Zero
-					}
-					balances[v.Asset] = newBalance
+					balances[v.Asset] = balance.Sub(v.Amount)
 				}
 			}
 		default:

@@ -105,29 +105,6 @@ send $a (
   }
 )`,
 		},
-		{
-			// `save` for more than an account's actual balance used to leave
-			// the oracle's cached balance negative (a plain, unfloored
-			// subtraction), while the new interpreter floors at zero. That
-			// difference is invisible until a later bounded-overdraft draw
-			// on the same account computes a different available "room"
-			// from the two different balances. Fixed in
-			// internal/oracle/machine/vm/machine.go's OP_SAVE handler to
-			// floor at zero too, matching internal/interpreter's
-			// runSaveStatement.
-			name: "save more than the account's balance",
-			script: `send [COIN 100] (
-  source = @world
-  destination = @acc0
-)
-
-save [COIN 900] from @acc0
-
-send [COIN 250] (
-  source = @acc0 allowing overdraft up to [COIN 1000]
-  destination = @acc1
-)`,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -136,7 +113,7 @@ send [COIN 250] (
 			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
 			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
 
-			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
+			v := Compare(tc.script, newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
 				t.Fatalf("mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 			}
@@ -175,7 +152,7 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 		name string
 		v    Verdict
 	}{
-		{"new vs oracle", Compare(newRes, oracleRes, "new interpreter", "oracle")},
+		{"new vs oracle", Compare(script, newRes, oracleRes, "new interpreter", "oracle")},
 	} {
 		if pair.v.Mismatch {
 			t.Errorf("%s: unexpected mismatch: %s\nnew: %+v\noracle: %+v",
@@ -218,7 +195,88 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 		t.Fatalf("expected the interpreter to fail specifically due to missing funds; got new=%+v", newRes)
 	}
 
-	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
+	if v := Compare(script, newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
 		t.Fatalf("expected new-vs-oracle to be flagged as a mismatch, got none")
+	}
+}
+
+// TestKnownOpenDivergences pins the numscript/ledger disagreements that are
+// real and still undecided — see internal/oracle/DIVERGENCES.md §3. None of
+// them is an oracle defect: the oracle is faithful to ledger on all three, and
+// each was previously invisible because the oracle had been bent toward
+// numscript to hide it.
+//
+// These assert that a mismatch IS still reported. If one starts passing,
+// something changed the semantics — update DIVERGENCES.md and move the case
+// into TestKnownBugRepros rather than deleting it.
+func TestKnownOpenDivergences(t *testing.T) {
+	testCases := []struct {
+		name     string
+		script   string
+		balances map[gen.BalanceKey]*big.Int
+		why      string
+	}{
+		{
+			// DIVERGENCES.md §3.2. numscript's runSaveStatement floors the
+			// saved amount at the balance; ledger subtracts unfloored and
+			// goes negative. Invisible until a later bounded-overdraft draw
+			// computes its available room from the two different balances.
+			name: "save beyond the account's balance",
+			why:  "numscript floors save at zero, ledger goes negative",
+			script: `send [COIN 100] (
+  source = @world
+  destination = @acc0
+)
+
+save [COIN 900] from @acc0
+
+send [COIN 250] (
+  source = @acc0 allowing overdraft up to [COIN 1000]
+  destination = @acc1
+)`,
+		},
+		{
+			// DIVERGENCES.md §3.1. `kept` decides which account keeps the
+			// money, so it changes balances: numscript takes it off the
+			// front of the pool (@acc1 keeps 400), ledger off the bottom
+			// (@acc0 keeps it, @acc1 is drained). The second statement then
+			// moves 400 on numscript and nothing on ledger.
+			name: "kept attribution, observed by a later statement",
+			why:  "kept comes off the front (numscript) vs the bottom (ledger)",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(1000),
+				{Account: "acc1", Asset: "COIN"}: big.NewInt(1000),
+			},
+			script: `send [COIN *] (
+  source = {
+    @acc1
+    @acc0
+  }
+  destination = {
+    max [COIN 400] kept
+    remaining to @dst
+  }
+)
+
+send [COIN *] (
+  source = @acc1
+  destination = @sink
+)`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
+			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
+
+			v := Compare(tc.script, newRes, oracleRes, "new interpreter", "oracle")
+			if !v.Mismatch {
+				t.Fatalf("expected a divergence (%s), got none\nnew: %+v\noracle: %+v",
+					tc.why, newRes, oracleRes)
+			}
+			t.Logf("still diverging, as expected (%s): %s", tc.why, v.Reason)
+		})
 	}
 }

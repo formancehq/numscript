@@ -216,3 +216,46 @@ send $b (
 	requirePosting(t, m.Postings[0], "world", "dst1", "USD", 10)
 	requirePosting(t, m.Postings[1], "world", "dst2", "EUR", 20)
 }
+
+// TestKeptComplex, copied from ledger's machine_kept_test.go. It pins the
+// source attribution of `kept`: all 11 kept GEM come off @baz, the LAST
+// source, because ledger takes kept from the bottom of the pool. The
+// numscript interpreter takes it from the front and so funds @arst/@thing
+// differently, which is why Compare tolerates per-source kept attribution.
+func TestOracleKeptComplex(t *testing.T) {
+	store := vm.StaticStore{
+		"foo": {Account: vm.Account{Address: "foo"}, Balances: map[string]*big.Int{"GEM": big.NewInt(20)}},
+		"bar": {Account: vm.Account{Address: "bar"}, Balances: map[string]*big.Int{"GEM": big.NewInt(40)}},
+		"baz": {Account: vm.Account{Address: "baz"}, Balances: map[string]*big.Int{"GEM": big.NewInt(40)}},
+	}
+
+	m, err := compileAndRun(t, `send [GEM 100] (
+	source = {
+		@foo
+		@bar
+		@baz
+	}
+	destination = {
+		50% to {
+			max [GEM 8] to {
+				50% kept
+				25% to @arst
+				25% kept
+			}
+			remaining to @thing
+		}
+		20% to @qux
+		5% kept
+		remaining to @quz
+	}
+)`, store)
+	require.NoError(t, err)
+
+	require.Len(t, m.Postings, 6)
+	requirePosting(t, m.Postings[0], "foo", "arst", "GEM", 2)
+	requirePosting(t, m.Postings[1], "foo", "thing", "GEM", 18)
+	requirePosting(t, m.Postings[2], "bar", "thing", "GEM", 24)
+	requirePosting(t, m.Postings[3], "bar", "qux", "GEM", 16)
+	requirePosting(t, m.Postings[4], "baz", "qux", "GEM", 4)
+	requirePosting(t, m.Postings[5], "baz", "quz", "GEM", 25)
+}

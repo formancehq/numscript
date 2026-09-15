@@ -3,15 +3,25 @@ package difftest
 import (
 	"fmt"
 	"math/big"
+	"regexp"
 )
 
 // Verdict is the outcome of comparing both engines' results for one script.
 type Verdict struct {
 	Mismatch bool
 	Reason   string
+
+	// Tolerated names the tolerance that suppressed a difference, and is
+	// empty when the two sides agreed outright. It exists so a sweep can
+	// count how often each tolerance fires: a tolerance that starts
+	// absorbing most of the corpus has stopped being a tolerance and
+	// become a blind spot.
+	Tolerated string
 }
 
 func ok() Verdict { return Verdict{} }
+
+func tolerated(what string) Verdict { return Verdict{Tolerated: what} }
 
 func mismatch(format string, args ...any) Verdict {
 	return Verdict{Mismatch: true, Reason: fmt.Sprintf(format, args...)}
@@ -24,7 +34,7 @@ func mismatch(format string, args ...any) Verdict {
 // It intentionally does NOT compare exact error strings (wording
 // legitimately differs between implementations) — only whether an error
 // occurred at all, and at which stage.
-func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	// Checked before anything else, and symmetrically: an engine breaking its
 	// own contract is never an expected outcome, and every tolerance below is
 	// about the two engines legitimately disagreeing. Ordering matters — the
@@ -109,20 +119,44 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	aAgg := aggregatePostings(aRes.Postings)
 	bAgg := aggregatePostings(bRes.Postings)
 
-	if len(aAgg) != len(bAgg) {
-		return mismatch(
-			"aggregated posting set differs: %s has %d distinct (source,destination,asset), %s has %d\n%s: %+v\n%s: %+v",
-			aLabel, len(aAgg), bLabel, len(bAgg), aLabel, aRes.Postings, bLabel, bRes.Postings,
-		)
-	}
-
-	for k, aAmount := range aAgg {
-		bAmount, ok := bAgg[k]
-		if !ok || aAmount.Cmp(bAmount) != 0 {
+	if postingsDiffer(aAgg, bAgg) {
+		// The `kept` source-attribution divergence is known and accepted:
+		// numscript takes kept funds off the FRONT of the funding pool,
+		// the ledger machine (since 461050af9, and asserted by its own
+		// TestKeptComplex) off the BOTTOM. The same net movement is
+		// therefore attributed to different sources. Totals per
+		// (destination, asset) must still agree exactly.
+		//
+		// This is a real loss of checking power, not a normalization: in a
+		// script using `kept`, a genuinely wrong SOURCE would be tolerated
+		// here. It is scoped as narrowly as the script text allows, and
+		// Verdict.Tolerated makes each occurrence countable.
+		if usesKept(script) {
+			aByDest := aggregateByDestination(aRes.Postings)
+			bByDest := aggregateByDestination(bRes.Postings)
+			if !destTotalsDiffer(aByDest, bByDest) {
+				return tolerated("kept source attribution")
+			}
 			return mismatch(
-				"aggregated amount differs for source=%q destination=%q asset=%q: %s=%v, %s=%v\n%s: %+v\n%s: %+v",
-				k.Source, k.Destination, k.Asset, aLabel, aAmount, bLabel, bAmount, aLabel, aRes.Postings, bLabel, bRes.Postings,
+				"destination totals differ in a `kept` script (not just source attribution): %s=%v, %s=%v\n%s: %+v\n%s: %+v",
+				aLabel, aByDest, bLabel, bByDest, aLabel, aRes.Postings, bLabel, bRes.Postings,
 			)
+		}
+
+		if len(aAgg) != len(bAgg) {
+			return mismatch(
+				"aggregated posting set differs: %s has %d distinct (source,destination,asset), %s has %d\n%s: %+v\n%s: %+v",
+				aLabel, len(aAgg), bLabel, len(bAgg), aLabel, aRes.Postings, bLabel, bRes.Postings,
+			)
+		}
+		for k, aAmount := range aAgg {
+			bAmount, ok := bAgg[k]
+			if !ok || aAmount.Cmp(bAmount) != 0 {
+				return mismatch(
+					"aggregated amount differs for source=%q destination=%q asset=%q: %s=%v, %s=%v\n%s: %+v\n%s: %+v",
+					k.Source, k.Destination, k.Asset, aLabel, aAmount, bLabel, bAmount, aLabel, aRes.Postings, bLabel, bRes.Postings,
+				)
+			}
 		}
 	}
 
@@ -191,4 +225,60 @@ func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
 		total.Add(total, p.Amount)
 	}
 	return agg
+}
+
+// keptRe matches `kept` as a standalone keyword. Over-matching only widens the
+// tolerance below for a script that mentions the word elsewhere; it can never
+// turn agreement into a mismatch.
+var keptRe = regexp.MustCompile(`\bkept\b`)
+
+func usesKept(script string) bool { return keptRe.MatchString(script) }
+
+func postingsDiffer(a, b map[postingKey]*big.Int) bool {
+	if len(a) != len(b) {
+		return true
+	}
+	for k, av := range a {
+		bv, ok := b[k]
+		if !ok || av.Cmp(bv) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// destinationKey drops the source, keeping only what was received.
+type destinationKey struct {
+	Destination string
+	Asset       string
+}
+
+func aggregateByDestination(postings []Posting) map[destinationKey]*big.Int {
+	agg := make(map[destinationKey]*big.Int, len(postings))
+	for _, p := range postings {
+		if p.Amount.Sign() == 0 {
+			continue
+		}
+		k := destinationKey{Destination: p.Destination, Asset: p.Asset}
+		total, ok := agg[k]
+		if !ok {
+			total = new(big.Int)
+			agg[k] = total
+		}
+		total.Add(total, p.Amount)
+	}
+	return agg
+}
+
+func destTotalsDiffer(a, b map[destinationKey]*big.Int) bool {
+	if len(a) != len(b) {
+		return true
+	}
+	for k, av := range a {
+		bv, ok := b[k]
+		if !ok || av.Cmp(bv) != 0 {
+			return true
+		}
+	}
+	return false
 }

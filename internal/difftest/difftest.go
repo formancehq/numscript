@@ -50,7 +50,7 @@ func RunOne(ctx context.Context, rng *rand.Rand) Case {
 		New:    newRes,
 		Oracle: oracleRes,
 
-		OracleVsNew: Compare(newRes, oracleRes, "new interpreter", "oracle"),
+		OracleVsNew: Compare(script, newRes, oracleRes, "new interpreter", "oracle"),
 	}
 }
 
