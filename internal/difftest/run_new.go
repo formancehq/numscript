@@ -48,6 +48,16 @@ type SideResult struct {
 	InternalErr string
 	// Postings is nil unless both CompileErr and RunErr are empty.
 	Postings []Posting
+
+	// TxMeta and AccountMeta are the metadata each engine wrote, normalized to
+	// strings — the new interpreter already reports strings, the legacy machine
+	// reports typed values. Both are nil unless execution succeeded.
+	//
+	// AccountMeta is keyed "<account>\x00<key>": a flat map compares as a set
+	// without needing a nested equality helper, and NUL cannot occur in either
+	// an account address or a meta key.
+	TxMeta      map[string]string
+	AccountMeta map[string]string
 }
 
 func (r SideResult) Failed() bool {
@@ -95,5 +105,20 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 		})
 	}
 
-	return SideResult{Postings: postings}
+	txMeta := make(map[string]string, len(execResult.Metadata))
+	for k, v := range execResult.Metadata {
+		txMeta[k] = v
+	}
+	accountMeta := make(map[string]string, len(execResult.AccountsMetadata))
+	for _, row := range execResult.AccountsMetadata {
+		accountMeta[metaKey(row.Account, row.Key)] = row.Value
+	}
+
+	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
+}
+
+// metaKey joins an account and a meta key into one flat map key. NUL cannot
+// appear in either, so the join is unambiguous.
+func metaKey(account, key string) string {
+	return account + "\x00" + key
 }

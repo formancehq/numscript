@@ -126,6 +126,39 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 		}
 	}
 
+	// Metadata is compared too: set_tx_meta/set_account_meta are the only
+	// observable effect of some generated statements (a number or string value
+	// never reaches a posting), so comparing postings alone would let a wrong key,
+	// a wrong value or a dropped write pass unnoticed.
+	if v := compareMeta("tx metadata", aRes.TxMeta, bRes.TxMeta, aLabel, bLabel); v.Mismatch {
+		return v
+	}
+	if v := compareMeta("account metadata", aRes.AccountMeta, bRes.AccountMeta, aLabel, bLabel); v.Mismatch {
+		return v
+	}
+
+	return ok()
+}
+
+// compareMeta compares one normalized metadata map as a set of key/value pairs.
+func compareMeta(what string, a, b map[string]string, aLabel, bLabel string) Verdict {
+	for k, av := range a {
+		bv, present := b[k]
+		if !present {
+			return mismatch("%s: %s wrote %q=%q, %s wrote nothing for that key\n%s: %v\n%s: %v",
+				what, aLabel, k, av, bLabel, aLabel, a, bLabel, b)
+		}
+		if av != bv {
+			return mismatch("%s: %s wrote %q=%q, %s wrote %q\n%s: %v\n%s: %v",
+				what, aLabel, k, av, bLabel, bv, aLabel, a, bLabel, b)
+		}
+	}
+	for k, bv := range b {
+		if _, present := a[k]; !present {
+			return mismatch("%s: %s wrote %q=%q, %s wrote nothing for that key\n%s: %v\n%s: %v",
+				what, bLabel, k, bv, aLabel, aLabel, a, bLabel, b)
+		}
+	}
 	return ok()
 }
 

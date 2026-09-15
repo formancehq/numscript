@@ -2,8 +2,10 @@ package difftest
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"math/big"
+	"strings"
 
 	acctmetadata "github.com/formancehq/go-libs/v5/pkg/types/metadata"
 	"github.com/formancehq/numscript/internal/gen"
@@ -80,5 +82,40 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 		})
 	}
 
-	return SideResult{Postings: postings}
+	txMeta := make(map[string]string, len(m.TxMeta))
+	for k, v := range m.TxMeta {
+		txMeta[k] = normalizeOracleMetaValue(v)
+	}
+	accountMeta := map[string]string{}
+	for account, kv := range m.AccountsMeta {
+		// The machine keys accounts as "@name"; the rewrite reports the bare
+		// address.
+		addr := strings.TrimPrefix(string(account), "@")
+		for k, v := range kv {
+			accountMeta[metaKey(addr, k)] = normalizeOracleMetaValue(v)
+		}
+	}
+
+	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
+}
+
+// normalizeOracleMetaValue renders one legacy-machine metadata value the way
+// the rewrite reports the same value, so the two can be compared as strings.
+// The machine keeps typed values and its default formatting differs (a String
+// prints with quotes, a Monetary as "[COIN 5]"), so this cannot be %v.
+func normalizeOracleMetaValue(v machine.Value) string {
+	switch x := v.(type) {
+	case machine.String:
+		return string(x)
+	case machine.AccountAddress:
+		return string(x)
+	case machine.Asset:
+		return string(x)
+	case *machine.MonetaryInt:
+		return (*big.Int)(x).String()
+	case machine.Monetary:
+		return string(x.Asset) + " " + (*big.Int)(x.Amount).String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
