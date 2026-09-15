@@ -1,0 +1,7 @@
+send [COIN 100] (
+  source = @src \ "RED"
+  destination = {
+    max [COIN 30] to @a
+    remaining to @b
+  }
+)

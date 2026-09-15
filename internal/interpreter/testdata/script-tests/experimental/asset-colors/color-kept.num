@@ -1,0 +1,9 @@
+// `kept` emits no posting: the funds are refunded to the source, and must land
+// back on the color they were pulled from.
+send [COIN 100] (
+  source = @src \ "RED"
+  destination = {
+    30% to @dest
+    remaining kept
+  }
+)

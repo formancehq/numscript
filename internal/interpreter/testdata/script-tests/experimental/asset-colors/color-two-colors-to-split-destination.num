@@ -1,0 +1,12 @@
+// The destination has no color filter, so one drain consumes both colors: each
+// half is funded by a different color and the postings say so.
+send [COIN 100] (
+  source = {
+    @src \ "RED"
+    @src \ "BLUE"
+  }
+  destination = {
+    1/2 to @a
+    1/2 to @b
+  }
+)

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "each allotment share keeps its own source color",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "COIN",
+          "amount": 50,
+          "color": "RED"
+        },
+        {
+          "account": "b",
+          "asset": "COIN",
+          "amount": 50
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "RED"
+        },
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

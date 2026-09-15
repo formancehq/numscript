@@ -1,0 +1,10 @@
+
+send [USD 1] (
+  source = @src allowing unbounded overdraft
+  destination = @d1
+)
+
+send [USD *] (
+  source = @src
+  destination = @d2
+)

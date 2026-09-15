@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "refunds the kept funds to the source color",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 100,
+          "color": "RED"
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ],
+      "expect.endBalances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 70,
+          "color": "RED"
+        },
+        {
+          "account": "dest",
+          "asset": "COIN",
+          "amount": 30,
+          "color": "RED"
+        }
+      ]
+    }
+  ]
+}
