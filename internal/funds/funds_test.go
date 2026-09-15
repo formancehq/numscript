@@ -1,6 +1,7 @@
 package funds_test
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -615,6 +616,20 @@ func TestForcePosting_UsesExplicitAssetNotCurrent(t *testing.T) {
 func TestForcePosting_ZeroIsNoOp(t *testing.T) {
 	rs, _ := newRS(map[funds.PairKey]int64{{"A", "", usd, ""}: 100})
 	_ = rs.ForcePosting("A", "", "B", "", usd, "", big.NewInt(0))
+	wantBalance(t, rs, "A", 100)
+	wantPostings(t, rs, []funds.Posting{})
+}
+
+// A negative conversion means the caller's arithmetic is inconsistent — a
+// scaling solution whose net differs from the legs it asks to post. Dropping
+// the negative leg and posting only the positive ones moves money out without
+// the compensating move back, so this fails closed instead.
+func TestForcePosting_NegativeIsRejected(t *testing.T) {
+	rs, _ := newRS(map[funds.PairKey]int64{{"A", "", usd, ""}: 100})
+	err := rs.ForcePosting("A", "", "B", "", usd, "", big.NewInt(-30))
+	if !errors.Is(err, funds.ErrNegativePosting) {
+		t.Fatalf("ForcePosting(-30) error = %v, want ErrNegativePosting", err)
+	}
 	wantBalance(t, rs, "A", 100)
 	wantPostings(t, rs, []funds.Posting{})
 }

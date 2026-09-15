@@ -27,6 +27,12 @@ import (
 	"math/big"
 )
 
+// ErrNegativePosting is returned by ForcePosting for a negative amount. A
+// negative conversion means the caller.s own arithmetic is inconsistent (e.g. a
+// scaling solution whose net differs from the legs it asks to post), and posting
+// only the positive legs would move money without moving it back. Fail closed.
+var ErrNegativePosting = errors.New("funds: negative forced posting")
+
 // ErrNoOpenMark is the only error MarkEnd returns. Well-formed bytecode matches
 // pushes to ends, so it only surfaces for hand-written IR or a hand-crafted .numb.
 var ErrNoOpenMark = errors.New("funds: no open mark to end")
@@ -365,12 +371,16 @@ func (s *RunState) SendUncapped(dest *string, destScope string, color *string) e
 // ForcePosting moves amount from src to dst bypassing the funding queue, for
 // movements the queue does not model (e.g. asset-scaling conversions). Unlike Send
 // it uses the explicit asset argument, which may differ from the current asset. A
-// non-positive amount is a no-op; no balance sufficiency check is performed.
+// zero amount is a no-op and a negative one is ErrNegativePosting; no balance
+// sufficiency check is performed.
 //
 // Safe inside a region, unlike Send: it touches no queue entry, so a rewinding
 // MarkEnd undoes it completely by reversing the posting.
 func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color string, amount *big.Int) error {
-	if amount.Sign() <= 0 {
+	if amount.Sign() < 0 {
+		return ErrNegativePosting
+	}
+	if amount.Sign() == 0 {
 		return nil
 	}
 	if err := s.addToBalance(src, srcScope, asset, color, new(big.Int).Neg(amount)); err != nil {

@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"math/big"
 	"slices"
@@ -242,6 +243,16 @@ func (st *programState) forcePushPostingUncolored(
 ) InterpreterError {
 	amtBi := big.Int(amount)
 	if err := st.rs.ForcePosting(source.Name, source.Scope, destination.Name, destination.Scope, string(asset), "", &amtBi); err != nil {
+		// A negative conversion would previously have reached
+		// checkPostingInvariants as a negative posting, so report it the same way.
+		if errors.Is(err, funds.ErrNegativePosting) {
+			return InternalError{Posting: Posting{
+				Source:      source.Name,
+				Destination: destination.Name,
+				Asset:       string(asset),
+				Amount:      &amtBi,
+			}}
+		}
 		return QueryBalanceError{WrappedError: err}
 	}
 	return nil
