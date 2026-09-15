@@ -45,6 +45,15 @@ func ExprAsset(name string) Expression[ExprTypeAsset] {
 	}
 }
 
+// UnsafeAsset emits literal directly as an asset reference, bypassing the
+// vars pool — the inline counterpart to ExprAsset, and the asset-typed
+// analogue of UnsafeAccount (same caveat: the caller owns validity).
+func UnsafeAsset(literal string) Expression[ExprTypeAsset] {
+	return func(env *env, w int) {
+		env.builder.WriteString(literal)
+	}
+}
+
 func ExprString(name string) Expression[ExprTypeString] {
 	return func(env *env, w int) {
 		id := env.stringsPool.getItemId(name)
@@ -53,10 +62,64 @@ func ExprString(name string) Expression[ExprTypeString] {
 	}
 }
 
+// ExprMonetaryVar routes a monetary through the vars pool, rendering
+// `$monetary_N` bound to binding (e.g. "COIN 100"). The inline counterpart is
+// ExprMonetary, which writes a `[<asset> <amount>]` literal.
+//
+// Note the amount slot of an inline monetary literal cannot itself be a
+// variable in either grammar (`[COIN $n]` is rejected), so a var-form monetary
+// has to replace the whole literal rather than just its amount.
+func ExprMonetaryVar(binding string) Expression[ExprTypeMonetary] {
+	return func(env *env, w int) {
+		id := env.monetariesPool.getItemId(binding)
+		env.builder.WriteByte('$')
+		env.builder.WriteString(monetaryToName(id))
+	}
+}
+
+// ExprPortionVar routes a portion through the vars pool, rendering
+// `$portion_N` bound to binding (e.g. "1/2"). ExprPortion is the inline form.
+func ExprPortionVar(binding string) Expression[ExprTypePortion] {
+	return func(env *env, w int) {
+		id := env.portionsPool.getItemId(binding)
+		env.builder.WriteByte('$')
+		env.builder.WriteString(portionToName(id))
+	}
+}
+
+// ExprPortion renders p inline, as a `num/denom` literal.
+func ExprPortion(p Portion) Expression[ExprTypePortion] {
+	return func(env *env, w int) {
+		p.render(env)
+	}
+}
+
 func ExprNumberBigInt(amount *big.Int) Expression[ExprTypeNumber] {
 	// we don't risk injection with numbers so we can just pprint them right away
 	return func(env *env, w int) {
 		env.builder.WriteString(amount.String())
+	}
+}
+
+// ExprNumberVar routes a number through the vars pool, rendering `$number_N`.
+// ExprNumberBigInt is the inline form.
+//
+// Note a number var is not legal everywhere a number literal is: the amount
+// slot of a monetary literal (`[COIN $n]`) is rejected by both grammars, so
+// this is for value positions such as a meta value.
+func ExprNumberVar(amount *big.Int) Expression[ExprTypeNumber] {
+	return func(env *env, w int) {
+		id := env.numbersPool.getItemId(amount)
+		env.builder.WriteByte('$')
+		env.builder.WriteString(numberToName(id))
+	}
+}
+
+// ExprStringLit renders s inline, as a quoted string literal. ExprString is
+// the var form.
+func ExprStringLit(s string) Expression[ExprTypeString] {
+	return func(env *env, w int) {
+		writeStringLiteral(env, s)
 	}
 }
 

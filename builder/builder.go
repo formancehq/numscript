@@ -31,8 +31,13 @@ type env struct {
 	assetsPool   pool[string]
 	stringsPool  pool[string]
 	numbersPool  pool[*big.Int]
-	varsEnv      VarsEnv
-	originVars   []varOriginDecl
+	// Monetaries and portions are pooled by their textual binding ("COIN 100",
+	// "1/2") rather than by a structured value: the binding map is strings
+	// anyway, and equal text is the same value.
+	monetariesPool pool[string]
+	portionsPool   pool[string]
+	varsEnv        VarsEnv
+	originVars     []varOriginDecl
 }
 
 func writeIndentation(env *env, w int) {
@@ -48,11 +53,13 @@ func writeIndentation(env *env, w int) {
 
 func newEnv() env {
 	return env{
-		accountsPool: newPool[string](),
-		assetsPool:   newPool[string](),
-		stringsPool:  newPool[string](),
-		numbersPool:  newPool[*big.Int](),
-		varsEnv:      VarsEnv{bindings: map[anyVar]string{}},
+		accountsPool:   newPool[string](),
+		assetsPool:     newPool[string](),
+		stringsPool:    newPool[string](),
+		numbersPool:    newPool[*big.Int](),
+		monetariesPool: newPool[string](),
+		portionsPool:   newPool[string](),
+		varsEnv:        VarsEnv{bindings: map[anyVar]string{}},
 	}
 }
 
@@ -75,6 +82,12 @@ func assetToName(id int) string {
 }
 func stringToName(id int) string {
 	return itemIdToName(id, "string")
+}
+func monetaryToName(id int) string {
+	return itemIdToName(id, "monetary")
+}
+func portionToName(id int) string {
+	return itemIdToName(id, "portion")
 }
 func numberToName(id int) string {
 	return itemIdToName(id, "number")
@@ -168,6 +181,8 @@ func renderVars(
 	renderVar(st, "number", env.numbersPool, numberToName, func(bi *big.Int) string {
 		return bi.String()
 	})
+	renderVar(st, "monetary", env.monetariesPool, monetaryToName, stringId)
+	renderVar(st, "portion", env.portionsPool, portionToName, stringId)
 	for id, ov := range env.originVars {
 		st.hasVars = true
 		st.sb.WriteString(indentStr)

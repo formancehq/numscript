@@ -29,11 +29,12 @@ func genSeedStatements(rng *rand.Rand, poolSize int, assets []string) Program {
 		for _, asset := range assets {
 			stmts = append(stmts, Statement{
 				IsSendAll: false,
-				Amount:    Monetary{Asset: asset, Amount: seedAmount(rng)},
-				Source:    Source{Kind: SrcAccount, Account: "world"},
+				Amount:    Monetary{Asset: asset, AssetAsVar: asVar(rng), Amount: seedAmount(rng)},
+				Source:    Source{Kind: SrcAccount, Account: "world", AccountAsVar: asVar(rng)},
 				Destination: Destination{
-					Kind:    DestAccount,
-					Account: fmt.Sprintf("acc%d", i),
+					Kind:         DestAccount,
+					Account:      fmt.Sprintf("acc%d", i),
+					AccountAsVar: asVar(rng),
 				},
 			})
 		}
@@ -162,19 +163,19 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 	for i := range out {
 		if len(metaKeys) > 0 && rng.Intn(3) == 0 {
 			k := metaKeys[rng.Intn(len(metaKeys))]
-			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, Key: k.Key}
+			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: asVar(rng), Key: k.Key}
 			continue
 		}
 		if rng.Intn(4) == 0 {
-			out[i] = VarDecl{Kind: VarFromBalance, Account: "world", Asset: pickAsset(rng)}
+			out[i] = VarDecl{Kind: VarFromBalance, Account: "world", AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
 			continue
 		}
 		if len(fundedKeys) > 0 && rng.Intn(2) == 0 {
 			k := fundedKeys[rng.Intn(len(fundedKeys))]
-			out[i] = VarDecl{Kind: VarFromBalance, Account: k.Account, Asset: k.Asset}
+			out[i] = VarDecl{Kind: VarFromBalance, Account: k.Account, AccountAsVar: asVar(rng), Asset: k.Asset, AssetAsVar: asVar(rng)}
 			continue
 		}
-		out[i] = VarDecl{Kind: VarFromBalance, Account: account(rng, poolSize), Asset: pickAsset(rng)}
+		out[i] = VarDecl{Kind: VarFromBalance, Account: account(rng, poolSize), AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
 	}
 
 	// Deliberately bias toward the exact collision shape that produced two
@@ -227,7 +228,7 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 // runtime value (e.g. `5 - 10`), which both engines parse and evaluate.
 func genNumExpr(rng *rand.Rand, depth int) NumExpr {
 	if depth <= 0 || rng.Intn(3) != 0 {
-		return NumExpr{Kind: NumLit, Lit: big.NewInt(int64(rng.Intn(1000)))}
+		return NumExpr{Kind: NumLit, Lit: big.NewInt(int64(rng.Intn(1000))), LitAsVar: asVar(rng)}
 	}
 	left := genNumExpr(rng, depth-1)
 	right := genNumExpr(rng, depth-1)
@@ -235,6 +236,17 @@ func genNumExpr(rng *rand.Rand, depth int) NumExpr {
 		return NumExpr{Kind: NumAdd, Left: &left, Right: &right}
 	}
 	return NumExpr{Kind: NumSub, Left: &left, Right: &right}
+}
+
+// genMetaStringValue occasionally makes a meta value a string instead of a
+// number, so string-typed values are exercised in both their inline and var
+// forms. nil means "keep the numeric expression".
+func genMetaStringValue(rng *rand.Rand) (*string, bool) {
+	if rng.Intn(3) != 0 {
+		return nil, false
+	}
+	s := fmt.Sprintf("str%d", rng.Intn(4))
+	return &s, asVar(rng)
 }
 
 // varIndicesOfKind returns the indices into vars whose Kind matches.
@@ -297,42 +309,50 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 			acc := account(rng, poolSize)
 			if len(balanceVarIdxs) > 0 && rng.Intn(2) == 0 {
 				idx := balanceVarIdxs[rng.Intn(len(balanceVarIdxs))]
-				out = append(out, ExtraStatement{Kind: ExtraSave, VarIdx: &idx, Account: acc})
+				out = append(out, ExtraStatement{Kind: ExtraSave, VarIdx: &idx, Account: acc, AccountAsVar: asVar(rng)})
 			} else {
 				asset := pickAsset(rng)
 				m := monetary(rng, asset)
-				out = append(out, ExtraStatement{Kind: ExtraSave, Monetary: &m, Account: acc})
+				out = append(out, ExtraStatement{Kind: ExtraSave, Monetary: &m, Account: acc, AccountAsVar: asVar(rng)})
 			}
 
 		case ExtraSaveAll:
 			out = append(out, ExtraStatement{
-				Kind:    ExtraSaveAll,
-				Asset:   pickAsset(rng),
-				Account: account(rng, poolSize),
+				Kind:       ExtraSaveAll,
+				Asset:      pickAsset(rng),
+				AssetAsVar: asVar(rng),
+				Account:    account(rng, poolSize), AccountAsVar: asVar(rng),
 			})
 
 		case ExtraSetTxMeta:
+			sv, svVar := genMetaStringValue(rng)
 			out = append(out, ExtraStatement{
-				Kind:  ExtraSetTxMeta,
-				Key:   fmt.Sprintf("k%d", rng.Intn(5)),
-				Value: genNumExpr(rng, 3),
+				Kind:             ExtraSetTxMeta,
+				Key:              fmt.Sprintf("k%d", rng.Intn(5)),
+				Value:            genNumExpr(rng, 3),
+				StringValue:      sv,
+				StringValueAsVar: svVar,
 			})
 
 		case ExtraSetAccountMeta:
+			sv, svVar := genMetaStringValue(rng)
 			out = append(out, ExtraStatement{
 				Kind:    ExtraSetAccountMeta,
-				Account: account(rng, poolSize),
-				Key:     fmt.Sprintf("k%d", rng.Intn(5)),
-				Value:   genNumExpr(rng, 3),
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Key:              fmt.Sprintf("k%d", rng.Intn(5)),
+				Value:            genNumExpr(rng, 3),
+				StringValue:      sv,
+				StringValueAsVar: svVar,
 			})
 
 		case ExtraSendVar:
 			idx := balanceVarIdxs[rng.Intn(len(balanceVarIdxs))]
 			out = append(out, ExtraStatement{
-				Kind:        ExtraSendVar,
-				VarIdx:      &idx,
-				Account:     account(rng, poolSize),
-				Destination: account(rng, poolSize),
+				Kind:    ExtraSendVar,
+				VarIdx:  &idx,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Destination:      account(rng, poolSize),
+				DestinationAsVar: asVar(rng),
 			})
 
 		case ExtraSetTxMetaVar:
@@ -351,7 +371,7 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 				Kind:          ExtraSendFromAccountVar,
 				AccountVarIdx: &idx,
 				Monetary:      &m,
-				Account:       account(rng, poolSize), // destination
+				Account:       account(rng, poolSize), AccountAsVar: asVar(rng), // destination
 			})
 
 		case ExtraSendToAccountVar:
@@ -362,7 +382,7 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 				Kind:          ExtraSendToAccountVar,
 				AccountVarIdx: &idx,
 				Monetary:      &m,
-				Account:       account(rng, poolSize), // source
+				Account:       account(rng, poolSize), AccountAsVar: asVar(rng), // source
 			})
 		}
 	}

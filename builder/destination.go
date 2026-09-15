@@ -55,7 +55,7 @@ func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
 		env.builder.WriteString("{\n")
 		for _, clause := range clauses {
 			writeIndentation(env, w+1)
-			clause.Portion.render(env)
+			clause.Portion(env, w)
 			env.builder.WriteString(" ")
 			clause.Payload(env, w+1)
 			env.builder.WriteByte('\n')

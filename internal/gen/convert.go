@@ -7,12 +7,9 @@ import (
 )
 
 // ToBuilder converts a (post-cleanup) generated program into builder
-// statements, ready to be passed to builder.BuildProgram. Accounts are
-// emitted via builder.UnsafeAccount rather than the pooled ExprAccount: the
-// account pool here is a small fixed set ("world", "acc0".."accN") reused
-// constantly across a program, and pooling all of them into $vars would
-// just add noise to every generated script without changing behavior (both
-// engines are run with the same vars binding map regardless).
+// statements, ready to be passed to builder.BuildProgram. Each account and
+// asset occurrence is rendered inline or through a var according to its
+// AsVar flag — see toBuilderAccount.
 func ToBuilder(p Program) []builder.Statement {
 	out := make([]builder.Statement, len(p))
 	for i, s := range p {
@@ -26,12 +23,45 @@ func toBuilderStatement(s Statement) builder.Statement {
 	dest := toBuilderDestination(s.Destination)
 
 	if s.IsSendAll {
-		return builder.StmtSendAll(builder.ExprAsset(s.Asset), src, dest)
+		return builder.StmtSendAll(toBuilderAsset(s.Asset, s.AssetAsVar), src, dest)
 	}
 	return builder.StmtSend(toBuilderMonetary(s.Amount), src, dest)
 }
 
+// toBuilderAccount renders one account occurrence, either inline (`@addr`) or
+// through a pooled var (`$accountN` bound to addr). builder.ExprAccount pools
+// by address, so every var-form occurrence of an address shares one var while
+// inline occurrences stay literal — letting a single script reference the same
+// account both ways.
+func toBuilderAccount(address string, asVar bool) builder.Expression[builder.ExprTypeAccount] {
+	if asVar {
+		return builder.ExprAccount(address)
+	}
+	return builder.UnsafeAccount(address)
+}
+
+// toBuilderString renders one string occurrence, var or inline.
+func toBuilderString(s string, asVar bool) builder.Expression[builder.ExprTypeString] {
+	if asVar {
+		return builder.ExprString(s)
+	}
+	return builder.ExprStringLit(s)
+}
+
+// toBuilderAsset renders one asset occurrence, var or inline. Note the asset
+// slot of a monetary literal accepts a var in both grammars (`[$assetN 10]`),
+// unlike the amount slot — see toBuilderMonetary.
+func toBuilderAsset(asset string, asVar bool) builder.Expression[builder.ExprTypeAsset] {
+	if asVar {
+		return builder.ExprAsset(asset)
+	}
+	return builder.UnsafeAsset(asset)
+}
+
 func toBuilderMonetary(m Monetary) builder.Expression[builder.ExprTypeMonetary] {
+	if m.AsVar && m.Amount.Sign() >= 0 {
+		return builder.ExprMonetaryVar(m.Asset + " " + m.Amount.String())
+	}
 	if m.Amount.Sign() < 0 {
 		// A bracketed monetary literal's amount slot (`[ASSET N]`) only ever
 		// accepts a bare non-negative number in both grammars — there's no
@@ -40,16 +70,19 @@ func toBuilderMonetary(m Monetary) builder.Expression[builder.ExprTypeMonetary] 
 		// (verified directly against the oracle); see
 		// builder.ExprMonetarySub.
 		abs := new(big.Int).Neg(m.Amount)
-		zero := builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(big.NewInt(0)))
-		magnitude := builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(abs))
+		zero := builder.ExprMonetary(toBuilderAsset(m.Asset, m.AssetAsVar), builder.ExprNumberBigInt(big.NewInt(0)))
+		magnitude := builder.ExprMonetary(toBuilderAsset(m.Asset, m.AssetAsVar), builder.ExprNumberBigInt(abs))
 		return builder.ExprMonetarySub(zero, magnitude)
 	}
-	return builder.ExprMonetary(builder.ExprAsset(m.Asset), builder.ExprNumberBigInt(m.Amount))
+	return builder.ExprMonetary(toBuilderAsset(m.Asset, m.AssetAsVar), builder.ExprNumberBigInt(m.Amount))
 }
 
 func toBuilderNumExpr(e NumExpr) builder.Expression[builder.ExprTypeNumber] {
 	switch e.Kind {
 	case NumLit:
+		if e.LitAsVar {
+			return builder.ExprNumberVar(e.Lit)
+		}
 		return builder.ExprNumberBigInt(e.Lit)
 	case NumAdd:
 		return builder.ExprAdd(toBuilderNumExpr(*e.Left), toBuilderNumExpr(*e.Right))
@@ -76,10 +109,10 @@ func toBuilderVarExprs(vars []VarDecl) varExprs {
 		number:   make([]builder.Expression[builder.ExprTypeNumber], len(vars)),
 	}
 	for i, v := range vars {
-		account := builder.UnsafeAccount(v.Account)
+		account := toBuilderAccount(v.Account, v.AccountAsVar)
 		switch v.Kind {
 		case VarFromBalance:
-			ve.monetary[i] = builder.NewMonetaryVarFromBalance(account, builder.ExprAsset(v.Asset))
+			ve.monetary[i] = builder.NewMonetaryVarFromBalance(account, toBuilderAsset(v.Asset, v.AssetAsVar))
 		case VarFromMeta:
 			ve.number[i] = builder.NewNumberVarFromMeta(account, v.Key)
 		default:
@@ -145,22 +178,29 @@ func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Exp
 		} else {
 			mon = toBuilderMonetary(*e.Monetary)
 		}
-		return builder.StmtSave(mon, builder.UnsafeAccount(e.Account))
+		return builder.StmtSave(mon, toBuilderAccount(e.Account, e.AccountAsVar))
 
 	case ExtraSaveAll:
-		return builder.StmtSaveAll(builder.ExprAsset(e.Asset), builder.UnsafeAccount(e.Account))
+		return builder.StmtSaveAll(toBuilderAsset(e.Asset, e.AssetAsVar), toBuilderAccount(e.Account, e.AccountAsVar))
 
 	case ExtraSetTxMeta:
+		if e.StringValue != nil {
+			return builder.StmtSetTxMeta(e.Key, toBuilderString(*e.StringValue, e.StringValueAsVar))
+		}
 		return builder.StmtSetTxMeta(e.Key, toBuilderNumExpr(e.Value))
 
 	case ExtraSetAccountMeta:
-		return builder.StmtSetAccountMeta(builder.UnsafeAccount(e.Account), e.Key, toBuilderNumExpr(e.Value))
+		acct := toBuilderAccount(e.Account, e.AccountAsVar)
+		if e.StringValue != nil {
+			return builder.StmtSetAccountMeta(acct, e.Key, toBuilderString(*e.StringValue, e.StringValueAsVar))
+		}
+		return builder.StmtSetAccountMeta(acct, e.Key, toBuilderNumExpr(e.Value))
 
 	case ExtraSendVar:
 		return builder.StmtSend(
 			ve.monetary[*e.VarIdx],
-			builder.SrcAccountOverdraft(builder.UnsafeAccount(e.Account), builder.UnboundedOverdraft()),
-			builder.DestAccount(builder.UnsafeAccount(e.Destination)),
+			builder.SrcAccountOverdraft(toBuilderAccount(e.Account, e.AccountAsVar), builder.UnboundedOverdraft()),
+			builder.DestAccount(toBuilderAccount(e.Destination, e.DestinationAsVar)),
 		)
 
 	case ExtraSetTxMetaVar:
@@ -170,13 +210,13 @@ func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Exp
 		return builder.StmtSend(
 			toBuilderMonetary(*e.Monetary),
 			builder.SrcAccount(accountVarExprs[*e.AccountVarIdx]),
-			builder.DestAccount(builder.UnsafeAccount(e.Account)),
+			builder.DestAccount(toBuilderAccount(e.Account, e.AccountAsVar)),
 		)
 
 	case ExtraSendToAccountVar:
 		return builder.StmtSend(
 			toBuilderMonetary(*e.Monetary),
-			builder.SrcAccount(builder.UnsafeAccount(e.Account)),
+			builder.SrcAccount(toBuilderAccount(e.Account, e.AccountAsVar)),
 			builder.DestAccount(accountVarExprs[*e.AccountVarIdx]),
 		)
 
@@ -185,21 +225,26 @@ func toBuilderExtra(e ExtraStatement, ve varExprs, accountVarExprs []builder.Exp
 	}
 }
 
-func toBuilderPortion(r *big.Rat) builder.Portion {
-	return builder.NewPortion(new(big.Int).Set(r.Num()), new(big.Int).Set(r.Denom()))
+// toBuilderPortion renders one portion occurrence, inline (`n/d`) or through a
+// pooled var bound to the same "n/d" text.
+func toBuilderPortion(r *big.Rat, asVar bool) builder.Expression[builder.ExprTypePortion] {
+	if asVar {
+		return builder.ExprPortionVar(r.Num().String() + "/" + r.Denom().String())
+	}
+	return builder.ExprPortion(builder.NewPortion(new(big.Int).Set(r.Num()), new(big.Int).Set(r.Denom())))
 }
 
 func toBuilderSource(s Source) builder.Source {
 	switch s.Kind {
 	case SrcAccount:
-		return builder.SrcAccount(builder.UnsafeAccount(s.Account))
+		return builder.SrcAccount(toBuilderAccount(s.Account, s.AccountAsVar))
 
 	case SrcAccountOverdraft:
 		if s.Overdraft == nil {
-			return builder.SrcAccountOverdraft(builder.UnsafeAccount(s.Account), builder.UnboundedOverdraft())
+			return builder.SrcAccountOverdraft(toBuilderAccount(s.Account, s.AccountAsVar), builder.UnboundedOverdraft())
 		}
 		return builder.SrcAccountOverdraft(
-			builder.UnsafeAccount(s.Account),
+			toBuilderAccount(s.Account, s.AccountAsVar),
 			builder.BoundedOverdraft(toBuilderMonetary(*s.Overdraft)),
 		)
 
@@ -217,7 +262,7 @@ func toBuilderSource(s Source) builder.Source {
 		clauses := make([]builder.AllotmentClause[builder.Source], len(s.Clauses))
 		for i, c := range s.Clauses {
 			clauses[i] = builder.AllotmentClause[builder.Source]{
-				Portion: toBuilderPortion(c.Portion),
+				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
 				Payload: toBuilderSource(c.Source),
 			}
 		}
@@ -231,7 +276,7 @@ func toBuilderSource(s Source) builder.Source {
 func toBuilderDestination(d Destination) builder.Destination {
 	switch d.Kind {
 	case DestAccount:
-		return builder.DestAccount(builder.UnsafeAccount(d.Account))
+		return builder.DestAccount(toBuilderAccount(d.Account, d.AccountAsVar))
 
 	case DestInorder:
 		clauses := make([]builder.DestInorderClause, len(d.InorderClauses))
@@ -247,7 +292,7 @@ func toBuilderDestination(d Destination) builder.Destination {
 		clauses := make([]builder.AllotmentClause[builder.KeptOrDest], len(d.AllotClauses))
 		for i, c := range d.AllotClauses {
 			clauses[i] = builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: toBuilderPortion(c.Portion),
+				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
 				Payload: toBuilderKeptOrDest(c.KeptOrDest),
 			}
 		}

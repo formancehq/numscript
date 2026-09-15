@@ -118,9 +118,9 @@ func pickAsset(rng *rand.Rand) string {
 // known issue on every run. See DIFFTEST_HANDOFF.md's bug list.
 func monetary(rng *rand.Rand, asset string) Monetary {
 	if rng.Intn(20) == 0 {
-		return Monetary{Asset: asset, Amount: big.NewInt(0)}
+		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(0)}
 	}
-	return Monetary{Asset: asset, Amount: big.NewInt(int64(rng.Intn(1000)))}
+	return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(int64(rng.Intn(1000)))}
 }
 
 // statementAmount generates the Monetary used as a statement's own
@@ -137,20 +137,30 @@ func statementAmount(rng *rand.Rand, asset string) Monetary {
 	roll := rng.Intn(100)
 	switch {
 	case roll < 5:
-		return Monetary{Asset: asset, Amount: big.NewInt(0)}
+		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(0)}
 	case roll < 10:
-		return Monetary{Asset: asset, Amount: big.NewInt(-int64(rng.Intn(1000)) - 1)}
+		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(-int64(rng.Intn(1000)) - 1)}
 	default:
-		return Monetary{Asset: asset, Amount: big.NewInt(int64(rng.Intn(1000)))}
+		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(int64(rng.Intn(1000)))}
 	}
 }
 
 func addMonetary(x *big.Int, m Monetary) Monetary {
-	return Monetary{Asset: m.Asset, Amount: new(big.Int).Add(x, m.Amount)}
+	return Monetary{Asset: m.Asset, AssetAsVar: m.AssetAsVar, AsVar: m.AsVar, Amount: new(big.Int).Add(x, m.Amount)}
 }
 
 func account(rng *rand.Rand, poolSize int) string {
 	return fmt.Sprintf("acc%d", rng.Intn(poolSize))
+}
+
+// asVar decides whether one value occurrence is written through a `vars {}`
+// variable instead of inline. It is rolled per occurrence, so the same
+// account or asset routinely appears both ways inside one script: that mix is
+// the point, because two occurrences of one address in different forms become
+// two distinct resources resolving to the same account (formancehq/ledger#2056).
+// A uniform choice per value would never produce it.
+func asVar(rng *rand.Rand) bool {
+	return rng.Intn(3) == 0
 }
 
 func zeroFreqIf(weight int, cond bool) int {
@@ -221,26 +231,26 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 		{
 			zeroFreqIf(5, opts.isUnbounded),
 			func() Source {
-				return Source{Kind: SrcAccount, Account: "world"}
+				return Source{Kind: SrcAccount, Account: "world", AccountAsVar: asVar(rng)}
 			},
 		},
 		{
 			15,
 			func() Source {
-				return Source{Kind: SrcAccount, Account: account(rng, opts.poolSize)}
+				return Source{Kind: SrcAccount, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng)}
 			},
 		},
 		{
 			5,
 			func() Source {
 				m := monetary(rng, opts.asset)
-				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), Overdraft: &m}
+				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: &m}
 			},
 		},
 		{
 			zeroFreqIf(5, opts.isUnbounded),
 			func() Source {
-				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), Overdraft: nil}
+				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: nil}
 			},
 		},
 		{
@@ -278,7 +288,7 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 				portions := portionsList(rng)
 				clauses := make([]SourceAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = SourceAllotmentClause{Portion: p, Source: genSource(rng, innerOpts)}
+					clauses[i] = SourceAllotmentClause{Portion: p, PortionAsVar: asVar(rng), Source: genSource(rng, innerOpts)}
 				}
 				return Source{Kind: SrcAllotment, Clauses: clauses}
 			},
@@ -311,7 +321,7 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 		{
 			30,
 			func() Destination {
-				return Destination{Kind: DestAccount, Account: account(rng, opts.poolSize)}
+				return Destination{Kind: DestAccount, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng)}
 			},
 		},
 		{
@@ -330,7 +340,7 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 				portions := portionsList(rng)
 				clauses := make([]DestAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = DestAllotmentClause{Portion: p, KeptOrDest: genKeptOrDest(rng, nestedOpts)}
+					clauses[i] = DestAllotmentClause{Portion: p, PortionAsVar: asVar(rng), KeptOrDest: genKeptOrDest(rng, nestedOpts)}
 				}
 				return Destination{Kind: DestAllotment, AllotClauses: clauses}
 			},

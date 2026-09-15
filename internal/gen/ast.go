@@ -14,8 +14,24 @@ package gen
 
 import "math/big"
 
+// An "AsVar" field marks one value occurrence as written through a `vars {}`
+// variable instead of inline. It is per occurrence, not per value: the same
+// account address or asset can appear inline in one place and as a var in
+// another within the same script. That is what makes two distinct resources
+// resolve to the same account — the aliasing behind formancehq/ledger#2056,
+// which this generator previously could not produce because every account it
+// emitted was a literal.
+//
+// Only the rendering changes, never the value, so passes that reason about
+// addresses (cleanup.go) are unaffected.
 type Monetary struct {
-	Asset  string
+	Asset string
+	// Render Asset through a var rather than inline.
+	AssetAsVar bool
+	// Render the whole monetary through a var (`$monetary_N`) rather than as a
+	// `[asset amount]` literal. Ignored for negative amounts, which have no
+	// literal form to bind (see toBuilderMonetary).
+	AsVar  bool
 	Amount *big.Int
 }
 
@@ -34,6 +50,8 @@ type Source struct {
 
 	// SrcAccount, SrcAccountOverdraft
 	Account string
+	// Render Account through a var rather than inline. See AsVar.
+	AccountAsVar bool
 
 	// SrcAccountOverdraft only: nil means unbounded overdraft
 	Overdraft *Monetary
@@ -51,7 +69,9 @@ type Source struct {
 
 type SourceAllotmentClause struct {
 	Portion *big.Rat
-	Source  Source
+	// Render Portion through a var rather than inline.
+	PortionAsVar bool
+	Source       Source
 }
 
 type DestKind int
@@ -67,6 +87,8 @@ type Destination struct {
 
 	// DestAccount only
 	Account string
+	// Render Account through a var rather than inline. See AsVar.
+	AccountAsVar bool
 
 	// DestInorder only
 	InorderClauses []DestInorderClause
@@ -82,8 +104,10 @@ type DestInorderClause struct {
 }
 
 type DestAllotmentClause struct {
-	Portion    *big.Rat
-	KeptOrDest KeptOrDest
+	Portion *big.Rat
+	// Render Portion through a var rather than inline.
+	PortionAsVar bool
+	KeptOrDest   KeptOrDest
 }
 
 type KeptOrDestKind int
@@ -100,9 +124,11 @@ type KeptOrDest struct {
 
 type Statement struct {
 	// If IsSendAll, Asset is used (unbounded send). Otherwise Amount is used.
-	IsSendAll   bool
-	Amount      Monetary
-	Asset       string
+	IsSendAll bool
+	Amount    Monetary
+	Asset     string
+	// IsSendAll only: render Asset through a var rather than inline.
+	AssetAsVar  bool
 	Source      Source
 	Destination Destination
 }
@@ -126,6 +152,8 @@ type NumExpr struct {
 
 	// NumLit only
 	Lit *big.Int
+	// NumLit only: render Lit through a var rather than inline.
+	LitAsVar bool
 
 	// NumAdd, NumSub only
 	Left, Right *NumExpr
@@ -148,9 +176,15 @@ const (
 type VarDecl struct {
 	Kind    VarDeclKind
 	Account string
+	// Render Account through a var rather than inline, so that
+	// `balance($accountN, ...)` and a literal `@acc` elsewhere in the script
+	// become two resources aliasing one account.
+	AccountAsVar bool
 
 	// VarFromBalance only
 	Asset string
+	// Render Asset through a var rather than inline.
+	AssetAsVar bool
 
 	// VarFromMeta only
 	Key string
@@ -194,11 +228,11 @@ const (
 // experimental interpreter, or if it is never used as a source"; the new
 // interpreter accepts it transparently, same as a literal @world). Compare
 // already tolerates that specific direction (oracle rejects, new interpreter
-// accepts) as expected, not a mismatch — this exists to exercise the
-// broader var-as-account code path (previously never generated at all: see
-// ToBuilder's doc comment — every other account reference in this package
-// goes through builder.UnsafeAccount, a literal, never a $var), not just
-// that one already-understood asymmetry.
+// accepts) as expected, not a mismatch.
+//
+// This is distinct from an account occurrence with AccountAsVar set: that
+// routes an ordinary account reference through the pooled vars mechanism,
+// whereas this declares a var whose bound value is itself interesting.
 type AccountVarDecl struct {
 	Value string
 }
@@ -226,16 +260,27 @@ type ExtraStatement struct {
 	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source),
 	// ExtraSendFromAccountVar (destination), ExtraSendToAccountVar (source)
 	Account string
+	// Render Account through a var rather than inline.
+	AccountAsVar bool
 
 	// ExtraSaveAll
 	Asset string
+	// Render Asset through a var rather than inline.
+	AssetAsVar bool
 
 	// ExtraSetTxMeta, ExtraSetAccountMeta, ExtraSetTxMetaVar
 	Key   string
 	Value NumExpr
+	// ExtraSetTxMeta, ExtraSetAccountMeta: when non-nil the meta value is this
+	// string rather than the Value expression, exercising string-typed values.
+	StringValue *string
+	// Render StringValue through a var rather than inline.
+	StringValueAsVar bool
 
 	// ExtraSendVar: `send $<Vars[VarIdx]> (source = Account, destination = Destination)`
 	Destination string
+	// Render Destination through a var rather than inline.
+	DestinationAsVar bool
 }
 
 // Script is the full output of one round of generation: a `vars {}` block,

@@ -333,11 +333,11 @@ func TestSrcAllotment(t *testing.T) {
 		),
 		builder.SrcAllotment(
 			builder.AllotmentClause[builder.Source]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(3)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(3))),
 				Payload: builder.SrcAccount(builder.ExprAccount("a")),
 			},
 			builder.AllotmentClause[builder.Source]{
-				Portion: builder.NewPortion(big.NewInt(2), big.NewInt(3)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(2), big.NewInt(3))),
 				Payload: builder.SrcAccount(builder.ExprAccount("b")),
 			},
 		),
@@ -413,11 +413,11 @@ func TestDestAllotment(t *testing.T) {
 		),
 		builder.DestAllotment(
 			builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(2))),
 				Payload: builder.To(builder.DestAccount(builder.ExprAccount("a"))),
 			},
 			builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(2))),
 				Payload: builder.Kept(),
 			},
 		),

@@ -2,10 +2,8 @@ package builder
 
 import "math/big"
 
-// A portion literal, e.g. `1/3`. Unlike accounts/assets/strings/numbers,
-// portions are never routed through the vars pool: numscript only allows a
-// portion literal, a variable, or `remaining` in allotment position, and
-// this builder only ever emits the literal form.
+// A portion literal, e.g. `1/3`. Wrap it with ExprPortion to use it in an
+// allotment clause; ExprPortionVar is the var-form alternative.
 type Portion struct {
 	num, denom *big.Int
 }
@@ -28,8 +26,10 @@ type payload interface {
 }
 
 // One clause of an allotment block: a portion plus its payload (a Source in
-// source position, a KeptOrDest in destination position).
+// source position, a KeptOrDest in destination position). Portion is an
+// expression, not a literal, so a clause can be written either inline
+// (ExprPortion) or through a var (ExprPortionVar).
 type AllotmentClause[T payload] struct {
-	Portion Portion
+	Portion Expression[ExprTypePortion]
 	Payload T
 }
