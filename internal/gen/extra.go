@@ -386,6 +386,27 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 			})
 		}
 	}
+
+	// Two balance() origins on one account only expose the resource-aliasing
+	// bug (formancehq/ledger#2056) if BOTH are referenced: an origin var that
+	// nothing references is never declared, so an unreferenced collision is
+	// invisible to either engine. genVarDecls already biases toward creating
+	// the colliding pair, but leaving it to chance which vars get referenced
+	// put the complete shape at roughly 1 script in 30,000 — far too rare to
+	// gate on. Reference both members deliberately instead.
+	if i, j, ok := aliasedBalanceVarPair(vars); ok && rng.Intn(2) == 0 {
+		for _, idx := range [2]int{i, j} {
+			v := idx
+			out = append(out, ExtraStatement{
+				Kind:    ExtraSendVar,
+				VarIdx:  &v,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Destination:      account(rng, poolSize),
+				DestinationAsVar: asVar(rng),
+			})
+		}
+	}
+
 	return out
 }
 
@@ -441,4 +462,20 @@ func GenerateScriptAST(rng *rand.Rand) Script {
 		Balances:    balances,
 		Metadata:    metadata,
 	}
+}
+
+// aliasedBalanceVarPair returns two distinct VarFromBalance indices whose
+// declarations read the balance of the same account, if any exist.
+func aliasedBalanceVarPair(vars []VarDecl) (int, int, bool) {
+	firstByAccount := map[string]int{}
+	for i, v := range vars {
+		if v.Kind != VarFromBalance {
+			continue
+		}
+		if j, seen := firstByAccount[v.Account]; seen {
+			return j, i, true
+		}
+		firstByAccount[v.Account] = i
+	}
+	return 0, 0, false
 }
