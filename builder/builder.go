@@ -4,6 +4,8 @@ package builder
 import (
 	"fmt"
 	"math/big"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -158,6 +160,49 @@ func renderExprToString(env *env, r render) string {
 	return out
 }
 
+// originVarRefRe matches a reference to an origin var inside a rendered
+// origin RHS, capturing its id.
+var originVarRefRe = regexp.MustCompile(`\$originvar_(\d+)\b`)
+
+// originDeclOrder orders origin var ids so that each one is declared after
+// every origin var its RHS references. Both engines resolve vars-block
+// origins in declaration order and dereference a referenced resource without
+// checking that it resolved, so a forward reference is a nil dereference
+// rather than a diagnostic.
+//
+// Ids are allocated dependent-first (the outer origin is rendered before the
+// inner one it nests), which is exactly the wrong order to emit in, so this
+// cannot just sort by id.
+func originDeclOrder(originRHS []string) []int {
+	order := make([]int, 0, len(originRHS))
+	seen := make([]bool, len(originRHS))
+
+	var visit func(id int)
+	visit = func(id int) {
+		if seen[id] {
+			return
+		}
+		// Marked before recursing: an origin cannot reference itself
+		// transitively (each is rendered once, and a reference can only be
+		// to a var allocated during that render), but a cycle here would
+		// otherwise be a stack overflow rather than a merely wrong order.
+		seen[id] = true
+		for _, m := range originVarRefRe.FindAllStringSubmatch(originRHS[id], -1) {
+			dep, err := strconv.Atoi(m[1])
+			if err != nil || dep >= len(originRHS) {
+				continue
+			}
+			visit(dep)
+		}
+		order = append(order, id)
+	}
+
+	for id := range originRHS {
+		visit(id)
+	}
+	return order
+}
+
 func renderVars(
 	st *varRenderState,
 	env *env,
@@ -169,9 +214,15 @@ func renderVars(
 	// which must be visible to the renderVar calls below — otherwise a
 	// pool entry discovered only here would never get its own `type $name`
 	// declaration line.
-	originRHS := make([]string, len(env.originVars))
-	for id, ov := range env.originVars {
-		originRHS[id] = renderExprToString(env, ov.origin)
+	//
+	// Rendering an origin can itself declare further origin vars — an origin's
+	// account position takes an arbitrary account expression, which may be
+	// another balance()/meta() var — so env.originVars grows during this loop.
+	// Index it rather than ranging over it: `range` fixes the length up front
+	// and would leave the entries discovered here unrendered.
+	var originRHS []string
+	for id := 0; id < len(env.originVars); id++ {
+		originRHS = append(originRHS, renderExprToString(env, env.originVars[id].origin))
 	}
 
 	st.sb.WriteString("vars {\n")
@@ -183,10 +234,10 @@ func renderVars(
 	})
 	renderVar(st, "monetary", env.monetariesPool, monetaryToName, stringId)
 	renderVar(st, "portion", env.portionsPool, portionToName, stringId)
-	for id, ov := range env.originVars {
+	for _, id := range originDeclOrder(originRHS) {
 		st.hasVars = true
 		st.sb.WriteString(indentStr)
-		st.sb.WriteString(ov.typ)
+		st.sb.WriteString(env.originVars[id].typ)
 		st.sb.WriteString(" $")
 		st.sb.WriteString(itemIdToName(id, "originvar"))
 		st.sb.WriteString(" = ")
