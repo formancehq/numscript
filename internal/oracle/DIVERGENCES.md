@@ -14,7 +14,7 @@ Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main.
 | § | kind | count | state |
 |---|---|---|---|
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
-| 2 | Oracle fixes **not** in ledger main | 2 | filed: ledger PRs #2060, #2063 |
+| 2 | Oracle fixes **not** in ledger main | 3 | filed: ledger PRs #2060, #2063, #2068 |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
 | 4 | Local workarounds since replaced by upstream's own fixes | 2 | done |
 
@@ -52,7 +52,7 @@ carry no semantics and need no decision.
 
 ## 2. Oracle fixes not yet integrated in ledger main
 
-Two ledger bugs the oracle fixes locally. Both are filed upstream and both
+Three ledger bugs the oracle fixes locally. All are filed upstream and all
 should be dropped from the oracle once their PR merges, at which point this
 section becomes empty again.
 
@@ -64,7 +64,11 @@ not signal. Each carries a comment at the code site pointing back here.
 | # | what | where | upstream |
 |---|---|---|---|
 | ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 |
-| ② | `save` evaluates its monetary expression | `script/compiler/compiler.go` | ledger PR #2063 |
+| ② | `save` evaluates its monetary expression | `script/compiler/compiler.go` | ledger PR #2063 (merged, unreleased) |
+| ③ | negative-amount guard on `OP_SAVE` | `vm/machine.go` | ledger PR #2068 |
+
+② and ③ are one story and must be read together: ② is what makes ③ reachable.
+Do not take ② without ③.
 
 ### ① Negative-amount guard on `OP_TAKE`
 
@@ -140,6 +144,49 @@ Pinned by `TestOracleSaveMonetaryExpression` in `smoke_test.go`, because the
 sweep does **not** cover it: `internal/gen` never emits a binary monetary
 expression in `save` position, which is why the harness did not find this
 itself. Closing that generator gap would make the pin redundant.
+
+### ③ Negative-amount guard on `OP_SAVE`
+
+```go
+case machine.Monetary:
+    if v.Amount.Ltz() {
+        return true, machine.NewErrNegativeAmount(
+            "tried to save a negative amount: [%s %s]", string(v.Asset), v.Amount)
+    }
+```
+
+`OP_SAVE` subtracts the saved amount from the tracked balance without checking
+its sign, and subtracting a negative **inflates** it. With `@alice` holding a
+real 100 USD:
+
+```
+save [USD 10] - [USD 20] from @alice
+
+send [USD *] (
+  source = @alice
+  destination = @bob
+)
+```
+
+| version | sends |
+|---|---|
+| ledger before ② | 90 — the right operand was dropped, so this was `save [USD 10]` |
+| ledger with ② only | **110 of a real 100** |
+| with ③ | `tried to save a negative amount: [USD -10]` |
+| numscript | `Cannot send negative amount: -10` |
+
+So ② is what makes this reachable: before it, a negative could never arrive at
+`OP_SAVE`, because the expression was never evaluated. **② must never ship
+without ③** — on its own it turns a wrong-amount bug into a money-creation one.
+At the time of writing ② is merged upstream but in no tag, so no released
+ledger is affected.
+
+**Status: reported upstream — ledger PR #2068.** Pinned by
+`TestOracleSaveNegativeAmountRejected`; like ②, the sweep does not reach it.
+
+Note the error style differs from ①: this uses the typed
+`machine.NewErrNegativeAmount`, while the `OP_TAKE`/`OP_TAKE_MAX` guards use a
+bare `fmt.Errorf`. Upstream's inconsistency, mirrored here on purpose.
 
 ## 3. Genuine numscript ↔ ledger semantic differences
 

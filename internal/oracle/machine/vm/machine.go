@@ -455,6 +455,15 @@ func (m *Machine) tick() (bool, error) {
 			}
 
 		case machine.Monetary:
+			// Not upstream: subtracting a negative inflates the tracked
+			// balance, so `save [USD 10] - [USD 20] from @acc` lets the
+			// account spend more than it holds. Only reachable since the
+			// save-expression fix below it. Filed as ledger PR #2068.
+			// See internal/oracle/DIVERGENCES.md §2.
+			if v.Amount.Ltz() {
+				return true, machine.NewErrNegativeAmount(
+					"tried to save a negative amount: [%s %s]", string(v.Asset), v.Amount)
+			}
 			if balances, ok := m.Balances[a]; ok {
 				if balance, ok := balances[v.Asset]; ok {
 					balances[v.Asset] = balance.Sub(v.Amount)

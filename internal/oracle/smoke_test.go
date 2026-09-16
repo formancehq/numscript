@@ -298,3 +298,28 @@ send [COIN *] (
 		})
 	}
 }
+
+// OP_SAVE subtracted the saved amount from the tracked balance without
+// checking its sign, so a negative INFLATED the balance: with @alice holding
+// 100, `save [USD 10] - [USD 20]` let her send 110. Only reachable once save
+// started evaluating its expression (see TestOracleSaveMonetaryExpression);
+// before that the right operand was dropped and the amount was never
+// negative. Fixed locally ahead of ledger — see DIVERGENCES.md §2 and ledger
+// PR #2068.
+func TestOracleSaveNegativeAmountRejected(t *testing.T) {
+	store := vm.StaticStore{
+		"alice": {
+			Account:  vm.Account{Address: "alice"},
+			Balances: map[string]*big.Int{"USD": big.NewInt(100)},
+		},
+	}
+
+	_, err := compileAndRun(t, `save [USD 10] - [USD 20] from @alice
+
+send [USD *] (
+	source = @alice
+	destination = @bob
+)`, store)
+
+	require.ErrorContains(t, err, "tried to save a negative amount: [USD -10]")
+}
