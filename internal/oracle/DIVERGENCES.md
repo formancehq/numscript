@@ -8,16 +8,16 @@ numscript, the less it can catch.
 This file lists every difference and why it is there.
 
 Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main at
-`35bb7ffac` (2026-09-16).
+`8880965c2` (2026-09-16).
 
 ## Summary
 
 | § | kind | count | state |
 |---|---|---|---|
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
-| 2 | Oracle fixes **not** in ledger main | 1 | ledger PR #2060 closed unmerged — needs a decision |
+| 2 | Oracle fixes **not** in ledger main | 1 | ledger PR #2060 closed unmerged; upstream pins the behaviour as a known bug — needs a decision |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
-| 4 | Local workarounds replaced by upstream's proposed fixes | 2 | waiting on ledger PR #2059 |
+| 4 | Local workarounds replaced by upstream's fixes | 0 | **closed** — ledger PR #2059 merged |
 
 `TestDifferentialSweep` is **currently red on purpose** — see §3.1.
 
@@ -47,7 +47,7 @@ carry no semantics and need no decision.
 | Import paths rewritten `…/ledger/internal/machine` → `…/numscript/internal/oracle/machine` | everywhere |
 | `ledger/pkg/{accounts,assets}` replaced by local `machine/internal/{accounts,assets}` | `account.go`, `asset.go`, `internal/…` |
 | `ledger "…/ledger/internal"` import dropped; local `Account`, `ResultPosting`, `Zero` used instead | `vm/oracle_types.go`, `vm/run.go`, `vm/store.go`, `vm/machine.go` |
-| Upstream's 12 `*_test.go` and `examples/basic.go` not copied | — |
+| Upstream's 13 `*_test.go` and `examples/basic.go` not copied | — |
 | `smoke_test.go` added — confirms the vendoring itself didn't break anything | `internal/oracle/` |
 | `vm/machine.go` deliberately left un-gofmt'd, to stay diffable against upstream | repo gofmt check excludes `/oracle/` |
 
@@ -61,7 +61,7 @@ the code site pointing back here.
 
 | # | what | where | upstream |
 |---|---|---|---|
-| ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 — **closed unmerged** |
+| ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 — **closed unmerged**; main pins the behaviour as a known bug |
 
 Two entries that used to live here are gone: `save` evaluating its monetary
 expression (ledger PR **#2063**, merged `95dfad77e`, backported to
@@ -99,13 +99,25 @@ looking in the wrong place.
 swept scripts (5.4%) diverge, all on the same missing-funds-vs-invalid-amount
 classification.
 
-**Status: PR #2060 (`fix/machine-negative-amount-op-take`) was closed unmerged
-on 2026-09-16 and its branch deleted, with no review comment recorded.** So
-this is not on its way into ledger the way ② and ③ were, and the question it
-raises is open: either re-file it upstream, or accept that ledger classifies a
-negative send as a funding error and move this entry to §3 as a genuine
-numscript ↔ ledger disagreement. Leaving it in §2 asserts a fix is coming, and
-right now none is.
+**Status: acknowledged upstream as a bug, not fixed.** PR #2060
+(`fix/machine-negative-amount-op-take`) was closed unmerged on 2026-09-16 and
+its branch deleted. What landed instead, via #2059, is
+`vm/machine_negative_amount_test.go` — a characterization of the behaviour
+rather than a fix:
+
+- `TestNegativeSendGuardedPaths` pins the four source shapes that compile to
+  `OP_TAKE_MAX` and do produce `cannot send a monetary with a negative amount`.
+- `TestNegativeSendAlwaysReportsInsufficientFunds`, commented `BUG:`, pins that
+  every bounded source instead reports `insufficient funds`, regardless of
+  balance, overdraft allowance, or source/destination shape — and notes the API
+  maps it to HTTP 400 `INSUFFICIENT_FUND`.
+
+So ledger agrees this is wrong and has written the current behaviour down as a
+known bug, but main still has no guard on `OP_TAKE`, and the oracle's guard
+stays until one lands. This is a weaker position than ② and ③ were in — those
+had merged PRs — so the entry needs a decision rather than just waiting: either
+re-file the fix, or drop the guard and move this to §3, accepting 161 of 3000
+swept scripts (5.4%) diverging on error classification.
 
 No separate pin needed: the sweep covers this one, and removing the guard
 lights up 161 scripts immediately.
@@ -219,27 +231,39 @@ error text.
 
 **Resolved.** PR #190 makes numscript error, matching ledger.
 
-## 4. Local workarounds replaced by upstream's proposed fixes
+## 4. Local workarounds replaced by upstream's fixes
 
-Both were local reimplementations of bugs upstream has since fixed its own way,
-on `fix/machine-balance-resource-collisions` (ledger PR **#2059**). The oracle
-now carries upstream's version of each rather than its own.
+**Empty — closed by ledger PR #2059, merged as `8880965c2`.**
+
+Two balance-resolution bugs the oracle used to work around locally, then
+carried upstream's proposed form of while #2059 was in review:
 
 | was | now |
 |---|---|
-| `UnresolvedResourceBalances map[string][]int` — tolerated address collisions | upstream's `map[int]string` (ledger `081349d51`), which cannot collide |
-| `StaticStore.GetBalances` per-account `make` hoisted, written locally | upstream's form (ledger `52da79031`) |
+| `UnresolvedResourceBalances map[string][]int` — tolerated address collisions | upstream's `map[int]string`, which cannot collide |
+| `StaticStore.GetBalances` per-account `make` hoisted, written locally | upstream's form |
 
-**#2059 is still open, so these are not in ledger main either** — against the
-baseline at the top of this file, the oracle is ahead here too, exactly like
-§2. They are listed separately only because the code is upstream's own, not
-something written here: when #2059 merges, the oracle matches main with no
-further work, whereas each §2 entry has to be deleted by hand.
+Both are now plain upstream code in main, so there is nothing left to track
+here. `vm/store.go` has dropped out of the `DIFFERS` list apart from §1's type
+substitutions.
 
-Verified against the PR branch at `081349d51`: apart from §1 and the §2 guard,
-the oracle is byte-identical to it.
+The merge is not identical to the branch this section used to cite
+(`081349d51`): review added a dedup of `balancesQuery`, which the oracle now
+carries too.
 
-If #2059 is ever closed unmerged, these move into §2 and need filing like the
-rest — which is what just happened to #2060, so it is not hypothetical.
+```go
+// several resources can alias the same account/asset pair, only query it once
+for address, assets := range balancesQuery {
+    slices.Sort(assets)
+    balancesQuery[address] = slices.Compact(assets)
+}
+```
 
-The three collision reproducers from `52da79031` are in `smoke_test.go`.
+That is the one thing re-vendoring against the merge commit had to pick up
+rather than simply delete — worth remembering when §2 eventually closes the
+same way, since a merged PR is not always what its branch was.
+
+The three collision reproducers are in `smoke_test.go`
+(`TestOracleBalanceVarsOnAliasedAccountResources`, `…OnAliasedAssetResources`,
+`…OnSameAccountDifferentAssets`) and still pass. Upstream's own versions live in
+`vm/machine_test.go`, which is not copied here.
