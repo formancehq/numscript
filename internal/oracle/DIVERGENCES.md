@@ -16,7 +16,7 @@ Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main.
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
 | 2 | Oracle fixes **not** in ledger main | 3 | filed: ledger PRs #2060, #2063, #2068 |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
-| 4 | Local workarounds since replaced by upstream's own fixes | 2 | done |
+| 4 | Local workarounds replaced by upstream's proposed fixes | 2 | waiting on ledger PR #2059 |
 
 `TestDifferentialSweep` is **currently red on purpose** — see §3.1.
 
@@ -296,15 +296,24 @@ error text.
 
 **Resolved.** PR #190 makes numscript error, matching ledger.
 
-## 4. Local workarounds replaced by upstream's own fixes
+## 4. Local workarounds replaced by upstream's proposed fixes
 
-Both were local reimplementations of bugs upstream has since fixed properly.
-Ported in favour of upstream's versions, so the oracle is now identical to
-ledger on both counts.
+Both were local reimplementations of bugs upstream has since fixed its own way,
+on `fix/machine-balance-resource-collisions` (ledger PR **#2059**). The oracle
+now carries upstream's version of each rather than its own.
 
 | was | now |
 |---|---|
 | `UnresolvedResourceBalances map[string][]int` — tolerated address collisions | upstream's `map[int]string` (ledger `081349d51`), which cannot collide |
 | `StaticStore.GetBalances` per-account `make` hoisted, written locally | upstream's form (ledger `52da79031`) |
+
+**#2059 is still open, so these are not in ledger main either** — against the
+baseline at the top of this file, the oracle is ahead here too, exactly like
+§2. They are listed separately only because the code is upstream's own, not
+something written here: when #2059 merges, the oracle matches main with no
+further work, whereas each §2 entry has to be deleted by hand.
+
+If #2059 is ever closed unmerged, these move into §2 and need filing like the
+rest.
 
 The three collision reproducers from `52da79031` are in `smoke_test.go`.
