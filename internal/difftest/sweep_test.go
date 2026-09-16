@@ -31,12 +31,12 @@ const sweepSeeds = 3000
 //
 //	go test -run '^$' -fuzz FuzzDiff -fuzztime 5m ./internal/difftest
 //
-// EXPECTED TO FAIL right now. The oracle is currently faithful to ledger on
-// every behavioural point (internal/oracle/DIVERGENCES.md §2 is empty of
-// behaviour), which makes the open numscript/ledger semantic disagreements in
-// DIVERGENCES.md §3 visible instead of hidden. They are pinned individually in
-// TestKnownOpenDivergences; this sweep says how much of the generator's output
-// each one reaches.
+// EXPECTED TO FAIL right now. The oracle is faithful to ledger everywhere
+// except the one guard in internal/oracle/DIVERGENCES.md §2, which exists to
+// remove noise rather than create it, so the open numscript/ledger semantic
+// disagreements in DIVERGENCES.md §3 are visible instead of hidden. They are
+// pinned individually in TestKnownOpenDivergences; this sweep says how much of
+// the generator's output each one reaches.
 //
 // It deliberately does NOT stop at the first divergence: failing on seed 24
 // would say nothing about whether one class or five are in play. It sweeps

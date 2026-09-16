@@ -451,11 +451,10 @@ func (p *parseVisitor) VisitSaveFromAccount(c *parser.SaveFromAccountContext) *C
 		}
 		p.PushAddress(*addr)
 	} else if mon := c.GetMon(); mon != nil {
-		// Not upstream: ledger takes the address here, but VisitExpr only
+		// Push the monetary rather than taking its address. VisitExpr only
 		// emits an arithmetic operator on the push path, and the address it
 		// returns for an arithmetic expression is the left operand's — so
-		// `save [C 50] - [C 40]` silently reserved 50. Filed as ledger
-		// PR #2063. See internal/oracle/DIVERGENCES.md §2.
+		// taking the address here silently discarded the right operand.
 		typ, _, compErr := p.VisitExpr(mon, true)
 		if compErr != nil {
 			return compErr

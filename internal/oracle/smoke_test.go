@@ -263,8 +263,8 @@ func TestOracleKeptComplex(t *testing.T) {
 // `save <monetary expression>` used to reserve only the expression's left
 // operand: VisitSaveFromAccount asked VisitExpr for an address, and on that
 // path no arithmetic operator is emitted and the address returned is the left
-// operand's. Fixed locally ahead of ledger — see DIVERGENCES.md §2 and ledger
-// PR #2063.
+// operand's. Fixed upstream by ledger PR #2063, which the vendored copy
+// carries; this pins that the vendoring did not lose it.
 func TestOracleSaveMonetaryExpression(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -304,8 +304,8 @@ send [COIN *] (
 // 100, `save [USD 10] - [USD 20]` let her send 110. Only reachable once save
 // started evaluating its expression (see TestOracleSaveMonetaryExpression);
 // before that the right operand was dropped and the amount was never
-// negative. Fixed locally ahead of ledger — see DIVERGENCES.md §2 and ledger
-// PR #2068.
+// negative. Fixed upstream by ledger PR #2068, which the vendored copy
+// carries; this pins that the vendoring did not lose it.
 func TestOracleSaveNegativeAmountRejected(t *testing.T) {
 	store := vm.StaticStore{
 		"alice": {

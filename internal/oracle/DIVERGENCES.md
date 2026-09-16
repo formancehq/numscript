@@ -7,14 +7,15 @@ numscript, the less it can catch.
 
 This file lists every difference and why it is there.
 
-Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main.
+Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main at
+`35bb7ffac` (2026-09-16).
 
 ## Summary
 
 | § | kind | count | state |
 |---|---|---|---|
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
-| 2 | Oracle fixes **not** in ledger main | 3 | filed: ledger PRs #2060, #2063, #2068 |
+| 2 | Oracle fixes **not** in ledger main | 1 | ledger PR #2060 closed unmerged — needs a decision |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
 | 4 | Local workarounds replaced by upstream's proposed fixes | 2 | waiting on ledger PR #2059 |
 
@@ -46,29 +47,32 @@ carry no semantics and need no decision.
 | Import paths rewritten `…/ledger/internal/machine` → `…/numscript/internal/oracle/machine` | everywhere |
 | `ledger/pkg/{accounts,assets}` replaced by local `machine/internal/{accounts,assets}` | `account.go`, `asset.go`, `internal/…` |
 | `ledger "…/ledger/internal"` import dropped; local `Account`, `ResultPosting`, `Zero` used instead | `vm/oracle_types.go`, `vm/run.go`, `vm/store.go`, `vm/machine.go` |
-| Upstream's 9 `*_test.go` and `examples/basic.go` not copied | — |
+| Upstream's 12 `*_test.go` and `examples/basic.go` not copied | — |
 | `smoke_test.go` added — confirms the vendoring itself didn't break anything | `internal/oracle/` |
 | `vm/machine.go` deliberately left un-gofmt'd, to stay diffable against upstream | repo gofmt check excludes `/oracle/` |
 
-## 2. Oracle fixes not yet integrated in ledger main
+## 2. Oracle fixes not in ledger main
 
-Three ledger bugs the oracle fixes locally. All are filed upstream and all
-should be dropped from the oracle once their PR merges, at which point this
-section becomes empty again.
-
-These are the only places the oracle is knowingly *ahead* of ledger rather than
-faithful to it, which is a deliberate exception: a bug that makes the oracle
-disagree with numscript for a reason numscript is right about produces noise,
-not signal. Each carries a comment at the code site pointing back here.
+One ledger bug the oracle fixes locally, and it is the only place the oracle is
+knowingly *ahead* of ledger rather than faithful to it. That is a deliberate
+exception: a bug that makes the oracle disagree with numscript for a reason
+numscript is right about produces noise, not signal. It carries a comment at
+the code site pointing back here.
 
 | # | what | where | upstream |
 |---|---|---|---|
-| ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 |
-| ② | `save` evaluates its monetary expression | `script/compiler/compiler.go` | ledger PR #2063 (merged, unreleased) |
-| ③ | negative-amount guard on `OP_SAVE` | `vm/machine.go` | ledger PR #2068 |
+| ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 — **closed unmerged** |
 
-② and ③ are one story and must be read together: ② is what makes ③ reachable.
-Do not take ② without ③.
+Two entries that used to live here are gone: `save` evaluating its monetary
+expression (ledger PR **#2063**, merged `95dfad77e`, backported to
+`release/v2.3` as #2067 and `release/v2.4` as #2066) and the negative-amount
+guard on `OP_SAVE` (ledger PR **#2068**, merged `35bb7ffac`). The oracle's
+copies of `script/compiler/compiler.go` and that arm of `OP_SAVE` are now
+byte-identical to main; `script/compiler/compiler.go` has dropped out of the
+`DIFFERS` list entirely. `TestOracleSaveMonetaryExpression` and
+`TestOracleSaveNegativeAmountRejected` stay in `smoke_test.go` as vendoring
+checks — upstream has its own coverage for both in `vm/machine_test.go`, which
+is not copied here.
 
 ### ① Negative-amount guard on `OP_TAKE`
 
@@ -95,98 +99,16 @@ looking in the wrong place.
 swept scripts (5.4%) diverge, all on the same missing-funds-vs-invalid-amount
 classification.
 
-**Status: reported upstream — ledger PR #2060**
-(`fix/machine-negative-amount-op-take`), which adds the same guard, with the
-same message, to `OP_TAKE`. When that merges, drop this guard from the oracle
-and re-vendor.
+**Status: PR #2060 (`fix/machine-negative-amount-op-take`) was closed unmerged
+on 2026-09-16 and its branch deleted, with no review comment recorded.** So
+this is not on its way into ledger the way ② and ③ were, and the question it
+raises is open: either re-file it upstream, or accept that ledger classifies a
+negative send as a funding error and move this entry to §3 as a genuine
+numscript ↔ ledger disagreement. Leaving it in §2 asserts a fix is coming, and
+right now none is.
 
 No separate pin needed: the sweep covers this one, and removing the guard
 lights up 161 scripts immediately.
-
-### ② `save` evaluates its monetary expression
-
-```go
-} else if mon := c.GetMon(); mon != nil {
-    typ, _, compErr := p.VisitExpr(mon, true)   // upstream: VisitExpr(mon, false), then PushAddress
-```
-
-`VisitExpr` has two modes and only the push path emits arithmetic:
-
-```go
-if push {
-    ... OP_MONETARY_SUB
-}
-return machine.TypeMonetary, lhsAddr, nil   // the LEFT operand's address
-```
-
-Upstream's `VisitSaveFromAccount` used the address path, so no operator was
-emitted and the address pushed was the left operand's. `save [COIN 50] -
-[COIN 40]` compiled to bytecode identical to `save [COIN 50]`.
-
-With `@alice` at 100:
-
-| script | ledger reserved | correct |
-|---|---|---|
-| `save [COIN 50] - [COIN 40]` | 50 | 10 |
-| `save [COIN 90] + [COIN 5]` | 90 | 95 |
-
-No error — just the wrong amount reserved, in either direction depending on the
-operator. numscript's `runSaveStatement` evaluates the whole expression and was
-never affected; `send` was never affected either, since `VisitMonetary` takes
-the address only to derive the asset and then evaluates properly with a push.
-
-**Status: reported upstream — ledger PR #2063**
-(`fix/machine-save-drops-arithmetic`), backported to `release/v2.3` (#2067) and
-`release/v2.4` (#2066). When it merges, drop this from the oracle and
-re-vendor.
-
-Pinned by `TestOracleSaveMonetaryExpression` in `smoke_test.go`, because the
-sweep does **not** cover it: `internal/gen` never emits a binary monetary
-expression in `save` position, which is why the harness did not find this
-itself. Closing that generator gap would make the pin redundant.
-
-### ③ Negative-amount guard on `OP_SAVE`
-
-```go
-case machine.Monetary:
-    if v.Amount.Ltz() {
-        return true, machine.NewErrNegativeAmount(
-            "tried to save a negative amount: [%s %s]", string(v.Asset), v.Amount)
-    }
-```
-
-`OP_SAVE` subtracts the saved amount from the tracked balance without checking
-its sign, and subtracting a negative **inflates** it. With `@alice` holding a
-real 100 USD:
-
-```
-save [USD 10] - [USD 20] from @alice
-
-send [USD *] (
-  source = @alice
-  destination = @bob
-)
-```
-
-| version | sends |
-|---|---|
-| ledger before ② | 90 — the right operand was dropped, so this was `save [USD 10]` |
-| ledger with ② only | **110 of a real 100** |
-| with ③ | `tried to save a negative amount: [USD -10]` |
-| numscript | `Cannot send negative amount: -10` |
-
-So ② is what makes this reachable: before it, a negative could never arrive at
-`OP_SAVE`, because the expression was never evaluated. **② must never ship
-without ③** — on its own it turns a wrong-amount bug into a money-creation one.
-At the time of writing ② is merged upstream but in no tag, so no released
-ledger is affected.
-
-**Status: reported upstream — ledger PR #2068.** Pinned by
-`TestOracleSaveNegativeAmountRejected`; like ②, the sweep does not reach it.
-
-Note the error style differs from ①: this uses the typed
-`machine.NewErrNegativeAmount`, while the `OP_TAKE`/`OP_TAKE_MAX` guards use a
-bare `fmt.Errorf`. Upstream's inconsistency, mirrored here on purpose.
 
 ## 3. Genuine numscript ↔ ledger semantic differences
 
@@ -267,8 +189,9 @@ than it is. Deciding which semantics numscript should have is what closes it.
 
 numscript's `runSaveStatement` floors the saved amount at the balance; ledger
 subtracts unfloored and goes negative, and the next send then fails with
-insufficient funds. Verified at ledger HEAD: `save [COIN 100] from @src` with a
-balance of 50 gives `balances=map[@src:map[COIN:-50]]`, `err=insufficient funds`.
+insufficient funds. Verified at ledger main `35bb7ffac`: `save [COIN 100] from
+@src` with a balance of 50 gives `balances=map[@src:map[COIN:-50]]`,
+`err=insufficient funds`.
 
 The oracle used to floor at zero too — its comment said "matching the new
 interpreter's behavior", i.e. the oracle bent toward the engine it exists to
@@ -313,7 +236,10 @@ baseline at the top of this file, the oracle is ahead here too, exactly like
 something written here: when #2059 merges, the oracle matches main with no
 further work, whereas each §2 entry has to be deleted by hand.
 
+Verified against the PR branch at `081349d51`: apart from §1 and the §2 guard,
+the oracle is byte-identical to it.
+
 If #2059 is ever closed unmerged, these move into §2 and need filing like the
-rest.
+rest — which is what just happened to #2060, so it is not hypothetical.
 
 The three collision reproducers from `52da79031` are in `smoke_test.go`.

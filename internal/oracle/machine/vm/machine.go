@@ -312,7 +312,8 @@ func (m *Machine) tick() (bool, error) {
 		funding := pop[machine.Funding](m)
 		// Not upstream: ledger guards OP_TAKE_MAX only (0cc2844e4, 2023), so
 		// a negative send amount reaches Take() and comes back out as an
-		// insufficient-funds error instead of a rejected script. See
+		// insufficient-funds error instead of a rejected script. Filed as
+		// ledger PR #2060, closed unmerged. See
 		// internal/oracle/DIVERGENCES.md §2.
 		if mon.Amount.Ltz() {
 			return true, fmt.Errorf(
@@ -455,11 +456,6 @@ func (m *Machine) tick() (bool, error) {
 			}
 
 		case machine.Monetary:
-			// Not upstream: subtracting a negative inflates the tracked
-			// balance, so `save [USD 10] - [USD 20] from @acc` lets the
-			// account spend more than it holds. Only reachable since the
-			// save-expression fix below it. Filed as ledger PR #2068.
-			// See internal/oracle/DIVERGENCES.md §2.
 			if v.Amount.Ltz() {
 				return true, machine.NewErrNegativeAmount(
 					"tried to save a negative amount: [%s %s]", string(v.Asset), v.Amount)
