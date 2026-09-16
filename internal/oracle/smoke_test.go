@@ -259,3 +259,42 @@ func TestOracleKeptComplex(t *testing.T) {
 	requirePosting(t, m.Postings[4], "baz", "qux", "GEM", 4)
 	requirePosting(t, m.Postings[5], "baz", "quz", "GEM", 25)
 }
+
+// `save <monetary expression>` used to reserve only the expression's left
+// operand: VisitSaveFromAccount asked VisitExpr for an address, and on that
+// path no arithmetic operator is emitted and the address returned is the left
+// operand's. Fixed locally ahead of ledger — see DIVERGENCES.md §2 and ledger
+// PR #2063.
+func TestOracleSaveMonetaryExpression(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		save string
+		// alice starts with 100; the send then moves whatever is unreserved.
+		wantSent int64
+	}{
+		{"subtraction", `save [COIN 50] - [COIN 40] from @alice`, 90},
+		{"addition", `save [COIN 90] + [COIN 5] from @alice`, 5},
+		{"plain monetary", `save [COIN 50] from @alice`, 50},
+		{"save all", `save [COIN *] from @alice`, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := vm.StaticStore{
+				"alice": {
+					Account:  vm.Account{Address: "alice"},
+					Balances: map[string]*big.Int{"COIN": big.NewInt(100)},
+				},
+			}
+
+			m, err := compileAndRun(t, tc.save+`
+
+send [COIN *] (
+	source = @alice
+	destination = @bob
+)`, store)
+			require.NoError(t, err)
+
+			require.Len(t, m.Postings, 1)
+			requirePosting(t, m.Postings[0], "alice", "bob", "COIN", tc.wantSent)
+		})
+	}
+}

@@ -14,7 +14,7 @@ Upstream baseline: `github.com/formancehq/ledger`, `internal/machine`, main.
 | § | kind | count | state |
 |---|---|---|---|
 | 1 | Structural — vendoring mechanics, no behaviour | 6 | fine, ignore |
-| 2 | Oracle fixes **not** in ledger main | 1 | filed: ledger PR #2060 |
+| 2 | Oracle fixes **not** in ledger main | 2 | filed: ledger PRs #2060, #2063 |
 | 3 | Genuine numscript ↔ ledger semantic differences | 3 open, 1 resolved | need a decision |
 | 4 | Local workarounds since replaced by upstream's own fixes | 2 | done |
 
@@ -52,10 +52,21 @@ carry no semantics and need no decision.
 
 ## 2. Oracle fixes not yet integrated in ledger main
 
-One, in `vm/machine.go`. This is a ledger bug the oracle fixes locally, and it
-should be reported upstream.
+Two ledger bugs the oracle fixes locally. Both are filed upstream and both
+should be dropped from the oracle once their PR merges, at which point this
+section becomes empty again.
 
-### Negative-amount guard on `OP_TAKE`
+These are the only places the oracle is knowingly *ahead* of ledger rather than
+faithful to it, which is a deliberate exception: a bug that makes the oracle
+disagree with numscript for a reason numscript is right about produces noise,
+not signal. Each carries a comment at the code site pointing back here.
+
+| # | what | where | upstream |
+|---|---|---|---|
+| ① | negative-amount guard on `OP_TAKE` | `vm/machine.go` | ledger PR #2060 |
+| ② | `save` evaluates its monetary expression | `script/compiler/compiler.go` | ledger PR #2063 |
+
+### ① Negative-amount guard on `OP_TAKE`
 
 ```go
 case program.OP_TAKE:
@@ -83,10 +94,52 @@ classification.
 **Status: reported upstream — ledger PR #2060**
 (`fix/machine-negative-amount-op-take`), which adds the same guard, with the
 same message, to `OP_TAKE`. When that merges, drop this guard from the oracle
-and re-vendor; this section then becomes empty.
+and re-vendor.
 
-It is the one place the oracle is knowingly ahead of ledger; §1 aside,
-`vm/machine.go` is otherwise identical to upstream.
+No separate pin needed: the sweep covers this one, and removing the guard
+lights up 161 scripts immediately.
+
+### ② `save` evaluates its monetary expression
+
+```go
+} else if mon := c.GetMon(); mon != nil {
+    typ, _, compErr := p.VisitExpr(mon, true)   // upstream: VisitExpr(mon, false), then PushAddress
+```
+
+`VisitExpr` has two modes and only the push path emits arithmetic:
+
+```go
+if push {
+    ... OP_MONETARY_SUB
+}
+return machine.TypeMonetary, lhsAddr, nil   // the LEFT operand's address
+```
+
+Upstream's `VisitSaveFromAccount` used the address path, so no operator was
+emitted and the address pushed was the left operand's. `save [COIN 50] -
+[COIN 40]` compiled to bytecode identical to `save [COIN 50]`.
+
+With `@alice` at 100:
+
+| script | ledger reserved | correct |
+|---|---|---|
+| `save [COIN 50] - [COIN 40]` | 50 | 10 |
+| `save [COIN 90] + [COIN 5]` | 90 | 95 |
+
+No error — just the wrong amount reserved, in either direction depending on the
+operator. numscript's `runSaveStatement` evaluates the whole expression and was
+never affected; `send` was never affected either, since `VisitMonetary` takes
+the address only to derive the asset and then evaluates properly with a push.
+
+**Status: reported upstream — ledger PR #2063**
+(`fix/machine-save-drops-arithmetic`), backported to `release/v2.3` (#2067) and
+`release/v2.4` (#2066). When it merges, drop this from the oracle and
+re-vendor.
+
+Pinned by `TestOracleSaveMonetaryExpression` in `smoke_test.go`, because the
+sweep does **not** cover it: `internal/gen` never emits a binary monetary
+expression in `save` position, which is why the harness did not find this
+itself. Closing that generator gap would make the pin redundant.
 
 ## 3. Genuine numscript ↔ ledger semantic differences
 
