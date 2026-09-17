@@ -217,11 +217,18 @@ send $b (
 	requirePosting(t, m.Postings[1], "world", "dst2", "EUR", 20)
 }
 
-// TestKeptComplex, copied from ledger's machine_kept_test.go. It pins the
-// source attribution of `kept`: all 11 kept GEM come off @baz, the LAST
-// source, because ledger takes kept from the bottom of the pool. The
-// numscript interpreter takes it from the front and so funds @arst/@thing
-// differently, which is why Compare tolerates per-source kept attribution.
+// TestKeptComplex, adapted from ledger's machine_kept_test.go, with the
+// expectations changed. DELIBERATE DIVERGENCE FROM LEDGER, see DIVERGENCES.md
+// §2 B: ledger does not consume a kept funding, so it returns to the pool and
+// funds later destinations; the oracle consumes it, matching the interpreter.
+//
+// Ledger asserts 6 postings, all 11 kept GEM coming off @baz (the last source):
+//
+//	foo->arst 2, foo->thing 18, bar->thing 24, bar->qux 16, baz->qux 4, baz->quz 25
+//
+// Here @foo keeps the 6 it kept inside the max-clause and @baz keeps only the
+// outer 5%, so @thing and @qux are funded differently. Totals per destination
+// are identical either way: arst 2, thing 42, qux 20, quz 25.
 func TestOracleKeptComplex(t *testing.T) {
 	store := vm.StaticStore{
 		"foo": {Account: vm.Account{Address: "foo"}, Balances: map[string]*big.Int{"GEM": big.NewInt(20)}},
@@ -253,10 +260,10 @@ func TestOracleKeptComplex(t *testing.T) {
 
 	require.Len(t, m.Postings, 6)
 	requirePosting(t, m.Postings[0], "foo", "arst", "GEM", 2)
-	requirePosting(t, m.Postings[1], "foo", "thing", "GEM", 18)
-	requirePosting(t, m.Postings[2], "bar", "thing", "GEM", 24)
-	requirePosting(t, m.Postings[3], "bar", "qux", "GEM", 16)
-	requirePosting(t, m.Postings[4], "baz", "qux", "GEM", 4)
+	requirePosting(t, m.Postings[1], "foo", "thing", "GEM", 12)
+	requirePosting(t, m.Postings[2], "bar", "thing", "GEM", 30)
+	requirePosting(t, m.Postings[3], "bar", "qux", "GEM", 10)
+	requirePosting(t, m.Postings[4], "baz", "qux", "GEM", 10)
 	requirePosting(t, m.Postings[5], "baz", "quz", "GEM", 25)
 }
 

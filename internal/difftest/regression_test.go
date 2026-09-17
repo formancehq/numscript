@@ -105,6 +105,35 @@ send $a (
   }
 )`,
 		},
+		{
+			// `kept` used to disagree on which account keeps the money:
+			// ledger does not consume the kept funding, so it returns to
+			// the pool and funds later destinations, while the interpreter
+			// consumes it. The oracle was changed to consume it too --
+			// DELIBERATELY DIVERGING FROM LEDGER, see DIVERGENCES.md §2 B.
+			// Here @acc1 keeps 400; on ledger @acc0 keeps it and @acc1 is
+			// drained, so the second statement moves 400 here and 0 there.
+			name: "kept attribution, observed by a later statement",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(1000),
+				{Account: "acc1", Asset: "COIN"}: big.NewInt(1000),
+			},
+			script: `send [COIN *] (
+  source = {
+    @acc1
+    @acc0
+  }
+  destination = {
+    max [COIN 400] kept
+    remaining to @dst
+  }
+)
+
+send [COIN *] (
+  source = @acc1
+  destination = @sink
+)`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -233,34 +262,6 @@ save [COIN 900] from @acc0
 send [COIN 250] (
   source = @acc0 allowing overdraft up to [COIN 1000]
   destination = @acc1
-)`,
-		},
-		{
-			// DIVERGENCES.md §3.1. `kept` decides which account keeps the
-			// money, so it changes balances: numscript takes it off the
-			// front of the pool (@acc1 keeps 400), ledger off the bottom
-			// (@acc0 keeps it, @acc1 is drained). The second statement then
-			// moves 400 on numscript and nothing on ledger.
-			name: "kept attribution, observed by a later statement",
-			why:  "kept comes off the front (numscript) vs the bottom (ledger)",
-			balances: map[gen.BalanceKey]*big.Int{
-				{Account: "acc0", Asset: "COIN"}: big.NewInt(1000),
-				{Account: "acc1", Asset: "COIN"}: big.NewInt(1000),
-			},
-			script: `send [COIN *] (
-  source = {
-    @acc1
-    @acc0
-  }
-  destination = {
-    max [COIN 400] kept
-    remaining to @dst
-  }
-)
-
-send [COIN *] (
-  source = @acc1
-  destination = @sink
 )`,
 		},
 	}

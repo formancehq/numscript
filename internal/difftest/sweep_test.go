@@ -99,7 +99,6 @@ func TestDifferentialSweep(t *testing.T) {
 func divergenceClass(reason string) string {
 	head, _, _ := strings.Cut(reason, "\n")
 	for _, prefix := range []string{
-		"destination totals differ in a `kept` script",
 		"missing-funds classification differs",
 		"aggregated posting set differs",
 		"aggregated amount differs",

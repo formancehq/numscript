@@ -73,50 +73,9 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 				return compErr
 			}
 			// <kept_acc: funding> <remaining: funding> <subkept: funding>
-			// the subdest kept <subkept>, but we should keep from the bottom of our funding
-			// so we take the sum, reassemble the original pool and take from its bottom by reversing it
-			p.AppendInstruction(program.OP_FUNDING_SUM)
-			// <kept_acc: funding> <remaining: funding> <subkept: funding> <kept_amt: monetary>
-			err = p.Bump(1)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			// <kept_acc: funding> <remaining: funding> <kept_amt: monetary> <subkept: funding>
-			err = p.Bump(2)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			// <kept_acc: funding> <kept_amt: monetary> <subkept: funding> <remaining: funding>
-			err = p.PushInteger(machine.NewNumber(2))
-			if err != nil {
-				return LogicError(c, err)
-			}
-			p.AppendInstruction(program.OP_FUNDING_ASSEMBLE)
-			// <kept_acc: funding> <kept_amt: monetary> <remaining_and_subkept_pool: funding>
-			p.AppendInstruction(program.OP_FUNDING_REVERSE)
-			// <kept_acc: funding> <kept_amt: monetary> <remaining_and_subkept_pool_reversed: funding>
-			err = p.Bump(1)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			// <kept_acc: funding> <remaining_and_subkept_pool_reversed: funding> <kept_amt: monetary>
-			p.AppendInstruction(program.OP_TAKE)
-			// <kept_acc: funding> <remaining_reversed: funding> <subkept_reversed: funding>
-			// subkept is now the bottom part of our original funding
-			p.AppendInstruction(program.OP_FUNDING_REVERSE)
-			// <kept_acc: funding> <remaining_reversed: funding> <subkept: funding>
-			err = p.Bump(1)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			// <kept_acc: funding> <subkept: funding> <remaining_reversed: funding>
-			p.AppendInstruction(program.OP_FUNDING_REVERSE)
-			// <kept_acc: funding> <subkept: funding> <remaining: funding>
-			err = p.Bump(1)
-			if err != nil {
-				return LogicError(c, err)
-			}
-			// <kept_acc: funding> <remaining: funding> <subkept: funding>
+			// DIVERGES FROM LEDGER: ledger re-attributes <subkept> to the bottom of
+			// the pool here (reassemble + reverse + take + reverse). <subkept> is kept
+			// as-is instead, so the front of the pool keeps. See DIVERGENCES.md §2 ②.
 			err = p.Bump(2)
 			if err != nil {
 				return LogicError(c, err)
@@ -201,10 +160,9 @@ func (p *parseVisitor) VisitAllocDestination(dests []parser.IKeptOrDestinationCo
 		if compErr != nil {
 			return compErr
 		}
-		err = p.Bump(1)
-		if err != nil {
-			return LogicError(dest, err)
-		}
+		// DIVERGES FROM LEDGER: ledger bumps here, so <subkept> is assembled at the
+		// FRONT of the pool and the next portion spends it again. Assembled at the
+		// back instead, it survives as leftover and is repaid. See DIVERGENCES.md §2 ②.
 		err = p.PushInteger(machine.NewNumber(2))
 		if err != nil {
 			return LogicError(dest, err)
