@@ -24,3 +24,7 @@ type ExprTypeMonetary interface {
 	ExprType
 	monetary()
 }
+type ExprTypePortion interface {
+	ExprType
+	portion()
+}
