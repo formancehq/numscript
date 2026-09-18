@@ -1,0 +1,515 @@
+package gen
+
+import (
+	"cmp"
+	"fmt"
+	"math/big"
+	"math/rand"
+	"slices"
+)
+
+// seedAmount is used for `world -> accN` funding statements — always
+// positive (funding is meant to give accounts something to spend; the
+// "amounts can be zero/negative" exploration lives in monetary(), used
+// elsewhere).
+func seedAmount(rng *rand.Rand) *big.Int {
+	return big.NewInt(int64(rng.Intn(1000)) + 1)
+}
+
+// genSeedStatements builds `world -> acc<i>` funding statements for every
+// (account, asset) pair in the pool. Note: these run at EXECUTION time, so
+// they do NOT feed a `balance()`-origin var (see genVarDecls) — vars-block
+// origins are resolved once, before any statement in the script executes,
+// on both engines (confirmed directly against the oracle). Pre-set starting
+// balances (genPresetBalances) are the only way to make a balance()-origin
+// var observe a non-zero value.
+func genSeedStatements(rng *rand.Rand, poolSize int, assets []string) Program {
+	stmts := make(Program, 0, poolSize*len(assets))
+	for i := range poolSize {
+		for _, asset := range assets {
+			stmts = append(stmts, Statement{
+				IsSendAll: false,
+				Amount:    Monetary{Asset: asset, AssetAsVar: asVar(rng), Amount: seedAmount(rng)},
+				Source:    Source{Kind: SrcAccount, Account: "world"},
+				Destination: Destination{
+					Kind:         DestAccount,
+					Account:      fmt.Sprintf("acc%d", i),
+					AccountAsVar: asVar(rng),
+				},
+			})
+		}
+	}
+	return stmts
+}
+
+// genPresetBalances populates balances with a starting balance for a random
+// subset of (account, asset) pairs in the pool, including negative amounts
+// — a precondition set directly on the store rather than by executing
+// funding statements (see internal/difftest's runNew/runOracle, which feed
+// this into each engine's StaticStore). "world" is deliberately never
+// included: it's never balance-backed on either engine (the oracle's
+// ResolveBalances never queries it; it must stay funding-only).
+func genPresetBalances(rng *rand.Rand, poolSize int, assets []string, balances map[BalanceKey]*big.Int) {
+	for i := range poolSize {
+		acc := fmt.Sprintf("acc%d", i)
+		for _, asset := range assets {
+			if rng.Intn(2) != 0 {
+				continue
+			}
+			// [-500, 1499]: comfortably covers both a plausible positive
+			// starting balance and a negative one (the new/interesting case).
+			amount := big.NewInt(int64(rng.Intn(2000) - 500))
+			balances[BalanceKey{Account: acc, Asset: asset}] = amount
+		}
+	}
+}
+
+// genBalances decides, per script, how accounts get their starting
+// balances: via `world ->` funding statements (as before), via pre-set
+// starting balances on the store, or both. Weighted 50/25/25
+// (seeds/preset/both) — "both" mode combined with multi-asset preset
+// balances is close to the shape that surfaced a real bug this session
+// (see DIFFTEST_HANDOFF.md), so it's weighted higher than a uniform split,
+// while seeds-only stays the largest single bucket since it's the
+// original, most-exercised path.
+func genBalances(rng *rand.Rand, poolSize int, assets []string) (map[BalanceKey]*big.Int, Program) {
+	balances := map[BalanceKey]*big.Int{}
+
+	useSeeds := true
+	usePreset := false
+	switch rng.Intn(4) {
+	case 0: // 25%: preset only
+		useSeeds = false
+		usePreset = true
+	case 1: // 25%: both
+		usePreset = true
+	default: // 50%: seeds only
+	}
+
+	var seeds Program
+	if useSeeds {
+		seeds = genSeedStatements(rng, poolSize, assets)
+	}
+	if usePreset {
+		genPresetBalances(rng, poolSize, assets, balances)
+	}
+	return balances, seeds
+}
+
+// genPresetMetadata populates metadata with a value for a random subset of
+// (account, key) pairs in the pool — mirrors genPresetBalances. Values are
+// plain decimal strings: both engines parse a `meta()`-origin var's raw
+// stored string according to the var's declared type (confirmed directly:
+// internal/interpreter's parseVar and the oracle's
+// machine.NewValueFromString both just do a base-10 big.Int parse for a
+// `number`-typed var), so a decimal string is all a `number`-typed
+// meta()-origin var needs.
+// genPresetMetadata fills the starting account metadata both engines are given,
+// and records the numscript type each value is written as. meta() is typed by
+// the reading declaration rather than the stored value, so genVarDecls needs
+// the type to declare a var that actually parses.
+func genPresetMetadata(rng *rand.Rand, poolSize int, metadata map[MetaKey]string) map[MetaKey]MetaType {
+	types := map[MetaKey]MetaType{}
+	for i := range poolSize {
+		acc := fmt.Sprintf("acc%d", i)
+		for _, key := range metaKeyPool {
+			if rng.Intn(2) != 0 {
+				continue
+			}
+			k := MetaKey{Account: acc, Key: key}
+			metadata[k], types[k] = genMetaValue(rng, poolSize)
+		}
+	}
+	return types
+}
+
+// genMetaValue produces one starting metadata value along with the type it is
+// written as. Numbers stay the common case, matching the original generator;
+// the other five types exist so meta() is exercised in every form both engines
+// accept, not just as a number.
+func genMetaValue(rng *rand.Rand, poolSize int) (string, MetaType) {
+	switch rng.Intn(10) {
+	case 0:
+		return fmt.Sprintf("str%d", rng.Intn(4)), MetaString
+	case 1:
+		return fmt.Sprintf("%s %d", pickAsset(rng), rng.Intn(1000)), MetaMonetary
+	case 2:
+		return pickAsset(rng), MetaAsset
+	case 3:
+		return account(rng, poolSize), MetaAccount
+	case 4:
+		den := rng.Intn(9) + 2
+		return fmt.Sprintf("%d/%d", rng.Intn(den)+1, den), MetaPortion
+	default:
+		return fmt.Sprintf("%d", rng.Intn(2000)-500), MetaNumber
+	}
+}
+
+// metaKeyPool is the small fixed set of metadata keys genPresetMetadata and
+// genVarDecls pick from, mirroring assetPool's role for assets.
+var metaKeyPool = []string{"k0", "k1", "k2"}
+
+// genVarDecls generates 0-3 vars-block declarations, each either
+// `monetary $name = balance(<account>, <asset>)` or
+// `number $name = meta(<account>, "<key>")`. Accounts with a pre-set
+// balance/metadata entry are preferred so the var actually observes
+// something other than the default-zero/missing-key path; "world" is
+// picked at a deliberate elevated rate (~1 in 4) specifically to exercise
+// balance(@world, ASSET) — confirmed directly against the oracle to be a
+// legal, always-zero read (never an error).
+func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, metaTypes map[MetaKey]MetaType) []VarDecl {
+	n := rng.Intn(4) // 0..3
+	if n == 0 {
+		return nil
+	}
+
+	// Both pools come from maps, whose iteration order Go randomizes. They are
+	// then indexed with the seeded rng, so leaving them unsorted would make the
+	// same fuzz seed generate different programs from run to run — which breaks
+	// corpus replay and shrinking, the two things a saved divergence depends on.
+	fundedKeys := make([]BalanceKey, 0, len(balances))
+	for k := range balances {
+		fundedKeys = append(fundedKeys, k)
+	}
+	slices.SortFunc(fundedKeys, func(a, b BalanceKey) int {
+		if c := cmp.Compare(a.Account, b.Account); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Asset, b.Asset)
+	})
+	metaKeys := make([]MetaKey, 0, len(metadata))
+	for k := range metadata {
+		metaKeys = append(metaKeys, k)
+	}
+	slices.SortFunc(metaKeys, func(a, b MetaKey) int {
+		if c := cmp.Compare(a.Account, b.Account); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Key, b.Key)
+	})
+
+	out := make([]VarDecl, n)
+	for i := range out {
+		if len(metaKeys) > 0 && rng.Intn(3) == 0 {
+			k := metaKeys[rng.Intn(len(metaKeys))]
+			out[i] = VarDecl{Kind: VarFromMeta, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Key: k.Key, MetaType: metaTypes[k]}
+			continue
+		}
+		if rng.Intn(4) == 0 {
+			out[i] = VarDecl{Kind: VarFromBalance, Account: "world", Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
+			continue
+		}
+		if len(fundedKeys) > 0 && rng.Intn(2) == 0 {
+			k := fundedKeys[rng.Intn(len(fundedKeys))]
+			out[i] = VarDecl{Kind: VarFromBalance, Account: k.Account, AccountAsVar: accountAsVar(rng, k.Account), Asset: k.Asset, AssetAsVar: asVar(rng)}
+			continue
+		}
+		out[i] = VarDecl{Kind: VarFromBalance, Account: account(rng, poolSize), AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
+	}
+
+	// Deliberately bias toward the exact collision shape that produced two
+	// real bugs this session (see DIFFTEST_HANDOFF.md): two balance()-origin
+	// vars on the same account, either the same asset or a different one.
+	// Left to chance alone, this only happens incidentally.
+	if len(out) >= 2 && rng.Intn(3) == 0 {
+		i := rng.Intn(len(out))
+		j := rng.Intn(len(out))
+		if j == i {
+			j = (j + 1) % len(out)
+		}
+		out[j].Kind = out[i].Kind
+		out[j].Account = out[i].Account
+		// out[j] may have started life as the *other* Kind, in which case
+		// its Asset (VarFromMeta never sets one) or Key (VarFromBalance
+		// never sets one) is still its zero value at this point — the
+		// "different" branch below must not leave that empty string in
+		// place, or it silently produces a var with an invalid origin
+		// (e.g. balance(@acc, "")) instead of the intended "different
+		// asset/key" collision.
+		switch out[i].Kind {
+		case VarFromBalance:
+			if rng.Intn(2) == 0 {
+				out[j].Asset = out[i].Asset // exact duplicate (same account+asset)
+			} else if out[j].Asset == "" {
+				out[j].Asset = pickAsset(rng)
+			}
+		case VarFromMeta:
+			if rng.Intn(2) != 0 && out[j].Key != "" && out[j].Key != out[i].Key {
+				// keep j's own key: a different key on the same account
+			} else {
+				out[j].Key = out[i].Key // exact duplicate (same account+key)
+			}
+			// The origin now reads a different (account, key) than j was built
+			// for, so its declared type has to follow the value actually stored
+			// there — otherwise the var does not parse and the whole script is
+			// rejected rather than compared.
+			out[j].MetaType = metaTypes[MetaKey{Account: out[j].Account, Key: out[j].Key}]
+		}
+	}
+
+	return out
+}
+
+// genNumExpr generates a small arithmetic expression (literal, or +/- of
+// two smaller expressions), used for set_tx_meta/set_account_meta values.
+// depth bounds recursion (same hard-cap rationale as maxRecursionDepth).
+// Leaf literals are always non-negative: a bare negative NUMBER literal
+// can't be rendered legally (the oracle's `expression` grammar has no unary
+// minus production — only ExprAddSub/ExprLiteral/ExprVariable — so a
+// negative leaf would just make the oracle reject every such script, always
+// trivially "ok" via Compare's tolerated-rejection path and never real
+// coverage). NumSub compositions can still legally produce a negative
+// runtime value (e.g. `5 - 10`), which both engines parse and evaluate.
+func genNumExpr(rng *rand.Rand, depth int) NumExpr {
+	if depth <= 0 || rng.Intn(3) != 0 {
+		return NumExpr{Kind: NumLit, Lit: big.NewInt(int64(rng.Intn(1000))), LitAsVar: asVar(rng)}
+	}
+	left := genNumExpr(rng, depth-1)
+	right := genNumExpr(rng, depth-1)
+	if rng.Intn(2) == 0 {
+		return NumExpr{Kind: NumAdd, Left: &left, Right: &right}
+	}
+	return NumExpr{Kind: NumSub, Left: &left, Right: &right}
+}
+
+// genMetaStringValue occasionally makes a meta value a string instead of a
+// number, so string-typed values are exercised in both their inline and var
+// forms. nil means "keep the numeric expression".
+func genMetaStringValue(rng *rand.Rand) (*string, bool) {
+	if rng.Intn(3) != 0 {
+		return nil, false
+	}
+	s := fmt.Sprintf("str%d", rng.Intn(4))
+	return &s, asVar(rng)
+}
+
+// varIndicesOfKind returns the indices into vars whose Kind matches.
+func varIndicesOfKind(vars []VarDecl, kind VarDeclKind) []int {
+	var idxs []int
+	for i, v := range vars {
+		if v.Kind == kind {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
+}
+
+// genAccountVarDecls generates 0-2 plain (runtime-fed) account-typed vars.
+// Value is "world" at a deliberate ~1-in-3 rate — see AccountVarDecl's doc
+// comment for why.
+func genAccountVarDecls(rng *rand.Rand, poolSize int) []AccountVarDecl {
+	n := rng.Intn(3) // 0..2
+	out := make([]AccountVarDecl, n)
+	for i := range out {
+		if rng.Intn(3) == 0 {
+			out[i] = AccountVarDecl{Value: "world"}
+		} else {
+			out[i] = AccountVarDecl{Value: account(rng, poolSize)}
+		}
+	}
+	return out
+}
+
+// genExtraStatements generates 0-3 non-send statements (save/set_tx_meta/
+// set_account_meta/a var-backed send/a meta()-var-backed set_tx_meta/a
+// send through an account-typed var), interspersed with the core send-only
+// program by the caller (see riffleOrder).
+func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVars []AccountVarDecl) []ExtraStatement {
+	n := rng.Intn(4) // 0..3
+	out := make([]ExtraStatement, 0, n)
+
+	balanceVarIdxs := varIndicesOfKind(vars, VarFromBalance)
+	metaVarIdxs := varIndicesOfKind(vars, VarFromMeta)
+
+	for range n {
+		kind := ExtraStatementKind(rng.Intn(8))
+		// ExtraSave/ExtraSendVar need a declared balance()-origin var to
+		// reference; ExtraSetTxMetaVar needs a declared meta()-origin var;
+		// ExtraSendFromAccountVar/ExtraSendToAccountVar need a declared
+		// account-typed var. Fall back to a plain set_tx_meta if the
+		// needed kind isn't available.
+		if (kind == ExtraSave && rng.Intn(2) == 0 || kind == ExtraSendVar) && len(balanceVarIdxs) == 0 {
+			kind = ExtraSetTxMeta
+		}
+		if kind == ExtraSetTxMetaVar && len(metaVarIdxs) == 0 {
+			kind = ExtraSetTxMeta
+		}
+		if (kind == ExtraSendFromAccountVar || kind == ExtraSendToAccountVar) && len(accountVars) == 0 {
+			kind = ExtraSetTxMeta
+		}
+
+		switch kind {
+		case ExtraSave:
+			acc := account(rng, poolSize)
+			if len(balanceVarIdxs) > 0 && rng.Intn(2) == 0 {
+				idx := balanceVarIdxs[rng.Intn(len(balanceVarIdxs))]
+				out = append(out, ExtraStatement{Kind: ExtraSave, VarIdx: &idx, Account: acc, AccountAsVar: asVar(rng)})
+			} else {
+				asset := pickAsset(rng)
+				m := monetary(rng, asset)
+				out = append(out, ExtraStatement{Kind: ExtraSave, Monetary: &m, Account: acc, AccountAsVar: asVar(rng)})
+			}
+
+		case ExtraSaveAll:
+			out = append(out, ExtraStatement{
+				Kind:       ExtraSaveAll,
+				Asset:      pickAsset(rng),
+				AssetAsVar: asVar(rng),
+				Account:    account(rng, poolSize), AccountAsVar: asVar(rng),
+			})
+
+		case ExtraSetTxMeta:
+			sv, svVar := genMetaStringValue(rng)
+			out = append(out, ExtraStatement{
+				Kind:             ExtraSetTxMeta,
+				Key:              fmt.Sprintf("k%d", rng.Intn(5)),
+				Value:            genNumExpr(rng, 3),
+				StringValue:      sv,
+				StringValueAsVar: svVar,
+			})
+
+		case ExtraSetAccountMeta:
+			sv, svVar := genMetaStringValue(rng)
+			out = append(out, ExtraStatement{
+				Kind:    ExtraSetAccountMeta,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Key:              fmt.Sprintf("k%d", rng.Intn(5)),
+				Value:            genNumExpr(rng, 3),
+				StringValue:      sv,
+				StringValueAsVar: svVar,
+			})
+
+		case ExtraSendVar:
+			idx := balanceVarIdxs[rng.Intn(len(balanceVarIdxs))]
+			out = append(out, ExtraStatement{
+				Kind:    ExtraSendVar,
+				VarIdx:  &idx,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Destination:      account(rng, poolSize),
+				DestinationAsVar: asVar(rng),
+			})
+
+		case ExtraSetTxMetaVar:
+			idx := metaVarIdxs[rng.Intn(len(metaVarIdxs))]
+			out = append(out, ExtraStatement{
+				Kind:   ExtraSetTxMetaVar,
+				VarIdx: &idx,
+				Key:    fmt.Sprintf("k%d", rng.Intn(5)),
+			})
+
+		case ExtraSendFromAccountVar:
+			idx := rng.Intn(len(accountVars))
+			asset := pickAsset(rng)
+			m := monetary(rng, asset)
+			out = append(out, ExtraStatement{
+				Kind:          ExtraSendFromAccountVar,
+				AccountVarIdx: &idx,
+				Monetary:      &m,
+				Account:       account(rng, poolSize), AccountAsVar: asVar(rng), // destination
+			})
+
+		case ExtraSendToAccountVar:
+			idx := rng.Intn(len(accountVars))
+			asset := pickAsset(rng)
+			m := monetary(rng, asset)
+			out = append(out, ExtraStatement{
+				Kind:          ExtraSendToAccountVar,
+				AccountVarIdx: &idx,
+				Monetary:      &m,
+				Account:       account(rng, poolSize), AccountAsVar: asVar(rng), // source
+			})
+		}
+	}
+
+	// Two balance() origins on one account only expose the resource-aliasing
+	// bug (formancehq/ledger#2056) if BOTH are referenced: an origin var that
+	// nothing references is never declared, so an unreferenced collision is
+	// invisible to either engine. genVarDecls already biases toward creating
+	// the colliding pair, but leaving it to chance which vars get referenced
+	// put the complete shape at roughly 1 script in 30,000 — far too rare to
+	// gate on. Reference both members deliberately instead.
+	if i, j, ok := aliasedBalanceVarPair(vars); ok && rng.Intn(2) == 0 {
+		for _, idx := range [2]int{i, j} {
+			v := idx
+			out = append(out, ExtraStatement{
+				Kind:    ExtraSendVar,
+				VarIdx:  &v,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Destination:      account(rng, poolSize),
+				DestinationAsVar: asVar(rng),
+			})
+		}
+	}
+
+	return out
+}
+
+// riffleOrder returns a random interleaving of two sequences of lengths a
+// and b, as a slice of booleans (true = take the next element from the
+// first sequence). Used to interleave Extra statements throughout Program
+// instead of only appending them at the end — see Script.Order.
+func riffleOrder(rng *rand.Rand, a, b int) []bool {
+	order := make([]bool, 0, a+b)
+	for a > 0 && b > 0 {
+		if rng.Intn(a+b) < a {
+			order = append(order, true)
+			a--
+		} else {
+			order = append(order, false)
+			b--
+		}
+	}
+	for ; a > 0; a-- {
+		order = append(order, true)
+	}
+	for ; b > 0; b-- {
+		order = append(order, false)
+	}
+	return order
+}
+
+// GenerateScriptAST orchestrates one full round of generation: picks a
+// script-wide account-pool size, decides how balances/metadata are seeded
+// (world-funding statements, pre-set store state, or both), declares a
+// handful of vars (balance()- and meta()-origin), generates the core
+// send-only program, generates a few extra non-send statements, and decides
+// how to interleave the two.
+func GenerateScriptAST(rng *rand.Rand) Script {
+	poolSize := pickPoolSize(rng)
+
+	balances, seeds := genBalances(rng, poolSize, assetPool)
+	metadata := map[MetaKey]string{}
+	metaTypes := genPresetMetadata(rng, poolSize, metadata)
+	vars := genVarDecls(rng, poolSize, balances, metadata, metaTypes)
+	accountVars := genAccountVarDecls(rng, poolSize)
+	program := cleanupProgram(genProgram(rng, poolSize))
+	extra := genExtraStatements(rng, poolSize, vars, accountVars)
+	order := riffleOrder(rng, len(program), len(extra))
+
+	return Script{
+		Vars:        vars,
+		AccountVars: accountVars,
+		Seeds:       seeds,
+		Program:     program,
+		Extra:       extra,
+		Order:       order,
+		Balances:    balances,
+		Metadata:    metadata,
+	}
+}
+
+// aliasedBalanceVarPair returns two distinct VarFromBalance indices whose
+// declarations read the balance of the same account, if any exist.
+func aliasedBalanceVarPair(vars []VarDecl) (int, int, bool) {
+	firstByAccount := map[string]int{}
+	for i, v := range vars {
+		if v.Kind != VarFromBalance {
+			continue
+		}
+		if j, seen := firstByAccount[v.Account]; seen {
+			return j, i, true
+		}
+		firstByAccount[v.Account] = i
+	}
+	return 0, 0, false
+}
