@@ -3,6 +3,7 @@ package difftest
 import (
 	"fmt"
 	"math/big"
+	"strings"
 )
 
 // Verdict is the outcome of comparing both engines' results for one script.
@@ -74,6 +75,16 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 	// cover the shortfall (oracle/DIVERGENCES.md #4). Comparing fail-vs-succeed
 	// would flag that as a false positive; funds adequacy is the real invariant.
 	if aRes.MissingFunds != bRes.MissingFunds {
+		// One direction only. a-side naming a negative amount while b-side blames
+		// funds is ledger's unguarded OP_TAKE (DIVERGENCES.md #1): both reject, no
+		// money moves either way, only the error differs.
+		//
+		// The reverse is DIVERGENCES.md #4, where b-side rejects the script and
+		// a-side silently zeroes the clause and runs short. That one must still be
+		// a mismatch -- see TestMissingFundsClassificationMismatchStillCaught.
+		if aNegativeAmount(aRes) && bRes.MissingFunds {
+			return tolerated("negative amount vs missing funds")
+		}
 		return mismatch(
 			"missing-funds classification differs: %s missingFunds=%v (runErr=%q), %s missingFunds=%v (runErr=%q)",
 			aLabel, aRes.MissingFunds, aRes.RunErr, bLabel, bRes.MissingFunds, bRes.RunErr,
@@ -194,4 +205,11 @@ func postingsDiffer(a, b map[postingKey]*big.Int) bool {
 		}
 	}
 	return false
+}
+
+// aNegativeAmount reports whether this side rejected the script for a negative
+// amount rather than for the funds.
+func aNegativeAmount(a SideResult) bool {
+	return !a.MissingFunds && a.RunErr != "" &&
+		strings.Contains(strings.ToLower(a.RunErr), "negative amount")
 }

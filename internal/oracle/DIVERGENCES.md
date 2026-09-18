@@ -12,18 +12,16 @@ Everything below was measured by running all three engines, not recalled.
 
 | # | what | ledger | oracle | numscript |
 |---|---|---|---|---|
-| 1 | negative send amount | `insufficient funds` | rejects the amount | rejects the amount |
+| 1 | negative send amount | `insufficient funds` | `insufficient funds` | rejects the amount |
 | 2 | `kept` | does not consume the funding | consumes it | consumes it |
 | 3 | `save` past the balance | balance goes negative | goes negative | floors at zero |
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 
-On 1 and 2 the oracle does not match ledger. Those are the only two places it
-cannot be trusted to check numscript, and both are deliberate.
+The oracle matches ledger on 1, 3 and 4. It does not on 2, which is the one
+place it cannot be trusted to check numscript.
 
-On 3 and 4 the oracle matches ledger and numscript is the odd one out. Those
-are the ones the harness is meant to find.
-
-`TestDifferentialSweep` is green: 0 divergences and 0 tolerated over 3000 seeds.
+`TestDifferentialSweep` is green: 0 divergences over 3000 seeds, and 161 of
+those scripts tolerated under #1.
 
 ---
 
@@ -39,7 +37,7 @@ send [COIN 0] - [COIN 90] (
 | engine | result |
 |---|---|
 | ledger | `account(s) @alice had/have insufficient funds` |
-| oracle | `cannot send a monetary with a negative amount: [COIN -90]` |
+| oracle | same as ledger |
 | numscript | `Cannot send negative amount: -90` |
 
 Alice has 1000 and is asked for -90. The amount is invalid at any balance, so
@@ -47,19 +45,27 @@ calling it a funding problem points at the wrong thing, and ledger's API maps it
 to HTTP 400 `INSUFFICIENT_FUND`.
 
 Ledger guards `OP_TAKE_MAX` but not `OP_TAKE`, so every bounded source falls
-through to the insufficient-funds branch. The oracle adds the missing guard in
-`vm/machine.go`.
+through to the insufficient-funds branch.
 
 Upstream agrees it is a bug. `vm/machine_negative_amount_test.go` pins the
 current behaviour with a `BUG:` comment. The fix, ledger PR #2060, was closed
 unmerged and its branch deleted, so main still has no guard.
 
-**Why the oracle keeps its guard:** without it, 161 of 3000 swept scripts (5.4%)
-diverge on this one error classification and bury everything else. It costs a wrong
-error message, not wrong postings. The send fails either way.
+**The oracle copies ledger exactly, missing guard and all.** `Compare` absorbs the
+difference instead, under the name `negative amount vs missing funds`. Both
+engines reject the script and no money moves either way; only the error differs.
 
-**Open question:** re-file the fix upstream, or drop the guard and accept 161 of
-3000 scripts diverging.
+The tolerance runs in one direction: the interpreter naming a negative amount
+while the oracle blames the funds. The reverse is #4, and stays a mismatch.
+
+The sweep reports how often it fires -- currently 161 of 3000 scripts, 5.4%. If
+that number grows, the tolerance has turned into a blind spot.
+
+The oracle used to carry the missing guard itself. Tolerating in `Compare`
+instead keeps `vm/machine.go` byte-identical to ledger apart from the vendored
+types, and makes the cost countable on every run rather than invisible.
+
+**Open question:** re-file the fix upstream.
 
 ## 2. `kept`
 
@@ -174,14 +180,22 @@ Deliberately unfixed on the numscript side: closing it means changing the
 interpreter's ground-truth behaviour, not just catching up to ledger. `Compare`
 tolerates it by comparing missing-funds classification rather than error text.
 
-**A ledger-side fix was built and rejected.** Ledger PR #2079 made a negative
-`max` clamp to zero, matching numscript. It needed a new opcode, because
-`OP_TAKE_MAX` receives both a `max` cap and the send amount of a source with an
-unbounded fallback (`@world`, `allowing unbounded overdraft`). Clamping the
-opcode itself fixes this case and at the same time turns
+**A ledger-side fix was built and rejected.** Ledger PR #2079
+(https://github.com/formancehq/ledger/pull/2079) made a negative `max` clamp to
+zero, matching numscript. It works, and it is green, but it needs a new opcode.
+
+`OP_TAKE_MAX` receives two different things: a `max` cap, and the send amount of
+a source with an unbounded fallback (`@world`, `allowing unbounded overdraft`).
+Clamping inside the opcode fixes this case and at the same time turns
 `send [COIN -90] (source = @world)` into a committed zero-amount transaction,
-moving ledger away from numscript on #1. The PR was closed as more machinery
-than the problem warrants. Read that thread before rebuilding it.
+which moves ledger away from numscript on #1. Telling the two apart means a new
+opcode the compiler emits only at the two `max` sites.
+
+**Decision: leave ledger alone.** Adding an opcode to the machine is too
+aggressive for what this buys, and the machine is the part where a mistake is
+most expensive. Keeping ledger's current behaviour is the safer default.
+
+So this stays a numscript-side question. Do not rebuild #2079.
 
 The destination-side version of this was a real numscript bug and is fixed:
 numscript now errors there, matching ledger.
@@ -194,7 +208,7 @@ numscript now errors there, matching ledger.
 
 | # | test |
 |---|---|
-| 1 | the sweep. Removing the guard lights up 161 scripts immediately |
+| 1 | the sweep, as a named tolerance. `TestMissingFundsClassificationMismatchStillCaught` pins that the opposite direction is not tolerated |
 | 2 | `TestKnownBugRepros` (the engines agree now) and `TestOracleKeptComplex` |
 | 3 | `TestKnownOpenDivergences` |
 | 4 | `TestSourceSideNegativeMaxClauseTolerated` and `TestMissingFundsClassificationMismatchStillCaught` |
@@ -231,13 +245,13 @@ for f in $(cd $O && find . -name '*.go' | sed 's|^\./||' | sort); do
 done
 ```
 
-Nine files differ, and every one is accounted for:
+Nine files differ. Only one is a behaviour change:
 
 | file | why |
 |---|---|
 | `account.go`, `asset.go`, `internal/accounts/accounts.go`, `internal/assets/asset.go` | vendoring |
 | `vm/oracle_types.go`, `vm/run.go`, `vm/store.go` | vendoring |
-| `vm/machine.go` | vendoring, **and** the `OP_TAKE` guard (#1) |
+| `vm/machine.go` | vendoring |
 | `script/compiler/destination.go` | `kept` (#2) |
 
 Anything else that shows up is undocumented drift. Either record it here or

@@ -311,17 +311,6 @@ func (m *Machine) tick() (bool, error) {
 	case program.OP_TAKE:
 		mon := pop[machine.Monetary](m)
 		funding := pop[machine.Funding](m)
-		// Not upstream: ledger guards OP_TAKE_MAX only (0cc2844e4, 2023), so
-		// a negative send amount reaches Take() and comes back out as an
-		// insufficient-funds error instead of a rejected script. PR #2060
-		// closed unmerged; main pins the behaviour as a known bug in
-		// vm/machine_negative_amount_test.go instead of fixing it. See
-		// internal/oracle/DIVERGENCES.md #1.
-		if mon.Amount.Ltz() {
-			return true, fmt.Errorf(
-				"cannot send a monetary with a negative amount: [%s %s]",
-				string(mon.Asset), mon.Amount)
-		}
 		if funding.Asset != mon.Asset {
 			return true, machine.NewErrInvalidScript("cannot take from different assets: %v and %v", funding.Asset, mon.Asset)
 		}
