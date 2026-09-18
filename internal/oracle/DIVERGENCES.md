@@ -153,8 +153,12 @@ The oracle used to floor at zero as well, with a comment saying it matched the
 interpreter. That was the oracle bending toward the engine it exists to check,
 and it has been reverted.
 
-The generator rarely produces a save-overdraw followed by a bounded-overdraft
-draw on the same account, so the sweep does not reach this.
+The sweep does not reach this. Over the same 3000 seeds: 686 scripts contain a
+`save`, 2284 a bounded overdraft, 130 both on the same account, 7 in that order,
+2 where the save also overdraws, and 0 where everything lines up. The generator
+samples each statement independently, so a shape needing two statements to hit
+the same (account, asset) in order is suppressed by roughly 1/(poolSize x
+assets) squared. This is a generator limitation, not evidence of agreement.
 
 **Open question:** whether numscript should stop flooring.
 
