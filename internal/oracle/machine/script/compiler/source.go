@@ -36,7 +36,9 @@ func (p *parseVisitor) VisitValueAwareSource(c parser.IValueAwareSourceContext, 
 			return nil, LogicError(c, errors.New("cannot take all balance of an allotment source"))
 		}
 		p.PushAddress(*monAddr)
-		p.VisitAllotment(c.SourceAllotment(), c.SourceAllotment().GetPortions())
+		if compErr := p.VisitAllotment(c.SourceAllotment(), c.SourceAllotment().GetPortions()); compErr != nil {
+			return nil, compErr
+		}
 		p.AppendInstruction(program.OP_ALLOC)
 
 		sources := c.SourceAllotment().GetSources()

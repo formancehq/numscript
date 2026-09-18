@@ -166,8 +166,8 @@ const (
 type VarDecl struct {
 	Kind    VarDeclKind
 	Account string
-	// Makes `balance(, ...)` and a literal `@acc` elsewhere alias one
-	// account.
+	// Makes `balance($accountN, ...)` and a literal `@acc` elsewhere alias
+	// one account.
 	AccountAsVar bool
 
 	// VarFromBalance only

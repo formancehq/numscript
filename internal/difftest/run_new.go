@@ -31,6 +31,11 @@ type SideResult struct {
 	// Compare treats this classification, not the RunErr text, as what must agree
 	// across engines.
 	MissingFunds bool
+	// NegativeAmount is only meaningful when RunErr is set on the new
+	// interpreter's side: true iff the failure was NegativeAmountErr. Compare
+	// uses this typed classification, not RunErr text, to spot the source-side
+	// negative `max` divergence (oracle/DIVERGENCES.md #4).
+	NegativeAmount bool
 	// InternalErr is set when an engine broke its own contract, as opposed to
 	// rejecting the script. Deliberately not CompileErr: Compare tolerates one
 	// side rejecting what the other accepted, so a self-inconsistency reported as
@@ -84,7 +89,8 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 	execResult, err := parseResult.Run(ctx, maps.Clone(vars), store)
 	if err != nil {
 		_, missingFunds := err.(numscript.MissingFundsErr)
-		return SideResult{RunErr: err.Error(), MissingFunds: missingFunds}
+		_, negativeAmount := err.(numscript.NegativeAmountErr)
+		return SideResult{RunErr: err.Error(), MissingFunds: missingFunds, NegativeAmount: negativeAmount}
 	}
 
 	postings := make([]Posting, 0, len(execResult.Postings))

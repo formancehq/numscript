@@ -50,9 +50,6 @@ var observerKinds = []string{
 // on how a clamp should behave.
 type shadow struct {
 	balance *big.Int
-	// false once the block follows statements the estimate did not see, or a
-	// setup whose effect depends on other accounts
-	exact bool
 	// the last few amounts mentioned in the block
 	quants []*big.Int
 }
@@ -148,7 +145,6 @@ func genScenario(rng *rand.Rand, poolSize int, seeds Program, balances map[Balan
 		focusIdx: focusIdx,
 		sh: shadow{
 			balance: initialBalance(Script{Seeds: seeds, Balances: balances}, BalanceKey(focus)),
-			exact:   pos == 0,
 		},
 	}
 
@@ -273,7 +269,6 @@ func (g *scenarioGen) setup(kind string) ScenarioStmt {
 	case setupKeptSplit:
 		n, k := g.amount(), g.amount()
 		g.sh.sub(n)
-		g.sh.exact = false
 		remaining := KeptOrDest{Kind: To, Dest: &Destination{Kind: DestAccount, Account: g.otherAccount(), AccountAsVar: asVar(g.rng)}}
 		return g.send(kind, n,
 			Source{Kind: SrcInorder, Sources: []Source{g.focusPlain(), g.otherUnbounded()}},
@@ -312,7 +307,6 @@ func (g *scenarioGen) observe(kind string) ScenarioStmt {
 	case observeDrawFallback:
 		n := g.amount()
 		g.sh.sub(n)
-		g.sh.exact = false
 		first := g.focusPlain()
 		if g.rng.Intn(2) == 0 {
 			first = g.focusBounded(g.amount())
@@ -324,7 +318,6 @@ func (g *scenarioGen) observe(kind string) ScenarioStmt {
 	case observeDrawCapped:
 		k, n := g.amount(), g.amount()
 		g.sh.sub(n)
-		g.sh.exact = false
 		capped := g.mon(k)
 		inner := g.focusPlain()
 		return g.send(kind, n,

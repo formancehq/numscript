@@ -3,7 +3,6 @@ package difftest
 import (
 	"fmt"
 	"math/big"
-	"strings"
 )
 
 // Verdict is the outcome of comparing both engines' results for one script.
@@ -212,6 +211,5 @@ func postingsDiffer(a, b map[postingKey]*big.Int) bool {
 // aNegativeAmount reports whether this side rejected the script for a negative
 // amount rather than for the funds.
 func aNegativeAmount(a SideResult) bool {
-	return !a.MissingFunds && a.RunErr != "" &&
-		strings.Contains(strings.ToLower(a.RunErr), "negative amount")
+	return !a.MissingFunds && a.RunErr != "" && a.NegativeAmount
 }
