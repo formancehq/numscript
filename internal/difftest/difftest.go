@@ -1,0 +1,56 @@
+// Package difftest compares this repo's interpreter against the vendored legacy
+// ledger machine (internal/oracle) on programs from internal/gen.
+//
+// Its own Go module, wired with local `replace` directives, so it can import
+// both the root module and the oracle without either depending on this one.
+package difftest
+
+import (
+	"context"
+	"math/rand"
+
+	"github.com/formancehq/numscript/internal/gen"
+)
+
+// Case is one generated script plus both engines' results and the verdict
+// between them.
+type Case struct {
+	Script string
+	Vars   map[string]string
+	New    SideResult
+	Oracle SideResult
+
+	// OracleVsNew compares this repo's interpreter against the vendored
+	// legacy machine, which is the only independent ground truth available:
+	// the oracle is a separate implementation, maintained elsewhere, that
+	// this repo's engine must agree with.
+	//
+	// The harness is built to carry more engines than this — Compare is
+	// deliberately engine-agnostic and takes labels. When internal/vm lands,
+	// re-add a VM leg here (runVM, Case.VM, OracleVsVM and NewVsVM) so the
+	// compiler+VM is checked against both the oracle and the interpreter.
+	OracleVsNew Verdict
+}
+
+// RunOne generates one program from rng, runs it against both engines, and
+// compares the results.
+func RunOne(ctx context.Context, rng *rand.Rand) Case {
+	vars, balances, metadata, script := gen.GenerateScript(rng)
+
+	newRes := runNew(ctx, script, vars, balances, metadata)
+	oracleRes := runOracle(ctx, script, vars, balances, metadata)
+
+	return Case{
+		Script: script,
+		Vars:   vars,
+		New:    newRes,
+		Oracle: oracleRes,
+
+		OracleVsNew: Compare(script, newRes, oracleRes, "new interpreter", "oracle"),
+	}
+}
+
+// AnyMismatch reports whether the comparison found a divergence.
+func (c Case) AnyMismatch() bool {
+	return c.OracleVsNew.Mismatch
+}
