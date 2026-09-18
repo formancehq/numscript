@@ -27,8 +27,8 @@ func cleanupStatement(s Statement) Statement {
 	return s
 }
 
-// isSrcUnbounded mirrors Gen.hs/Utils.hs's isSrcUnbounded: true only for a
-// literal `world` account or an explicit unbounded overdraft. Notably, a
+// isSrcUnbounded is true only for a literal `world` account or an explicit
+// unbounded overdraft. Notably, a
 // SrcCapped wrapping an unbounded source is NOT itself unbounded — the cap
 // always bounds it.
 func isSrcUnbounded(s Source) bool {
@@ -63,8 +63,7 @@ func cleanupSrc(s Source, emptiedAccounts map[string]bool) Source {
 	}
 }
 
-// cleanupSrcs is a port of Utils.hs's cleanupSrcs/cleanupSrcsHelper: it
-// walks a list of sibling sources (as found inside a SrcInorder), dropping
+// cleanupSrcs walks a list of sibling sources (as found inside a SrcInorder), dropping
 // an unbounded source unless it's the last element, and dropping any
 // account-referencing source whose account was already used earlier
 // anywhere in this statement's source tree (emptiedAccounts is threaded
@@ -101,10 +100,10 @@ func cleanupSrcs(srcs []Source, emptiedAccounts map[string]bool) []Source {
 	return append([]Source{cleanedHead}, cleanupSrcs(rest, emptiedAccounts)...)
 }
 
-// removeEmptyAllotmentsSrc is a port of Utils.hs's removeEmptyAllotments: a
-// second, stateless pass that prunes now-empty subtrees left behind by
-// cleanupSrcs. Returns nil for "this subtree is now empty" (Haskell's
-// Nothing). Note SrcAllotment is fail-fast: if ANY clause becomes empty, the
+// removeEmptyAllotmentsSrc is a second, stateless pass pruning subtrees left
+// empty by cleanupSrcs. Returns nil for "this subtree is now empty".
+//
+// SrcAllotment is fail-fast: if ANY clause becomes empty, the
 // whole allotment is dropped (its portions can't be renormalized), unlike
 // SrcInorder which just drops individually-empty children.
 func removeEmptyAllotmentsSrc(s Source) *Source {

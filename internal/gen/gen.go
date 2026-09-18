@@ -14,28 +14,21 @@ import (
 // source/destination trees than a always-16-accounts pool would.
 const maxPoolSize = 15
 
-// maxRecursionDepth is a hard, non-probabilistic cap on Source/Destination
-// nesting (inorder/allotment/capped). The probabilistic shaping below
-// (smallerRat/stopRecursion, ported from Gen.hs) makes deep recursion
-// increasingly unlikely but never impossible — an adversarial fuzzer can in
-// principle keep drawing the "recurse" branch. This is a
-// belt-and-suspenders backstop on top of (not instead of) that shaping.
+// maxRecursionDepth is a hard cap on Source/Destination nesting. The
+// probabilistic shaping below makes deep recursion unlikely but never
+// impossible, so this is a backstop on top of it, not instead of it.
 const maxRecursionDepth = 12
 
-// assetPool is the small fixed set of asset names a generated script's
-// statements pick from (one per statement, not one per script — see
-// pickAsset) — enough to exercise asset-mismatch/asset-scoped balance paths
-// without an explosion of combinations.
+// assetPool is picked from per statement, not per script (see pickAsset).
 var assetPool = []string{"COIN", "USD/2", "EUR/2"}
 
-// ratio mirrors Haskell's `Ratio Int`: the odds "num/denom" of an event.
+// ratio is the odds "num/denom" of an event.
 type ratio struct {
 	num, denom int
 }
 
-// smallerRat mirrors Gen.hs: (num+1)/(denom+1), converging toward 1 as it's
-// repeatedly applied — used to make recursion/list-length increasingly
-// likely to stop the deeper generation goes.
+// smallerRat converges toward 1 as it is reapplied, so recursion and list
+// length get likelier to stop the deeper generation goes.
 func smallerRat(r ratio) ratio {
 	return ratio{r.num + 1, r.denom + 1}
 }
@@ -45,9 +38,8 @@ func weightedCoin(rng *rand.Rand, r ratio) bool {
 	return rng.Intn(r.denom) < r.num
 }
 
-// nonUniform mirrors Gen.hs: picks an unbounded integer via a non-uniform
-// distribution starting at n, recursing (n+1, smallerRat(r)) with
-// probability (1 - r.num/r.denom).
+// nonUniform picks an unbounded integer starting at n, recursing on
+// (n+1, smallerRat(r)) with probability (1 - r.num/r.denom).
 func nonUniform(rng *rand.Rand, r ratio, n int) int {
 	if weightedCoin(rng, r) {
 		return n
@@ -55,8 +47,7 @@ func nonUniform(rng *rand.Rand, r ratio, n int) int {
 	return nonUniform(rng, smallerRat(r), n+1)
 }
 
-// nonUniformListOf mirrors Gen.hs's nonUniformListOf: a list whose length is
-// drawn from nonUniform(1/10, 1).
+// nonUniformListOf draws its length from nonUniform(1/10, 1).
 func nonUniformListOf[T any](rng *rand.Rand, g func() T) []T {
 	n := nonUniform(rng, ratio{1, 10}, 1)
 	out := make([]T, n)
@@ -66,8 +57,8 @@ func nonUniformListOf[T any](rng *rand.Rand, g func() T) []T {
 	return out
 }
 
-// portionsList mirrors Gen.hs: a non-uniform-length list of random positive
-// weights, normalized into rationals summing to exactly 1.
+// portionsList returns random positive weights normalized into rationals
+// summing to exactly 1.
 func portionsList(rng *rand.Rand) []*big.Rat {
 	xs := nonUniformListOf(rng, func() int64 {
 		return int64(rng.Intn(100) + 1)
@@ -101,21 +92,16 @@ func pickAsset(rng *rand.Rand) string {
 	return assetPool[rng.Intn(len(assetPool))]
 }
 
-// monetary generates a Monetary in the given asset. Amounts are mostly
-// positive (Gen.hs's original range), but at a low-but-nonzero weight are
-// zero — exercising the zero-posting-trim path, already handled correctly
-// by Compare's zero-posting handling.
+// monetary generates a Monetary in the given asset. Mostly positive, and at a
+// low weight zero, which exercises the zero-posting-trim path.
 //
-// Deliberately NEVER negative: unlike a negative top-level send amount
-// (which errors identically, and RunErr-tolerated, on both engines — see
-// statementAmount below), a negative `max` clause amount (source cap or
-// destination inorder max) is a genuine, real divergence — confirmed
-// directly against both engines: the oracle raises "cannot send a monetary
-// with a negative amount", while the new interpreter silently treats the
-// clause as contributing nothing instead of erroring. monetary() is used
-// pervasively for source caps and destination max clauses, so keeping it
-// non-negative avoids the generator reflexively rediscovering this same
-// known issue on every run. See DIFFTEST_HANDOFF.md's bug list.
+// Never negative. A negative `max` clause amount is an open divergence: the
+// oracle rejects it, the interpreter treats the clause as contributing nothing
+// (oracle/DIVERGENCES.md §3.3). monetary() feeds every source cap and
+// destination max, so allowing it would rediscover that on every run.
+//
+// A negative top-level send amount is different: both engines error, so
+// statementAmount does emit those.
 func monetary(rng *rand.Rand, asset string) Monetary {
 	if rng.Intn(20) == 0 {
 		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(0)}
@@ -123,16 +109,12 @@ func monetary(rng *rand.Rand, asset string) Monetary {
 	return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(int64(rng.Intn(1000)))}
 }
 
-// statementAmount generates the Monetary used as a statement's own
-// top-level send amount — unlike monetary(), this DOES include negative
-// values at a low weight: a negative top-level send amount is a runtime
-// error on both engines (confirmed directly: new interpreter says "Cannot
-// send negative amount", oracle says "cannot send a monetary with a
-// negative amount" — different text, same RunErr-both-sides outcome, which
-// Compare already tolerates). Note a negative Amount here can only be
-// legally rendered as `[ASSET 0] - [ASSET N]`, never as a bare literal —
-// see builder.ExprMonetarySub; that's convert.go's job, not this
-// function's.
+// statementAmount generates a statement's top-level send amount. Unlike
+// monetary() it includes negative values at a low weight: both engines error on
+// those, with different text but the same outcome, which Compare tolerates.
+//
+// A negative amount has no literal form — convert.go renders it as
+// `[ASSET 0] - [ASSET N]`.
 func statementAmount(rng *rand.Rand, asset string) Monetary {
 	roll := rng.Intn(100)
 	switch {
@@ -183,9 +165,8 @@ func zeroFreqIf(weight int, cond bool) int {
 	return weight
 }
 
-// weighted and pick mirror QuickCheck's `frequency`: weighted random
-// selection proportional to weight, only ever evaluating the chosen branch
-// (branches are thunks since they may recurse and consume more randomness).
+// weighted selection proportional to weight. Branches are thunks: only the
+// chosen one runs, since evaluating the others would consume randomness.
 type weighted[T any] struct {
 	weight int
 	build  func() T

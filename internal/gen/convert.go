@@ -6,11 +6,11 @@ import (
 	"github.com/formancehq/numscript/builder"
 )
 
-// ToBuilder converts a (post-cleanup) generated program into builder
+// toBuilder converts a (post-cleanup) generated program into builder
 // statements, ready to be passed to builder.BuildProgram. Each account and
 // asset occurrence is rendered inline or through a var according to its
 // AsVar flag — see toBuilderAccount.
-func ToBuilder(p Program) []builder.Statement {
+func toBuilder(p Program) []builder.Statement {
 	out := make([]builder.Statement, len(p))
 	for i, s := range p {
 		out[i] = toBuilderStatement(s)
@@ -150,7 +150,7 @@ func toBuilderVarExprs(vars []VarDecl) varExprs {
 }
 
 // AccountVarFill pairs a declared account-typed var with the literal value
-// it must be bound to at run time — collected during ToBuilderScript and
+// it must be bound to at run time — collected during toBuilderScript and
 // consumed by GenerateScript (api.go), which merges it into the vars
 // bindings map builder.BuildProgram returns. Unlike a VarFromBalance/
 // VarFromMeta var (whose value the compiler computes from an origin call),
@@ -162,12 +162,12 @@ type AccountVarFill struct {
 	Value string
 }
 
-// ToBuilderScript converts a full generated Script (vars declarations,
+// toBuilderScript converts a full generated Script (vars declarations,
 // seed-funding statements, the core send-only program interleaved with
 // extra non-send statements per Script.Order) into a flat list of builder
 // statements, ready for builder.BuildProgram, plus the account-var runtime
 // bindings the caller must additionally fill in (see AccountVarFill).
-func ToBuilderScript(s Script) ([]builder.Statement, []AccountVarFill) {
+func toBuilderScript(s Script) ([]builder.Statement, []AccountVarFill) {
 	ve := toBuilderVarExprs(s.Vars)
 
 	accountVars := make([]builder.Var[builder.ExprTypeAccount], len(s.AccountVars))
@@ -180,7 +180,7 @@ func ToBuilderScript(s Script) ([]builder.Statement, []AccountVarFill) {
 	}
 
 	out := make([]builder.Statement, 0, len(s.Seeds)+len(s.Program)+len(s.Extra))
-	out = append(out, ToBuilder(s.Seeds)...)
+	out = append(out, toBuilder(s.Seeds)...)
 
 	pi, ei := 0, 0
 	for _, takeProgram := range s.Order {

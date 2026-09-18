@@ -1,36 +1,22 @@
-// Package gen is a Go port of numscript_gen's Haskell generator
-// (Gen.hs/Numscript.hs/Utils.hs), used to produce random numscript programs
-// for differential testing against the legacy ledger "machine" (see
-// internal/oracle). It matches the Haskell generator's scope 1:1: only
-// `send`/`send *` statements, no vars/print/save/set_tx_meta/conditionals.
+// Package gen produces random numscript programs for differential testing.
 //
-// Generation happens against this package's own intermediate AST (mirroring
-// Numscript.hs) rather than directly against builder/, because the cleanup
-// pass (cleanup.go, porting Utils.hs) needs a real, rewritable tree to walk
-// — builder's Source/Destination are opaque render closures. The final
-// program is converted to builder.Statement values only once cleanup has
-// settled (see convert.go).
+// Generation targets this package's own AST rather than builder/ directly:
+// cleanup.go rewrites the tree in place, and builder's Source/Destination are
+// opaque render closures. convert.go renders once cleanup has settled.
 package gen
 
 import "math/big"
 
 // An "AsVar" field marks one value occurrence as written through a `vars {}`
-// variable instead of inline. It is per occurrence, not per value: the same
-// account address or asset can appear inline in one place and as a var in
-// another within the same script. That is what makes two distinct resources
-// resolve to the same account — the aliasing behind formancehq/ledger#2056,
-// which this generator previously could not produce because every account it
-// emitted was a literal.
+// variable instead of inline. Per occurrence, not per value: the same account
+// can be inline in one place and a var in another, which is what makes two
+// resources alias one account (formancehq/ledger#2056).
 //
-// Only the rendering changes, never the value, so passes that reason about
-// addresses (cleanup.go) are unaffected.
+// Only the rendering changes, never the value, so cleanup.go is unaffected.
 type Monetary struct {
-	Asset string
-	// Render Asset through a var rather than inline.
+	Asset      string
 	AssetAsVar bool
-	// Render the whole monetary through a var (`$monetary_N`) rather than as a
-	// `[asset amount]` literal. Ignored for negative amounts, which have no
-	// literal form to bind (see toBuilderMonetary).
+	// Ignored for negative amounts: they have no literal form to bind.
 	AsVar  bool
 	Amount *big.Int
 }
@@ -49,8 +35,7 @@ type Source struct {
 	Kind SourceKind
 
 	// SrcAccount, SrcAccountOverdraft
-	Account string
-	// Render Account through a var rather than inline. See AsVar.
+	Account      string
 	AccountAsVar bool
 
 	// SrcAccountOverdraft only: nil means unbounded overdraft
@@ -84,8 +69,7 @@ type Destination struct {
 	Kind DestKind
 
 	// DestAccount only
-	Account string
-	// Render Account through a var rather than inline. See AsVar.
+	Account      string
 	AccountAsVar bool
 
 	// DestInorder only
@@ -123,7 +107,7 @@ type Statement struct {
 	IsSendAll bool
 	Amount    Monetary
 	Asset     string
-	// IsSendAll only: render Asset through a var rather than inline.
+	// IsSendAll only.
 	AssetAsVar  bool
 	Source      Source
 	Destination Destination
@@ -131,10 +115,8 @@ type Statement struct {
 
 type Program []Statement
 
-// NumExprKind is a small arithmetic-expression AST used for
-// set_tx_meta/set_account_meta values: literals combined with +/-, the only
-// runtime operators the oracle's grammar supports (see NumScript.g4's
-// `expression` rule: ExprAddSub over literals/variables, nothing else).
+// NumExprKind is the arithmetic allowed in set_tx_meta/set_account_meta
+// values. Only +/- over literals and vars: that is all NumScript.g4 has.
 type NumExprKind int
 
 const (
@@ -148,7 +130,7 @@ type NumExpr struct {
 
 	// NumLit only
 	Lit *big.Int
-	// NumLit only: render Lit through a var rather than inline.
+	// NumLit only.
 	LitAsVar bool
 
 	// NumAdd, NumSub only
@@ -165,9 +147,9 @@ const (
 	VarFromMeta
 )
 
-// MetaType is the numscript type a `meta()` origin var is declared as. meta()
-// returns TypeAny: the declaration decides how the stored string is parsed, so
-// a var only compiles if its type matches the preset value it reads.
+// MetaType is the type a `meta()` origin var is declared as. meta() returns
+// TypeAny, so the declaration decides how the stored string is parsed and the
+// var only compiles if the type matches the preset value.
 type MetaType int
 
 const (
@@ -179,27 +161,23 @@ const (
 	MetaPortion
 )
 
-// VarDecl is a `vars {}` declaration whose value comes from the compiler,
-// not a runtime-supplied binding. See builder.NewMonetaryVarFromBalance /
-// builder.NewNumberVarFromMeta and internal/oracle's VisitVars
-// (OriginAccountBalanceContext/OriginAccountMetaContext).
+// VarDecl is a `vars {}` declaration whose value comes from the compiler, not
+// from a runtime binding.
 type VarDecl struct {
 	Kind    VarDeclKind
 	Account string
-	// Render Account through a var rather than inline, so that
-	// `balance($accountN, ...)` and a literal `@acc` elsewhere in the script
-	// become two resources aliasing one account.
+	// Makes `balance(, ...)` and a literal `@acc` elsewhere alias one
+	// account.
 	AccountAsVar bool
 
 	// VarFromBalance only
-	Asset string
-	// Render Asset through a var rather than inline.
+	Asset      string
 	AssetAsVar bool
 
 	// VarFromMeta only
 	Key string
-	// VarFromMeta only: the type to declare the var as, which must match how
-	// the preset value at (Account, Key) is written.
+	// VarFromMeta only. Must match how the preset value at (Account, Key) is
+	// written.
 	MetaType MetaType
 }
 
@@ -230,22 +208,13 @@ const (
 	ExtraSendToAccountVar
 )
 
-// AccountVarDecl is a plain (runtime-fed) account-typed `vars {}`
-// declaration — unlike VarDecl, its value isn't computed by the compiler
-// from an origin call; it's a literal account address supplied via the vars
-// binding map at run time, exactly like a real caller's `$var` would be.
-// Value is occasionally "world" specifically to exercise an account
-// variable that resolves to @world in source position — a real, understood
-// asymmetry between the two engines (the oracle rejects it in
-// ResolveBalances with "`@world` can only be used as a variable in the
-// experimental interpreter, or if it is never used as a source"; the new
-// interpreter accepts it transparently, same as a literal @world). Compare
-// already tolerates that specific direction (oracle rejects, new interpreter
-// accepts) as expected, not a mismatch.
+// AccountVarDecl is an account-typed `vars {}` declaration bound at run time
+// from the vars map, unlike VarDecl which the compiler computes from an origin
+// call.
 //
-// This is distinct from an account occurrence with AccountAsVar set: that
-// routes an ordinary account reference through the pooled vars mechanism,
-// whereas this declares a var whose bound value is itself interesting.
+// Value is sometimes "world": the oracle rejects a var resolving to @world in
+// source position, the interpreter accepts it. Compare tolerates that
+// direction.
 type AccountVarDecl struct {
 	Value string
 }
@@ -272,13 +241,11 @@ type ExtraStatement struct {
 
 	// ExtraSave (source account), ExtraSetAccountMeta, ExtraSendVar (source),
 	// ExtraSendFromAccountVar (destination), ExtraSendToAccountVar (source)
-	Account string
-	// Render Account through a var rather than inline.
+	Account      string
 	AccountAsVar bool
 
 	// ExtraSaveAll
-	Asset string
-	// Render Asset through a var rather than inline.
+	Asset      string
 	AssetAsVar bool
 
 	// ExtraSetTxMeta, ExtraSetAccountMeta, ExtraSetTxMetaVar
@@ -286,13 +253,11 @@ type ExtraStatement struct {
 	Value NumExpr
 	// ExtraSetTxMeta, ExtraSetAccountMeta: when non-nil the meta value is this
 	// string rather than the Value expression, exercising string-typed values.
-	StringValue *string
-	// Render StringValue through a var rather than inline.
+	StringValue      *string
 	StringValueAsVar bool
 
 	// ExtraSendVar: `send $<Vars[VarIdx]> (source = Account, destination = Destination)`
-	Destination string
-	// Render Destination through a var rather than inline.
+	Destination      string
 	DestinationAsVar bool
 }
 

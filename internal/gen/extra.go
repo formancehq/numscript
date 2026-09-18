@@ -8,21 +8,19 @@ import (
 	"slices"
 )
 
-// seedAmount is used for `world -> accN` funding statements — always
-// positive (funding is meant to give accounts something to spend; the
-// "amounts can be zero/negative" exploration lives in monetary(), used
-// elsewhere).
+// seedAmount is for `world -> accN` funding statements, always positive.
+// Zero and negative amounts are explored by monetary() instead.
 func seedAmount(rng *rand.Rand) *big.Int {
 	return big.NewInt(int64(rng.Intn(1000)) + 1)
 }
 
 // genSeedStatements builds `world -> acc<i>` funding statements for every
-// (account, asset) pair in the pool. Note: these run at EXECUTION time, so
-// they do NOT feed a `balance()`-origin var (see genVarDecls) — vars-block
-// origins are resolved once, before any statement in the script executes,
-// on both engines (confirmed directly against the oracle). Pre-set starting
-// balances (genPresetBalances) are the only way to make a balance()-origin
-// var observe a non-zero value.
+// (account, asset) pair in the pool.
+//
+// These run at execution time, so they do NOT feed a `balance()`-origin var:
+// vars-block origins resolve once, before any statement runs, on both engines.
+// genPresetBalances is the only way to make such a var observe a non-zero
+// value.
 func genSeedStatements(rng *rand.Rand, poolSize int, assets []string) Program {
 	stmts := make(Program, 0, poolSize*len(assets))
 	for i := range poolSize {
@@ -42,13 +40,11 @@ func genSeedStatements(rng *rand.Rand, poolSize int, assets []string) Program {
 	return stmts
 }
 
-// genPresetBalances populates balances with a starting balance for a random
-// subset of (account, asset) pairs in the pool, including negative amounts
-// — a precondition set directly on the store rather than by executing
-// funding statements (see internal/difftest's runNew/runOracle, which feed
-// this into each engine's StaticStore). "world" is deliberately never
-// included: it's never balance-backed on either engine (the oracle's
-// ResolveBalances never queries it; it must stay funding-only).
+// genPresetBalances sets a starting balance, possibly negative, on a random
+// subset of (account, asset) pairs, directly on the store rather than by
+// executing funding statements.
+//
+// "world" is never included: it is never balance-backed on either engine.
 func genPresetBalances(rng *rand.Rand, poolSize int, assets []string, balances map[BalanceKey]*big.Int) {
 	for i := range poolSize {
 		acc := fmt.Sprintf("acc%d", i)
@@ -56,22 +52,19 @@ func genPresetBalances(rng *rand.Rand, poolSize int, assets []string, balances m
 			if rng.Intn(2) != 0 {
 				continue
 			}
-			// [-500, 1499]: comfortably covers both a plausible positive
-			// starting balance and a negative one (the new/interesting case).
+			// [-500, 1499]: covers a plausible positive balance and a negative one.
 			amount := big.NewInt(int64(rng.Intn(2000) - 500))
 			balances[BalanceKey{Account: acc, Asset: asset}] = amount
 		}
 	}
 }
 
-// genBalances decides, per script, how accounts get their starting
-// balances: via `world ->` funding statements (as before), via pre-set
-// starting balances on the store, or both. Weighted 50/25/25
-// (seeds/preset/both) — "both" mode combined with multi-asset preset
-// balances is close to the shape that surfaced a real bug this session
-// (see DIFFTEST_HANDOFF.md), so it's weighted higher than a uniform split,
-// while seeds-only stays the largest single bucket since it's the
-// original, most-exercised path.
+// genBalances decides, per script, how accounts get their starting balances:
+// `world ->` funding statements, pre-set balances on the store, or both.
+//
+// Weighted 50/25/25 (seeds/preset/both) rather than uniform: "both" with
+// multi-asset preset balances is the shape that surfaced two real bugs, and
+// seeds-only is the most-exercised path.
 func genBalances(rng *rand.Rand, poolSize int, assets []string) (map[BalanceKey]*big.Int, Program) {
 	balances := map[BalanceKey]*big.Int{}
 
@@ -96,14 +89,6 @@ func genBalances(rng *rand.Rand, poolSize int, assets []string) (map[BalanceKey]
 	return balances, seeds
 }
 
-// genPresetMetadata populates metadata with a value for a random subset of
-// (account, key) pairs in the pool — mirrors genPresetBalances. Values are
-// plain decimal strings: both engines parse a `meta()`-origin var's raw
-// stored string according to the var's declared type (confirmed directly:
-// internal/interpreter's parseVar and the oracle's
-// machine.NewValueFromString both just do a base-10 big.Int parse for a
-// `number`-typed var), so a decimal string is all a `number`-typed
-// meta()-origin var needs.
 // genPresetMetadata fills the starting account metadata both engines are given,
 // and records the numscript type each value is written as. meta() is typed by
 // the reading declaration rather than the stored value, so genVarDecls needs
@@ -123,10 +108,9 @@ func genPresetMetadata(rng *rand.Rand, poolSize int, metadata map[MetaKey]string
 	return types
 }
 
-// genMetaValue produces one starting metadata value along with the type it is
-// written as. Numbers stay the common case, matching the original generator;
-// the other five types exist so meta() is exercised in every form both engines
-// accept, not just as a number.
+// genMetaValue produces one starting metadata value and the type it is written
+// as. Numbers are the common case; the other five exist so meta() is exercised
+// in every form both engines accept.
 func genMetaValue(rng *rand.Rand, poolSize int) (string, MetaType) {
 	switch rng.Intn(10) {
 	case 0:
@@ -145,18 +129,17 @@ func genMetaValue(rng *rand.Rand, poolSize int) (string, MetaType) {
 	}
 }
 
-// metaKeyPool is the small fixed set of metadata keys genPresetMetadata and
-// genVarDecls pick from, mirroring assetPool's role for assets.
+// metaKeyPool is to metadata keys what assetPool is to assets.
 var metaKeyPool = []string{"k0", "k1", "k2"}
 
 // genVarDecls generates 0-3 vars-block declarations, each either
 // `monetary $name = balance(<account>, <asset>)` or
-// `number $name = meta(<account>, "<key>")`. Accounts with a pre-set
-// balance/metadata entry are preferred so the var actually observes
-// something other than the default-zero/missing-key path; "world" is
-// picked at a deliberate elevated rate (~1 in 4) specifically to exercise
-// balance(@world, ASSET) — confirmed directly against the oracle to be a
-// legal, always-zero read (never an error).
+// `number $name = meta(<account>, "<key>")`.
+//
+// Accounts with a pre-set balance or metadata entry are preferred, so the var
+// observes something other than the default-zero/missing-key path. "world" is
+// picked at ~1 in 4 to exercise balance(@world, ASSET), which is a legal
+// always-zero read on both engines.
 func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, metaTypes map[MetaKey]MetaType) []VarDecl {
 	n := rng.Intn(4) // 0..3
 	if n == 0 {
@@ -207,10 +190,9 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 		out[i] = VarDecl{Kind: VarFromBalance, Account: account(rng, poolSize), AccountAsVar: asVar(rng), Asset: pickAsset(rng), AssetAsVar: asVar(rng)}
 	}
 
-	// Deliberately bias toward the exact collision shape that produced two
-	// real bugs this session (see DIFFTEST_HANDOFF.md): two balance()-origin
-	// vars on the same account, either the same asset or a different one.
-	// Left to chance alone, this only happens incidentally.
+	// Bias toward the collision shape that produced two real bugs: two
+	// balance()-origin vars on the same account, same or different asset. Left
+	// to chance it happens only incidentally.
 	if len(out) >= 2 && rng.Intn(3) == 0 {
 		i := rng.Intn(len(out))
 		j := rng.Intn(len(out))
@@ -219,13 +201,10 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 		}
 		out[j].Kind = out[i].Kind
 		out[j].Account = out[i].Account
-		// out[j] may have started life as the *other* Kind, in which case
-		// its Asset (VarFromMeta never sets one) or Key (VarFromBalance
-		// never sets one) is still its zero value at this point — the
-		// "different" branch below must not leave that empty string in
-		// place, or it silently produces a var with an invalid origin
-		// (e.g. balance(@acc, "")) instead of the intended "different
-		// asset/key" collision.
+		// out[j] may have started as the other Kind, leaving Asset or Key at its
+		// zero value. The "different" branch must not keep that empty string, or
+		// it emits an invalid origin like balance(@acc, "") instead of the
+		// intended collision.
 		switch out[i].Kind {
 		case VarFromBalance:
 			if rng.Intn(2) == 0 {
@@ -239,10 +218,9 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 			} else {
 				out[j].Key = out[i].Key // exact duplicate (same account+key)
 			}
-			// The origin now reads a different (account, key) than j was built
-			// for, so its declared type has to follow the value actually stored
-			// there — otherwise the var does not parse and the whole script is
-			// rejected rather than compared.
+			// The origin now reads a different (account, key) than j was built for,
+			// so the declared type must follow the value actually stored there or
+			// the script is rejected instead of compared.
 			out[j].MetaType = metaTypes[MetaKey{Account: out[j].Account, Key: out[j].Key}]
 		}
 	}
@@ -250,16 +228,13 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 	return out
 }
 
-// genNumExpr generates a small arithmetic expression (literal, or +/- of
-// two smaller expressions), used for set_tx_meta/set_account_meta values.
-// depth bounds recursion (same hard-cap rationale as maxRecursionDepth).
-// Leaf literals are always non-negative: a bare negative NUMBER literal
-// can't be rendered legally (the oracle's `expression` grammar has no unary
-// minus production — only ExprAddSub/ExprLiteral/ExprVariable — so a
-// negative leaf would just make the oracle reject every such script, always
-// trivially "ok" via Compare's tolerated-rejection path and never real
-// coverage). NumSub compositions can still legally produce a negative
-// runtime value (e.g. `5 - 10`), which both engines parse and evaluate.
+// genNumExpr generates a small arithmetic expression for
+// set_tx_meta/set_account_meta values. depth bounds recursion.
+//
+// Leaf literals are never negative: the grammar has no unary minus, so a
+// negative leaf would make the oracle reject every such script, which Compare
+// tolerates and which is therefore no coverage at all. NumSub can still produce
+// a negative value at run time.
 func genNumExpr(rng *rand.Rand, depth int) NumExpr {
 	if depth <= 0 || rng.Intn(3) != 0 {
 		return NumExpr{Kind: NumLit, Lit: big.NewInt(int64(rng.Intn(1000))), LitAsVar: asVar(rng)}
@@ -421,13 +396,10 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 		}
 	}
 
-	// Two balance() origins on one account only expose the resource-aliasing
-	// bug (formancehq/ledger#2056) if BOTH are referenced: an origin var that
-	// nothing references is never declared, so an unreferenced collision is
-	// invisible to either engine. genVarDecls already biases toward creating
-	// the colliding pair, but leaving it to chance which vars get referenced
-	// put the complete shape at roughly 1 script in 30,000 — far too rare to
-	// gate on. Reference both members deliberately instead.
+	// Two balance() origins on one account only expose the resource-aliasing bug
+	// (formancehq/ledger#2056) if BOTH are referenced: an unreferenced origin var
+	// is never declared. Leaving that to chance put the full shape at roughly 1
+	// script in 30,000, so reference both deliberately.
 	if i, j, ok := aliasedBalanceVarPair(vars); ok && rng.Intn(2) == 0 {
 		for _, idx := range [2]int{i, j} {
 			v := idx
@@ -444,10 +416,9 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 	return out
 }
 
-// riffleOrder returns a random interleaving of two sequences of lengths a
-// and b, as a slice of booleans (true = take the next element from the
-// first sequence). Used to interleave Extra statements throughout Program
-// instead of only appending them at the end — see Script.Order.
+// riffleOrder returns a random interleaving of two sequences of lengths a and
+// b (true = take the next element from the first), so Extra statements land
+// throughout Program instead of only after it.
 func riffleOrder(rng *rand.Rand, a, b int) []bool {
 	order := make([]bool, 0, a+b)
 	for a > 0 && b > 0 {
@@ -468,13 +439,10 @@ func riffleOrder(rng *rand.Rand, a, b int) []bool {
 	return order
 }
 
-// GenerateScriptAST orchestrates one full round of generation: picks a
-// script-wide account-pool size, decides how balances/metadata are seeded
-// (world-funding statements, pre-set store state, or both), declares a
-// handful of vars (balance()- and meta()-origin), generates the core
-// send-only program, generates a few extra non-send statements, and decides
-// how to interleave the two.
-func GenerateScriptAST(rng *rand.Rand) Script {
+// generateScriptAST runs one full round of generation: account-pool size, how
+// balances and metadata are seeded, the vars block, the send-only program, the
+// extra non-send statements, and how the last two interleave.
+func generateScriptAST(rng *rand.Rand) Script {
 	poolSize := pickPoolSize(rng)
 
 	balances, seeds := genBalances(rng, poolSize, assetPool)
