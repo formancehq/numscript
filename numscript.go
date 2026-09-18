@@ -76,8 +76,9 @@ type (
 
 	Value = interpreter.Value
 
-	InterpreterError = interpreter.InterpreterError
-	MissingFundsErr  = interpreter.MissingFundsErr
+	InterpreterError  = interpreter.InterpreterError
+	MissingFundsErr   = interpreter.MissingFundsErr
+	NegativeAmountErr = interpreter.NegativeAmountErr
 
 	ResolvedDependencies = interpreter.ResolvedDependencies
 	AccountDependency    = interpreter.AccountDependency
