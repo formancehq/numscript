@@ -330,3 +330,52 @@ send [USD *] (
 
 	require.ErrorContains(t, err, "tried to save a negative amount: [USD -10]")
 }
+
+// DELIBERATE DIVERGENCE FROM LEDGER, see DIVERGENCES.md #3: ledger stores
+// balance - saved as-is, so a save past the balance leaves it negative and a
+// later bounded overdraft has less room. The oracle floors at zero, matching
+// numscript's runSaveStatement.
+//
+// Ledger: acc0 is at -800 after the save, the overdraft of 1000 leaves 200 of
+// room and the send of 250 fails with insufficient funds. Here it moves 250.
+func TestOracleSaveFloorsAtZero(t *testing.T) {
+	store := vm.StaticStore{
+		"acc0": {
+			Account:  vm.Account{Address: "acc0"},
+			Balances: map[string]*big.Int{"COIN": big.NewInt(100)},
+		},
+	}
+
+	m, err := compileAndRun(t, `save [COIN 900] from @acc0
+
+send [COIN 250] (
+	source = @acc0 allowing overdraft up to [COIN 1000]
+	destination = @acc1
+)`, store)
+	require.NoError(t, err)
+
+	require.Len(t, m.Postings, 1)
+	requirePosting(t, m.Postings[0], "acc0", "acc1", "COIN", 250)
+}
+
+// The same floor from the other side of zero: a save of nothing on a negative
+// balance raises it to zero. Ledger leaves -50 and moves 50; here 100.
+func TestOracleSaveOnNegativeBalanceFloorsAtZero(t *testing.T) {
+	store := vm.StaticStore{
+		"acc0": {
+			Account:  vm.Account{Address: "acc0"},
+			Balances: map[string]*big.Int{"COIN": big.NewInt(-50)},
+		},
+	}
+
+	m, err := compileAndRun(t, `save [COIN 0] from @acc0
+
+send [COIN *] (
+	source = @acc0 allowing overdraft up to [COIN 100]
+	destination = @acc1
+)`, store)
+	require.NoError(t, err)
+
+	require.Len(t, m.Postings, 1)
+	requirePosting(t, m.Postings[0], "acc0", "acc1", "COIN", 100)
+}

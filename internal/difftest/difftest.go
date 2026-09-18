@@ -17,6 +17,7 @@ import (
 type Case struct {
 	Script string
 	Vars   map[string]string
+	Shape  gen.Shape
 	New    SideResult
 	Oracle SideResult
 
@@ -35,18 +36,19 @@ type Case struct {
 // RunOne generates one program from rng, runs it against both engines, and
 // compares the results.
 func RunOne(ctx context.Context, rng *rand.Rand) Case {
-	vars, balances, metadata, script := gen.GenerateScript(rng)
+	g := gen.Generate(rng)
 
-	newRes := runNew(ctx, script, vars, balances, metadata)
-	oracleRes := runOracle(ctx, script, vars, balances, metadata)
+	newRes := runNew(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
+	oracleRes := runOracle(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
 
 	return Case{
-		Script: script,
-		Vars:   vars,
+		Script: g.Script,
+		Vars:   g.Vars,
+		Shape:  g.Shape,
 		New:    newRes,
 		Oracle: oracleRes,
 
-		OracleVsNew: Compare(script, newRes, oracleRes, "new interpreter", "oracle"),
+		OracleVsNew: Compare(g.Script, newRes, oracleRes, "new interpreter", "oracle"),
 	}
 }
 

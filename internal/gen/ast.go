@@ -261,13 +261,43 @@ type ExtraStatement struct {
 	DestinationAsVar bool
 }
 
+// Focus is the (account, asset) every statement of a scenario block shares.
+type Focus struct {
+	Account string
+	Asset   string
+}
+
+// ScenarioStmt is one statement of a scenario block. Exactly one of Send and
+// Extra is set. Kind is the setup/observer kind that built it, for coverage
+// counting.
+type ScenarioStmt struct {
+	Kind  string
+	Send  *Statement
+	Extra *ExtraStatement
+}
+
+// Strategy is how one Script's body was assembled.
+type Strategy int
+
+const (
+	// Program and Extra only, riffled.
+	StrategyUniform Strategy = iota
+	// Program and Extra riffled, with a scenario block spliced in.
+	StrategyScenarioMixed
+	// Seeds and a scenario block only.
+	StrategyScenarioOnly
+)
+
 // Script is the full output of one round of generation: a `vars {}` block,
 // optional seed-funding statements, the core send-only program, extra
-// non-send statements, and/or pre-set starting balances/metadata (populated
-// instead of, or alongside, Seeds — see genBalances). Order records a
-// riffle-interleaving of Program and Extra (true = take next from Program,
-// false = take next from Extra), so extra statements land throughout the
-// script instead of only after every send.
+// non-send statements, an optional scenario block, and/or pre-set starting
+// balances/metadata (populated instead of, or alongside, Seeds — see
+// genBalances). Order records a riffle-interleaving of Program and Extra (true
+// = take next from Program, false = take next from Extra), so extra statements
+// land throughout the script instead of only after every send. Scenario is
+// emitted contiguously, just before the Order step at index ScenarioPos, or
+// after the last step when ScenarioPos == len(Order). bodyStatements is the
+// one walk of that layout.
 type Script struct {
 	Vars        []VarDecl
 	AccountVars []AccountVarDecl
@@ -275,6 +305,10 @@ type Script struct {
 	Program     Program
 	Extra       []ExtraStatement
 	Order       []bool
+	Strategy    Strategy
+	Focus       *Focus
+	Scenario    []ScenarioStmt
+	ScenarioPos int
 	Balances    map[BalanceKey]*big.Int
 	Metadata    map[MetaKey]string
 }

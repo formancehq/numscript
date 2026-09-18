@@ -49,7 +49,8 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 		// Expected, not a mismatch: internal/gen's cleanup pass is best-effort, not
 		// a guarantee — it does not track unboundedness propagating up through
 		// nested inorder blocks, so it can still emit a script the b-side rejects.
-		return ok()
+		// Nothing about the script gets compared, so it is counted.
+		return tolerated("b-side compile rejection")
 	}
 	if aCompileFailed && !bCompileFailed {
 		// The interesting direction: the generator stays within the b-side's
@@ -92,8 +93,9 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 	}
 	if aRunFailed != bRunFailed {
 		// Neither side's (possible) failure was a missing-funds one — see
-		// above. Tolerated.
-		return ok()
+		// above. Tolerated, and counted: one engine moved money the other
+		// refused to, so this is a blind spot, not agreement.
+		return tolerated("one-sided runtime failure")
 	}
 	if aRunFailed {
 		// Both failed at runtime with matching missing-funds classification;

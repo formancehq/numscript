@@ -453,7 +453,15 @@ func (m *Machine) tick() (bool, error) {
 			}
 			if balances, ok := m.Balances[a]; ok {
 				if balance, ok := balances[v.Asset]; ok {
-					balances[v.Asset] = balance.Sub(v.Amount)
+					// DIVERGES FROM LEDGER: ledger stores balance - amount as-is, so a save
+					// past the balance leaves it negative and eats into a later overdraft.
+					// Floored at zero here, matching numscript's runSaveStatement, including
+					// a negative balance being raised to zero. See DIVERGENCES.md #3.
+					saved := balance.Sub(v.Amount)
+					if saved.Ltz() {
+						saved = machine.Zero
+					}
+					balances[v.Asset] = saved
 				}
 			}
 		default:

@@ -90,18 +90,40 @@ send $a (
 			},
 		},
 		{
-			// The new interpreter used to silently clamp a negative
-			// max-clause destination amount to zero instead of erroring,
-			// while the oracle correctly raises a runtime error. Fixed in
-			// internal/interpreter/interpreter.go's sendTo
-			// (*parser.DestinationInorder case).
-			name: "negative max-clause amount",
-			script: `send [EUR/2 100] (
-  source = @acc2 allowing unbounded overdraft
-  destination = {
-    max [EUR/2 0] - [EUR/2 35] to @acc1
-    remaining to @acc2
-  }
+			// DIVERGENCES.md #3. numscript's runSaveStatement floors the saved
+			// amount at the balance; ledger subtracts unfloored and goes negative,
+			// so a later bounded-overdraft draw sees less room. The engines agree
+			// because the oracle was changed to floor as well (2026-09-18), not
+			// because ledger does: on ledger acc0 sits at -800 after the save, the
+			// overdraft of 1000 leaves 200 of room and the send of 250 fails. Both
+			// engines here move 250.
+			name: "save beyond the account's balance",
+			script: `send [COIN 100] (
+  source = @world
+  destination = @acc0
+)
+
+save [COIN 900] from @acc0
+
+send [COIN 250] (
+  source = @acc0 allowing overdraft up to [COIN 1000]
+  destination = @acc1
+)`,
+		},
+		{
+			// Same root cause as above, from the other side of zero: a save of
+			// nothing on a negative balance. numscript floors the result at zero,
+			// which raises the balance from -50 to 0, so the whole overdraft is
+			// available. Ledger leaves -50 and moves 50; both engines here move 100.
+			name: "save on a negative balance",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(-50),
+			},
+			script: `save [COIN 0] from @acc0
+
+send [COIN *] (
+  source = @acc0 allowing overdraft up to [COIN 100]
+  destination = @acc1
 )`,
 		},
 		{
@@ -144,6 +166,40 @@ send [COIN *] (
 				t.Fatalf("mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 			}
 		})
+	}
+}
+
+// TestDestinationSideNegativeMaxTolerated pins the destination-side twin of
+// DIVERGENCES.md #4: the interpreter clamps a negative `max` destination clause
+// to zero (sendTo, *parser.DestinationInorder) and routes the whole amount
+// through `remaining`; the oracle rejects the script in OP_TAKE_MAX. Compare
+// does not flag it: neither side reports missing funds, and a one-sided runtime
+// failure is tolerated and counted. This test is the only check on the shape,
+// so it asserts the exact asymmetry rather than just "no mismatch".
+func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
+	script := `send [EUR/2 100] (
+  source = @acc2 allowing unbounded overdraft
+  destination = {
+    max [EUR/2 0] - [EUR/2 35] to @acc1
+    remaining to @acc2
+  }
+)`
+	ctx := context.Background()
+	newRes := runNew(ctx, script, nil, nil, nil)
+	oracleRes := runOracle(ctx, script, nil, nil, nil)
+
+	v := Compare(script, newRes, oracleRes, "new interpreter", "oracle")
+	if v.Mismatch {
+		t.Fatalf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
+	}
+	if v.Tolerated != "one-sided runtime failure" {
+		t.Fatalf("expected the one-sided runtime failure tolerance to fire, got %+v\nnew: %+v\noracle: %+v", v, newRes, oracleRes)
+	}
+	if newRes.Failed() {
+		t.Fatalf("expected the interpreter to clamp and succeed; got %+v", newRes)
+	}
+	if oracleRes.RunErr == "" || oracleRes.MissingFunds {
+		t.Fatalf("expected the oracle to reject the negative max for a non-missing-funds reason; got %+v", oracleRes)
 	}
 }
 
@@ -232,21 +288,18 @@ func TestKnownOpenDivergences(t *testing.T) {
 		why      string
 	}{
 		{
-			// DIVERGENCES.md #3. numscript's runSaveStatement floors the
-			// saved amount at the balance; ledger subtracts unfloored and
-			// goes negative. Invisible until a later bounded-overdraft draw
-			// computes its available room from the two different balances.
-			name: "save beyond the account's balance",
-			why:  "numscript floors save at zero, ledger goes negative",
-			script: `send [COIN 100] (
-  source = @world
-  destination = @acc0
-)
-
-save [COIN 900] from @acc0
-
-send [COIN 250] (
-  source = @acc0 allowing overdraft up to [COIN 1000]
+			// DIVERGENCES.md #5. A bounded overdraft written as a negative
+			// expression. numscript clamps the cap to zero (tryTakingUpTo and
+			// takeAll, *parser.SourceOverdraft) and moves the 50 that is there;
+			// ledger adds -10 to the balance in withdrawAll and moves 40. The
+			// generator never emits a negative cap, so only this test reaches it.
+			name: "negative bounded overdraft cap",
+			why:  "numscript clamps the cap to zero, ledger applies it as-is",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(50),
+			},
+			script: `send [COIN *] (
+  source = @acc0 allowing overdraft up to [COIN 0] - [COIN 10]
   destination = @acc1
 )`,
 		},

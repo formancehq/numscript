@@ -8,20 +8,24 @@ written down here.
 Baseline: `formancehq/ledger` `internal/machine`, main at `8880965c2`.
 Everything below was measured by running all three engines, not recalled.
 
-## The four differences
+## The five differences
 
 | # | what | ledger | oracle | numscript |
 |---|---|---|---|---|
 | 1 | negative send amount | `insufficient funds` | `insufficient funds` | rejects the amount |
 | 2 | `kept` | does not consume the funding | consumes it | consumes it |
-| 3 | `save` past the balance | balance goes negative | goes negative | floors at zero |
+| 3 | `save` past the balance | balance goes negative | floors at zero | floors at zero |
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
+| 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
 
-The oracle matches ledger on 1, 3 and 4. It does not on 2, which is the one
-place it cannot be trusted to check numscript.
+The oracle matches ledger on 1, 4 and 5. It does not on 2 and 3, the two places
+it cannot be trusted to check numscript.
 
-`TestDifferentialSweep` is green: 0 divergences over 3000 seeds, and 161 of
-those scripts tolerated under #1.
+`TestDifferentialSweep` is green: 0 divergences over 3000 seeds, 106 of those
+scripts tolerated under #1. With the generator's scenario blocks and an oracle
+still faithful to ledger on `save`, the same seeds gave 9 divergences, all #3;
+the numbers are under #3. The sweep also prints what it reached and what it
+could compare -- see "What the sweep compares".
 
 ---
 
@@ -122,10 +126,20 @@ mentioning `kept`, and it returned before metadata was compared.
 with the expectations changed, keeping ledger's original numbers in the comment
 so the difference stays visible.
 
+Re-read 2026-09-18 against the interpreter's `pushReceiver` and
+`fundsQueue.Pull`: with the two edits, both engines consume a kept funding from
+the front of the pool, in inorder, allotment and nested destinations alike. The
+one difference left is when the kept amount is credited back -- immediately on
+the interpreter, at `OP_REPAY` on the oracle -- and no statement can read a
+balance in between.
+
 **Open question:** whether ledger should adopt this. If it ever does, delete the
 two edits rather than keep them.
 
 ## 3. `save` past the balance
+
+**Ledger lets `save` push a balance negative. numscript floors it at zero, and
+so does the oracle since 2026-09-18.**
 
 ```numscript
 save [COIN 100] from @src        // src only has 50
@@ -139,28 +153,72 @@ send [COIN *] (
 | engine | postings |
 |---|---|
 | ledger | `src->dst 50` |
-| oracle | `src->dst 50` |
+| oracle | `src->dst 100` |
 | numscript | `src->dst 100` |
 
-numscript floors the save at the real balance of 50, leaving 0 saved, so the
-whole 100 overdraft is available. Ledger subtracts unfloored to -50, so the
-overdraft only brings it back to 50. Same script, twice the money moved.
+numscript floors the save at the real balance of 50, leaving 0, so the whole
+100 overdraft is available. Ledger subtracts unfloored to -50, so the overdraft
+only brings it back to 50. Same script, twice the money moved.
+
+The floor also works from the other side of zero. On a balance of -50,
+`save [COIN 0]` raises it to 0 on numscript and leaves it at -50 on ledger, so
+the same bounded overdraft of 100 then moves 100 against 50: a save of nothing
+changes the outcome.
 
 Verified at ledger main `35bb7ffac`: `save [COIN 100] from @src` against a
 balance of 50 gives `balances=map[@src:map[COIN:-50]]`.
 
-The oracle used to floor at zero as well, with a comment saying it matched the
-interpreter. That was the oracle bending toward the engine it exists to check,
-and it has been reverted.
+**The oracle was changed to match numscript**, in `vm/machine.go`, `OP_SAVE`,
+`case machine.Monetary`: the result of `balance.Sub(amount)` is floored at
+zero. The `*` branch already agreed -- both engines zero a positive balance and
+leave a negative one alone.
 
-The sweep does not reach this. Over the same 3000 seeds: 686 scripts contain a
-`save`, 2284 a bounded overdraft, 130 both on the same account, 7 in that order,
-2 where the save also overdraws, and 0 where everything lines up. The generator
-samples each statement independently, so a shape needing two statements to hit
-the same (account, asset) in order is suppressed by roughly 1/(poolSize x
-assets) squared. This is a generator limitation, not evidence of agreement.
+This is the second time the oracle floors. It originally did, with a comment
+saying it matched the interpreter; that was reverted as the oracle bending
+toward the engine it exists to check, and the divergence was left open. It is
+reintroduced here as a recorded decision: numscript's behaviour is the one
+wanted, and ledger is to follow it (see the open question), so the oracle
+follows first.
 
-**Open question:** whether numscript should stop flooring.
+**What it bought.** A sweep that reaches the shape and is green on it. The
+generator now builds scenario blocks: a few statements sharing one (account,
+asset), setups that move its balance and observers that read it, with amounts
+drawn around the balance and the amounts already mentioned (`internal/gen/
+scenario.go`). Half the seeds still take the old uniform path unchanged. Over
+the sweep's 3000 seeds, counted on the AST by `gen.Shape`:
+
+| | uniform generator | with scenario blocks |
+|---|---|---|
+| scripts containing a save | 891 | 1097 |
+| containing a bounded overdraft | 2284 | 2303 |
+| both, on the same account | 272 | 521 |
+| both, on the same (account, asset) | 109 | 387 |
+| ...in that order | 60 | 320 |
+| ...where the save also overdraws | 4 | 26 |
+| ...that diverged, oracle faithful to ledger | 0 | 9 |
+| scripts both engines ran to completion | 932 | 1138 |
+
+(The earlier grep-based count here -- 686 / 2284 / 130 / 7 / 2 / 0 -- did not
+see var-valued and `*` saves; the bounded-overdraft row is the same.)
+
+The nine were seeds 214, 510, 614, 1118, 1353, 2054, 2379, 2541 and 2792: seven
+`aggregated amount differs`, two `aggregated posting set differs`. Eight are
+observed through a later bounded overdraft; seed 1118 through a `world` funding
+followed by a plain draw, where both balances are positive but differ by the
+floored amount. Seeds 510 and 2541 start from a negative balance. Nothing in
+the generator names `save` and `overdraft` together: the block draws one of nine
+setup kinds and one of six observer kinds uniformly, and this is one cell.
+`go run ./cmd/rundiff -seed 214 -n 1 -verbose` in `internal/difftest` prints the
+first script; it diverges against a checkout without the floor.
+
+**What it cost.** On `save`, as on `kept`, the oracle is no longer independent
+of numscript. A `save` regression in the interpreter will not be caught here.
+`TestOracleSaveFloorsAtZero` and `TestOracleSaveOnNegativeBalanceFloorsAtZero`
+cover it instead, with ledger's numbers in the comments.
+
+**Open question:** ledger adopting the floor. Ledger PR #2109
+(https://github.com/formancehq/ledger/pull/2109) makes the same change with the
+same two cases as tests. If it lands, delete the edit rather than keep it.
 
 ## 4. Source-side negative `max`
 
@@ -201,10 +259,62 @@ most expensive. Keeping ledger's current behaviour is the safer default.
 
 So this stays a numscript-side question. Do not rebuild #2079.
 
-The destination-side version of this was a real numscript bug and is fixed:
-numscript now errors there, matching ledger.
+The destination-side version -- `max [COIN 0] - [COIN 10] to @a` -- is **not**
+fixed, although an earlier note here said it was. The interpreter still clamps
+the clause to zero (`sendTo`, `*parser.DestinationInorder`) and routes the
+amount through `remaining`; ledger rejects the script in `OP_TAKE_MAX`.
+`Compare` does not see it: neither side reports missing funds, and a one-sided
+runtime failure is tolerated. That path is now counted by the sweep as
+`one-sided runtime failure` and fired 0 times over 3000 seeds, so turning it
+into a mismatch would cost nothing on the current generator and would make this
+shape visible. `TestDestinationSideNegativeMaxTolerated` pins the exact
+asymmetry until then.
 
 **Open question:** whether numscript should reject.
+
+## 5. Negative bounded overdraft cap
+
+```numscript
+send [COIN *] (
+  source = @acc0 allowing overdraft up to [COIN 0] - [COIN 10]    // acc0 has 50
+  destination = @acc1
+)
+```
+
+| engine | postings |
+|---|---|
+| ledger | `acc0->acc1 40` |
+| oracle | same |
+| numscript | `acc0->acc1 50` |
+
+numscript clamps the cap to zero (`tryTakingUpTo` and `takeAll`,
+`*parser.SourceOverdraft`), so the clause behaves as no overdraft at all.
+Ledger adds the negative cap to the balance in `withdrawAll`, so 10 of the 50
+are out of reach, and after the draw sets the balance to the negated cap, +10.
+
+Found by reading, not by the sweep: `monetary()` in `internal/gen` never emits
+a negative amount in cap position (see its doc comment, and #4), so the
+generator does not reach it. Pinned in `TestKnownOpenDivergences`.
+
+**Open question:** which of the two is wanted. Left open on both sides.
+
+---
+
+## What the sweep compares
+
+Only scripts both engines run to completion have their postings compared: 1138
+of 3000. Of the rest, 482 are rejected by the oracle at compile time (the
+generator's cleanup pass is best-effort; counted as `b-side compile rejection`),
+106 are tolerated under #1, and the remainder fail on both engines for the same
+missing-funds reason. A scenario block glued to a random program is often
+wasted this way, which is why the generator has a scenario-only strategy.
+
+One engine moving money the other refused to move is tolerated by `Compare`
+(`one-sided runtime failure`) and counted; see #4 for what it hides.
+
+Asset scaling, account interpolation, colors and `oneof` exist only in
+numscript. The oracle has no syntax for them, so this harness says nothing
+about them; they are checked by the interpreter's own tests or not at all.
 
 ---
 
@@ -214,8 +324,9 @@ numscript now errors there, matching ledger.
 |---|---|
 | 1 | the sweep, as a named tolerance. `TestMissingFundsClassificationMismatchStillCaught` pins that the opposite direction is not tolerated |
 | 2 | `TestKnownBugRepros` (the engines agree now) and `TestOracleKeptComplex` |
-| 3 | `TestKnownOpenDivergences` |
-| 4 | `TestSourceSideNegativeMaxClauseTolerated` and `TestMissingFundsClassificationMismatchStillCaught` |
+| 3 | `TestKnownBugRepros` (the engines agree now), `TestOracleSaveFloorsAtZero` and `TestOracleSaveOnNegativeBalanceFloorsAtZero` |
+| 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
+| 5 | `TestKnownOpenDivergences` |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
 starts agreeing, it fails; update this file and move the case to
@@ -249,14 +360,14 @@ for f in $(cd $O && find . -name '*.go' | sed 's|^\./||' | sort); do
 done
 ```
 
-Nine files differ. Only one is a behaviour change:
+Nine files differ. Two carry behaviour changes, three edits in all:
 
 | file | why |
 |---|---|
 | `account.go`, `asset.go`, `internal/accounts/accounts.go`, `internal/assets/asset.go` | vendoring |
 | `vm/oracle_types.go`, `vm/run.go`, `vm/store.go` | vendoring |
-| `vm/machine.go` | vendoring |
-| `script/compiler/destination.go` | `kept` (#2) |
+| `vm/machine.go` | vendoring, and the `save` floor (#3) |
+| `script/compiler/destination.go` | `kept` (#2), two sites |
 
 Anything else that shows up is undocumented drift. Either record it here or
 remove it.

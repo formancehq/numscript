@@ -16,15 +16,24 @@ func RandFromBytes(b []byte) *rand.Rand {
 	return rand.New(rand.NewSource(int64(h.Sum64())))
 }
 
-// GenerateScript formats a random Script as a runnable numscript program, with
-// the vars bindings it needs at run time and the starting balances and metadata
-// it assumes. The caller loads those into each engine store before executing.
-func GenerateScript(rng *rand.Rand) (vars map[string]string, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, script string) {
+// Generated is one runnable numscript program with the vars bindings it needs
+// at run time, the starting balances and metadata it assumes, and the
+// structural Shape of the program.
+type Generated struct {
+	Vars     map[string]string
+	Balances map[BalanceKey]*big.Int
+	Metadata map[MetaKey]string
+	Script   string
+	Shape    Shape
+}
+
+// Generate formats a random Script as a runnable numscript program. The
+// caller loads Balances and Metadata into each engine store before executing.
+func Generate(rng *rand.Rand) Generated {
 	s := generateScriptAST(rng)
 	stmts, accountVarFills := toBuilderScript(s)
 
-	var varsEnv builder.VarsEnv
-	vars, varsEnv, script = builder.BuildProgram(stmts...)
+	vars, varsEnv, script := builder.BuildProgram(stmts...)
 
 	// Account-typed vars have no compiler-computed origin, so their value is
 	// supplied here the way a real caller would.
@@ -35,5 +44,17 @@ func GenerateScript(rng *rand.Rand) (vars map[string]string, balances map[Balanc
 		}
 	}
 
-	return vars, s.Balances, s.Metadata, script
+	return Generated{
+		Vars:     vars,
+		Balances: s.Balances,
+		Metadata: s.Metadata,
+		Script:   script,
+		Shape:    computeShape(s),
+	}
+}
+
+// GenerateScript is Generate without the Shape.
+func GenerateScript(rng *rand.Rand) (vars map[string]string, balances map[BalanceKey]*big.Int, metadata map[MetaKey]string, script string) {
+	g := Generate(rng)
+	return g.Vars, g.Balances, g.Metadata, g.Script
 }

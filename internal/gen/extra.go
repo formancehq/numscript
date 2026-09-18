@@ -150,16 +150,7 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 	// then indexed with the seeded rng, so leaving them unsorted would make the
 	// same fuzz seed generate different programs from run to run — which breaks
 	// corpus replay and shrinking, the two things a saved divergence depends on.
-	fundedKeys := make([]BalanceKey, 0, len(balances))
-	for k := range balances {
-		fundedKeys = append(fundedKeys, k)
-	}
-	slices.SortFunc(fundedKeys, func(a, b BalanceKey) int {
-		if c := cmp.Compare(a.Account, b.Account); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Asset, b.Asset)
-	})
+	fundedKeys := sortedBalanceKeys(balances)
 	metaKeys := make([]MetaKey, 0, len(metadata))
 	for k := range metadata {
 		metaKeys = append(metaKeys, k)
@@ -441,7 +432,13 @@ func riffleOrder(rng *rand.Rand, a, b int) []bool {
 
 // generateScriptAST runs one full round of generation: account-pool size, how
 // balances and metadata are seeded, the vars block, the send-only program, the
-// extra non-send statements, and how the last two interleave.
+// extra non-send statements, how the last two interleave, and finally which
+// Strategy the body uses.
+//
+// The strategy is drawn last, after every draw the uniform path makes, so a
+// seed that lands on StrategyUniform produces the same script it did before
+// scenarios existed. StrategyScenarioOnly still runs genProgram and
+// genExtraStatements for the same reason, and drops their output.
 func generateScriptAST(rng *rand.Rand) Script {
 	poolSize := pickPoolSize(rng)
 
@@ -454,16 +451,33 @@ func generateScriptAST(rng *rand.Rand) Script {
 	extra := genExtraStatements(rng, poolSize, vars, accountVars)
 	order := riffleOrder(rng, len(program), len(extra))
 
-	return Script{
+	s := Script{
 		Vars:        vars,
 		AccountVars: accountVars,
 		Seeds:       seeds,
 		Program:     program,
 		Extra:       extra,
 		Order:       order,
+		Strategy:    StrategyUniform,
 		Balances:    balances,
 		Metadata:    metadata,
 	}
+
+	switch rng.Intn(4) {
+	case 0, 1:
+	case 2:
+		s.Strategy = StrategyScenarioMixed
+		var focus Focus
+		s.Scenario, s.ScenarioPos, focus = genScenario(rng, poolSize, seeds, balances, len(order))
+		s.Focus = &focus
+	case 3:
+		s.Strategy = StrategyScenarioOnly
+		s.Program, s.Extra, s.Order = nil, nil, nil
+		var focus Focus
+		s.Scenario, s.ScenarioPos, focus = genScenario(rng, poolSize, seeds, balances, 0)
+		s.Focus = &focus
+	}
+	return s
 }
 
 // aliasedBalanceVarPair returns two distinct VarFromBalance indices whose

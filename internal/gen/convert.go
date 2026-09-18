@@ -179,17 +179,14 @@ func toBuilderScript(s Script) ([]builder.Statement, []AccountVarFill) {
 		fills[i] = AccountVarFill{Var: &accountVars[i], Value: v.Value}
 	}
 
-	out := make([]builder.Statement, 0, len(s.Seeds)+len(s.Program)+len(s.Extra))
+	body := bodyStatements(s)
+	out := make([]builder.Statement, 0, len(s.Seeds)+len(body))
 	out = append(out, toBuilder(s.Seeds)...)
-
-	pi, ei := 0, 0
-	for _, takeProgram := range s.Order {
-		if takeProgram {
-			out = append(out, toBuilderStatement(s.Program[pi]))
-			pi++
+	for _, st := range body {
+		if st.send != nil {
+			out = append(out, toBuilderStatement(*st.send))
 		} else {
-			out = append(out, toBuilderExtra(s.Extra[ei], ve, accountVarExprs))
-			ei++
+			out = append(out, toBuilderExtra(*st.extra, ve, accountVarExprs))
 		}
 	}
 

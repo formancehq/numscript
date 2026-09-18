@@ -3,11 +3,14 @@ package difftest_test
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math/rand"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/difftest"
+	"github.com/formancehq/numscript/internal/gen"
 )
 
 // sweepSeeds is sized so the sweep stays well under a minute on CI while
@@ -42,9 +45,11 @@ func TestDifferentialSweep(t *testing.T) {
 	classes := map[string]*class{}
 	order := []string{}
 	tolerated := map[string]int{}
+	var r reach
 
 	for seed := range sweepSeeds {
 		c := difftest.RunOne(context.Background(), rand.New(rand.NewSource(int64(seed))))
+		r.add(c)
 		if c.OracleVsNew.Tolerated != "" {
 			tolerated[c.OracleVsNew.Tolerated]++
 		}
@@ -61,8 +66,9 @@ func TestDifferentialSweep(t *testing.T) {
 		cl.count++
 	}
 
-	for what, n := range tolerated {
-		t.Logf("tolerated: %-28s %d/%d scripts", what, n, sweepSeeds)
+	t.Log(r.table())
+	for _, what := range slices.Sorted(maps.Keys(tolerated)) {
+		t.Logf("tolerated: %-28s %d/%d scripts", what, tolerated[what], sweepSeeds)
 	}
 	if len(classes) == 0 {
 		return
@@ -80,6 +86,68 @@ func TestDifferentialSweep(t *testing.T) {
 	fmt.Fprintf(&sb, "\nseed %d: %s\n\nvars: %v\n\nscript:\n%s",
 		first.firstSeed, first.sampleWhy, first.sampleVars, first.sampleSrc)
 	t.Fatal(sb.String())
+}
+
+// reach counts, over the sweep, how often the generator produces the shapes a
+// stateful bug needs — the numbers DIVERGENCES.md #3 quotes — and how many
+// scripts were actually compared. A green sweep only means something for the
+// shapes this table shows were reached.
+type reach struct {
+	strategy      map[gen.Strategy]int
+	completed     int // both engines ran to the end: the only scripts whose postings were compared
+	oracleReject  int
+	save          int
+	bounded       int
+	sameAccount   int
+	sameResource  int
+	inOrder       int
+	overdraws     int
+	inOrderDiverg int
+}
+
+func (r *reach) add(c difftest.Case) {
+	if r.strategy == nil {
+		r.strategy = map[gen.Strategy]int{}
+	}
+	sh := c.Shape
+	r.strategy[sh.Strategy]++
+	if !c.New.Failed() && !c.Oracle.Failed() {
+		r.completed++
+	}
+	if c.Oracle.CompileErr != "" {
+		r.oracleReject++
+	}
+	count := func(n *int, cond bool) {
+		if cond {
+			*n++
+		}
+	}
+	count(&r.save, sh.HasSave)
+	count(&r.bounded, sh.HasBoundedOverdraft)
+	count(&r.sameAccount, sh.SaveOverdraftSameAccount)
+	count(&r.sameResource, sh.SaveOverdraftSameResource)
+	count(&r.inOrder, sh.SaveOverdraftSameResourceInOrder)
+	count(&r.overdraws, sh.SaveOverdrawsInitial)
+	count(&r.inOrderDiverg, sh.SaveOverdraftSameResourceInOrder && c.OracleVsNew.Mismatch)
+}
+
+func (r *reach) table() string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "reach over %d seeds:\n", sweepSeeds)
+	row := func(label string, n int) { fmt.Fprintf(&sb, "  %-44s %4d\n", label, n) }
+	row("strategy: uniform", r.strategy[gen.StrategyUniform])
+	row("strategy: scenario + random", r.strategy[gen.StrategyScenarioMixed])
+	row("strategy: scenario only", r.strategy[gen.StrategyScenarioOnly])
+	row("both engines ran to completion", r.completed)
+	row("oracle rejected at compile time", r.oracleReject)
+	row("scripts containing a save", r.save)
+	row("containing a bounded overdraft", r.bounded)
+	row("both, on the same account", r.sameAccount)
+	row("both, on the same (account, asset)", r.sameResource)
+	row("...in that order", r.inOrder)
+	row("...where the save also overdraws", r.overdraws)
+	row("...that diverged", r.inOrderDiverg)
+	return sb.String()
 }
 
 // divergenceClass buckets a Verdict reason by its kind, discarding the
