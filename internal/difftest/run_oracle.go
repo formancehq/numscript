@@ -61,7 +61,7 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	}
 
 	// The legacy machine still emits zero-amount postings, the rewrite does not
-	// (internal/oracle/DIFFERENCES-BY-EXAMPLE.md).
+	// (internal/oracle/DIVERGENCES.md).
 	postings := make([]Posting, 0, len(m.Postings))
 	for _, p := range m.Postings {
 		amount := (*big.Int)(p.Amount)

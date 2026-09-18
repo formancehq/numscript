@@ -97,7 +97,7 @@ func pickAsset(rng *rand.Rand) string {
 //
 // Never negative. A negative `max` clause amount is an open divergence: the
 // oracle rejects it, the interpreter treats the clause as contributing nothing
-// (oracle/DIVERGENCES.md §3.3). monetary() feeds every source cap and
+// (oracle/DIVERGENCES.md #4). monetary() feeds every source cap and
 // destination max, so allowing it would rediscover that on every run.
 //
 // A negative top-level send amount is different: both engines error, so

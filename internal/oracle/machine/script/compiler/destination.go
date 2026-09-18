@@ -75,7 +75,7 @@ func (p *parseVisitor) VisitDestinationRecursive(c parser.IDestinationContext) *
 			// <kept_acc: funding> <remaining: funding> <subkept: funding>
 			// DIVERGES FROM LEDGER: ledger re-attributes <subkept> to the bottom of
 			// the pool here (reassemble + reverse + take + reverse). <subkept> is kept
-			// as-is instead, so the front of the pool keeps. See DIVERGENCES.md §2 ②.
+			// as-is instead, so the front of the pool keeps. See DIVERGENCES.md #2.
 			err = p.Bump(2)
 			if err != nil {
 				return LogicError(c, err)
@@ -162,7 +162,7 @@ func (p *parseVisitor) VisitAllocDestination(dests []parser.IKeptOrDestinationCo
 		}
 		// DIVERGES FROM LEDGER: ledger bumps here, so <subkept> is assembled at the
 		// FRONT of the pool and the next portion spends it again. Assembled at the
-		// back instead, it survives as leftover and is repaid. See DIVERGENCES.md §2 ②.
+		// back instead, it survives as leftover and is repaid. See DIVERGENCES.md #2.
 		err = p.PushInteger(machine.NewNumber(2))
 		if err != nil {
 			return LogicError(dest, err)

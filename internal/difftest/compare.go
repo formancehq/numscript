@@ -71,7 +71,7 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 	//
 	// A negative source-side `max ... from` amount is a hard reject on the oracle
 	// but contributes zero on the interpreter, which can let a different source
-	// cover the shortfall (oracle/DIVERGENCES.md §3.3). Comparing fail-vs-succeed
+	// cover the shortfall (oracle/DIVERGENCES.md #4). Comparing fail-vs-succeed
 	// would flag that as a false positive; funds adequacy is the real invariant.
 	if aRes.MissingFunds != bRes.MissingFunds {
 		return mismatch(

@@ -219,7 +219,7 @@ send $b (
 
 // TestKeptComplex, adapted from ledger's machine_kept_test.go, with the
 // expectations changed. DELIBERATE DIVERGENCE FROM LEDGER, see DIVERGENCES.md
-// §2 B: ledger does not consume a kept funding, so it returns to the pool and
+// #2: ledger does not consume a kept funding, so it returns to the pool and
 // funds later destinations; the oracle consumes it, matching the interpreter.
 //
 // Ledger asserts 6 postings, all 11 kept GEM coming off @baz (the last source):

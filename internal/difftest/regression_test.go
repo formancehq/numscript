@@ -107,7 +107,7 @@ send $a (
 		{
 			// Ledger does not consume a kept funding, the interpreter does. The
 			// oracle was changed to consume it too, deliberately diverging from
-			// ledger -- DIVERGENCES.md §2 ②. Here @acc1 keeps 400; on ledger @acc0
+			// ledger -- DIVERGENCES.md #2. Here @acc1 keeps 400; on ledger @acc0
 			// keeps it and @acc1 is drained, so the second statement moves 400 here
 			// and 0 there.
 			name: "kept attribution, observed by a later statement",
@@ -149,7 +149,7 @@ send [COIN *] (
 
 // TestSourceSideNegativeMaxClauseTolerated locks in an accepted gap: a negative
 // amount in a source-side `max ... from` clause is a hard reject on the oracle
-// but contributes zero on the interpreter (DIVERGENCES.md §3.3). Left unfixed
+// but contributes zero on the interpreter (DIVERGENCES.md #4). Left unfixed
 // because closing it means changing the interpreter's ground truth, not just
 // catching up.
 //
@@ -218,7 +218,7 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 }
 
 // TestKnownOpenDivergences pins the numscript/ledger disagreements that are
-// real and still undecided — internal/oracle/DIVERGENCES.md §3. Neither is an
+// real and still undecided — internal/oracle/DIVERGENCES.md. Neither is an
 // oracle defect: the oracle is faithful to ledger on both.
 //
 // These assert that a mismatch IS still reported. If one starts passing,
@@ -232,7 +232,7 @@ func TestKnownOpenDivergences(t *testing.T) {
 		why      string
 	}{
 		{
-			// DIVERGENCES.md §3.2. numscript's runSaveStatement floors the
+			// DIVERGENCES.md #3. numscript's runSaveStatement floors the
 			// saved amount at the balance; ledger subtracts unfloored and
 			// goes negative. Invisible until a later bounded-overdraft draw
 			// computes its available room from the two different balances.

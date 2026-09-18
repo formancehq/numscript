@@ -316,7 +316,7 @@ func (m *Machine) tick() (bool, error) {
 		// insufficient-funds error instead of a rejected script. PR #2060
 		// closed unmerged; main pins the behaviour as a known bug in
 		// vm/machine_negative_amount_test.go instead of fixing it. See
-		// internal/oracle/DIVERGENCES.md §2.
+		// internal/oracle/DIVERGENCES.md #1.
 		if mon.Amount.Ltz() {
 			return true, fmt.Errorf(
 				"cannot send a monetary with a negative amount: [%s %s]",

@@ -74,7 +74,7 @@ func TestDifferentialSweep(t *testing.T) {
 		cl := classes[k]
 		fmt.Fprintf(&sb, "  %-44s %4d scripts (first: seed %d)\n", k, cl.count, cl.firstSeed)
 	}
-	sb.WriteString("\nSee internal/oracle/DIVERGENCES.md §3.\n")
+	sb.WriteString("\nSee internal/oracle/DIVERGENCES.md.\n")
 
 	first := classes[order[0]]
 	fmt.Fprintf(&sb, "\nseed %d: %s\n\nvars: %v\n\nscript:\n%s",
