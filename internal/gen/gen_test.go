@@ -13,7 +13,7 @@ import (
 func TestPortionsListSumsToOne(t *testing.T) {
 	// portionsList isn't exported; exercise it indirectly via many
 	// generated programs and check every allotment clause set found sums
-	// to 1 (mirrors TestGen.hs's own portionsList property).
+	// to 1.
 	for seed := range 200 {
 		rng := rand.New(rand.NewSource(int64(seed)))
 		p := gen.GenerateProgram(rng)
