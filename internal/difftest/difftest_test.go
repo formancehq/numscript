@@ -24,11 +24,11 @@ func FuzzDiff(f *testing.F) {
 		rng := gen.RandFromBytes(data)
 		c := difftest.RunOne(context.Background(), rng)
 
-		for _, v := range []difftest.Verdict{c.OracleVsNew} {
-			if v.Mismatch {
+		for _, leg := range c.Legs() {
+			if leg.Verdict.Mismatch {
 				t.Fatalf(
-					"divergence: %s\n\nvars: %v\n\nscript:\n%s",
-					v.Reason, c.Vars, c.Script,
+					"divergence (%s): %s\n\nvars: %v\n\nscript:\n%s",
+					leg.Name, leg.Verdict.Reason, c.Vars, c.Script,
 				)
 			}
 		}

@@ -263,6 +263,7 @@ send [COIN *] (
 			ctx := context.Background()
 			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
+			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
@@ -271,14 +272,17 @@ send [COIN *] (
 			if v.Tolerated != "" {
 				t.Fatalf("nothing was compared (tolerated: %s)\nnew: %+v\noracle: %+v", v.Tolerated, newRes, oracleRes)
 			}
+			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+				t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
+			}
 			if tc.bothReject {
-				if !newRes.Failed() || !oracleRes.Failed() {
-					t.Fatalf("expected both engines to reject\nnew: %+v\noracle: %+v", newRes, oracleRes)
+				if !newRes.Failed() || !oracleRes.Failed() || !vmRes.Failed() {
+					t.Fatalf("expected all three engines to reject\nnew: %+v\noracle: %+v\nvm: %+v", newRes, oracleRes, vmRes)
 				}
 				return
 			}
-			if newRes.Failed() || oracleRes.Failed() {
-				t.Fatalf("expected both engines to complete\nnew: %+v\noracle: %+v", newRes, oracleRes)
+			if newRes.Failed() || oracleRes.Failed() || vmRes.Failed() {
+				t.Fatalf("expected all three engines to complete\nnew: %+v\noracle: %+v\nvm: %+v", newRes, oracleRes, vmRes)
 			}
 		})
 	}
@@ -314,5 +318,14 @@ func TestAllotmentFullSumPlusRemainingRejectedByOracleOnly(t *testing.T) {
 	}
 	if newRes.Failed() {
 		t.Fatalf("expected the interpreter to run the script; got %+v", newRes)
+	}
+
+	// The vm runs it like the interpreter: the remaining clause receives zero.
+	vmRes := runVM(context.Background(), script, nil, nil, nil)
+	if vmRes.Failed() {
+		t.Fatalf("expected the vm to run the script; got %+v", vmRes)
+	}
+	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+		t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 	}
 }
