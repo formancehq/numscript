@@ -57,9 +57,16 @@ func nonUniformListOf[T any](rng *rand.Rand, g func() T) []T {
 	return out
 }
 
-// portionsList returns random positive weights normalized into rationals
-// summing to exactly 1.
-func portionsList(rng *rand.Rand) []*big.Rat {
+// portionsList returns random positive weights normalized into rationals.
+// Without withRemaining they sum to exactly 1. With it they sum to strictly
+// less than 1, for an allotment ending in a `remaining` clause: the oracle
+// rejects `remaining` at compile time when the known portions already reach
+// 100%, and a sum above 100% is an open divergence — the oracle rejects it
+// where the interpreter computes a negative remaining portion
+// (oracle/DIVERGENCES.md #6) — so every generated sum stays clear of both.
+// One weight in ten is zeroed under withRemaining: a 0/N portion is legal on
+// both engines and only representable when the slack keeps the total positive.
+func portionsList(rng *rand.Rand, withRemaining bool) []*big.Rat {
 	xs := nonUniformListOf(rng, func() int64 {
 		return int64(rng.Intn(100) + 1)
 	})
@@ -67,6 +74,13 @@ func portionsList(rng *rand.Rand) []*big.Rat {
 	total := int64(0)
 	for _, x := range xs {
 		total += x
+	}
+
+	if withRemaining {
+		total += int64(rng.Intn(100)) + 1
+		if rng.Intn(10) == 0 {
+			xs[rng.Intn(len(xs))] = 0
+		}
 	}
 
 	out := make([]*big.Rat, len(xs))
@@ -279,12 +293,22 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 			func() Source {
 				innerOpts := nestedOpts
 				innerOpts.isUnbounded = false
-				portions := portionsList(rng)
+				withRemaining := rng.Intn(2) == 0
+				portions := portionsList(rng, withRemaining)
 				clauses := make([]SourceAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = SourceAllotmentClause{Portion: p, Source: genSource(rng, innerOpts)}
+					clauses[i] = SourceAllotmentClause{
+						Portion:      p,
+						PortionAsVar: withRemaining && asVar(rng),
+						Source:       genSource(rng, innerOpts),
+					}
 				}
-				return Source{Kind: SrcAllotment, Clauses: clauses}
+				src := Source{Kind: SrcAllotment, Clauses: clauses}
+				if withRemaining {
+					remaining := genSource(rng, innerOpts)
+					src.AllotmentRemaining = &remaining
+				}
+				return src
 			},
 		},
 	})
@@ -331,12 +355,22 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 		{
 			zeroFreqIf(10, stopRecursion || forceLeaf),
 			func() Destination {
-				portions := portionsList(rng)
+				withRemaining := rng.Intn(2) == 0
+				portions := portionsList(rng, withRemaining)
 				clauses := make([]DestAllotmentClause, len(portions))
 				for i, p := range portions {
-					clauses[i] = DestAllotmentClause{Portion: p, KeptOrDest: genKeptOrDest(rng, nestedOpts)}
+					clauses[i] = DestAllotmentClause{
+						Portion:      p,
+						PortionAsVar: withRemaining && asVar(rng),
+						KeptOrDest:   genKeptOrDest(rng, nestedOpts),
+					}
 				}
-				return Destination{Kind: DestAllotment, AllotClauses: clauses}
+				dest := Destination{Kind: DestAllotment, AllotClauses: clauses}
+				if withRemaining {
+					remaining := genKeptOrDest(rng, nestedOpts)
+					dest.AllotRemaining = &remaining
+				}
+				return dest
 			},
 		},
 	})

@@ -51,6 +51,19 @@ func DestInorder(clauses []DestInorderClause, remaining KeptOrDest) Destination 
 }
 
 func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
+	return destAllotment(clauses, nil)
+}
+
+// DestAllotmentWithRemaining is DestAllotment with a trailing
+// `remaining <keptOrDest>` clause. The clause portions must then sum to less
+// than 100% (both grammars reject an allotment whose known portions already
+// reach it), and it is the only allotment form in which a portion var
+// compiles.
+func DestAllotmentWithRemaining(clauses []AllotmentClause[KeptOrDest], remaining KeptOrDest) Destination {
+	return destAllotment(clauses, remaining)
+}
+
+func destAllotment(clauses []AllotmentClause[KeptOrDest], remaining KeptOrDest) Destination {
 	return func(env *env, w int) {
 		env.builder.WriteString("{\n")
 		for _, clause := range clauses {
@@ -58,6 +71,12 @@ func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
 			clause.Portion(env, w)
 			env.builder.WriteString(" ")
 			clause.Payload(env, w+1)
+			env.builder.WriteByte('\n')
+		}
+		if remaining != nil {
+			writeIndentation(env, w+1)
+			env.builder.WriteString("remaining ")
+			remaining(env, w+1)
 			env.builder.WriteByte('\n')
 		}
 		writeIndentation(env, w)

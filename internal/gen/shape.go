@@ -26,6 +26,16 @@ type Shape struct {
 	// the pair. A var-valued or `*` save never counts.
 	SaveOverdrawsInitial bool
 
+	// An allotment (source or destination side) with a `remaining` clause.
+	HasAllotmentRemaining bool
+	// An allotment clause whose portion is a var rather than an n/d literal.
+	HasPortionVar bool
+	// A statement references a vars-block origin that reads through another
+	// origin var (VarDecl.AccountFromVarIdx). Counted on references, not
+	// declarations: an unreferenced origin var is never rendered into the
+	// script.
+	HasChainedOrigin bool
+
 	// Scenario kinds in block order, empty without a scenario block.
 	SetupKinds    []string
 	ObserverKinds []string
@@ -103,6 +113,9 @@ func computeShape(s Script) Shape {
 			if f, ok := saveOf(i, *st.extra, s.Vars); ok {
 				saves = append(saves, f)
 			}
+			if st.extra.VarIdx != nil && s.Vars[*st.extra.VarIdx].AccountFromVarIdx != nil {
+				sh.HasChainedOrigin = true
+			}
 			continue
 		}
 		asset := st.send.Amount.Asset
@@ -112,6 +125,10 @@ func computeShape(s Script) Shape {
 		for _, acc := range boundedOverdraftAccounts(st.send.Source, nil) {
 			overdrafts = append(overdrafts, overdraftFact{index: i, account: acc, asset: asset})
 		}
+		srcRem, srcVar := allotmentShapeSrc(st.send.Source)
+		destRem, destVar := allotmentShapeDest(st.send.Destination)
+		sh.HasAllotmentRemaining = sh.HasAllotmentRemaining || srcRem || destRem
+		sh.HasPortionVar = sh.HasPortionVar || srcVar || destVar
 	}
 	sh.HasSave = len(saves) > 0
 	sh.HasBoundedOverdraft = len(overdrafts) > 0
@@ -175,6 +192,9 @@ func boundedOverdraftAccounts(src Source, acc []string) []string {
 	case SrcAllotment:
 		for _, c := range src.Clauses {
 			acc = boundedOverdraftAccounts(c.Source, acc)
+		}
+		if src.AllotmentRemaining != nil {
+			acc = boundedOverdraftAccounts(*src.AllotmentRemaining, acc)
 		}
 	}
 	return acc
@@ -247,6 +267,60 @@ func touchedPairs(st bodyStmt, s Script) []BalanceKey {
 	return nil
 }
 
+// allotmentShapeSrc reports (has a remaining clause, has a portion var) over
+// one source tree.
+func allotmentShapeSrc(src Source) (bool, bool) {
+	remaining, portionVar := false, false
+	merge := func(r, v bool) { remaining, portionVar = remaining || r, portionVar || v }
+	switch src.Kind {
+	case SrcCapped:
+		merge(allotmentShapeSrc(*src.Inner))
+	case SrcInorder:
+		for _, inner := range src.Sources {
+			merge(allotmentShapeSrc(inner))
+		}
+	case SrcAllotment:
+		remaining = src.AllotmentRemaining != nil
+		for _, c := range src.Clauses {
+			portionVar = portionVar || c.PortionAsVar
+			merge(allotmentShapeSrc(c.Source))
+		}
+		if src.AllotmentRemaining != nil {
+			merge(allotmentShapeSrc(*src.AllotmentRemaining))
+		}
+	}
+	return remaining, portionVar
+}
+
+func allotmentShapeDest(d Destination) (bool, bool) {
+	remaining, portionVar := false, false
+	merge := func(r, v bool) { remaining, portionVar = remaining || r, portionVar || v }
+	keptOrDest := func(k KeptOrDest) {
+		if k.Kind == To {
+			merge(allotmentShapeDest(*k.Dest))
+		}
+	}
+	switch d.Kind {
+	case DestInorder:
+		for _, c := range d.InorderClauses {
+			keptOrDest(c.KeptOrDest)
+		}
+		if d.Remaining != nil {
+			keptOrDest(*d.Remaining)
+		}
+	case DestAllotment:
+		remaining = d.AllotRemaining != nil
+		for _, c := range d.AllotClauses {
+			portionVar = portionVar || c.PortionAsVar
+			keptOrDest(c.KeptOrDest)
+		}
+		if d.AllotRemaining != nil {
+			keptOrDest(*d.AllotRemaining)
+		}
+	}
+	return remaining, portionVar
+}
+
 func sourceAccounts(src Source, acc []string) []string {
 	switch src.Kind {
 	case SrcAccount, SrcAccountOverdraft:
@@ -260,6 +334,9 @@ func sourceAccounts(src Source, acc []string) []string {
 	case SrcAllotment:
 		for _, c := range src.Clauses {
 			acc = sourceAccounts(c.Source, acc)
+		}
+		if src.AllotmentRemaining != nil {
+			acc = sourceAccounts(*src.AllotmentRemaining, acc)
 		}
 	}
 	return acc
@@ -279,6 +356,9 @@ func destinationAccounts(d Destination, acc []string) []string {
 	case DestAllotment:
 		for _, c := range d.AllotClauses {
 			acc = keptOrDestAccounts(c.KeptOrDest, acc)
+		}
+		if d.AllotRemaining != nil {
+			acc = keptOrDestAccounts(*d.AllotRemaining, acc)
 		}
 	}
 	return acc

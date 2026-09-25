@@ -13,7 +13,9 @@ import (
 func TestPortionsListSumsToOne(t *testing.T) {
 	// portionsList isn't exported; exercise it indirectly via many
 	// generated programs and check every allotment clause set found sums
-	// to 1.
+	// to 1 — or, with a `remaining` clause, to strictly less than 1 (the
+	// oracle compile-rejects `remaining` on a block already at 100%, and a
+	// sum above it is oracle/DIVERGENCES.md #6).
 	for seed := range 200 {
 		rng := rand.New(rand.NewSource(int64(seed)))
 		p := gen.GenerateProgram(rng)
@@ -39,7 +41,12 @@ func checkSourcePortions(t *testing.T, s gen.Source) {
 			total.Add(total, c.Portion)
 			checkSourcePortions(t, c.Source)
 		}
-		require.True(t, total.Cmp(big.NewRat(1, 1)) == 0, "source allotment portions must sum to 1, got %s", total)
+		if s.AllotmentRemaining != nil {
+			require.True(t, total.Cmp(big.NewRat(1, 1)) < 0, "source allotment portions with remaining must sum below 1, got %s", total)
+			checkSourcePortions(t, *s.AllotmentRemaining)
+		} else {
+			require.True(t, total.Cmp(big.NewRat(1, 1)) == 0, "source allotment portions must sum to 1, got %s", total)
+		}
 	}
 }
 
@@ -59,7 +66,12 @@ func checkDestinationPortions(t *testing.T, d gen.Destination) {
 			total.Add(total, c.Portion)
 			checkKeptOrDestPortions(t, c.KeptOrDest)
 		}
-		require.True(t, total.Cmp(big.NewRat(1, 1)) == 0, "destination allotment portions must sum to 1, got %s", total)
+		if d.AllotRemaining != nil {
+			require.True(t, total.Cmp(big.NewRat(1, 1)) < 0, "destination allotment portions with remaining must sum below 1, got %s", total)
+			checkKeptOrDestPortions(t, *d.AllotRemaining)
+		} else {
+			require.True(t, total.Cmp(big.NewRat(1, 1)) == 0, "destination allotment portions must sum to 1, got %s", total)
+		}
 	}
 }
 

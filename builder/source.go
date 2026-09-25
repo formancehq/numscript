@@ -77,6 +77,19 @@ func SrcCapped(max Expression[ExprTypeMonetary], source Source) Source {
 }
 
 func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
+	return srcAllotment(clauses, nil)
+}
+
+// SrcAllotmentWithRemaining is SrcAllotment with a trailing
+// `remaining from <source>` clause. The clause portions must then sum to less
+// than 100% (both grammars reject an allotment whose known portions already
+// reach it), and it is the only allotment form in which a portion var
+// compiles.
+func SrcAllotmentWithRemaining(clauses []AllotmentClause[Source], remaining Source) Source {
+	return srcAllotment(clauses, remaining)
+}
+
+func srcAllotment(clauses []AllotmentClause[Source], remaining Source) Source {
 	return func(env *env, w int) {
 		env.builder.WriteString("{\n")
 		for _, clause := range clauses {
@@ -84,6 +97,12 @@ func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
 			clause.Portion(env, w)
 			env.builder.WriteString(" from ")
 			clause.Payload(env, w+1)
+			env.builder.WriteByte('\n')
+		}
+		if remaining != nil {
+			writeIndentation(env, w+1)
+			env.builder.WriteString("remaining from ")
+			remaining(env, w+1)
 			env.builder.WriteByte('\n')
 		}
 		writeIndentation(env, w)

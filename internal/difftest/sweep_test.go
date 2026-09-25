@@ -93,16 +93,19 @@ func TestDifferentialSweep(t *testing.T) {
 // scripts were actually compared. A green sweep only means something for the
 // shapes this table shows were reached.
 type reach struct {
-	strategy      map[gen.Strategy]int
-	completed     int // both engines ran to the end: the only scripts whose postings were compared
-	oracleReject  int
-	save          int
-	bounded       int
-	sameAccount   int
-	sameResource  int
-	inOrder       int
-	overdraws     int
-	inOrderDiverg int
+	strategy       map[gen.Strategy]int
+	completed      int // both engines ran to the end: the only scripts whose postings were compared
+	oracleReject   int
+	save           int
+	bounded        int
+	sameAccount    int
+	sameResource   int
+	inOrder        int
+	overdraws      int
+	inOrderDiverg  int
+	allotRemaining int
+	portionVar     int
+	chainedOrigin  int
 }
 
 func (r *reach) add(c difftest.Case) {
@@ -129,6 +132,9 @@ func (r *reach) add(c difftest.Case) {
 	count(&r.inOrder, sh.SaveOverdraftSameResourceInOrder)
 	count(&r.overdraws, sh.SaveOverdrawsInitial)
 	count(&r.inOrderDiverg, sh.SaveOverdraftSameResourceInOrder && c.OracleVsNew.Mismatch)
+	count(&r.allotRemaining, sh.HasAllotmentRemaining)
+	count(&r.portionVar, sh.HasPortionVar)
+	count(&r.chainedOrigin, sh.HasChainedOrigin)
 }
 
 func (r *reach) table() string {
@@ -147,6 +153,9 @@ func (r *reach) table() string {
 	row("...in that order", r.inOrder)
 	row("...where the save also overdraws", r.overdraws)
 	row("...that diverged", r.inOrderDiverg)
+	row("allotment with a remaining clause", r.allotRemaining)
+	row("allotment portion through a var", r.portionVar)
+	row("origin var chained through another", r.chainedOrigin)
 	return sb.String()
 }
 
