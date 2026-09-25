@@ -25,7 +25,7 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	// SetVarsFromJSON clears the map it is given, and vars is shared with
 	// runNew's call, so pass a copy: a mismatch report needs the real values.
 	if err := m.SetVarsFromJSON(maps.Clone(vars)); err != nil {
-		return SideResult{CompileErr: err.Error()}
+		return SideResult{ResolveErr: err.Error()}
 	}
 	// Not vm.EmptyStore: its GetBalances returns no rows at all, where
 	// vm.StaticStore{} materializes a zero balance per queried key. credit() only
@@ -50,10 +50,10 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 		getOrCreateEntry(k.Account).Metadata[k.Key] = value
 	}
 	if err := m.ResolveResources(ctx, store); err != nil {
-		return SideResult{CompileErr: err.Error()}
+		return SideResult{ResolveErr: err.Error()}
 	}
 	if err := m.ResolveBalances(ctx, store); err != nil {
-		return SideResult{CompileErr: err.Error()}
+		return SideResult{ResolveErr: err.Error()}
 	}
 
 	if err := m.Execute(); err != nil {

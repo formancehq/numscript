@@ -65,6 +65,34 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 		return ok()
 	}
 
+	aResolveFailed := aRes.ResolveErr != ""
+	bResolveFailed := bRes.ResolveErr != ""
+
+	if bResolveFailed && !aResolveFailed {
+		if aRes.Failed() {
+			// Neither side produced a transaction -- only the stage and the
+			// wording differ -- so there is nothing to compare, same as both
+			// sides failing to compile.
+			return ok()
+		}
+		// Same shape as the compile-stage tolerance above, one stage later:
+		// the generator's cleanup pass does not track everything the oracle's
+		// resolve stage refuses (e.g. binding `@world` to an account variable
+		// used as a source, which ledger's non-experimental machine refuses to
+		// resolve balances for, ResolveBalances). Nothing about the script
+		// gets compared, so it is counted.
+		return tolerated("b-side resolve rejection")
+	}
+	if aResolveFailed && !bResolveFailed {
+		return mismatch(
+			"%s rejected a script %s resolved: resolveErr=%q",
+			aLabel, bLabel, aRes.ResolveErr,
+		)
+	}
+	if aResolveFailed {
+		return ok()
+	}
+
 	aRunFailed := aRes.RunErr != ""
 	bRunFailed := bRes.RunErr != ""
 

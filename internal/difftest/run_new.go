@@ -25,7 +25,21 @@ type Posting struct {
 type SideResult struct {
 	// CompileErr is set if the script failed to parse/compile.
 	CompileErr string
-	// RunErr is set if compilation succeeded but execution failed.
+	// ResolveErr is oracle-only: set if compilation succeeded but the machine
+	// rejected the script before executing it, resolving vars/resources/
+	// balances against the store (SetVarsFromJSON, ResolveResources,
+	// ResolveBalances). The new interpreter has no separate resolve stage --
+	// the equivalent work happens inside Run and surfaces as RunErr -- so this
+	// is always empty on that side.
+	//
+	// Kept apart from CompileErr so Compare can tell "the generator's cleanup
+	// pass didn't reach the b-side's grammar" from "the b-side refused to even
+	// start resolving the script", and apart from RunErr because no side
+	// executed anything: comparing MissingFunds here would be meaningless, the
+	// oracle never got as far as classifying a funds failure.
+	ResolveErr string
+	// RunErr is set if compilation and resolution succeeded but execution
+	// failed.
 	RunErr string
 	// MissingFunds is only meaningful when RunErr is set: true iff the failure
 	// was an insufficient-funds error rather than some other runtime rejection.
@@ -68,7 +82,7 @@ type SideResult struct {
 }
 
 func (r SideResult) Failed() bool {
-	return r.CompileErr != "" || r.RunErr != ""
+	return r.CompileErr != "" || r.ResolveErr != "" || r.RunErr != ""
 }
 
 func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string) SideResult {
