@@ -936,7 +936,11 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 	}
 
 	if remainingAllotmentIndex != -1 {
-		allotments[remainingAllotmentIndex] = new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		remaining := new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		if remaining.Sign() < 0 {
+			return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
+		}
+		allotments[remainingAllotmentIndex] = remaining
 	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}

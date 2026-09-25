@@ -61,9 +61,10 @@ func nonUniformListOf[T any](rng *rand.Rand, g func() T) []T {
 // Without withRemaining they sum to exactly 1. With it they sum to strictly
 // less than 1, for an allotment ending in a `remaining` clause: the oracle
 // rejects `remaining` at compile time when the known portions already reach
-// 100%, and a sum above 100% is an open divergence — the oracle rejects it
-// where the interpreter computes a negative remaining portion
-// (oracle/DIVERGENCES.md #6) — so every generated sum stays clear of both.
+// 100% (a tolerated skip that compares nothing), and above 100% both engines
+// reject at runtime since the interpreter grew ledger's sum check
+// (oracle/DIVERGENCES.md #6) but the literal form is still an oracle-side
+// compile rejection, so every generated sum stays below both lines.
 // One weight in ten is zeroed under withRemaining: a 0/N portion is legal on
 // both engines and only representable when the slack keeps the total positive.
 func portionsList(rng *rand.Rand, withRemaining bool) []*big.Rat {

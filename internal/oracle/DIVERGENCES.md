@@ -17,7 +17,7 @@ Everything below was measured by running all three engines, not recalled.
 | 3 | `save` past the balance | balance goes negative | floors at zero | floors at zero |
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 | 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
-| 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | runs with a negative remaining portion |
+| 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | rejects the script (fixed 2026-09-25) |
 
 The oracle matches ledger on 1, 4, 5 and 6. It does not on 2 and 3, the two
 places it cannot be trusted to check numscript.
@@ -307,8 +307,10 @@ generator does not reach it. Pinned in `TestKnownOpenDivergences`.
 
 ## 6. Allotment portions above 100% with `remaining`
 
-**Ledger rejects an allotment whose portions sum past 100%. numscript computes
-a negative `remaining` portion and keeps going.**
+**Ledger rejects an allotment whose portions sum past 100%. numscript used to
+compute a negative `remaining` portion and keep going; it rejects too since
+2026-09-25** (`makeAllotment` refuses a negative remaining with
+`InvalidAllotmentSum`, the same error its no-`remaining` path always raised).
 
 ```numscript
 vars {
@@ -332,17 +334,19 @@ send [COIN 90] (
 |---|---|
 | ledger | `sum of portions exceeded 100%` |
 | oracle | same |
-| numscript | commits: `world->acc1 60`, `world->acc2 30` |
+| numscript before the fix | commits: `world->acc1 60`, `world->acc2 30` |
+| numscript | `Invalid allotment: portions sum should be 1 (got 4/3 instead)` |
 
-numscript's `makeAllotment` (interpreter.go) computes the remaining portion as
-`1 - total` with no sign check, so the parts come out `[60, 60, -30]`. On the
-destination side the receivers drain the 90 in order -- 60, then the 30 left,
-then nothing for the negative part -- and the statement commits; money moves
-that ledger refuses to move. On the source side the same parts reach
-`tryTakingExact(-30)`, which fails as `Not enough funds. Needed [COIN -30]
+numscript's `makeAllotment` (interpreter.go) computed the remaining portion as
+`1 - total` with no sign check, so the parts came out `[60, 60, -30]`. On the
+destination side the receivers drained the 90 in order -- 60, then the 30 left,
+then nothing for the negative part -- and the statement committed; money moved
+that ledger refuses to move. On the source side the same parts reached
+`tryTakingExact(-30)`, which failed as `Not enough funds. Needed [COIN -30]
 (only [COIN 0] available)`: a missing-funds classification (and a negative
 "needed" amount in the message) for a script that has no funds problem, against
-the oracle's non-funds rejection. Both directions are Compare mismatches.
+the oracle's non-funds rejection. Both directions were Compare mismatches; both
+engines now fail for a non-funds reason and Compare agrees.
 
 The literal form -- `2/3 to @acc1` etc. written inline -- diverges identically,
 but never reaches Compare: the oracle rejects it at compile time ("sum of known
@@ -351,20 +355,19 @@ compile rejection is a tolerated outcome. Only the var form, which compiles on
 both engines and fails at `OP_MAKE_ALLOTMENT`, is visible to the sweep.
 
 The machine checks the sum at runtime in `NewAllotment` (machine/allotment.go);
-numscript checks it only when there is no `remaining` clause
-(`InvalidAllotmentSum`). The two agree on every sum at or below 100%, floored
-per-part with the leftover units handed out front-first, including the
-`remaining` part -- that whole space is generated and green (see the sweep's
-reach table).
+numscript used to check it only when there was no `remaining` clause. The two
+agree on every sum at or below 100%, floored per-part with the leftover units
+handed out front-first, including the `remaining` part -- that whole space is
+generated and green (see the sweep's reach table).
 
 The generator keeps every emitted sum strictly below 100% when a `remaining`
-clause is present (portionsList), so the sweep does not rediscover this on
-every run; `TestKnownOpenDivergences` pins both directions instead.
-
-**Open question:** whether numscript should reject the negative remaining. Its
-own no-`remaining` path already rejects a sum that is merely different from
-100%, and the source-side error text names a negative amount as a funds
-problem, so this looks like a numscript-side gap rather than wanted semantics.
+clause is present (portionsList): a sum of exactly 100% is an oracle-side
+compile rejection ("known portions are already equal to 100%"), and above it
+the literal form still compares nothing. `TestKnownBugRepros` pins both
+directions of the var form, and the interpreter's own
+`TestInvalidSourceAllotmentSumOverOneWithRemaining` /
+`TestInvalidDestinationAllotmentSumOverOneWithRemaining` pin the rejection
+without the harness.
 
 ---
 
@@ -405,7 +408,7 @@ about them; they are checked by the interpreter's own tests or not at all.
 | 3 | `TestKnownBugRepros` (the engines agree now), `TestOracleSaveFloorsAtZero` and `TestOracleSaveOnNegativeBalanceFloorsAtZero` |
 | 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
 | 5 | `TestKnownOpenDivergences` |
-| 6 | `TestKnownOpenDivergences`, both sides |
+| 6 | `TestKnownBugRepros` (the engines agree now), both sides, and the interpreter's own over-100% tests |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
 starts agreeing, it fails; update this file and move the case to
