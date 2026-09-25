@@ -182,14 +182,55 @@ var (
 	VerifyCompiledProgramWithVars = vm.VerifyWithVars
 )
 
+// VM execution error types, aliased so ExecVm callers can classify failures
+// with errors.As without reaching into internal packages — the same pattern as
+// the interpreter's error types above. The Vm prefix keeps them apart from the
+// interpreter's MissingFundsErr/NegativeAmountErr, which are different types
+// with different fields.
+type (
+	VmMissingFundsError     = vm.MissingFundsError
+	VmNegativeAmountError   = vm.NegativeAmountError
+	VmNegativeBalanceError  = vm.NegativeBalanceError
+	VmAssetMismatchError    = vm.AssetMismatchError
+	VmInvalidAllotmentSum   = vm.InvalidAllotmentSum
+	VmDivideByZeroError     = vm.DivideByZeroError
+	VmInvalidAccountName    = vm.InvalidAccountName
+	VmInvalidColor          = vm.InvalidColor
+	VmInvalidScope          = vm.InvalidScope
+	VmInvalidUncappedSource = vm.InvalidUncappedSource
+	VmMetadataNotFoundError = vm.MetadataNotFoundError
+	VmBadMetaValueError     = vm.BadMetaValueError
+	VmInternalError         = vm.InternalError
+	VmStoreError            = vm.StoreError
+)
+
 func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
 	res, execErr := vm.Exec(ctx, machine, vars, store)
 	if execErr != nil {
 		return ExecutionResult{}, execErr
 	}
 
-	// Postings share one type now (funds.Posting); the VM leaves scope fields
-	// empty. TODO map VM tx/account metadata (stringified) onto the typed
-	// contract; deferred together with scopes in the VM.
-	return ExecutionResult{Postings: res.Postings}, nil
+	// Postings share one type (funds.Posting), scope fields included, so they
+	// pass through unchanged. Metadata is normalized to the interpreter's
+	// contract: non-nil maps/slices, account rows in the SetAccountsMetadata
+	// shape.
+	txMeta := res.Metadata
+	if txMeta == nil {
+		txMeta = Metadata{}
+	}
+	accountsMeta := make(SetAccountsMetadata, 0, len(res.AccountsMetadata))
+	for _, e := range res.AccountsMetadata {
+		accountsMeta = append(accountsMeta, SetAccountMetadataRow{
+			Account: e.Account,
+			Key:     e.Key,
+			Value:   e.Value,
+			Scope:   e.Scope,
+		})
+	}
+
+	return ExecutionResult{
+		Postings:         res.Postings,
+		Metadata:         txMeta,
+		AccountsMetadata: accountsMeta,
+	}, nil
 }
