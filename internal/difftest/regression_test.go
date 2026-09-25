@@ -15,6 +15,7 @@ func TestKnownBugRepros(t *testing.T) {
 	testCases := []struct {
 		name     string
 		script   string
+		vars     map[string]string
 		balances map[gen.BalanceKey]*big.Int
 	}{
 		{
@@ -127,6 +128,59 @@ send [COIN *] (
 )`,
 		},
 		{
+			// DIVERGENCES.md #6, destination side. Portions bound past 100% with a
+			// `remaining` clause. The interpreter used to compute a negative
+			// remaining portion and commit world->acc1 60, world->acc2 30 where the
+			// oracle fails OP_MAKE_ALLOTMENT ("sum of portions exceeded 100%");
+			// fixed by rejecting the negative remaining in makeAllotment
+			// (InvalidAllotmentSum), so both engines now fail for a non-funds
+			// reason. The literal form never reached Compare either way: the
+			// oracle rejects it at compile time, which is tolerated. The generator
+			// keeps every emitted sum below 100% (portionsList), so only this test
+			// reaches the shape.
+			name: "allotment portions above 100% with remaining, destination side",
+			vars: map[string]string{"p": "2/3", "q": "2/3"},
+			script: `vars {
+  portion $p
+  portion $q
+}
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $p to @acc1
+    $q to @acc2
+    remaining to @acc3
+  }
+)`,
+		},
+		{
+			// DIVERGENCES.md #6, source side. The same parts [60, 60, -30] used to
+			// reach tryTakingExact(-30) and report missing funds ("Needed
+			// [COIN -30]") although every account holds 500 -- a classification
+			// mismatch against the oracle's non-funds rejection. Same fix.
+			name: "allotment portions above 100% with remaining, source side",
+			vars: map[string]string{"p": "2/3", "q": "2/3"},
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc1", Asset: "COIN"}: big.NewInt(500),
+				{Account: "acc2", Asset: "COIN"}: big.NewInt(500),
+				{Account: "acc3", Asset: "COIN"}: big.NewInt(500),
+			},
+			script: `vars {
+  portion $p
+  portion $q
+}
+
+send [COIN 90] (
+  source = {
+    $p from @acc1
+    $q from @acc2
+    remaining from @acc3
+  }
+  destination = @acc4
+)`,
+		},
+		{
 			// Ledger does not consume a kept funding, the interpreter does. The
 			// oracle was changed to consume it too, deliberately diverging from
 			// ledger -- DIVERGENCES.md #2. Here @acc1 keeps 400; on ledger @acc0
@@ -158,8 +212,8 @@ send [COIN *] (
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
-			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
@@ -295,59 +349,6 @@ func TestKnownOpenDivergences(t *testing.T) {
 			script: `send [COIN *] (
   source = @acc0 allowing overdraft up to [COIN 0] - [COIN 10]
   destination = @acc1
-)`,
-		},
-		{
-			// DIVERGENCES.md #6, destination side. Portions bound past 100% with a
-			// `remaining` clause: the oracle fails OP_MAKE_ALLOTMENT ("sum of
-			// portions exceeded 100%"), numscript computes a negative remaining
-			// portion and commits world->acc1 60, world->acc2 30. The literal form
-			// diverges the same way but hides behind the b-side compile-rejection
-			// tolerance; only this var form reaches Compare. The generator keeps
-			// every emitted sum below 100% (portionsList), so only this test
-			// reaches it.
-			name: "allotment portions above 100% with remaining, destination side",
-			why:  "the oracle rejects the sum, numscript commits with a negative remaining portion",
-			vars: map[string]string{"p": "2/3", "q": "2/3"},
-			script: `vars {
-  portion $p
-  portion $q
-}
-
-send [COIN 90] (
-  source = @world
-  destination = {
-    $p to @acc1
-    $q to @acc2
-    remaining to @acc3
-  }
-)`,
-		},
-		{
-			// DIVERGENCES.md #6, source side. Same parts [60, 60, -30]: numscript
-			// reaches tryTakingExact(-30) and reports missing funds ("Needed
-			// [COIN -30]") although every account holds 500, against the oracle's
-			// non-funds rejection — a classification mismatch.
-			name: "allotment portions above 100% with remaining, source side",
-			why:  "the oracle rejects the sum, numscript mis-reports it as missing funds",
-			vars: map[string]string{"p": "2/3", "q": "2/3"},
-			balances: map[gen.BalanceKey]*big.Int{
-				{Account: "acc1", Asset: "COIN"}: big.NewInt(500),
-				{Account: "acc2", Asset: "COIN"}: big.NewInt(500),
-				{Account: "acc3", Asset: "COIN"}: big.NewInt(500),
-			},
-			script: `vars {
-  portion $p
-  portion $q
-}
-
-send [COIN 90] (
-  source = {
-    $p from @acc1
-    $q from @acc2
-    remaining from @acc3
-  }
-  destination = @acc4
 )`,
 		},
 	}
