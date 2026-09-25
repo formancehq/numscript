@@ -57,6 +57,10 @@ func cleanupSrc(s Source, emptiedAccounts map[string]bool) Source {
 		for i := range s.Clauses {
 			s.Clauses[i].Source = cleanupSrc(s.Clauses[i].Source, emptiedAccounts)
 		}
+		if s.AllotmentRemaining != nil {
+			cleaned := cleanupSrc(*s.AllotmentRemaining, emptiedAccounts)
+			s.AllotmentRemaining = &cleaned
+		}
 		return s
 	default: // SrcAccount, SrcAccountOverdraft — leaves, unchanged
 		return s
@@ -144,6 +148,13 @@ func removeEmptyAllotmentsSrc(s Source) *Source {
 			survivors = append(survivors, clause)
 		}
 		s.Clauses = survivors
+		if s.AllotmentRemaining != nil {
+			cleaned := removeEmptyAllotmentsSrc(*s.AllotmentRemaining)
+			if cleaned == nil {
+				return nil
+			}
+			s.AllotmentRemaining = cleaned
+		}
 		return &s
 
 	default: // SrcAccount, SrcAccountOverdraft — always survive
