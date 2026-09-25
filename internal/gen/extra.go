@@ -216,7 +216,79 @@ func genVarDecls(rng *rand.Rand, poolSize int, balances map[BalanceKey]*big.Int,
 		}
 	}
 
+	// Chain up to two origins onto a meta-account declaration: the account a
+	// balance()/meta() call reads is itself an origin var (`balance($a, ...)`
+	// with `account $a = meta(...)`). Origin-through-origin resolution is its
+	// own machinery on both engines — the interpreter resolves declarations as
+	// a dependency graph, the machine iterates typed resources — and the
+	// builder toposorts the declarations, so the shape is generated
+	// deliberately rather than left to chance. A chained VarFromMeta landing
+	// on an account-typed value is itself a parent candidate, so the second
+	// pass can chain one level deeper. Appended after the aliasing bias above
+	// so it never rewrites a chained declaration.
+	for range 2 {
+		if rng.Intn(3) != 0 {
+			continue
+		}
+		parents := metaAccountVarIndices(out)
+		if len(parents) == 0 {
+			// Synthesize one: a fresh meta key (outside metaKeyPool, so no
+			// other declaration's expectations shift) preset to an account
+			// name.
+			acc := account(rng, poolSize)
+			mk := MetaKey{Account: acc, Key: fmt.Sprintf("chain%d", len(out))}
+			metadata[mk] = account(rng, poolSize)
+			metaTypes[mk] = MetaAccount
+			out = append(out, VarDecl{Kind: VarFromMeta, Account: acc, AccountAsVar: accountAsVar(rng, acc), Key: mk.Key, MetaType: MetaAccount})
+			parents = []int{len(out) - 1}
+		}
+		p := parents[rng.Intn(len(parents))]
+		target := metadata[MetaKey{Account: out[p].Account, Key: out[p].Key}]
+		idx := p
+		if rng.Intn(2) == 0 {
+			// balance($parent, <asset>), preferring an asset whose preset
+			// balance is non-negative: both engines reject a negative
+			// balance() read outright, which would compare nothing.
+			asset := pickAsset(rng)
+			for range assetPool {
+				preset, ok := balances[BalanceKey{Account: target, Asset: asset}]
+				if !ok || preset.Sign() >= 0 {
+					break
+				}
+				asset = pickAsset(rng)
+			}
+			out = append(out, VarDecl{Kind: VarFromBalance, Account: target, AccountFromVarIdx: &idx, Asset: asset, AssetAsVar: asVar(rng)})
+			continue
+		}
+		// meta($parent, "<key>") needs a preset (target, key): a missing-key
+		// read fails on both engines and compares nothing.
+		var keys []string
+		for _, k := range metaKeyPool {
+			if _, ok := metadata[MetaKey{Account: target, Key: k}]; ok {
+				keys = append(keys, k)
+			}
+		}
+		if len(keys) == 0 {
+			continue
+		}
+		key := keys[rng.Intn(len(keys))]
+		out = append(out, VarDecl{Kind: VarFromMeta, Account: target, AccountFromVarIdx: &idx, Key: key, MetaType: metaTypes[MetaKey{Account: target, Key: key}]})
+	}
+
 	return out
+}
+
+// metaAccountVarIndices returns the indices of declarations usable as a
+// chained origin's account: VarFromMeta declarations whose stored value is an
+// account name.
+func metaAccountVarIndices(vars []VarDecl) []int {
+	var idxs []int
+	for i, v := range vars {
+		if v.Kind == VarFromMeta && v.MetaType == MetaAccount {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
 }
 
 // genNumExpr generates a small arithmetic expression for
@@ -401,6 +473,28 @@ func genExtraStatements(rng *rand.Rand, poolSize int, vars []VarDecl, accountVar
 				Destination:      account(rng, poolSize),
 				DestinationAsVar: asVar(rng),
 			})
+		}
+	}
+
+	// A chained origin only exercises origin-through-origin resolution if the
+	// chained var is referenced (an unreferenced origin var is never
+	// declared). The kinds above pick their var uniformly, which would leave
+	// most chains unreferenced, so reference each one deliberately.
+	for i, v := range vars {
+		if v.AccountFromVarIdx == nil || rng.Intn(2) != 0 {
+			continue
+		}
+		idx := i
+		if v.Kind == VarFromBalance {
+			out = append(out, ExtraStatement{
+				Kind:    ExtraSendVar,
+				VarIdx:  &idx,
+				Account: account(rng, poolSize), AccountAsVar: asVar(rng),
+				Destination:      account(rng, poolSize),
+				DestinationAsVar: asVar(rng),
+			})
+		} else {
+			out = append(out, ExtraStatement{Kind: ExtraSetTxMetaVar, VarIdx: &idx, Key: fmt.Sprintf("k%d", rng.Intn(5))})
 		}
 	}
 

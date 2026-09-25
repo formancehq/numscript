@@ -50,11 +50,18 @@ type Source struct {
 
 	// SrcAllotment only
 	Clauses []SourceAllotmentClause
+	// SrcAllotment only: non-nil adds a trailing `remaining from` clause, and
+	// the clause portions sum to strictly less than 1.
+	AllotmentRemaining *Source
 }
 
 type SourceAllotmentClause struct {
 	Portion *big.Rat
-	Source  Source
+	// Rendered as a runtime-bound portion var instead of an n/d literal. Only
+	// legal in an allotment with a remaining clause: without one, the oracle
+	// rejects the block at compile time ("might be less than 100%").
+	PortionAsVar bool
+	Source       Source
 }
 
 type DestKind int
@@ -78,6 +85,9 @@ type Destination struct {
 
 	// DestAllotment only
 	AllotClauses []DestAllotmentClause
+	// DestAllotment only: non-nil adds a trailing `remaining` clause, and the
+	// clause portions sum to strictly less than 1.
+	AllotRemaining *KeptOrDest
 }
 
 type DestInorderClause struct {
@@ -86,8 +96,10 @@ type DestInorderClause struct {
 }
 
 type DestAllotmentClause struct {
-	Portion    *big.Rat
-	KeptOrDest KeptOrDest
+	Portion *big.Rat
+	// Same constraint as SourceAllotmentClause.PortionAsVar.
+	PortionAsVar bool
+	KeptOrDest   KeptOrDest
 }
 
 type KeptOrDestKind int
@@ -169,6 +181,13 @@ type VarDecl struct {
 	// Makes `balance($accountN, ...)` and a literal `@acc` elsewhere alias
 	// one account.
 	AccountAsVar bool
+	// Chains this origin onto an earlier declaration: the account read by
+	// balance()/meta() is the origin var at this index, which must be an
+	// earlier VarFromMeta declaration of MetaType MetaAccount. Account then
+	// holds the account name that parent's meta value resolves to (known at
+	// generation time), so the balance/metadata this declaration observes can
+	// still be steered; AccountAsVar is ignored.
+	AccountFromVarIdx *int
 
 	// VarFromBalance only
 	Asset      string

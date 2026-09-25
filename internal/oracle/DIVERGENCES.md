@@ -8,7 +8,7 @@ written down here.
 Baseline: `formancehq/ledger` `internal/machine`, main at `8880965c2`.
 Everything below was measured by running all three engines, not recalled.
 
-## The five differences
+## The six differences
 
 | # | what | ledger | oracle | numscript |
 |---|---|---|---|---|
@@ -17,11 +17,12 @@ Everything below was measured by running all three engines, not recalled.
 | 3 | `save` past the balance | balance goes negative | floors at zero | floors at zero |
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 | 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
+| 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | rejects the script (fixed 2026-09-25) |
 
-The oracle matches ledger on 1, 4 and 5. It does not on 2 and 3, the two places
-it cannot be trusted to check numscript.
+The oracle matches ledger on 1, 4, 5 and 6. It does not on 2 and 3, the two
+places it cannot be trusted to check numscript.
 
-`TestDifferentialSweep` is green: 0 divergences over 3000 seeds, 106 of those
+`TestDifferentialSweep` is green: 0 divergences over 3000 seeds, 112 of those
 scripts tolerated under #1. With the generator's scenario blocks and an oracle
 still faithful to ledger on `save`, the same seeds gave 9 divergences, all #3;
 the numbers are under #3. The sweep also prints what it reached and what it
@@ -62,7 +63,7 @@ engines reject the script and no money moves either way; only the error differs.
 The tolerance runs in one direction: the interpreter naming a negative amount
 while the oracle blames the funds. The reverse is #4, and stays a mismatch.
 
-The sweep reports how often it fires -- currently 106 of 3000 scripts, 3.5%. If
+The sweep reports how often it fires -- currently 112 of 3000 scripts, 3.7%. If
 that number grows, the tolerance has turned into a blind spot.
 
 The oracle used to carry the missing guard itself. Tolerating in `Compare`
@@ -304,16 +305,89 @@ generator does not reach it. Pinned in `TestKnownOpenDivergences`.
 
 **Open question:** which of the two is wanted. Left open on both sides.
 
+## 6. Allotment portions above 100% with `remaining`
+
+**Ledger rejects an allotment whose portions sum past 100%. numscript used to
+compute a negative `remaining` portion and keep going; it rejects too since
+2026-09-25** (`makeAllotment` refuses a negative remaining with
+`InvalidAllotmentSum`, the same error its no-`remaining` path always raised).
+
+```numscript
+vars {
+  portion $p
+  portion $q
+}
+
+// bound to p = 2/3, q = 2/3
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $p to @acc1
+    $q to @acc2
+    remaining to @acc3
+  }
+)
+```
+
+| engine | result |
+|---|---|
+| ledger | `sum of portions exceeded 100%` |
+| oracle | same |
+| numscript before the fix | commits: `world->acc1 60`, `world->acc2 30` |
+| numscript | `Invalid allotment: portions sum should be 1 (got 4/3 instead)` |
+
+numscript's `makeAllotment` (interpreter.go) computed the remaining portion as
+`1 - total` with no sign check, so the parts came out `[60, 60, -30]`. On the
+destination side the receivers drained the 90 in order -- 60, then the 30 left,
+then nothing for the negative part -- and the statement committed; money moved
+that ledger refuses to move. On the source side the same parts reached
+`tryTakingExact(-30)`, which failed as `Not enough funds. Needed [COIN -30]
+(only [COIN 0] available)`: a missing-funds classification (and a negative
+"needed" amount in the message) for a script that has no funds problem, against
+the oracle's non-funds rejection. Both directions were Compare mismatches; both
+engines now fail for a non-funds reason and Compare agrees.
+
+The literal form -- `2/3 to @acc1` etc. written inline -- diverges identically,
+but never reaches Compare: the oracle rejects it at compile time ("sum of known
+portions is greater than 100%"), numscript's parser accepts it, and a b-side
+compile rejection is a tolerated outcome. Only the var form, which compiles on
+both engines and fails at `OP_MAKE_ALLOTMENT`, is visible to the sweep.
+
+The machine checks the sum at runtime in `NewAllotment` (machine/allotment.go);
+numscript used to check it only when there was no `remaining` clause. The two
+agree on every sum at or below 100%, floored per-part with the leftover units
+handed out front-first, including the `remaining` part -- that whole space is
+generated and green (see the sweep's reach table).
+
+The generator keeps every emitted sum strictly below 100% when a `remaining`
+clause is present (portionsList): a sum of exactly 100% is an oracle-side
+compile rejection ("known portions are already equal to 100%"), and above it
+the literal form still compares nothing. `TestKnownBugRepros` pins both
+directions of the var form, and the interpreter's own
+`TestInvalidSourceAllotmentSumOverOneWithRemaining` /
+`TestInvalidDestinationAllotmentSumOverOneWithRemaining` pin the rejection
+without the harness.
+
 ---
 
 ## What the sweep compares
 
-Only scripts both engines run to completion have their postings compared: 1138
-of 3000. Of the rest, 482 are rejected by the oracle at compile time (the
+Only scripts both engines run to completion have their postings compared: 1129
+of 3000. Of the rest, 393 are rejected by the oracle at compile time (the
 generator's cleanup pass is best-effort; counted as `b-side compile rejection`),
-106 are tolerated under #1, and the remainder fail on both engines for the same
+112 are tolerated under #1, and the remainder fail on both engines for the same
 missing-funds reason. A scenario block glued to a random program is often
 wasted this way, which is why the generator has a scenario-only strategy.
+
+Since 2026-09-25 the generator also reaches allotment `remaining` clauses
+(1613 of 3000 scripts), portions written through vars (1513, only ever inside a
+`remaining` block, summing strictly below 100% — see #6) and origin vars
+chained through a meta-account var, `balance($a, ...)` with
+`account $a = meta(...)` (the sweep's reach table prints the live numbers).
+Percent-form portions, origin vars in cap positions and a handful of other
+shared shapes the generator still cannot emit are pinned by
+`TestUncoveredShapeAgreements` instead.
 
 One specific case of one engine moving money the other refused to move is
 tolerated by `Compare` and counted, by name, `negative max clause`; see #4.
@@ -334,6 +408,7 @@ about them; they are checked by the interpreter's own tests or not at all.
 | 3 | `TestKnownBugRepros` (the engines agree now), `TestOracleSaveFloorsAtZero` and `TestOracleSaveOnNegativeBalanceFloorsAtZero` |
 | 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
 | 5 | `TestKnownOpenDivergences` |
+| 6 | `TestKnownBugRepros` (the engines agree now), both sides, and the interpreter's own over-100% tests |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
 starts agreeing, it fails; update this file and move the case to

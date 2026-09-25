@@ -77,6 +77,25 @@ func SrcCapped(max Expression[ExprTypeMonetary], source Source) Source {
 }
 
 func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
+	return srcAllotment(clauses, nil)
+}
+
+// SrcAllotmentWithRemaining is SrcAllotment with a trailing
+// `remaining from <source>` clause.
+//
+// The engines constrain the clause differently. The legacy machine's compiler
+// rejects it when the known portions already sum to 100%, and rejects a
+// portion var in an allotment that lacks it; the interpreter runs the first
+// (the clause receives zero) and checks the second's sum at run time. Past
+// 100%, both engines reject at run time (oracle/DIVERGENCES.md #6).
+// internal/gen keeps generated sums strictly below 100% regardless: the
+// machine-side compile rejections above are tolerated skips that compare
+// nothing.
+func SrcAllotmentWithRemaining(clauses []AllotmentClause[Source], remaining Source) Source {
+	return srcAllotment(clauses, remaining)
+}
+
+func srcAllotment(clauses []AllotmentClause[Source], remaining Source) Source {
 	return func(env *env, w int) {
 		env.builder.WriteString("{\n")
 		for _, clause := range clauses {
@@ -84,6 +103,12 @@ func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
 			clause.Portion(env, w)
 			env.builder.WriteString(" from ")
 			clause.Payload(env, w+1)
+			env.builder.WriteByte('\n')
+		}
+		if remaining != nil {
+			writeIndentation(env, w+1)
+			env.builder.WriteString("remaining from ")
+			remaining(env, w+1)
 			env.builder.WriteByte('\n')
 		}
 		writeIndentation(env, w)
