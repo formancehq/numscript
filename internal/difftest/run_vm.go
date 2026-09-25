@@ -64,9 +64,9 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 
 	store := vmStore{balances: balances, metadata: metadata}
 
-	// vm.Exec rather than the public numscript.ExecVm: the public wrapper does
-	// not carry the vm's tx/account metadata yet, and Compare needs it.
-	execResult, execErr := vm.Exec(ctx, vm.NewVm(program), &encodedVars, store)
+	// The public entry point, so this leg exercises exactly what an integrator
+	// calls — including its metadata contract.
+	execResult, execErr := numscript.ExecVm(ctx, numscript.NewVm(program), &encodedVars, store)
 	if execErr != nil {
 		var missingFunds vm.MissingFundsError
 		var negativeAmount vm.NegativeAmountError
@@ -92,8 +92,8 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 		txMeta[k] = v
 	}
 	accountMeta := make(map[string]string, len(execResult.AccountsMetadata))
-	for _, e := range execResult.AccountsMetadata {
-		accountMeta[metaKey(e.Account, e.Key)] = e.Value
+	for _, row := range execResult.AccountsMetadata {
+		accountMeta[metaKey(row.Account, row.Key)] = row.Value
 	}
 
 	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
