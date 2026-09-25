@@ -109,7 +109,19 @@ func normalizeOracleMetaValue(v machine.Value) string {
 		return (*big.Int)(x).String()
 	case machine.Monetary:
 		return string(x.Asset) + " " + (*big.Int)(x.Amount).String()
+	case machine.Portion:
+		// internal/gen never presets a "remaining" portion as metadata (only an
+		// "n/d" literal, internal/gen/extra.go), and the rewrite has no such
+		// concept for a bare portion value either.
+		if x.Remaining {
+			panic("normalizeOracleMetaValue: unexpected remaining portion in metadata")
+		}
+		// Matches interpreter.Portion.String(), also a bare big.Rat rendering.
+		return x.Specific.String()
 	default:
-		return fmt.Sprintf("%v", v)
+		// Every other value type internal/gen can write as metadata is covered
+		// above. Guessing a %v rendering for anything else would risk a spurious
+		// mismatch that looks like a real divergence.
+		panic(fmt.Sprintf("normalizeOracleMetaValue: unhandled machine.Value type %T", v))
 	}
 }

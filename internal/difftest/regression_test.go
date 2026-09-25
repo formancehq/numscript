@@ -161,7 +161,7 @@ send [COIN *] (
 			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
 			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
 
-			v := Compare(tc.script, newRes, oracleRes, "new interpreter", "oracle")
+			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
 				t.Fatalf("mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 			}
@@ -188,7 +188,7 @@ func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
 	newRes := runNew(ctx, script, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
-	v := Compare(script, newRes, oracleRes, "new interpreter", "oracle")
+	v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 	if v.Mismatch {
 		t.Fatalf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 	}
@@ -225,16 +225,8 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 	newRes := runNew(ctx, script, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
-	for _, pair := range []struct {
-		name string
-		v    Verdict
-	}{
-		{"new vs oracle", Compare(script, newRes, oracleRes, "new interpreter", "oracle")},
-	} {
-		if pair.v.Mismatch {
-			t.Errorf("%s: unexpected mismatch: %s\nnew: %+v\noracle: %+v",
-				pair.name, pair.v.Reason, newRes, oracleRes)
-		}
+	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); v.Mismatch {
+		t.Errorf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 	}
 
 	// Pin down *why* this is expected to be tolerated, so the test fails
@@ -268,7 +260,7 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 		t.Fatalf("expected the interpreter to fail specifically due to missing funds; got new=%+v", newRes)
 	}
 
-	if v := Compare(script, newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
+	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
 		t.Fatalf("expected new-vs-oracle to be flagged as a mismatch, got none")
 	}
 }
@@ -311,7 +303,7 @@ func TestKnownOpenDivergences(t *testing.T) {
 			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
 			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
 
-			v := Compare(tc.script, newRes, oracleRes, "new interpreter", "oracle")
+			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if !v.Mismatch {
 				t.Fatalf("expected a divergence (%s), got none\nnew: %+v\noracle: %+v",
 					tc.why, newRes, oracleRes)

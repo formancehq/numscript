@@ -29,7 +29,7 @@ func mismatch(format string, args ...any) Verdict {
 //
 // Error strings are never compared, only whether an error occurred and at which
 // stage: wording legitimately differs between implementations.
-func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	// Checked before anything else, and symmetrically: an engine breaking its
 	// own contract is never an expected outcome, and every tolerance below is
 	// about the two engines legitimately disagreeing. Ordering matters — the
@@ -110,22 +110,8 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 	aAgg := aggregatePostings(aRes.Postings)
 	bAgg := aggregatePostings(bRes.Postings)
 
-	if postingsDiffer(aAgg, bAgg) {
-		if len(aAgg) != len(bAgg) {
-			return mismatch(
-				"aggregated posting set differs: %s has %d distinct (source,destination,asset), %s has %d\n%s: %+v\n%s: %+v",
-				aLabel, len(aAgg), bLabel, len(bAgg), aLabel, aRes.Postings, bLabel, bRes.Postings,
-			)
-		}
-		for k, aAmount := range aAgg {
-			bAmount, ok := bAgg[k]
-			if !ok || aAmount.Cmp(bAmount) != 0 {
-				return mismatch(
-					"aggregated amount differs for source=%q destination=%q asset=%q: %s=%v, %s=%v\n%s: %+v\n%s: %+v",
-					k.Source, k.Destination, k.Asset, aLabel, aAmount, bLabel, bAmount, aLabel, aRes.Postings, bLabel, bRes.Postings,
-				)
-			}
-		}
+	if v := diffPostings(aAgg, bAgg, aRes.Postings, bRes.Postings, aLabel, bLabel); v.Mismatch {
+		return v
 	}
 
 	// Metadata is compared too: set_tx_meta/set_account_meta are the only
@@ -144,21 +130,24 @@ func Compare(script string, aRes, bRes SideResult, aLabel, bLabel string) Verdic
 
 // compareMeta compares one normalized metadata map as a set of key/value pairs.
 func compareMeta(what string, a, b map[string]string, aLabel, bLabel string) Verdict {
-	for k, av := range a {
-		bv, present := b[k]
+	if v := metaWroteSameOrNothing(what, a, b, aLabel, bLabel); v.Mismatch {
+		return v
+	}
+	return metaWroteSameOrNothing(what, b, a, bLabel, aLabel)
+}
+
+// metaWroteSameOrNothing checks that every key fromLabel wrote is also present
+// in toLabel's map with the same value.
+func metaWroteSameOrNothing(what string, from, to map[string]string, fromLabel, toLabel string) Verdict {
+	for k, fv := range from {
+		tv, present := to[k]
 		if !present {
 			return mismatch("%s: %s wrote %q=%q, %s wrote nothing for that key\n%s: %v\n%s: %v",
-				what, aLabel, k, av, bLabel, aLabel, a, bLabel, b)
+				what, fromLabel, k, fv, toLabel, fromLabel, from, toLabel, to)
 		}
-		if av != bv {
+		if fv != tv {
 			return mismatch("%s: %s wrote %q=%q, %s wrote %q\n%s: %v\n%s: %v",
-				what, aLabel, k, av, bLabel, bv, aLabel, a, bLabel, b)
-		}
-	}
-	for k, bv := range b {
-		if _, present := a[k]; !present {
-			return mismatch("%s: %s wrote %q=%q, %s wrote nothing for that key\n%s: %v\n%s: %v",
-				what, bLabel, k, bv, aLabel, aLabel, a, bLabel, b)
+				what, fromLabel, k, fv, toLabel, tv, fromLabel, from, toLabel, to)
 		}
 	}
 	return ok()
@@ -195,17 +184,26 @@ func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
 	return agg
 }
 
-func postingsDiffer(a, b map[postingKey]*big.Int) bool {
-	if len(a) != len(b) {
-		return true
+// diffPostings compares two aggregated posting sets, walking each map once.
+// aPostings/bPostings are the pre-aggregation postings, included in a mismatch
+// only to help debugging.
+func diffPostings(aAgg, bAgg map[postingKey]*big.Int, aPostings, bPostings []Posting, aLabel, bLabel string) Verdict {
+	if len(aAgg) != len(bAgg) {
+		return mismatch(
+			"aggregated posting set differs: %s has %d distinct (source,destination,asset), %s has %d\n%s: %+v\n%s: %+v",
+			aLabel, len(aAgg), bLabel, len(bAgg), aLabel, aPostings, bLabel, bPostings,
+		)
 	}
-	for k, av := range a {
-		bv, ok := b[k]
-		if !ok || av.Cmp(bv) != 0 {
-			return true
+	for k, aAmount := range aAgg {
+		bAmount, ok := bAgg[k]
+		if !ok || aAmount.Cmp(bAmount) != 0 {
+			return mismatch(
+				"aggregated amount differs for source=%q destination=%q asset=%q: %s=%v, %s=%v\n%s: %+v\n%s: %+v",
+				k.Source, k.Destination, k.Asset, aLabel, aAmount, bLabel, bAmount, aLabel, aPostings, bLabel, bPostings,
+			)
 		}
 	}
-	return false
+	return ok()
 }
 
 // aNegativeAmount reports whether this side rejected the script for a negative

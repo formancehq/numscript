@@ -2,6 +2,7 @@ package difftest
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"math/big"
 
@@ -88,8 +89,10 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 	// Defensive copy: vars is shared with runOracle's call in RunOne.
 	execResult, err := parseResult.Run(ctx, maps.Clone(vars), store)
 	if err != nil {
-		_, missingFunds := err.(numscript.MissingFundsErr)
-		_, negativeAmount := err.(numscript.NegativeAmountErr)
+		var missingFundsErr numscript.MissingFundsErr
+		var negativeAmountErr numscript.NegativeAmountErr
+		missingFunds := errors.As(err, &missingFundsErr)
+		negativeAmount := errors.As(err, &negativeAmountErr)
 		return SideResult{RunErr: err.Error(), MissingFunds: missingFunds, NegativeAmount: negativeAmount}
 	}
 

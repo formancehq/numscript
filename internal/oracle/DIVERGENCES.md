@@ -62,7 +62,7 @@ engines reject the script and no money moves either way; only the error differs.
 The tolerance runs in one direction: the interpreter naming a negative amount
 while the oracle blames the funds. The reverse is #4, and stays a mismatch.
 
-The sweep reports how often it fires -- currently 161 of 3000 scripts, 5.4%. If
+The sweep reports how often it fires -- currently 106 of 3000 scripts, 3.5%. If
 that number grows, the tolerance has turned into a blind spot.
 
 The oracle used to carry the missing guard itself. Tolerating in `Compare`
@@ -360,13 +360,14 @@ for f in $(cd $O && find . -name '*.go' | sed 's|^\./||' | sort); do
 done
 ```
 
-Nine files differ. Two carry behaviour changes, three edits in all:
+Nine files differ. Three carry behaviour changes, five edits in all:
 
 | file | why |
 |---|---|
 | `account.go`, `asset.go`, `internal/accounts/accounts.go`, `internal/assets/asset.go` | vendoring |
-| `vm/oracle_types.go`, `vm/run.go`, `vm/store.go` | vendoring |
-| `vm/machine.go` | vendoring, and the `save` floor (#3) |
+| `vm/oracle_types.go`, `vm/run.go` | vendoring |
+| `vm/store.go` | vendoring, and the `StaticStore.GetBalances` multi-asset fix (`internal/difftest/regression_test.go`'s `TestKnownBugRepros`) |
+| `vm/machine.go` | vendoring, the `save` floor (#3), and the `UnresolvedResourceBalances` duplicate-var fix (`TestKnownBugRepros`) |
 | `script/compiler/destination.go` | `kept` (#2), two sites |
 
 Anything else that shows up is undocumented drift. Either record it here or

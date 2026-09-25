@@ -53,6 +53,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          # internal/oracle and internal/difftest are their own modules with
+          # their own go.sum; actions/setup-go only caches the root one by
+          # default.
+          cache-dependency-path: |
+            go.sum
+            internal/oracle/go.sum
+            internal/difftest/go.sum
       # internal/oracle and internal/difftest are separate Go modules, so the
       # root module's `go test ./...` never reaches them. Without this job the
       # differential harness would sit in the repo and never run.
