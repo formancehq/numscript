@@ -92,9 +92,20 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	}
 	if aRunFailed != bRunFailed {
 		// Neither side's (possible) failure was a missing-funds one — see
-		// above. Tolerated, and counted: one engine moved money the other
-		// refused to, so this is a blind spot, not agreement.
-		return tolerated("one-sided runtime failure")
+		// above. Only one known shape is expected to still disagree here: a
+		// negative `max` clause, source- or destination-side, which ledger's
+		// OP_TAKE_MAX guards and rejects outright (oracle/DIVERGENCES.md #4),
+		// while the interpreter silently contributes zero for the clause and
+		// keeps going. Anything else here is a real bug -- one engine moved
+		// money the other refused to, or vice versa -- and must not be
+		// absorbed.
+		if bRunFailed && !aRunFailed && bRes.NegativeMaxReject {
+			return tolerated("negative max clause")
+		}
+		return mismatch(
+			"one-sided runtime failure: %s failed=%v (runErr=%q), %s failed=%v (runErr=%q)",
+			aLabel, aRunFailed, aRes.RunErr, bLabel, bRunFailed, bRes.RunErr,
+		)
 	}
 	if aRunFailed {
 		// Both failed at runtime with matching missing-funds classification;

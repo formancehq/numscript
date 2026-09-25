@@ -34,9 +34,16 @@ type SideResult struct {
 	MissingFunds bool
 	// NegativeAmount is only meaningful when RunErr is set on the new
 	// interpreter's side: true iff the failure was NegativeAmountErr. Compare
-	// uses this typed classification, not RunErr text, to spot the source-side
-	// negative `max` divergence (oracle/DIVERGENCES.md #4).
+	// uses this typed classification, not RunErr text, to spot the negative
+	// send amount divergence (oracle/DIVERGENCES.md #1).
 	NegativeAmount bool
+	// NegativeMaxReject is only meaningful when RunErr is set on the oracle's
+	// side: true iff the failure was ledger's OP_TAKE_MAX guard rejecting a
+	// negative `max` clause outright, source- or destination-side. Compare
+	// uses this, not RunErr text, to spot the one known one-sided-failure
+	// divergence (oracle/DIVERGENCES.md #4) without tolerating every other
+	// one.
+	NegativeMaxReject bool
 	// InternalErr is set when an engine broke its own contract, as opposed to
 	// rejecting the script. Deliberately not CompileErr: Compare tolerates one
 	// side rejecting what the other accepted, so a self-inconsistency reported as

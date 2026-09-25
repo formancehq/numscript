@@ -57,7 +57,11 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	}
 
 	if err := m.Execute(); err != nil {
-		return SideResult{RunErr: err.Error(), MissingFunds: machine.IsInsufficientFundError(err)}
+		return SideResult{
+			RunErr:            err.Error(),
+			MissingFunds:      machine.IsInsufficientFundError(err),
+			NegativeMaxReject: isNegativeMaxReject(err),
+		}
 	}
 
 	// The legacy machine still emits zero-amount postings, the rewrite does not
@@ -91,6 +95,15 @@ func runOracle(ctx context.Context, script string, vars map[string]string, balan
 	}
 
 	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
+}
+
+// isNegativeMaxReject reports whether err is ledger's OP_TAKE_MAX guard
+// rejecting a negative `max` clause, source- or destination-side
+// (oracle/DIVERGENCES.md #4). That guard (vm/machine.go's OP_TAKE_MAX case)
+// returns a bare fmt.Errorf, not one of the vendored machine.Err* types, so it
+// is matched by the fixed message it always produces rather than by type.
+func isNegativeMaxReject(err error) bool {
+	return strings.Contains(err.Error(), "cannot send a monetary with a negative amount")
 }
 
 // normalizeOracleMetaValue renders one legacy-machine metadata value the way

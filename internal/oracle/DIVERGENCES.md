@@ -239,8 +239,13 @@ send [COIN 100] (
 | numscript | `b->dst 100` — the clause contributes nothing and `@b` covers it |
 
 Deliberately unfixed on the numscript side: closing it means changing the
-interpreter's ground-truth behaviour, not just catching up to ledger. `Compare`
-tolerates it by comparing missing-funds classification rather than error text.
+interpreter's ground-truth behaviour, not just catching up to ledger. With a
+fallback source covering the shortfall, as here, the interpreter commits and
+the oracle fails outright on `OP_TAKE_MAX`'s guard; `Compare` tolerates that by
+name, `negative max clause`, the same tolerance as the destination-side twin
+below. Without a fallback the interpreter instead fails on missing funds, a
+different classification than the oracle's rejection, which `Compare` still
+flags as a mismatch (`TestMissingFundsClassificationMismatchStillCaught`).
 
 **A ledger-side fix was built and rejected.** Ledger PR #2079
 (https://github.com/formancehq/ledger/pull/2079) made a negative `max` clamp to
@@ -263,12 +268,13 @@ The destination-side version -- `max [COIN 0] - [COIN 10] to @a` -- is **not**
 fixed, although an earlier note here said it was. The interpreter still clamps
 the clause to zero (`sendTo`, `*parser.DestinationInorder`) and routes the
 amount through `remaining`; ledger rejects the script in `OP_TAKE_MAX`.
-`Compare` does not see it: neither side reports missing funds, and a one-sided
-runtime failure is tolerated. That path is now counted by the sweep as
-`one-sided runtime failure` and fired 0 times over 3000 seeds, so turning it
-into a mismatch would cost nothing on the current generator and would make this
-shape visible. `TestDestinationSideNegativeMaxTolerated` pins the exact
-asymmetry until then.
+`Compare` does not see it: neither side reports missing funds, and this exact
+shape -- the other side's `RunErr` is `OP_TAKE_MAX`'s guard rejecting a
+negative `max` clause, `SideResult.NegativeMaxReject` -- is tolerated by name,
+`negative max clause`, and counted. Any other one-sided runtime failure is a
+mismatch: the tolerance does not cover a one-sided failure in general, only
+this one. It fired 0 times over 3000 seeds.
+`TestDestinationSideNegativeMaxTolerated` pins the exact asymmetry.
 
 **Open question:** whether numscript should reject.
 
@@ -309,8 +315,9 @@ generator's cleanup pass is best-effort; counted as `b-side compile rejection`),
 missing-funds reason. A scenario block glued to a random program is often
 wasted this way, which is why the generator has a scenario-only strategy.
 
-One engine moving money the other refused to move is tolerated by `Compare`
-(`one-sided runtime failure`) and counted; see #4 for what it hides.
+One specific case of one engine moving money the other refused to move is
+tolerated by `Compare` and counted, by name, `negative max clause`; see #4.
+Any other one-sided runtime failure is a mismatch.
 
 Asset scaling, account interpolation, colors and `oneof` exist only in
 numscript. The oracle has no syntax for them, so this harness says nothing

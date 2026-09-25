@@ -173,9 +173,10 @@ send [COIN *] (
 // DIVERGENCES.md #4: the interpreter clamps a negative `max` destination clause
 // to zero (sendTo, *parser.DestinationInorder) and routes the whole amount
 // through `remaining`; the oracle rejects the script in OP_TAKE_MAX. Compare
-// does not flag it: neither side reports missing funds, and a one-sided runtime
-// failure is tolerated and counted. This test is the only check on the shape,
-// so it asserts the exact asymmetry rather than just "no mismatch".
+// does not flag it: neither side reports missing funds, and the rejection is
+// ledger's OP_TAKE_MAX guard, so the named "negative max clause" tolerance
+// fires instead of a mismatch. This test is the only check on the shape, so it
+// asserts the exact asymmetry rather than just "no mismatch".
 func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
 	script := `send [EUR/2 100] (
   source = @acc2 allowing unbounded overdraft
@@ -192,8 +193,8 @@ func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
 	if v.Mismatch {
 		t.Fatalf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 	}
-	if v.Tolerated != "one-sided runtime failure" {
-		t.Fatalf("expected the one-sided runtime failure tolerance to fire, got %+v\nnew: %+v\noracle: %+v", v, newRes, oracleRes)
+	if v.Tolerated != "negative max clause" {
+		t.Fatalf("expected the negative max clause tolerance to fire, got %+v\nnew: %+v\noracle: %+v", v, newRes, oracleRes)
 	}
 	if newRes.Failed() {
 		t.Fatalf("expected the interpreter to clamp and succeed; got %+v", newRes)
