@@ -81,10 +81,13 @@ func SrcAllotment(clauses ...AllotmentClause[Source]) Source {
 }
 
 // SrcAllotmentWithRemaining is SrcAllotment with a trailing
-// `remaining from <source>` clause. The clause portions must then sum to less
-// than 100% (both grammars reject an allotment whose known portions already
-// reach it), and it is the only allotment form in which a portion var
-// compiles.
+// `remaining from <source>` clause.
+//
+// The two engines constrain the clause differently. The legacy machine's
+// compiler rejects it when the known portions already sum to 100%, and
+// without it rejects any allotment containing a portion var; the interpreter
+// accepts both forms and checks the sum at run time instead. internal/gen
+// therefore keeps generated sums strictly below 100%.
 func SrcAllotmentWithRemaining(clauses []AllotmentClause[Source], remaining Source) Source {
 	return srcAllotment(clauses, remaining)
 }

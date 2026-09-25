@@ -55,10 +55,13 @@ func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
 }
 
 // DestAllotmentWithRemaining is DestAllotment with a trailing
-// `remaining <keptOrDest>` clause. The clause portions must then sum to less
-// than 100% (both grammars reject an allotment whose known portions already
-// reach it), and it is the only allotment form in which a portion var
-// compiles.
+// `remaining <keptOrDest>` clause.
+//
+// The two engines constrain the clause differently. The legacy machine's
+// compiler rejects it when the known portions already sum to 100%, and
+// without it rejects any allotment containing a portion var; the interpreter
+// accepts both forms and checks the sum at run time instead. internal/gen
+// therefore keeps generated sums strictly below 100%.
 func DestAllotmentWithRemaining(clauses []AllotmentClause[KeptOrDest], remaining KeptOrDest) Destination {
 	return destAllotment(clauses, remaining)
 }
