@@ -9,13 +9,13 @@ import (
 )
 
 // TestKnownBugRepros locks in the real divergences found and fixed while
-// building this harness (see DIFFTEST_HANDOFF.md), independent of whether
-// the fuzzer's corpus/coverage happens to rediscover them. Each case failed
-// before its corresponding fix and must pass now.
+// building this harness, independent of whether the fuzzer rediscovers them.
+// Each case failed before its fix and must pass now.
 func TestKnownBugRepros(t *testing.T) {
 	testCases := []struct {
 		name     string
 		script   string
+		vars     map[string]string
 		balances map[gen.BalanceKey]*big.Int
 	}{
 		{
@@ -91,31 +91,14 @@ send $a (
 			},
 		},
 		{
-			// The new interpreter used to silently clamp a negative
-			// max-clause destination amount to zero instead of erroring,
-			// while the oracle correctly raises a runtime error. Fixed in
-			// internal/interpreter/interpreter.go's sendTo
-			// (*parser.DestinationInorder case).
-			name: "negative max-clause amount",
-			script: `send [EUR/2 100] (
-  source = @acc2 allowing unbounded overdraft
-  destination = {
-    max [EUR/2 0] - [EUR/2 35] to @acc1
-    remaining to @acc2
-  }
-)`,
-		},
-		{
-			// `save` for more than an account's actual balance used to leave
-			// the oracle's cached balance negative (a plain, unfloored
-			// subtraction), while the new interpreter floors at zero. That
-			// difference is invisible until a later bounded-overdraft draw
-			// on the same account computes a different available "room"
-			// from the two different balances. Fixed in
-			// internal/oracle/machine/vm/machine.go's OP_SAVE handler to
-			// floor at zero too, matching internal/interpreter's
-			// runSaveStatement.
-			name: "save more than the account's balance",
+			// DIVERGENCES.md #3. numscript's runSaveStatement floors the saved
+			// amount at the balance; ledger subtracts unfloored and goes negative,
+			// so a later bounded-overdraft draw sees less room. The engines agree
+			// because the oracle was changed to floor as well (2026-09-18), not
+			// because ledger does: on ledger acc0 sits at -800 after the save, the
+			// overdraft of 1000 leaves 200 of room and the send of 250 fails. Both
+			// engines here move 250.
+			name: "save beyond the account's balance",
 			script: `send [COIN 100] (
   source = @world
   destination = @acc0
@@ -128,13 +111,109 @@ send [COIN 250] (
   destination = @acc1
 )`,
 		},
+		{
+			// Same root cause as above, from the other side of zero: a save of
+			// nothing on a negative balance. numscript floors the result at zero,
+			// which raises the balance from -50 to 0, so the whole overdraft is
+			// available. Ledger leaves -50 and moves 50; both engines here move 100.
+			name: "save on a negative balance",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(-50),
+			},
+			script: `save [COIN 0] from @acc0
+
+send [COIN *] (
+  source = @acc0 allowing overdraft up to [COIN 100]
+  destination = @acc1
+)`,
+		},
+		{
+			// DIVERGENCES.md #6, destination side. Portions bound past 100% with a
+			// `remaining` clause. The interpreter used to compute a negative
+			// remaining portion and commit world->acc1 60, world->acc2 30 where the
+			// oracle fails OP_MAKE_ALLOTMENT ("sum of portions exceeded 100%");
+			// fixed by rejecting the negative remaining in makeAllotment
+			// (InvalidAllotmentSum), so both engines now fail for a non-funds
+			// reason. The literal form never reached Compare either way: the
+			// oracle rejects it at compile time, which is tolerated. The generator
+			// keeps every emitted sum below 100% (portionsList), so only this test
+			// reaches the shape.
+			name: "allotment portions above 100% with remaining, destination side",
+			vars: map[string]string{"p": "2/3", "q": "2/3"},
+			script: `vars {
+  portion $p
+  portion $q
+}
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $p to @acc1
+    $q to @acc2
+    remaining to @acc3
+  }
+)`,
+		},
+		{
+			// DIVERGENCES.md #6, source side. The same parts [60, 60, -30] used to
+			// reach tryTakingExact(-30) and report missing funds ("Needed
+			// [COIN -30]") although every account holds 500 -- a classification
+			// mismatch against the oracle's non-funds rejection. Same fix.
+			name: "allotment portions above 100% with remaining, source side",
+			vars: map[string]string{"p": "2/3", "q": "2/3"},
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc1", Asset: "COIN"}: big.NewInt(500),
+				{Account: "acc2", Asset: "COIN"}: big.NewInt(500),
+				{Account: "acc3", Asset: "COIN"}: big.NewInt(500),
+			},
+			script: `vars {
+  portion $p
+  portion $q
+}
+
+send [COIN 90] (
+  source = {
+    $p from @acc1
+    $q from @acc2
+    remaining from @acc3
+  }
+  destination = @acc4
+)`,
+		},
+		{
+			// Ledger does not consume a kept funding, the interpreter does. The
+			// oracle was changed to consume it too, deliberately diverging from
+			// ledger -- DIVERGENCES.md #2. Here @acc1 keeps 400; on ledger @acc0
+			// keeps it and @acc1 is drained, so the second statement moves 400 here
+			// and 0 there.
+			name: "kept attribution, observed by a later statement",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(1000),
+				{Account: "acc1", Asset: "COIN"}: big.NewInt(1000),
+			},
+			script: `send [COIN *] (
+  source = {
+    @acc1
+    @acc0
+  }
+  destination = {
+    max [COIN 400] kept
+    remaining to @dst
+  }
+)
+
+send [COIN *] (
+  source = @acc1
+  destination = @sink
+)`,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, nil, tc.balances, nil)
-			oracleRes := runOracle(ctx, tc.script, nil, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
@@ -144,20 +223,50 @@ send [COIN 250] (
 	}
 }
 
-// TestSourceSideNegativeMaxClauseTolerated locks in a deliberate, accepted
-// gap: a negative amount in a source-side `max ... from` clause is a hard
-// reject on the oracle, but the interpreter and vm both silently treat it as
-// contributing zero instead (the same "clamp instead of error" bug class
-// already fixed on the destination side — see "negative max-clause amount"
-// in TestKnownBugRepros above — but deliberately left unfixed here, since
-// closing it would mean changing the interpreter's "ground truth" behavior,
-// not just the vm catching up to it). With a fallback source in the same
-// list, the interpreter/vm draw the shortfall from there and succeed, while
-// the oracle never gets that far. SideResult.MissingFunds and Compare's
-// classification-based tolerance (see its doc comment) exist specifically
-// so this doesn't produce fuzzer noise: as long as the underlying
-// funds-adequacy outcome agrees across engines, this divergence in what's
-// *accepted* is tolerated.
+// TestDestinationSideNegativeMaxTolerated pins the destination-side twin of
+// DIVERGENCES.md #4: the interpreter clamps a negative `max` destination clause
+// to zero (sendTo, *parser.DestinationInorder) and routes the whole amount
+// through `remaining`; the oracle rejects the script in OP_TAKE_MAX. Compare
+// does not flag it: neither side reports missing funds, and the rejection is
+// ledger's OP_TAKE_MAX guard, so the named "negative max clause" tolerance
+// fires instead of a mismatch. This test is the only check on the shape, so it
+// asserts the exact asymmetry rather than just "no mismatch".
+func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
+	script := `send [EUR/2 100] (
+  source = @acc2 allowing unbounded overdraft
+  destination = {
+    max [EUR/2 0] - [EUR/2 35] to @acc1
+    remaining to @acc2
+  }
+)`
+	ctx := context.Background()
+	newRes := runNew(ctx, script, nil, nil, nil)
+	oracleRes := runOracle(ctx, script, nil, nil, nil)
+
+	v := Compare(newRes, oracleRes, "new interpreter", "oracle")
+	if v.Mismatch {
+		t.Fatalf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
+	}
+	if v.Tolerated != "negative max clause" {
+		t.Fatalf("expected the negative max clause tolerance to fire, got %+v\nnew: %+v\noracle: %+v", v, newRes, oracleRes)
+	}
+	if newRes.Failed() {
+		t.Fatalf("expected the interpreter to clamp and succeed; got %+v", newRes)
+	}
+	if oracleRes.RunErr == "" || oracleRes.MissingFunds {
+		t.Fatalf("expected the oracle to reject the negative max for a non-missing-funds reason; got %+v", oracleRes)
+	}
+}
+
+// TestSourceSideNegativeMaxClauseTolerated locks in an accepted gap: a negative
+// amount in a source-side `max ... from` clause is a hard reject on the oracle
+// but contributes zero on the interpreter (DIVERGENCES.md #4). Left unfixed
+// because closing it means changing the interpreter's ground truth, not just
+// catching up.
+//
+// With a fallback source in the list the interpreter covers the shortfall and
+// succeeds where the oracle never gets that far. SideResult.MissingFunds and
+// Compare's classification tolerance exist so this is not fuzzer noise.
 func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 	script := `send [EUR/2 100] (
   source = {
@@ -170,20 +279,9 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 	ctx := context.Background()
 	newRes := runNew(ctx, script, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
-	vmRes := runVM(ctx, script, nil, nil, nil)
 
-	for _, pair := range []struct {
-		name string
-		v    Verdict
-	}{
-		{"new vs oracle", Compare(newRes, oracleRes, "new interpreter", "oracle")},
-		{"vm vs oracle", Compare(vmRes, oracleRes, "vm", "oracle")},
-		{"new vs vm", Compare(vmRes, newRes, "vm", "new interpreter")},
-	} {
-		if pair.v.Mismatch {
-			t.Errorf("%s: unexpected mismatch: %s\nnew: %+v\noracle: %+v\nvm: %+v",
-				pair.name, pair.v.Reason, newRes, oracleRes, vmRes)
-		}
+	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); v.Mismatch {
+		t.Errorf("unexpected mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
 	}
 
 	// Pin down *why* this is expected to be tolerated, so the test fails
@@ -192,19 +290,15 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 	if oracleRes.RunErr == "" {
 		t.Fatalf("expected the oracle to reject this script; it didn't: %+v", oracleRes)
 	}
-	if newRes.Failed() || vmRes.Failed() {
-		t.Fatalf("expected the interpreter and vm to both succeed; got new=%+v vm=%+v", newRes, vmRes)
+	if newRes.Failed() {
+		t.Fatalf("expected the interpreter to succeed; got new=%+v", newRes)
 	}
 }
 
-// TestMissingFundsClassificationMismatchStillCaught is
-// TestSourceSideNegativeMaxClauseTolerated's companion: the same underlying
-// gap, but without a fallback source, so the zeroed-out clause leaves
-// nothing to cover the send and the interpreter/vm both fail — specifically
-// with a missing-funds error, whereas the oracle fails for an unrelated
-// reason (the negative amount itself). This asymmetry is exactly what
-// Compare's relaxation does NOT tolerate (see SideResult.MissingFunds and
-// Compare's doc comments): it must still be flagged as a mismatch.
+// TestMissingFundsClassificationMismatchStillCaught is the companion to
+// TestSourceSideNegativeMaxClauseTolerated: same gap, no fallback source, so
+// the interpreter fails with a missing-funds error while the oracle fails over
+// the negative amount itself. Compare must still flag that asymmetry.
 func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 	script := `send [EUR/2 100] (
   source = max [EUR/2 0] - [EUR/2 35] from @acc2 allowing unbounded overdraft
@@ -213,19 +307,64 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 	ctx := context.Background()
 	newRes := runNew(ctx, script, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
-	vmRes := runVM(ctx, script, nil, nil, nil)
 
 	if !oracleRes.Failed() || oracleRes.MissingFunds {
 		t.Fatalf("expected the oracle to fail for a non-missing-funds reason; got %+v", oracleRes)
 	}
-	if !newRes.MissingFunds || !vmRes.MissingFunds {
-		t.Fatalf("expected the interpreter and vm to fail specifically due to missing funds; got new=%+v vm=%+v", newRes, vmRes)
+	if !newRes.MissingFunds {
+		t.Fatalf("expected the interpreter to fail specifically due to missing funds; got new=%+v", newRes)
 	}
 
 	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
 		t.Fatalf("expected new-vs-oracle to be flagged as a mismatch, got none")
 	}
-	if v := Compare(vmRes, oracleRes, "vm", "oracle"); !v.Mismatch {
-		t.Fatalf("expected vm-vs-oracle to be flagged as a mismatch, got none")
+}
+
+// TestKnownOpenDivergences pins the numscript/ledger disagreements that are
+// real and still undecided — internal/oracle/DIVERGENCES.md. Neither is an
+// oracle defect: the oracle is faithful to ledger on both.
+//
+// These assert that a mismatch IS still reported. If one starts passing,
+// something changed the semantics — update DIVERGENCES.md and move the case
+// into TestKnownBugRepros rather than deleting it.
+func TestKnownOpenDivergences(t *testing.T) {
+	testCases := []struct {
+		name     string
+		script   string
+		vars     map[string]string
+		balances map[gen.BalanceKey]*big.Int
+		why      string
+	}{
+		{
+			// DIVERGENCES.md #5. A bounded overdraft written as a negative
+			// expression. numscript clamps the cap to zero (tryTakingUpTo and
+			// takeAll, *parser.SourceOverdraft) and moves the 50 that is there;
+			// ledger adds -10 to the balance in withdrawAll and moves 40. The
+			// generator never emits a negative cap, so only this test reaches it.
+			name: "negative bounded overdraft cap",
+			why:  "numscript clamps the cap to zero, ledger applies it as-is",
+			balances: map[gen.BalanceKey]*big.Int{
+				{Account: "acc0", Asset: "COIN"}: big.NewInt(50),
+			},
+			script: `send [COIN *] (
+  source = @acc0 allowing overdraft up to [COIN 0] - [COIN 10]
+  destination = @acc1
+)`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
+
+			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
+			if !v.Mismatch {
+				t.Fatalf("expected a divergence (%s), got none\nnew: %+v\noracle: %+v",
+					tc.why, newRes, oracleRes)
+			}
+			t.Logf("still diverging, as expected (%s): %s", tc.why, v.Reason)
+		})
 	}
 }

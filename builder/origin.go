@@ -49,10 +49,10 @@ func NewMonetaryVarFromBalance(
 	return declareOriginVar[ExprTypeMonetary]("monetary", origin)
 }
 
-// NewNumberVarFromMeta declares a vars-block entry
-// `number $name = meta(<account>, "<key>")` and returns an expression
-// referencing it.
-func NewNumberVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeNumber] {
+// varFromMeta declares a vars-block entry `<typ> $name = meta(<account>,
+// "<key>")`. meta() is typed by its declaration, not by the stored value, so
+// the caller must pass a typ the value actually parses as.
+func varFromMeta[T ExprType](typ string, account Expression[ExprTypeAccount], key string) Expression[T] {
 	origin := func(env *env, w int) {
 		env.builder.WriteString("meta(")
 		account(env, w)
@@ -60,5 +60,29 @@ func NewNumberVarFromMeta(account Expression[ExprTypeAccount], key string) Expre
 		writeStringLiteral(env, key)
 		env.builder.WriteString(")")
 	}
-	return declareOriginVar[ExprTypeNumber]("number", origin)
+	return declareOriginVar[T](typ, origin)
+}
+
+func NewNumberVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeNumber] {
+	return varFromMeta[ExprTypeNumber]("number", account, key)
+}
+
+func NewStringVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeString] {
+	return varFromMeta[ExprTypeString]("string", account, key)
+}
+
+func NewMonetaryVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeMonetary] {
+	return varFromMeta[ExprTypeMonetary]("monetary", account, key)
+}
+
+func NewAssetVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeAsset] {
+	return varFromMeta[ExprTypeAsset]("asset", account, key)
+}
+
+func NewAccountVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypeAccount] {
+	return varFromMeta[ExprTypeAccount]("account", account, key)
+}
+
+func NewPortionVarFromMeta(account Expression[ExprTypeAccount], key string) Expression[ExprTypePortion] {
+	return varFromMeta[ExprTypePortion]("portion", account, key)
 }

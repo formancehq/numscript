@@ -333,11 +333,11 @@ func TestSrcAllotment(t *testing.T) {
 		),
 		builder.SrcAllotment(
 			builder.AllotmentClause[builder.Source]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(3)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(3))),
 				Payload: builder.SrcAccount(builder.ExprAccount("a")),
 			},
 			builder.AllotmentClause[builder.Source]{
-				Portion: builder.NewPortion(big.NewInt(2), big.NewInt(3)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(2), big.NewInt(3))),
 				Payload: builder.SrcAccount(builder.ExprAccount("b")),
 			},
 		),
@@ -360,6 +360,80 @@ send [$asset_0 42] (
     2/3 from $account_1
   }
   destination = $account_2
+)`))
+}
+
+func TestSrcAllotmentWithRemaining(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAllotmentWithRemaining(
+			[]builder.AllotmentClause[builder.Source]{
+				{
+					Portion: builder.ExprPortionVar("1/3"),
+					Payload: builder.SrcAccount(builder.ExprAccount("a")),
+				},
+			},
+			builder.SrcAccount(builder.ExprAccount("b")),
+		),
+		builder.DestAccount(
+			builder.ExprAccount("dest"),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  account $account_2
+  asset $asset_0
+  portion $portion_0
+}
+
+send [$asset_0 42] (
+  source = {
+    $portion_0 from $account_0
+    remaining from $account_1
+  }
+  destination = $account_2
+)`))
+}
+
+func TestDestAllotmentWithRemaining(t *testing.T) {
+	stmt := builder.StmtSend(
+		builder.ExprMonetary(
+			builder.ExprAsset("USD/2"),
+			builder.ExprNumberBigInt(big.NewInt(42)),
+		),
+		builder.SrcAccount(
+			builder.ExprAccount("src"),
+		),
+		builder.DestAllotmentWithRemaining(
+			[]builder.AllotmentClause[builder.KeptOrDest]{
+				{
+					Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(3))),
+					Payload: builder.To(builder.DestAccount(builder.ExprAccount("a"))),
+				},
+			},
+			builder.Kept(),
+		),
+	)
+
+	_, _, script := builder.BuildProgram(stmt)
+	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
+  account $account_0
+  account $account_1
+  asset $asset_0
+}
+
+send [$asset_0 42] (
+  source = $account_0
+  destination = {
+    1/3 to $account_1
+    remaining kept
+  }
 )`))
 }
 
@@ -413,11 +487,11 @@ func TestDestAllotment(t *testing.T) {
 		),
 		builder.DestAllotment(
 			builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(2))),
 				Payload: builder.To(builder.DestAccount(builder.ExprAccount("a"))),
 			},
 			builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: builder.NewPortion(big.NewInt(1), big.NewInt(2)),
+				Portion: builder.ExprPortion(builder.NewPortion(big.NewInt(1), big.NewInt(2))),
 				Payload: builder.Kept(),
 			},
 		),

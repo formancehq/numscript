@@ -554,6 +554,46 @@ func TestInvalidDestinationAllotmentSum(t *testing.T) {
 	test(t, tc)
 }
 
+func TestInvalidSourceAllotmentSumOverOneWithRemaining(t *testing.T) {
+	// The `remaining` clause absorbs a shortfall, never an excess: portions
+	// past 100% would make it negative.
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 90] (
+		source = {
+			2/3 from @a
+			2/3 from @b
+			remaining from @c
+		}
+		destination = @dest
+	)`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(4, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidDestinationAllotmentSumOverOneWithRemaining(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 90] (
+		source = @world
+		destination = {
+			2/3 to @x
+			2/3 to @y
+			remaining to @z
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(4, 3),
+		},
+	}
+	test(t, tc)
+}
+
 func TestRejectsDuplicateRemainingAllotments(t *testing.T) {
 	tc := NewTestCase()
 	src := tc.compile(t, `send [COIN 100] (

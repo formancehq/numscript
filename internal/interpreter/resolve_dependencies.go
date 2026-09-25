@@ -80,15 +80,24 @@ func ResolveDependencies(ctx context.Context, store Store, vars map[string]strin
 	// binding the vars evaluates their origins, so balance()/overdraft()/meta()
 	// origins already get recorded through the store here.
 	//
-	// dep resolution only needs the read to be recorded, not its value (a
-	// balance() yields a Monetary, which can't name an account), so getBalance
-	// just hits the recording store and returns zero — no funds engine involved.
+	// The value has to be the real one, not a placeholder: get_amount turns a
+	// balance into a number, and an interpolated account can be built from it,
+	// so a balance can determine which account a statement touches. Returning
+	// zero here would resolve @user:$id as "user:0" while execution used
+	// "user:100". No funds engine is involved — this reads through the
+	// recording store only.
 	getBalance := func(account AccountAddress, asset Asset) (*big.Int, InterpreterError) {
-		_, err := recording.GetBalances(ctx, BalanceQuery{
+		rows, err := recording.GetBalances(ctx, BalanceQuery{
 			{Account: account.Name, Asset: string(asset), Color: "", Scope: account.Scope},
 		})
 		if err != nil {
 			return nil, QueryBalanceError{WrappedError: err}
+		}
+		for _, row := range rows {
+			if row.Account == account.Name && row.Scope == account.Scope &&
+				row.Asset == string(asset) && row.Color == "" && row.Amount != nil {
+				return new(big.Int).Set(row.Amount), nil
+			}
 		}
 		return new(big.Int), nil
 	}

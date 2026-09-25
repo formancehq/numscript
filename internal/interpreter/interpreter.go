@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"math/big"
 	"slices"
@@ -242,6 +243,16 @@ func (st *programState) forcePushPostingUncolored(
 ) InterpreterError {
 	amtBi := big.Int(amount)
 	if err := st.rs.ForcePosting(source.Name, source.Scope, destination.Name, destination.Scope, string(asset), "", &amtBi); err != nil {
+		// A negative conversion would previously have reached
+		// checkPostingInvariants as a negative posting, so report it the same way.
+		if errors.Is(err, funds.ErrNegativePosting) {
+			return InternalError{Posting: Posting{
+				Source:      source.Name,
+				Destination: destination.Name,
+				Asset:       string(asset),
+				Amount:      &amtBi,
+			}}
+		}
 		return QueryBalanceError{WrappedError: err}
 	}
 	return nil
@@ -429,7 +440,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
-		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope, baseAsset)
 		if balErr != nil {
 			return nil, QueryBalanceError{WrappedError: balErr}
 		}
@@ -584,7 +595,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
 
-		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope, baseAsset)
 		if balErr != nil {
 			return nil, QueryBalanceError{WrappedError: balErr}
 		}
@@ -779,13 +790,9 @@ func (s *programState) sendTo(destination parser.Destination, amount *big.Int) I
 
 			capBi := big.Int(cap)
 
-			if capBi.Cmp(big.NewInt(0)) == -1 {
-				return NegativeAmountErr{
-					Range:  destinationClause.Cap.GetRange(),
-					Amount: MonetaryInt(capBi),
-				}
-			}
-
+			// A negative cap clamps to zero rather than erroring, matching the
+			// source-side `max` clause (tryTakingUpTo/NonNeg) and ledger's own
+			// behavior gap on this shape (oracle/DIVERGENCES.md #4).
 			amountToReceive := utils.MaxBigInt(utils.MinBigInt(&capBi, remainingAmount), big.NewInt(0))
 			err = handler(destinationClause.To, amountToReceive)
 			if err != nil {
@@ -873,7 +880,11 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 	}
 
 	if remainingAllotmentIndex != -1 {
-		allotments[remainingAllotmentIndex] = new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		remaining := new(big.Rat).Sub(big.NewRat(1, 1), totalAllotment)
+		if remaining.Sign() < 0 {
+			return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
+		}
+		allotments[remainingAllotmentIndex] = remaining
 	} else if totalAllotment.Cmp(big.NewRat(1, 1)) != 0 {
 		return nil, InvalidAllotmentSum{ActualSum: *totalAllotment}
 	}

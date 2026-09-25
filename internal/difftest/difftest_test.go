@@ -24,7 +24,7 @@ func FuzzDiff(f *testing.F) {
 		rng := gen.RandFromBytes(data)
 		c := difftest.RunOne(context.Background(), rng)
 
-		for _, v := range []difftest.Verdict{c.OracleVsNew, c.OracleVsVM, c.NewVsVM} {
+		for _, v := range []difftest.Verdict{c.OracleVsNew} {
 			if v.Mismatch {
 				t.Fatalf(
 					"divergence: %s\n\nvars: %v\n\nscript:\n%s",
@@ -35,8 +35,8 @@ func FuzzDiff(f *testing.F) {
 	})
 }
 
-// An InternalErr means an engine broke its own contract — today, that the
-// compiler emitted bytecode the VM's verifier rejects. Compare tolerates a lot
+// An InternalErr means an engine broke its own contract, as opposed to
+// rejecting the script. Compare tolerates a lot
 // of legitimate disagreement, so the risk is that this gets absorbed into one
 // of those tolerances and never surfaces. It must be a mismatch unconditionally,
 // on either side, including when the comparison would otherwise stop early.
@@ -60,7 +60,7 @@ func TestCompareNeverSwallowsAnInternalError(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := difftest.Compare(tc.a, tc.b, "vm", "oracle")
+			v := difftest.Compare(tc.a, tc.b, "new interpreter", "oracle")
 			if !v.Mismatch {
 				t.Fatalf("internal error was swallowed: verdict = %+v", v)
 			}
@@ -71,7 +71,7 @@ func TestCompareNeverSwallowsAnInternalError(t *testing.T) {
 // The converse: a plain b-side rejection stays tolerated, so the guard above
 // didn't just turn every rejection into a mismatch.
 func TestCompareStillToleratesAPlainRejection(t *testing.T) {
-	v := difftest.Compare(difftest.SideResult{}, difftest.SideResult{CompileErr: "rejected"}, "vm", "oracle")
+	v := difftest.Compare(difftest.SideResult{}, difftest.SideResult{CompileErr: "rejected"}, "new interpreter", "oracle")
 	if v.Mismatch {
 		t.Fatalf("a plain b-side rejection should be tolerated, got %+v", v)
 	}
