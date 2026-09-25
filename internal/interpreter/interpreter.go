@@ -440,7 +440,7 @@ func (s *programState) takeAll(source parser.Source) (*big.Int, InterpreterError
 		}
 
 		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
-		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope, baseAsset)
 		if balErr != nil {
 			return nil, QueryBalanceError{WrappedError: balErr}
 		}
@@ -595,7 +595,7 @@ func (s *programState) tryTakingUpTo(source parser.Source, amount *big.Int) (*bi
 
 		baseAsset, assetScale := funds.GetBaseAndScale(string(s.CurrentAsset))
 
-		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope)
+		acc, balErr := s.rs.AccountBalances(account.Name, account.Scope, baseAsset)
 		if balErr != nil {
 			return nil, QueryBalanceError{WrappedError: balErr}
 		}

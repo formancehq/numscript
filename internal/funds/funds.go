@@ -178,23 +178,33 @@ type AccountBalance struct {
 	Amount *big.Int
 }
 
-// AccountBalances returns copies of every tracked balance entry for account, with
+// AccountBalances returns copies of the tracked balance entries for account in
+// baseAsset's family (baseAsset itself and its baseAsset/n scalings), with
 // starting balances folded in so the amounts are absolute. It only reports
 // triples already touched this run — it does not enumerate the Store — so an
 // account never prewarmed or touched yields an empty slice.
-func (s *RunState) AccountBalances(account, scope string) ([]AccountBalance, error) {
+//
+// The family filter guards loadBase's side effect as much as the output: an
+// entry outside the family can hold only a write delta whose base was never
+// prewarmed, and against a zero-backed Store loadBase would stamp it loaded,
+// masking the starting balance from every later read of that asset.
+func (s *RunState) AccountBalances(account, scope, baseAsset string) ([]AccountBalance, error) {
 	var out []AccountBalance
 	for key, e := range s.balances {
-		if key.Account == account && key.Scope == scope {
-			if err := s.loadBase(key, e); err != nil {
-				return nil, err
-			}
-			out = append(out, AccountBalance{
-				Asset:  key.Asset,
-				Color:  key.Color,
-				Amount: new(big.Int).Set(&e.amount),
-			})
+		if key.Account != account || key.Scope != scope {
+			continue
 		}
+		if base, _ := GetBaseAndScale(key.Asset); base != baseAsset {
+			continue
+		}
+		if err := s.loadBase(key, e); err != nil {
+			return nil, err
+		}
+		out = append(out, AccountBalance{
+			Asset:  key.Asset,
+			Color:  key.Color,
+			Amount: new(big.Int).Set(&e.amount),
+		})
 	}
 	return out, nil
 }
