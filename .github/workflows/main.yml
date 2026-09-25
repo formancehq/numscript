@@ -44,3 +44,33 @@ jobs:
     secrets:
       NUMARY_GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+  Difftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          # internal/oracle and internal/difftest are their own modules with
+          # their own go.sum; actions/setup-go only caches the root one by
+          # default.
+          cache-dependency-path: |
+            go.sum
+            internal/oracle/go.sum
+            internal/difftest/go.sum
+      # internal/oracle and internal/difftest are separate Go modules, so the
+      # root module's `go test ./...` never reaches them. Without this job the
+      # differential harness would sit in the repo and never run.
+      - name: oracle module
+        working-directory: internal/oracle
+        run: go test ./...
+      # Includes TestDifferentialSweep, the deterministic differential gate: a
+      # fixed set of generated programs run through both engines. The
+      # coverage-guided FuzzDiff is deliberately NOT run here — its -fuzztime
+      # deadline surfaces as a test failure with no divergence behind it, so it
+      # belongs in a scheduled job or a local session, not a PR gate.
+      - name: difftest regressions and differential sweep
+        working-directory: internal/difftest
+        run: go test ./...
