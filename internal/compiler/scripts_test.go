@@ -29,6 +29,7 @@ var scriptsBlacklist = []string{
 	"experimental/asset-scaling/scaling-all-allotment.num",
 	"experimental/asset-scaling/scaling-allotment.num",
 	"experimental/asset-scaling/scaling-kept.num",
+	"experimental/asset-scaling/scaling-prefetch-midscript-balance.num",
 	"experimental/asset-scaling/scaling-send-all.num",
 	"experimental/asset-scaling/scaling-with-oneof.num",
 	"experimental/asset-scaling/scaling.num",
