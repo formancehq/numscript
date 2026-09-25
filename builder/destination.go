@@ -61,9 +61,10 @@ func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
 // rejects it when the known portions already sum to 100%, and rejects a
 // portion var in an allotment that lacks it; the interpreter runs the first
 // (the clause receives zero) and checks the second's sum at run time. Past
-// 100%, the machine errors at run time while the interpreter computes a
-// negative remaining portion instead of rejecting (oracle/DIVERGENCES.md #6).
-// internal/gen therefore keeps generated sums strictly below 100%.
+// 100%, both engines reject at run time (oracle/DIVERGENCES.md #6).
+// internal/gen keeps generated sums strictly below 100% regardless: the
+// machine-side compile rejections above are tolerated skips that compare
+// nothing.
 func DestAllotmentWithRemaining(clauses []AllotmentClause[KeptOrDest], remaining KeptOrDest) Destination {
 	return destAllotment(clauses, remaining)
 }
