@@ -52,6 +52,15 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 		return tolerated("b-side compile rejection")
 	}
 	if aCompileFailed && !bCompileFailed {
+		if aRes.RegisterOverflow {
+			// A known capacity bound, not a semantic rejection: the vm's
+			// one-byte register operands cap how many values can be live at
+			// once, and a pathological generated script can exceed that. It
+			// fails closed at compile time and nothing is compared, so it is
+			// tolerated by name and counted — any other a-side rejection of a
+			// script the b-side ran stays the interesting direction below.
+			return tolerated("vm register capacity")
+		}
 		// The interesting direction: the generator stays within the b-side's
 		// grammar and a-side should be a strict superset, so a-side rejecting what
 		// b-side compiled is a genuine divergence.
