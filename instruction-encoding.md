@@ -1,0 +1,468 @@
+# VM Bytecode Specification (proposal)
+
+Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
+
+- Registers are split into **per-type banks** (`int_regs`, `str_regs`, `por_regs`, `bool_regs`); an operand indexes the bank implied by the opcode. There is no monetary bank: a monetary is a (`str_regs` asset, `int_regs` amount) pair, so the instructions that deal in monetaries take or return the two halves separately.
+- `0xFF` in a register slot means **nil** (absent optional operand).
+- **`Bx`** = a `u16` formed by slots `B`,`C` (little-endian); used for pool indices and jump targets. **`sBx`** is its signed form.
+- Most instructions are one word. A few extend into **continuation words** (shown as `↳ cont.`); an instruction's length is fixed by its opcode.
+- There is **no `HALT`**: programs terminate by design (jumps are forward-only).
+- Opcodes are grouped by category with gaps, so new instructions slot into a category without renumbering. Unused values are reserved (users can't emit them, so we stay free to define them later).
+
+> Opcode numbers are a proposal and don't yet match the `iota` values in `instruction.go`.
+
+---
+
+## 1. State & Assertions
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td><td><code>0x00</code></td><td><strong>SET_CURRENT_ASSET</strong></td>
+      <td>asset</td><td>-</td><td>-</td>
+      <td>Sets the current asset (used by <code>PULL_ACCOUNT</code> / <code>SEND_TO_ACCOUNT</code>) from <code>str_regs[A]</code></td>
+    </tr>
+    <tr>
+      <td>1</td><td><code>0x01</code></td><td><strong>ASSERT_SAME_ASSET</strong></td>
+      <td>x</td><td>y</td><td>-</td>
+      <td>Traps unless <code>str_regs[A]</code> and <code>str_regs[B]</code> are the same asset</td>
+    </tr>
+    <tr>
+      <td>2</td><td><code>0x02</code></td><td><strong>ASSERT_VALID_ACCOUNT</strong></td>
+      <td>acc</td><td>-</td><td>-</td>
+      <td>Traps if the account name in <code>str_regs[A]</code> is malformed</td>
+    </tr>
+    <tr>
+      <td>3</td><td><code>0x03</code></td><td><strong>ASSERT_NON_NEGATIVE_BALANCE</strong></td>
+      <td>amt</td><td>acc</td><td>-</td>
+      <td>Traps if <code>int_regs[A]</code> is negative; <code>B</code> = account (for the error)</td>
+    </tr>
+    <tr>
+      <td>4</td><td><code>0x04</code></td><td><strong>ASSERT_LEFTOVER</strong></td>
+      <td>por</td><td>exact</td><td>-</td>
+      <td>Traps if <code>por_regs[A]</code> is negative; when <code>B == 1</code> (no <code>remaining</code>) also traps if non-zero</td>
+    </tr>
+    <tr>
+      <td>5</td><td><code>0x05</code></td><td><strong>CHECK_ENOUGH_FUNDS</strong></td>
+      <td>pulled</td><td>target</td><td>-</td>
+      <td>Traps if <code>int_regs[A] &lt; int_regs[B]</code> (missing funds)</td>
+    </tr>
+    <tr>
+      <td>6</td><td><code>0x06</code></td><td><strong>ASSERT_VALID_COLOR</strong></td>
+      <td>color</td><td>-</td><td>-</td>
+      <td>Traps if the color in <code>str_regs[A]</code> is malformed (only uppercase letters; the empty string is valid)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x07..0x0F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 2. Constants & Variables
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>16</td><td><code>0x10</code></td><td><strong>LOAD_INT</strong></td>
+      <td>dest</td><td colspan="2" align="center">Bx (const idx)</td>
+      <td><code>int_regs[A] = int_pool[Bx]</code></td>
+    </tr>
+    <tr>
+      <td>17</td><td><code>0x11</code></td><td><strong>LOAD_STR</strong></td>
+      <td>dest</td><td colspan="2" align="center">Bx (const idx)</td>
+      <td><code>str_regs[A] = str_pool[Bx]</code></td>
+    </tr>
+    <tr>
+      <td>18</td><td><code>0x12</code></td><td><strong>LOAD_VAR_INT</strong></td>
+      <td>dest</td><td colspan="2" align="center">Bx (var idx)</td>
+      <td><code>int_regs[A] = vars.int_pool[Bx]</code></td>
+    </tr>
+    <tr>
+      <td>19</td><td><code>0x13</code></td><td><strong>LOAD_VAR_STR</strong></td>
+      <td>dest</td><td colspan="2" align="center">Bx (var idx)</td>
+      <td><code>str_regs[A] = vars.str_pool[Bx]</code></td>
+    </tr>
+    <tr>
+      <td>20</td><td><code>0x14</code></td><td><strong>LOAD_INT_IMMEDIATE</strong></td>
+      <td>dest</td><td colspan="2" align="center">sBx (i16 value)</td>
+      <td><code>int_regs[A] = (big.Int)sBx</code> — small literals inline, no pool entry. <strong>Reserved; not implemented</strong></td>
+    </tr>
+    <tr>
+      <td>21</td><td><code>0x15</code></td><td><strong>CONST_TRUE</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>bool_regs[A] = true</code> — the value is in the opcode, so there is nothing to decode and no pool entry</td>
+    </tr>
+    <tr>
+      <td>22</td><td><code>0x16</code></td><td><strong>CONST_FALSE</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>bool_regs[A] = false</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x17..0x1F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 3. Metadata
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>32</td><td><code>0x20</code></td><td><strong>SET_TX_META</strong></td>
+      <td>key</td><td>val</td><td>-</td>
+      <td>Sets transaction metadata <code>str_regs[A] = str_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td>33</td><td><code>0x21</code></td><td><strong>SET_ACCOUNT_META</strong></td>
+      <td>acc</td><td>key</td><td>val</td>
+      <td>Sets account metadata: account <code>A</code>, key <code>B</code>, value <code>C</code></td>
+    </tr>
+    <tr>
+      <td>34</td><td><code>0x22</code></td><td><strong>META_STR</strong></td>
+      <td>dest</td><td>acc</td><td>key</td>
+      <td><code>str_regs[A] = meta(account B, key C)</code></td>
+    </tr>
+    <tr>
+      <td>35</td><td><code>0x23</code></td><td><strong>META_INT</strong></td>
+      <td>dest</td><td>acc</td><td>key</td>
+      <td>as <code>META_STR</code>, typed <code>int</code></td>
+    </tr>
+    <tr>
+      <td>36</td><td><code>0x24</code></td><td><strong>META_PORTION</strong></td>
+      <td>dest</td><td>acc</td><td>key</td>
+      <td>as <code>META_STR</code>, typed <code>portion</code></td>
+    </tr>
+    <tr>
+      <td>37</td><td><code>0x25</code></td><td><strong>META_MONETARY</strong></td>
+      <td>dest asset</td><td>acc</td><td>key</td>
+      <td>Parses the value as a monetary. One store read yields both halves, so this is the only two-destination read: <code>str_regs[A] =</code> asset</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>dest amt</td><td>-</td><td>-</td>
+      <td><code>int_regs[A] =</code> amount</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x26..0x2F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 4. Arithmetic & Constructors (binary)
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>48</td><td><code>0x30</code></td><td><strong>ADD_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>int_regs[A] = int_regs[B] + int_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td>49</td><td><code>0x31</code></td><td><strong>SUB_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>int_regs[A] = int_regs[B] - int_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x32 reserved (was MIN_INT: a min is a comparison and a copy, so it is LT_INT plus a branch)</em></td>
+    </tr>
+    <tr>
+      <td>51</td><td><code>0x33</code></td><td><strong>SUB_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>por_regs[A] = por_regs[B] - por_regs[C]</code>. Its counterpart ADD_PORTION is at <code>0x38</code>, not adjacent, because <code>0x32</code> is burned and <code>0x34..0x37</code> were taken</td>
+    </tr>
+    <tr>
+      <td>52</td><td><code>0x34</code></td><td><strong>MK_PORTION</strong></td>
+      <td>dest</td><td>num</td><td>den</td>
+      <td><code>por_regs[A] = int_regs[B] / int_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x35 reserved (was MK_MONETARY: a monetary is a register pair, nothing to construct)</em></td>
+    </tr>
+    <tr>
+      <td>54</td><td><code>0x36</code></td><td><strong>ADD_STRING</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>str_regs[A] = str_regs[B] + str_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x37 reserved (was STR_EQ: moved to the comparison group, §7, now <code>0x62</code>)</em></td>
+    </tr>
+    <tr>
+      <td>56</td><td><code>0x38</code></td><td><strong>ADD_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>por_regs[A] = por_regs[B] + por_regs[C]</code>. A rational sum, so unequal denominators combine correctly and the result is normalised; it may exceed 1</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x39..0x3F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 5. Unary & Conversions
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="7" align="center"><em>0x40..0x41 reserved (were GET_AMOUNT / GET_ASSET: projecting a monetary is naming one of its two registers, so it costs no instruction)</em></td>
+    </tr>
+    <tr>
+      <td>66</td><td><code>0x42</code></td><td><strong>INT_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>int_regs[A] = int_regs[B]</code> (fresh copy). One copy per bank, none crossing banks; the family is split across <code>0x42..0x43</code> and <code>0x4A..0x4B</code> because <code>0x44..0x49</code> were already spoken for. No monetary copy: a monetary is a (str, int) pair, so copy the halves</td>
+    </tr>
+    <tr>
+      <td>67</td><td><code>0x43</code></td><td><strong>PORTION_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>por_regs[A] = por_regs[B]</code> (fresh copy)</td>
+    </tr>
+    <tr>
+      <td>68</td><td><code>0x44</code></td><td><strong>NEG_INT</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>int_regs[A] = -int_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td>69</td><td><code>0x45</code></td><td><strong>INT_TO_STRING</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>str_regs[A] = str(int_regs[B])</code></td>
+    </tr>
+    <tr>
+      <td>70</td><td><code>0x46</code></td><td><strong>PORTION_TO_STRING</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>str_regs[A] = str(por_regs[B])</code></td>
+    </tr>
+    <tr>
+      <td>71</td><td><code>0x47</code></td><td><strong>MONETARY_TO_STRING</strong></td>
+      <td>dest</td><td>asset</td><td>amt</td>
+      <td><code>str_regs[A] = str_regs[B] + " " + str(int_regs[C])</code> — takes both halves, so it is ternary despite living in this section</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x48 reserved (was IS_ZERO: moved to the comparison group, §7, now <code>0x63</code>)</em></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x49 reserved (was NOT: moved to the bool-ops group, §8, now <code>0x70</code>)</em></td>
+    </tr>
+    <tr>
+      <td>74</td><td><code>0x4A</code></td><td><strong>STR_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>str_regs[A] = str_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td>75</td><td><code>0x4B</code></td><td><strong>BOOL_COPY</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = bool_regs[B]</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x4C..0x4F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 6. Funds & Postings
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>80</td><td><code>0x50</code></td><td><strong>PULL_ACCOUNT</strong></td>
+      <td>dest</td><td>acc</td><td>cap</td>
+      <td>Pulls funds from account <code>B</code> capped by <code>int_regs[C]</code> (<code>0xFF</code> = uncapped); pulled amount → <code>int_regs[A]</code>. 2 words:</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>overdraft</td><td>color</td><td>-</td>
+      <td>Overdraft cap reg and color reg (<code>0xFF</code> = none)</td>
+    </tr>
+    <tr>
+      <td>81</td><td><code>0x51</code></td><td><strong>SEND_TO_ACCOUNT</strong></td>
+      <td>acc</td><td>cap</td><td>color</td>
+      <td>Emits a posting to account <code>A</code> (<code>0xFF</code> = world), each operand optional (<code>0xFF</code> = none)</td>
+    </tr>
+    <tr>
+      <td>82</td><td><code>0x52</code></td><td><strong>SAVE</strong></td>
+      <td>acc</td><td>asset</td><td>amount</td>
+      <td>Reduce balance of account <code>A</code> for asset <code>B</code> by <code>int_regs[C]</code> (<code>C = 0xFF</code> ⇒ save all), floored at 0</td>
+    </tr>
+    <tr>
+      <td>83</td><td><code>0x53</code></td><td><strong>MK_ALLOTMENT</strong></td>
+      <td>dest0</td><td>in0</td><td>size</td>
+      <td>Splits the current amount across <code>size</code> portions in <code>por_regs[in0..]</code>, writing shares to <code>int_regs[dest0..]</code></td>
+    </tr>
+    <tr>
+      <td>84</td><td><code>0x54</code></td><td><strong>BALANCE</strong></td>
+      <td>dest amt</td><td>acc</td><td>asset</td>
+      <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state. Only the amount: the resulting monetary's asset is operand <code>C</code>, which the caller already holds</td>
+    </tr>
+    <tr>
+      <td>85</td><td><code>0x55</code></td><td><strong>SNAPSHOT</strong></td>
+      <td>dest</td><td>-</td><td>-</td>
+      <td><code>int_regs[A] =</code> current source-queue mark (<code>len(sources)</code>), for <code>oneof</code> backtracking</td>
+    </tr>
+    <tr>
+      <td>86</td><td><code>0x56</code></td><td><strong>RESTORE</strong></td>
+      <td>snap</td><td>-</td><td>-</td>
+      <td>Rolls the source queue back to the mark in <code>int_regs[A]</code> (repays debited balances, then truncates)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x57..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving nine slots for the four specializations sketched in <code>instruction.go</code></em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 7. Comparisons
+
+Every bool producer lives here. `A` = dest (a `bool_regs` index) for all of them; the operand banks are what the opcode implies. `IS_ZERO` is unary and the rest are binary — they are one group because they are one *category*, not one arity.
+
+Only `<` and `==` exist, per type. The other four surface operators are **normalised by the front end**:
+
+| surface | lowering |
+|---|---|
+| `a < b`  | `Lt(a, b)` |
+| `a > b`  | `Lt(b, a)` — operands swapped |
+| `a <= b` | `Not(Lt(b, a))` |
+| `a >= b` | `Not(Lt(a, b))` |
+| `a == b` | `Eq(a, b)` |
+| `a != b` | `Not(Eq(a, b))` |
+
+12 surface operators, 5 opcodes. Every extra predicate is another case in the SMT encoder and in any formal model of the VM, so the cost would be paid three times over. LLVM does the same, canonicalising `sgt` to `slt` with swapped operands in InstCombine so downstream passes only ever see one form.
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>96</td><td><code>0x60</code></td><td><strong>LT_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = int_regs[B] &lt; int_regs[C]</code>. Strict</td>
+    </tr>
+    <tr>
+      <td>97</td><td><code>0x61</code></td><td><strong>EQ_INT</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = int_regs[B] == int_regs[C]</code></td>
+    </tr>
+    <tr>
+      <td>98</td><td><code>0x62</code></td><td><strong>STR_EQ</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = str_regs[B] == str_regs[C]</code>. The only string comparison that yields a value rather than trapping (cf. ASSERT_SAME_ASSET). <strong>Was <code>0x37</code></strong></td>
+    </tr>
+    <tr>
+      <td>99</td><td><code>0x63</code></td><td><strong>IS_ZERO</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = int_regs[B].Sign() == 0</code> — the projection from a quantity to a condition, since the jumps take a bool. Tests the sign, so a negative amount is <em>not</em> zero. Kept alongside EQ_INT because it needs no materialised zero and it is on every quantity branch. <strong>Was <code>0x48</code></strong></td>
+    </tr>
+    <tr>
+      <td>100</td><td><code>0x64</code></td><td><strong>LT_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = por_regs[B] &lt; por_regs[C]</code>. Strict, and by <em>value</em> — see EQ_PORTION</td>
+    </tr>
+    <tr>
+      <td>101</td><td><code>0x65</code></td><td><strong>EQ_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>bool_regs[A] = por_regs[B] == por_regs[C]</code>. <strong>Value</strong> equality: <code>1/2 == 2/4</code> is true. <code>big.Rat</code> normalises on construction, so the rationals are compared — comparing numerator/denominator pairs separately would give the wrong answer</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x66..0x6F reserved for <code>&lt;</code> and <code>==</code> on types that don't exist yet. <code>Str</code> gets equality only, never ordering. Bool equality, and structural comparison of tuples/arrays, are front-end expansions rather than opcodes. No named-but-unimplemented constants live here on purpose: a live opcode with no emitter invites a second lowering path that no test exercises</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 8. Bool ops
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>112</td><td><code>0x70</code></td><td><strong>NOT</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>bool_regs[A] = !bool_regs[B]</code> — the only operation whose operand and result are both bools, and what the four derived operators above are built from. <strong>Was <code>0x49</code></strong></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x71..0x7F reserved for and/or, if they ever pay for themselves — both are expressible as branches, so neither is needed for completeness</em></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x80..0x8F reserved</em></td>
+    </tr>
+  </tbody>
+</table>
+
+## 9. Control Flow
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th>Opcode</th><th>Hex</th><th>Name</th>
+      <th width="10%">A</th><th width="10%">B</th><th width="10%">C</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>144</td><td><code>0x90</code></td><td><strong>JMP_IF_FALSE</strong></td>
+      <td>cond</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>If <code>bool_regs[A]</code> is false, skip <code>Bx</code> instructions: <code>pc += Bx</code>, where <code>pc</code> already points at the next instruction. Being an unsigned delta, the jump is forward-only (guarantees termination). A quantity is not a condition — project it with <code>IS_ZERO</code> first</td>
+    </tr>
+    <tr>
+      <td>145</td><td><code>0x91</code></td><td><strong>JMP</strong></td>
+      <td>—</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>Unconditional: <code>pc += Bx</code>. Forward-only, as above</td>
+    </tr>
+    <tr>
+      <td>146</td><td><code>0x92</code></td><td><strong>JMP_IF_TRUE</strong></td>
+      <td>cond</td><td colspan="2" align="center">Bx (forward delta)</td>
+      <td>The dual of <code>JMP_IF_FALSE</code>, so either edge of a condition is one instruction and no negation opcode is needed</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x93..0xFF reserved</em></td>
+    </tr>
+  </tbody>
+</table>
