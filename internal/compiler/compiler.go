@@ -693,6 +693,22 @@ func (st *state) minInt(leftReg, rightReg ir.Reg) ir.Reg {
 	return minReg
 }
 
+func (st *state) maxInt(leftReg, rightReg ir.Reg) ir.Reg {
+	maxReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: leftReg, Dest: dest}
+	})
+	gt := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.BinaryOp{Op: ir.OpLtInt{}, Left: rightReg, Right: leftReg, Dest: dest}
+	})
+
+	endLabel := st.FreshLabel("max_end")
+	st.Push(ir.JmpIfTrue{Cond: gt, Target: endLabel})
+	st.Push(ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: rightReg, Dest: maxReg})
+	st.Push(ir.LabelMarker{Label: endLabel})
+
+	return maxReg
+}
+
 // The conditional jumps take a bool, so a quantity has to be projected onto one
 // first — which is what stops a monetary amount from being used as a condition by
 // accident (ir.Typecheck rejects it).
@@ -1043,12 +1059,14 @@ func (st *state) compileDestination(
 				return err
 			}
 			// mirrors internal/interpreter's sendTo, *parser.DestinationInorder
-			// case: a negative `max` clause amount here is a hard error, not a
-			// clamp-to-zero. Source-side `max ... from` caps and the
-			// experimental oneof destination have no equivalent check on
-			// either engine, so this is deliberately scoped to just this case.
-			st.Push(ir.AssertNonNegativeAmount{Amount: capAmtReg})
-			amtReg := st.minInt(remaining, capAmtReg)
+			// case: max(min(cap, remaining), 0), so a negative `max` clause
+			// amount clamps to zero rather than erroring, matching the
+			// source-side `max ... from` clause and ledger's own behavior gap
+			// on this shape (oracle/DIVERGENCES.md #4).
+			zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+				return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
+			})
+			amtReg := st.maxInt(st.minInt(remaining, capAmtReg), zeroReg)
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
 			}

@@ -576,17 +576,22 @@ func TestDestInorder(t *testing.T) {
   $r8 = "USD/2"
   $r9 = 4
   assert_same_asset($r8, $r1)
-  assert_non_negative_amount($r9)
-  $r10 = int_copy($r7)
-  $r11 = lt_int($r7, $r9)
-  jmp_if_true($r11, #min_end_2)
-  $r10 = int_copy($r9)
+  $r10 = 0
+  $r11 = int_copy($r7)
+  $r12 = lt_int($r7, $r9)
+  jmp_if_true($r12, #min_end_2)
+  $r11 = int_copy($r9)
 #min_end_2
-  $r12 = "d1"
-  send_to_account(account: $r12, cap: $r10)
-  $r7 -= $r10
-  $r13 = "d2"
-  send_to_account(account: $r13, cap: $r7)
+  $r13 = int_copy($r11)
+  $r14 = lt_int($r10, $r11)
+  jmp_if_true($r14, #max_end_3)
+  $r13 = int_copy($r10)
+#max_end_3
+  $r15 = "d1"
+  send_to_account(account: $r15, cap: $r13)
+  $r7 -= $r13
+  $r16 = "d2"
+  send_to_account(account: $r16, cap: $r7)
 `))
 }
 
