@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -9,6 +10,12 @@ import (
 )
 
 const maxReg = 0xFF
+
+// ErrRegisterBankOverflow is the assembler refusing a program that needs more
+// than maxReg simultaneously-live registers in one bank — the instruction
+// encoding's one-byte operand limit. It is a capacity bound of the compiled
+// engine, not a semantic rejection of the script.
+var ErrRegisterBankOverflow = errors.New("register bank overflow")
 
 // regPool assigns each virtual Reg a physical bank index (0..maxReg-1),
 // reusing an index once its Reg's last reference has been processed.
@@ -108,7 +115,7 @@ func (b *regPool) Index(r Reg) (byte, error) {
 			b.freeList = b.freeList[:n-1]
 		} else {
 			if b.next >= maxReg {
-				return 0, fmt.Errorf("register bank overflow: more than %d registers live at once in one bank", maxReg)
+				return 0, fmt.Errorf("%w: more than %d registers live at once in one bank", ErrRegisterBankOverflow, maxReg)
 			}
 			idx = byte(b.next)
 			b.next++

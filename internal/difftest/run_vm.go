@@ -7,6 +7,7 @@ import (
 
 	"github.com/formancehq/numscript"
 	"github.com/formancehq/numscript/internal/gen"
+	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -35,7 +36,10 @@ func (s vmStore) GetMetadata(_ context.Context, account, _, key string) (string,
 func runVM(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string) SideResult {
 	varsEncoder, program, err := numscript.Compile(script)
 	if err != nil {
-		return SideResult{CompileErr: err.Error()}
+		return SideResult{
+			CompileErr:       err.Error(),
+			RegisterOverflow: errors.Is(err, ir.ErrRegisterBankOverflow),
+		}
 	}
 
 	// Binding the vars is the compile-to-run boundary, like the machine's

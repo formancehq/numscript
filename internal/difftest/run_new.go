@@ -58,6 +58,14 @@ type SideResult struct {
 	// divergence (oracle/DIVERGENCES.md #4) without tolerating every other
 	// one.
 	NegativeMaxReject bool
+	// RegisterOverflow is only meaningful when CompileErr is set on the vm's
+	// side: true iff the compiler refused the script because it needs more
+	// simultaneously-live registers than the bytecode encoding's one-byte
+	// operands can address (ir.ErrRegisterBankOverflow). A known capacity
+	// bound, not a semantic rejection: Compare tolerates it by name so any
+	// other vm-side rejection of a script another engine ran stays a
+	// mismatch.
+	RegisterOverflow bool
 	// InternalErr is set when an engine broke its own contract, as opposed to
 	// rejecting the script. Deliberately not CompileErr: Compare tolerates one
 	// side rejecting what the other accepted, so a self-inconsistency reported as
