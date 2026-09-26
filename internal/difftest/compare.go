@@ -61,6 +61,11 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 			// script the b-side ran stays the interesting direction below.
 			return tolerated("vm register capacity")
 		}
+		if aRes.ProgramTooLarge {
+			// The encoding's other capacity bound (uint16 jump targets), with
+			// the same reasoning and the same fail-closed behavior.
+			return tolerated("vm program size")
+		}
 		// The interesting direction: the generator stays within the b-side's
 		// grammar and a-side should be a strict superset, so a-side rejecting what
 		// b-side compiled is a genuine divergence.

@@ -780,12 +780,17 @@ func (st *state) compileSource(
 			return 0, err
 		}
 
-		var innerCapReg ir.Reg
-		if capReg == nil {
-			innerCapReg = clauseCapIntReg
-		} else {
+		// mirrors the interpreter's tryTakingUpTo/takeAll: NonNeg(min(amount,
+		// cap)). The clamp matters when the inner source is an allotment, which
+		// splits the cap before any pull gets a chance to clamp it.
+		innerCapReg := clauseCapIntReg
+		if capReg != nil {
 			innerCapReg = st.minInt(clauseCapIntReg, *capReg)
 		}
+		zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
+		})
+		innerCapReg = st.maxInt(innerCapReg, zeroReg)
 
 		return st.compileSource(&innerCapReg, src.From)
 
@@ -820,7 +825,6 @@ func (st *state) compileSource(
 			}
 		})
 
-		endLabel := st.FreshLabel("inorder_end")
 		inorderCap := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.UnaryOp{
 				Op:   ir.OpIntCopy{},
@@ -829,6 +833,9 @@ func (st *state) compileSource(
 			}
 		})
 
+		// every clause runs, even once the cap is exhausted: the interpreter
+		// evaluates later clauses' cap/account expressions (and pulls zero), so
+		// an early exit would skip failures it reports
 		for idx, subSrc := range src.Sources {
 			innerPulledAmtReg, err := st.compileSource(&inorderCap, subSrc)
 			if err != nil {
@@ -852,12 +859,8 @@ func (st *state) compileSource(
 					Left:  inorderCap,
 					Right: innerPulledAmtReg,
 				})
-				st.jmpIfAmountZero(inorderCap, endLabel)
 			}
 		}
-		st.Push(ir.LabelMarker{
-			Label: endLabel,
-		})
 		return inorderTotalReg, nil
 
 	case *parser.SourceOneof:
@@ -956,11 +959,22 @@ func (st *state) compileSource(
 	}
 }
 
+// compileSourceWithRequiredAmount is the interpreter's tryTakingExact: pull up
+// to capReg, then fail as missing funds unless exactly capReg was pulled. The
+// cap handed to the source is clamped at zero first — tryTakingUpTo does the
+// same at entry — while the exactness check keeps the raw value: a negative
+// required amount (an allotment share of a negative portion) must fail the
+// check, not leak downward, where e.g. a oneof would compare its pulls against
+// the negative cap and walk into branches the interpreter never evaluates.
 func (st *state) compileSourceWithRequiredAmount(
 	capReg ir.Reg,
 	src parser.Source,
 ) (ir.Reg, CompilerError) {
-	got, err := st.compileSource(&capReg, src)
+	zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+		return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
+	})
+	clampedCapReg := st.maxInt(capReg, zeroReg)
+	got, err := st.compileSource(&clampedCapReg, src)
 	if err != nil {
 		return 0, err
 	}
@@ -1053,27 +1067,44 @@ func (st *state) compileDestination(
 		remaining := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.UnaryOp{Op: ir.OpIntCopy{}, Arg: currentCap, Dest: dest}
 		})
+		// mirrors internal/interpreter's sendTo, *parser.DestinationInorder case,
+		// laziness included: once remaining hits zero the loop breaks before
+		// evaluating the next clause's cap, and a clause (the trailing `remaining`
+		// one too) whose amount is zero has its destination never evaluated.
+		endLabel := st.FreshLabel("dest_inorder_end")
 		for _, clause := range dest.Clauses {
+			st.jmpIfAmountZero(remaining, endLabel)
+
 			capAmtReg, err := st.compileCapAmount(clause.Cap)
 			if err != nil {
 				return err
 			}
-			// mirrors internal/interpreter's sendTo, *parser.DestinationInorder
-			// case: max(min(cap, remaining), 0), so a negative `max` clause
-			// amount clamps to zero rather than erroring, matching the
-			// source-side `max ... from` clause and ledger's own behavior gap
-			// on this shape (oracle/DIVERGENCES.md #4).
+			// max(min(cap, remaining), 0): a negative `max` clause amount clamps
+			// to zero rather than erroring, matching the source-side `max ... from`
+			// clause and ledger's own behavior gap on this shape
+			// (oracle/DIVERGENCES.md #4).
 			zeroReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 				return ir.LoadInt{Value: *big.NewInt(0), Dest: dest}
 			})
 			amtReg := st.maxInt(st.minInt(remaining, capAmtReg), zeroReg)
+
+			skipLabel := st.FreshLabel("dest_inorder_skip")
+			st.jmpIfAmountZero(amtReg, skipLabel)
 			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
 				return err
 			}
 			st.Push(ir.BinaryOp{Op: ir.OpSubInt{}, Dest: remaining, Left: remaining, Right: amtReg})
+			st.Push(ir.LabelMarker{Label: skipLabel})
 		}
+		st.Push(ir.LabelMarker{Label: endLabel})
 
-		return st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, remaining)
+		remSkipLabel := st.FreshLabel("dest_inorder_rem_skip")
+		st.jmpIfAmountZero(remaining, remSkipLabel)
+		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, remaining); err != nil {
+			return err
+		}
+		st.Push(ir.LabelMarker{Label: remSkipLabel})
+		return nil
 
 	default:
 		utils.NonExhaustiveMatchPanic[any](dest)

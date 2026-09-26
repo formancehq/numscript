@@ -263,7 +263,7 @@ send [COIN *] (
 			ctx := context.Background()
 			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
-			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
+			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, tc.metadata, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if v.Mismatch {
@@ -321,7 +321,7 @@ func TestAllotmentFullSumPlusRemainingRejectedByOracleOnly(t *testing.T) {
 	}
 
 	// The vm runs it like the interpreter: the remaining clause receives zero.
-	vmRes := runVM(context.Background(), script, nil, nil, nil)
+	vmRes := runVM(context.Background(), script, nil, nil, nil, nil)
 	if vmRes.Failed() {
 		t.Fatalf("expected the vm to run the script; got %+v", vmRes)
 	}

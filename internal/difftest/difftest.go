@@ -42,25 +42,38 @@ type Case struct {
 
 // RunOne generates one program from rng, runs it against all three engines,
 // and compares the results pairwise.
+//
+// A script the generator marked oracle-incompatible (numscript-only shapes:
+// oneof, colors, division portions, wrong-asset caps) never reaches the legacy
+// machine: its oracle legs are recorded as a named tolerance so the sweep
+// counts them, and only NewVsVM is compared — which is the point of those
+// shapes, since both engines live in this repo and must agree exactly.
 func RunOne(ctx context.Context, rng *rand.Rand) Case {
 	g := gen.Generate(rng)
 
-	newRes := runNew(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
-	oracleRes := runOracle(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
-	vmRes := runVM(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
+	newRes := runNew(ctx, g.Script, g.Vars, g.Balances, g.Metadata, g.Flags)
+	vmRes := runVM(ctx, g.Script, g.Vars, g.Balances, g.Metadata, g.Flags)
 
-	return Case{
+	c := Case{
 		Script: g.Script,
 		Vars:   g.Vars,
 		Shape:  g.Shape,
 		New:    newRes,
-		Oracle: oracleRes,
 		VM:     vmRes,
 
-		OracleVsNew: Compare(newRes, oracleRes, "new interpreter", "oracle"),
-		OracleVsVM:  Compare(vmRes, oracleRes, "vm", "oracle"),
-		NewVsVM:     Compare(vmRes, newRes, "vm", "new interpreter"),
+		NewVsVM: Compare(vmRes, newRes, "vm", "new interpreter"),
 	}
+
+	if g.OracleCompatible {
+		c.Oracle = runOracle(ctx, g.Script, g.Vars, g.Balances, g.Metadata)
+		c.OracleVsNew = Compare(newRes, c.Oracle, "new interpreter", "oracle")
+		c.OracleVsVM = Compare(vmRes, c.Oracle, "vm", "oracle")
+	} else {
+		c.OracleVsNew = tolerated("numscript-only script, oracle skipped")
+		c.OracleVsVM = tolerated("numscript-only script, oracle skipped")
+	}
+
+	return c
 }
 
 // Legs returns the three pairwise verdicts with stable names, for callers
