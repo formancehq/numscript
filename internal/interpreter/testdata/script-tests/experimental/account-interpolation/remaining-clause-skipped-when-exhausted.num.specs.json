@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
+  "testCases": [
+    {
+      "it": "the remaining clause is not evaluated when nothing remains",
+      "variables": {
+        "id": "not a valid segment!"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "a",
+          "amount": 10,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "clauses after the amount is exhausted are not evaluated, wrong-asset cap included",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "a",
+          "amount": 10,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

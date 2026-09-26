@@ -3,8 +3,10 @@ package numscript
 import (
 	"context"
 
+	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/vm"
 )
 
 // This struct represents a parsed numscript source code
@@ -125,4 +127,110 @@ func (p ParseResult) ResolveDependencies(ctx context.Context, vars VariablesMap,
 
 func (p ParseResult) GetSource() string {
 	return p.parseResult.Source
+}
+
+type (
+	VarsEncoder     = compiler.VarsEncoder
+	CompiledProgram = vm.Program
+	VMStore         = vm.Store
+	Vm              = vm.Vm
+	Vars            = vm.Vars
+)
+
+var NewVm = vm.NewVm
+
+var DecodeVars = vm.DecodeVars
+
+func (p ParseResult) Compile() (VarsEncoder, CompiledProgram, error) {
+	return p.CompileWithFeatureFlags(nil)
+}
+
+// CompileWithFeatureFlags compiles the program, rejecting any construct gated
+// behind an experimental feature flag that isn't in featureFlags.
+func (p ParseResult) CompileWithFeatureFlags(featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	if len(p.parseResult.Errors) != 0 {
+		return VarsEncoder{}, CompiledProgram{}, p.parseResult.Errors[0]
+	}
+
+	if featureFlags == nil {
+		featureFlags = make(map[string]struct{})
+	}
+
+	return compiler.Compile(p.parseResult.Value, featureFlags)
+}
+
+func Compile(source string) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).Compile()
+}
+
+func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).CompileWithFeatureFlags(featureFlags)
+}
+
+var DecodeCompiledProgram = vm.DecodeProgram
+
+// VerifyCompiledProgram statically checks that a program is safe to execute:
+// ExecVm assumes well-formed bytecode and will panic rather than error on a
+// program that is not. Compile's output always is, so this is for programs that
+// came from somewhere else — DecodeCompiledProgram, most obviously.
+//
+// VerifyCompiledProgramWithVars additionally checks the program against the vars
+// it will be given; prefer it whenever vars are in play, since a program that
+// loads a variable is only safe against a pool that actually has it.
+var (
+	VerifyCompiledProgram         = vm.Verify
+	VerifyCompiledProgramWithVars = vm.VerifyWithVars
+)
+
+// VM execution error types, aliased so ExecVm callers can classify failures
+// with errors.As without reaching into internal packages — the same pattern as
+// the interpreter's error types above. The Vm prefix keeps them apart from the
+// interpreter's MissingFundsErr/NegativeAmountErr, which are different types
+// with different fields.
+type (
+	VmMissingFundsError     = vm.MissingFundsError
+	VmNegativeAmountError   = vm.NegativeAmountError
+	VmNegativeBalanceError  = vm.NegativeBalanceError
+	VmAssetMismatchError    = vm.AssetMismatchError
+	VmInvalidAllotmentSum   = vm.InvalidAllotmentSum
+	VmDivideByZeroError     = vm.DivideByZeroError
+	VmInvalidAccountName    = vm.InvalidAccountName
+	VmInvalidColor          = vm.InvalidColor
+	VmInvalidScope          = vm.InvalidScope
+	VmInvalidUncappedSource = vm.InvalidUncappedSource
+	VmMetadataNotFoundError = vm.MetadataNotFoundError
+	VmBadMetaValueError     = vm.BadMetaValueError
+	VmInternalError         = vm.InternalError
+	VmStoreError            = vm.StoreError
+)
+
+func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {
+	res, execErr := vm.Exec(ctx, machine, vars, store)
+	if execErr != nil {
+		return ExecutionResult{}, execErr
+	}
+
+	// Postings share one type (funds.Posting), scope fields included, so they
+	// pass through unchanged. Metadata is normalized to the interpreter's
+	// contract: non-nil maps/slices, account rows in the SetAccountsMetadata
+	// shape.
+	txMeta := res.Metadata
+	if txMeta == nil {
+		txMeta = Metadata{}
+	}
+	accountsMeta := make(SetAccountsMetadata, 0, len(res.AccountsMetadata))
+	for _, e := range res.AccountsMetadata {
+		accountsMeta = append(accountsMeta, SetAccountMetadataRow{
+			Account: e.Account,
+			Key:     e.Key,
+			Value:   e.Value,
+			Scope:   e.Scope,
+		})
+	}
+
+	return ExecutionResult{
+		Postings:         res.Postings,
+		Metadata:         txMeta,
+		AccountsMetadata: accountsMeta,
+	}, nil
 }

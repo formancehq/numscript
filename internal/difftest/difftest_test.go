@@ -24,11 +24,11 @@ func FuzzDiff(f *testing.F) {
 		rng := gen.RandFromBytes(data)
 		c := difftest.RunOne(context.Background(), rng)
 
-		for _, v := range []difftest.Verdict{c.OracleVsNew} {
-			if v.Mismatch {
+		for _, leg := range c.Legs() {
+			if leg.Verdict.Mismatch {
 				t.Fatalf(
-					"divergence: %s\n\nvars: %v\n\nscript:\n%s",
-					v.Reason, c.Vars, c.Script,
+					"divergence (%s): %s\n\nvars: %v\n\nscript:\n%s",
+					leg.Name, leg.Verdict.Reason, c.Vars, c.Script,
 				)
 			}
 		}
@@ -74,5 +74,28 @@ func TestCompareStillToleratesAPlainRejection(t *testing.T) {
 	v := difftest.Compare(difftest.SideResult{}, difftest.SideResult{CompileErr: "rejected"}, "new interpreter", "oracle")
 	if v.Mismatch {
 		t.Fatalf("a plain b-side rejection should be tolerated, got %+v", v)
+	}
+}
+
+// An a-side compile rejection is a mismatch (the vm refusing a script another
+// engine ran), with two named exceptions, both fail-closed capacity bounds of
+// the bytecode encoding that a pathological generated script can exceed: the
+// register bank (ir.ErrRegisterBankOverflow) and the instruction count a jump
+// target can address (ir.ErrProgramTooLarge). Tolerated and counted; every
+// other a-side rejection stays flagged.
+func TestCompareToleratesOnlyTheCapacityRejections(t *testing.T) {
+	overflow := difftest.SideResult{CompileErr: "register bank overflow: ...", RegisterOverflow: true}
+	if v := difftest.Compare(overflow, difftest.SideResult{}, "vm", "oracle"); v.Mismatch || v.Tolerated != "vm register capacity" {
+		t.Fatalf("expected the register-capacity tolerance, got %+v", v)
+	}
+
+	tooLarge := difftest.SideResult{CompileErr: "program too large: ...", ProgramTooLarge: true}
+	if v := difftest.Compare(tooLarge, difftest.SideResult{}, "vm", "oracle"); v.Mismatch || v.Tolerated != "vm program size" {
+		t.Fatalf("expected the program-size tolerance, got %+v", v)
+	}
+
+	plain := difftest.SideResult{CompileErr: "no such feature"}
+	if v := difftest.Compare(plain, difftest.SideResult{}, "vm", "oracle"); !v.Mismatch {
+		t.Fatalf("a plain a-side compile rejection must stay a mismatch, got %+v", v)
 	}
 }

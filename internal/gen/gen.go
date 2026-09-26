@@ -107,8 +107,10 @@ func pickAsset(rng *rand.Rand) string {
 	return assetPool[rng.Intn(len(assetPool))]
 }
 
-// monetary generates a Monetary in the given asset. Mostly positive, and at a
-// low weight zero, which exercises the zero-posting-trim path.
+// monetary generates a Monetary in the given asset. Mostly positive, at a low
+// weight zero (exercising the zero-posting-trim path), and at a low weight
+// beyond int64 (the engines are big.Int throughout, and the vm additionally
+// encodes amounts — see instruction-encoding.md — so magnitude is a real axis).
 //
 // Never negative. A negative `max` clause amount is an open divergence: the
 // oracle rejects it, the interpreter treats the clause as contributing nothing
@@ -121,7 +123,17 @@ func monetary(rng *rand.Rand, asset string) Monetary {
 	if rng.Intn(20) == 0 {
 		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(0)}
 	}
+	if rng.Intn(50) == 0 {
+		return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: hugeAmount(rng)}
+	}
 	return Monetary{Asset: asset, AssetAsVar: asVar(rng), AsVar: asVar(rng), Amount: big.NewInt(int64(rng.Intn(1000)))}
+}
+
+// hugeAmount draws an amount well past int64, so encodings and arithmetic see
+// multi-word big.Ints.
+func hugeAmount(rng *rand.Rand) *big.Int {
+	x := new(big.Int).Lsh(big.NewInt(1), uint(65+rng.Intn(60)))
+	return x.Add(x, big.NewInt(int64(rng.Intn(1000))))
 }
 
 // statementAmount generates a statement's top-level send amount. Unlike
@@ -213,9 +225,13 @@ type sourceOptions struct {
 	poolSize               int
 	asset                  string
 	depth                  int
+	// numscriptOnly, decided once per script, allows shapes the oracle cannot
+	// parse (oneof, colors, wrong-asset caps, division portions). A script that
+	// actually contains one skips the oracle legs — see scriptFlags.
+	numscriptOnly bool
 }
 
-func defaultSourceOptions(sentAmt *big.Int, unbounded bool, poolSize int, asset string) sourceOptions {
+func defaultSourceOptions(sentAmt *big.Int, unbounded bool, poolSize int, asset string, numscriptOnly bool) sourceOptions {
 	return sourceOptions{
 		sentAmt:                sentAmt,
 		isToplevel:             true,
@@ -224,7 +240,50 @@ func defaultSourceOptions(sentAmt *big.Int, unbounded bool, poolSize int, asset 
 		poolSize:               poolSize,
 		asset:                  asset,
 		depth:                  0,
+		numscriptOnly:          numscriptOnly,
 	}
+}
+
+// capAsset picks the asset for a cap/max/overdraft-bound position: the
+// statement's own asset, except at a low rate in numscript-only scripts, where
+// a deliberately wrong one exercises each engine's same-asset assertion —
+// including in clauses the interpreter never evaluates (it breaks out of a
+// destination inorder once nothing remains, and both engines must agree on
+// exactly when such a clause's failure is reachable).
+func capAsset(rng *rand.Rand, asset string, numscriptOnly bool) string {
+	if !numscriptOnly || rng.Intn(10) != 0 {
+		return asset
+	}
+	for _, other := range assetPool {
+		if other != asset {
+			return other
+		}
+	}
+	return asset
+}
+
+// srcColor decides an optional color clause on an account source. Only in
+// numscript-only scripts (the oracle has no color syntax), at a low rate.
+func srcColor(rng *rand.Rand, numscriptOnly bool) (string, bool) {
+	if !numscriptOnly || rng.Intn(8) != 0 {
+		return "", false
+	}
+	colors := []string{"RED", "BLU"}
+	return colors[rng.Intn(len(colors))], asVar(rng)
+}
+
+// divPortion maybe replaces one allotment clause's portion with a division
+// expression `$n/den`, whose value is unconstrained: negative (a negative
+// share), zero, ordinary, or above one. Only next to a `remaining` clause —
+// without one the sum must be exactly 1 and nearly every draw would be a
+// same-on-both-engines rejection that compares nothing.
+func divPortion(rng *rand.Rand, numscriptOnly, withRemaining bool) *PortionDiv {
+	if !numscriptOnly || !withRemaining || rng.Intn(6) != 0 {
+		return nil
+	}
+	den := int64(rng.Intn(11) + 2)
+	num := int64(rng.Intn(int(den)+5)) - 3
+	return &PortionDiv{Num: big.NewInt(num), Den: big.NewInt(den)}
 }
 
 func genSource(rng *rand.Rand, opts sourceOptions) Source {
@@ -240,26 +299,30 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 		{
 			zeroFreqIf(5, opts.isUnbounded),
 			func() Source {
-				return Source{Kind: SrcAccount, Account: "world"}
+				color, colorAsVar := srcColor(rng, opts.numscriptOnly)
+				return Source{Kind: SrcAccount, Account: "world", Color: color, ColorAsVar: colorAsVar}
 			},
 		},
 		{
 			15,
 			func() Source {
-				return Source{Kind: SrcAccount, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng)}
+				color, colorAsVar := srcColor(rng, opts.numscriptOnly)
+				return Source{Kind: SrcAccount, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Color: color, ColorAsVar: colorAsVar}
 			},
 		},
 		{
 			5,
 			func() Source {
-				m := monetary(rng, opts.asset)
-				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: &m}
+				m := monetary(rng, capAsset(rng, opts.asset, opts.numscriptOnly))
+				color, colorAsVar := srcColor(rng, opts.numscriptOnly)
+				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: &m, Color: color, ColorAsVar: colorAsVar}
 			},
 		},
 		{
 			zeroFreqIf(5, opts.isUnbounded),
 			func() Source {
-				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: nil}
+				color, colorAsVar := srcColor(rng, opts.numscriptOnly)
+				return Source{Kind: SrcAccountOverdraft, Account: account(rng, opts.poolSize), AccountAsVar: asVar(rng), Overdraft: nil, Color: color, ColorAsVar: colorAsVar}
 			},
 		},
 		{
@@ -275,7 +338,7 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 				if base.Sign() < 0 {
 					base = new(big.Int)
 				}
-				cap := addMonetary(base, monetary(rng, opts.asset))
+				cap := addMonetary(base, monetary(rng, capAsset(rng, opts.asset, opts.numscriptOnly)))
 				innerOpts := nestedOpts
 				innerOpts.isUnbounded = false
 				inner := genSource(rng, innerOpts)
@@ -290,6 +353,13 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 			},
 		},
 		{
+			zeroFreqIf(8, stopRecursion || forceLeaf || !opts.numscriptOnly),
+			func() Source {
+				list := nonUniformListOf(rng, func() Source { return genSource(rng, nestedOpts) })
+				return Source{Kind: SrcOneof, Sources: list}
+			},
+		},
+		{
 			zeroFreqIf(15, stopRecursion || !opts.isToplevel || opts.isUnbounded || forceLeaf),
 			func() Source {
 				innerOpts := nestedOpts
@@ -301,6 +371,7 @@ func genSource(rng *rand.Rand, opts sourceOptions) Source {
 					clauses[i] = SourceAllotmentClause{
 						Portion:      p,
 						PortionAsVar: withRemaining && asVar(rng),
+						Div:          divPortion(rng, opts.numscriptOnly, withRemaining),
 						Source:       genSource(rng, innerOpts),
 					}
 				}
@@ -320,10 +391,12 @@ type destinationOptions struct {
 	poolSize               int
 	asset                  string
 	depth                  int
+	// See sourceOptions.numscriptOnly.
+	numscriptOnly bool
 }
 
-func defaultDestinationOptions(poolSize int, asset string) destinationOptions {
-	return destinationOptions{keepNestingProbability: ratio{1, 15}, poolSize: poolSize, asset: asset, depth: 0}
+func defaultDestinationOptions(poolSize int, asset string, numscriptOnly bool) destinationOptions {
+	return destinationOptions{keepNestingProbability: ratio{1, 15}, poolSize: poolSize, asset: asset, depth: 0, numscriptOnly: numscriptOnly}
 }
 
 func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
@@ -334,6 +407,13 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 		poolSize:               opts.poolSize,
 		asset:                  opts.asset,
 		depth:                  opts.depth + 1,
+		numscriptOnly:          opts.numscriptOnly,
+	}
+
+	inorderClauses := func() []DestInorderClause {
+		return nonUniformListOf(rng, func() DestInorderClause {
+			return DestInorderClause{Max: monetary(rng, capAsset(rng, opts.asset, opts.numscriptOnly)), KeptOrDest: genKeptOrDest(rng, nestedOpts)}
+		})
 	}
 
 	return pick(rng, []weighted[Destination]{
@@ -346,11 +426,17 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 		{
 			zeroFreqIf(10, stopRecursion || forceLeaf),
 			func() Destination {
-				clauses := nonUniformListOf(rng, func() DestInorderClause {
-					return DestInorderClause{Max: monetary(rng, opts.asset), KeptOrDest: genKeptOrDest(rng, nestedOpts)}
-				})
+				clauses := inorderClauses()
 				remaining := genKeptOrDest(rng, nestedOpts)
 				return Destination{Kind: DestInorder, InorderClauses: clauses, Remaining: &remaining}
+			},
+		},
+		{
+			zeroFreqIf(8, stopRecursion || forceLeaf || !opts.numscriptOnly),
+			func() Destination {
+				clauses := inorderClauses()
+				remaining := genKeptOrDest(rng, nestedOpts)
+				return Destination{Kind: DestOneof, InorderClauses: clauses, Remaining: &remaining}
 			},
 		},
 		{
@@ -363,6 +449,7 @@ func genDestination(rng *rand.Rand, opts destinationOptions) Destination {
 					clauses[i] = DestAllotmentClause{
 						Portion:      p,
 						PortionAsVar: withRemaining && asVar(rng),
+						Div:          divPortion(rng, opts.numscriptOnly, withRemaining),
 						KeptOrDest:   genKeptOrDest(rng, nestedOpts),
 					}
 				}
@@ -387,7 +474,7 @@ func genKeptOrDest(rng *rand.Rand, opts destinationOptions) KeptOrDest {
 	})
 }
 
-func genStatement(rng *rand.Rand, poolSize int) Statement {
+func genStatement(rng *rand.Rand, poolSize int, numscriptOnly bool) Statement {
 	pickUnbounded := pick(rng, []weighted[bool]{
 		{1, func() bool { return true }},
 		{3, func() bool { return false }},
@@ -395,8 +482,8 @@ func genStatement(rng *rand.Rand, poolSize int) Statement {
 
 	asset := pickAsset(rng)
 	sent := statementAmount(rng, asset)
-	src := genSource(rng, defaultSourceOptions(sent.Amount, pickUnbounded, poolSize, asset))
-	dest := genDestination(rng, defaultDestinationOptions(poolSize, asset))
+	src := genSource(rng, defaultSourceOptions(sent.Amount, pickUnbounded, poolSize, asset, numscriptOnly))
+	dest := genDestination(rng, defaultDestinationOptions(poolSize, asset, numscriptOnly))
 
 	if pickUnbounded {
 		return Statement{IsSendAll: true, Asset: sent.Asset, Source: src, Destination: dest}
@@ -404,13 +491,13 @@ func genStatement(rng *rand.Rand, poolSize int) Statement {
 	return Statement{IsSendAll: false, Amount: sent, Source: src, Destination: dest}
 }
 
-func genProgram(rng *rand.Rand, poolSize int) Program {
-	return Program(nonUniformListOf(rng, func() Statement { return genStatement(rng, poolSize) }))
+func genProgram(rng *rand.Rand, poolSize int, numscriptOnly bool) Program {
+	return Program(nonUniformListOf(rng, func() Statement { return genStatement(rng, poolSize, numscriptOnly) }))
 }
 
 // GenerateProgram generates a random program (with its own randomized
 // account-pool size) and applies the cleanup pass (cleanup.go) that removes
 // constructs the legacy machine would reject.
 func GenerateProgram(rng *rand.Rand) Program {
-	return cleanupProgram(genProgram(rng, pickPoolSize(rng)))
+	return cleanupProgram(genProgram(rng, pickPoolSize(rng), false))
 }

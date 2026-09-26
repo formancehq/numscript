@@ -637,3 +637,60 @@ func TestResolveDependenciesPublicAPI(t *testing.T) {
 		{Account: "bob", Asset: "USD"}:   {},
 	}, deps.AccountsWrites)
 }
+
+// vmTestStore is a minimal VMStore for the ExecVm contract tests below.
+type vmTestStore map[string]int64
+
+func (s vmTestStore) GetBalance(_ context.Context, account, _, _, _ string) (*big.Int, error) {
+	return big.NewInt(s[account]), nil
+}
+
+func (s vmTestStore) GetMetadata(_ context.Context, _, _, _ string) (string, bool, error) {
+	return "", false, nil
+}
+
+// ExecVm must report the same contract Run does: postings, tx metadata and
+// account metadata rows — not postings alone.
+func TestExecVmReportsMetadata(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)
+
+set_tx_meta("k", "v")
+set_account_meta(@dest, "owner", "alice")`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	res, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{"src": 100})
+	require.Nil(t, execErr)
+
+	require.Equal(t, []numscript.Posting{
+		{Source: "src", Destination: "dest", Asset: "COIN", Amount: big.NewInt(30)},
+	}, res.Postings)
+	require.Equal(t, numscript.Metadata{"k": "v"}, res.Metadata)
+	require.Equal(t, numscript.SetAccountsMetadata{
+		{Account: "dest", Key: "owner", Value: "alice"},
+	}, res.AccountsMetadata)
+}
+
+// ExecVm's failures must be classifiable through the public aliases, without
+// reaching into internal packages.
+func TestExecVmErrorsAreClassifiable(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	_, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{"src": 10})
+	require.NotNil(t, execErr)
+
+	var missingFunds numscript.VmMissingFundsError
+	require.True(t, errors.As(execErr, &missingFunds))
+}

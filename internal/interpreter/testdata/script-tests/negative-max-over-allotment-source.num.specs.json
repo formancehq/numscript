@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "a negative max clause over an allotment clamps to zero before the split",
+      "balances": [
+        { "account": "a", "asset": "COIN", "amount": 100 },
+        { "account": "b", "asset": "COIN", "amount": 100 }
+      ],
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "d",
+          "amount": 10,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

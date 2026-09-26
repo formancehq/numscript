@@ -50,6 +50,16 @@ func DestInorder(clauses []DestInorderClause, remaining KeptOrDest) Destination 
 	}
 }
 
+// DestOneof renders `oneof { max ...; remaining ... }` — clause syntax is the
+// same as DestInorder's. numscript-only (experimental-oneof feature flag); the
+// legacy machine's grammar has no oneof.
+func DestOneof(clauses []DestInorderClause, remaining KeptOrDest) Destination {
+	return func(env *env, w int) {
+		env.builder.WriteString("oneof ")
+		DestInorder(clauses, remaining)(env, w)
+	}
+}
+
 func DestAllotment(clauses ...AllotmentClause[KeptOrDest]) Destination {
 	return destAllotment(clauses, nil)
 }

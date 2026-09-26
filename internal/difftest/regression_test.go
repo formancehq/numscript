@@ -212,12 +212,18 @@ send [COIN *] (
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
+			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 
-			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
-			if v.Mismatch {
+			if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); v.Mismatch {
 				t.Fatalf("mismatch: %s\nnew: %+v\noracle: %+v", v.Reason, newRes, oracleRes)
+			}
+			if v := Compare(vmRes, oracleRes, "vm", "oracle"); v.Mismatch {
+				t.Fatalf("mismatch: %s\nvm: %+v\noracle: %+v", v.Reason, vmRes, oracleRes)
+			}
+			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+				t.Fatalf("mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 			}
 		})
 	}
@@ -240,7 +246,7 @@ func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
   }
 )`
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	v := Compare(newRes, oracleRes, "new interpreter", "oracle")
@@ -255,6 +261,15 @@ func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
 	}
 	if oracleRes.RunErr == "" || oracleRes.MissingFunds {
 		t.Fatalf("expected the oracle to reject the negative max for a non-missing-funds reason; got %+v", oracleRes)
+	}
+
+	// The vm clamps like the interpreter, so the same tolerance fires on its leg.
+	vmRes := runVM(ctx, script, nil, nil, nil, nil)
+	if vmRes.Failed() {
+		t.Fatalf("expected the vm to clamp and succeed; got %+v", vmRes)
+	}
+	if v := Compare(vmRes, oracleRes, "vm", "oracle"); v.Mismatch || v.Tolerated != "negative max clause" {
+		t.Fatalf("expected the negative max clause tolerance on the vm leg, got %+v\nvm: %+v", v, vmRes)
 	}
 }
 
@@ -277,7 +292,7 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 )`
 
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); v.Mismatch {
@@ -293,6 +308,12 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 	if newRes.Failed() {
 		t.Fatalf("expected the interpreter to succeed; got new=%+v", newRes)
 	}
+
+	// The vm must side with the interpreter on the gap.
+	vmRes := runVM(ctx, script, nil, nil, nil, nil)
+	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+		t.Fatalf("the vm does not side with the interpreter: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
+	}
 }
 
 // TestMissingFundsClassificationMismatchStillCaught is the companion to
@@ -305,7 +326,7 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
   destination = @acc1
 )`
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	if !oracleRes.Failed() || oracleRes.MissingFunds {
@@ -317,6 +338,15 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
 
 	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); !v.Mismatch {
 		t.Fatalf("expected new-vs-oracle to be flagged as a mismatch, got none")
+	}
+
+	// Same classification on the vm, so its oracle leg is flagged too.
+	vmRes := runVM(ctx, script, nil, nil, nil, nil)
+	if !vmRes.MissingFunds {
+		t.Fatalf("expected the vm to fail specifically due to missing funds; got vm=%+v", vmRes)
+	}
+	if v := Compare(vmRes, oracleRes, "vm", "oracle"); !v.Mismatch {
+		t.Fatalf("expected vm-vs-oracle to be flagged as a mismatch, got none")
 	}
 }
 
@@ -356,8 +386,9 @@ func TestKnownOpenDivergences(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
+			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
 			if !v.Mismatch {
@@ -365,6 +396,12 @@ func TestKnownOpenDivergences(t *testing.T) {
 					tc.why, newRes, oracleRes)
 			}
 			t.Logf("still diverging, as expected (%s): %s", tc.why, v.Reason)
+
+			// The divergence is numscript-vs-ledger; within numscript the two
+			// engines must still agree on it.
+			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+				t.Fatalf("the vm does not side with the interpreter: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
+			}
 		})
 	}
 }

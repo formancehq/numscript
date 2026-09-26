@@ -1,0 +1,11 @@
+vars {
+  string $id
+}
+
+send [COIN 10] (
+  source = @world
+  destination = {
+    max [COIN 0] to @users:$id
+    remaining to @c
+  }
+)

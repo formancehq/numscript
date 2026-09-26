@@ -36,6 +36,15 @@ type Shape struct {
 	// script.
 	HasChainedOrigin bool
 
+	// numscript-only shapes (see sourceOptions.numscriptOnly). Any of these
+	// makes the script skip the oracle legs: the legacy machine's grammar has
+	// no oneof, colors or division expressions, and its clause-evaluation
+	// order on wrong-asset caps is not the behavior under test.
+	HasOneof         bool
+	HasColoredSource bool
+	HasWrongAssetCap bool
+	HasPortionDiv    bool
+
 	// Scenario kinds in block order, empty without a scenario block.
 	SetupKinds    []string
 	ObserverKinds []string
@@ -129,6 +138,8 @@ func computeShape(s Script) Shape {
 		destRem, destVar := allotmentShapeDest(st.send.Destination)
 		sh.HasAllotmentRemaining = sh.HasAllotmentRemaining || srcRem || destRem
 		sh.HasPortionVar = sh.HasPortionVar || srcVar || destVar
+		numscriptOnlyFactsSrc(st.send.Source, asset, &sh)
+		numscriptOnlyFactsDest(st.send.Destination, asset, &sh)
 	}
 	sh.HasSave = len(saves) > 0
 	sh.HasBoundedOverdraft = len(overdrafts) > 0
@@ -177,6 +188,67 @@ func saveOf(index int, e ExtraStatement, vars []VarDecl) (saveFact, bool) {
 	}
 }
 
+// numscriptOnlyFactsSrc records the numscript-only shapes present in one
+// source tree; asset is the statement's asset, for wrong-asset cap detection.
+func numscriptOnlyFactsSrc(src Source, asset string, sh *Shape) {
+	switch src.Kind {
+	case SrcAccount:
+		sh.HasColoredSource = sh.HasColoredSource || src.Color != ""
+	case SrcAccountOverdraft:
+		sh.HasColoredSource = sh.HasColoredSource || src.Color != ""
+		if src.Overdraft != nil && src.Overdraft.Asset != asset {
+			sh.HasWrongAssetCap = true
+		}
+	case SrcCapped:
+		if src.Cap.Asset != asset {
+			sh.HasWrongAssetCap = true
+		}
+		numscriptOnlyFactsSrc(*src.Inner, asset, sh)
+	case SrcInorder, SrcOneof:
+		sh.HasOneof = sh.HasOneof || src.Kind == SrcOneof
+		for _, inner := range src.Sources {
+			numscriptOnlyFactsSrc(inner, asset, sh)
+		}
+	case SrcAllotment:
+		for _, c := range src.Clauses {
+			sh.HasPortionDiv = sh.HasPortionDiv || c.Div != nil
+			numscriptOnlyFactsSrc(c.Source, asset, sh)
+		}
+		if src.AllotmentRemaining != nil {
+			numscriptOnlyFactsSrc(*src.AllotmentRemaining, asset, sh)
+		}
+	}
+}
+
+func numscriptOnlyFactsDest(d Destination, asset string, sh *Shape) {
+	keptOrDest := func(k KeptOrDest) {
+		if k.Kind == To {
+			numscriptOnlyFactsDest(*k.Dest, asset, sh)
+		}
+	}
+	switch d.Kind {
+	case DestInorder, DestOneof:
+		sh.HasOneof = sh.HasOneof || d.Kind == DestOneof
+		for _, c := range d.InorderClauses {
+			if c.Max.Asset != asset {
+				sh.HasWrongAssetCap = true
+			}
+			keptOrDest(c.KeptOrDest)
+		}
+		if d.Remaining != nil {
+			keptOrDest(*d.Remaining)
+		}
+	case DestAllotment:
+		for _, c := range d.AllotClauses {
+			sh.HasPortionDiv = sh.HasPortionDiv || c.Div != nil
+			keptOrDest(c.KeptOrDest)
+		}
+		if d.AllotRemaining != nil {
+			keptOrDest(*d.AllotRemaining)
+		}
+	}
+}
+
 func boundedOverdraftAccounts(src Source, acc []string) []string {
 	switch src.Kind {
 	case SrcAccountOverdraft:
@@ -185,7 +257,7 @@ func boundedOverdraftAccounts(src Source, acc []string) []string {
 		}
 	case SrcCapped:
 		acc = boundedOverdraftAccounts(*src.Inner, acc)
-	case SrcInorder:
+	case SrcInorder, SrcOneof:
 		for _, inner := range src.Sources {
 			acc = boundedOverdraftAccounts(inner, acc)
 		}
@@ -275,7 +347,7 @@ func allotmentShapeSrc(src Source) (bool, bool) {
 	switch src.Kind {
 	case SrcCapped:
 		merge(allotmentShapeSrc(*src.Inner))
-	case SrcInorder:
+	case SrcInorder, SrcOneof:
 		for _, inner := range src.Sources {
 			merge(allotmentShapeSrc(inner))
 		}
@@ -301,7 +373,7 @@ func allotmentShapeDest(d Destination) (bool, bool) {
 		}
 	}
 	switch d.Kind {
-	case DestInorder:
+	case DestInorder, DestOneof:
 		for _, c := range d.InorderClauses {
 			keptOrDest(c.KeptOrDest)
 		}
@@ -327,7 +399,7 @@ func sourceAccounts(src Source, acc []string) []string {
 		acc = append(acc, src.Account)
 	case SrcCapped:
 		acc = sourceAccounts(*src.Inner, acc)
-	case SrcInorder:
+	case SrcInorder, SrcOneof:
 		for _, inner := range src.Sources {
 			acc = sourceAccounts(inner, acc)
 		}
@@ -346,7 +418,7 @@ func destinationAccounts(d Destination, acc []string) []string {
 	switch d.Kind {
 	case DestAccount:
 		acc = append(acc, d.Account)
-	case DestInorder:
+	case DestInorder, DestOneof:
 		for _, c := range d.InorderClauses {
 			acc = keptOrDestAccounts(c.KeptOrDest, acc)
 		}

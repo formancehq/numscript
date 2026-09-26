@@ -49,6 +49,12 @@ func cleanupSrc(s Source, emptiedAccounts map[string]bool) Source {
 	case SrcInorder:
 		s.Sources = cleanupSrcs(s.Sources, emptiedAccounts)
 		return s
+	case SrcOneof:
+		// branches are alternatives, but the account-dedup map is threaded
+		// through anyway: the pruning is generation-time shaping, and being
+		// conservative here only trims coverage, never correctness
+		s.Sources = cleanupSrcs(s.Sources, emptiedAccounts)
+		return s
 	case SrcCapped:
 		cleaned := cleanupSrc(*s.Inner, emptiedAccounts)
 		s.Inner = &cleaned
@@ -112,7 +118,7 @@ func cleanupSrcs(srcs []Source, emptiedAccounts map[string]bool) []Source {
 // SrcInorder which just drops individually-empty children.
 func removeEmptyAllotmentsSrc(s Source) *Source {
 	switch s.Kind {
-	case SrcInorder:
+	case SrcInorder, SrcOneof:
 		if len(s.Sources) == 0 {
 			return nil
 		}

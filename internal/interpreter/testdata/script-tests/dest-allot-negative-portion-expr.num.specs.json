@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "a negative allotment share receives nothing and the remaining share is capped by the sent amount",
+      "variables": {
+        "n": "-1"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "b",
+          "amount": 90,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

@@ -50,20 +50,22 @@ func TestDifferentialSweep(t *testing.T) {
 	for seed := range sweepSeeds {
 		c := difftest.RunOne(context.Background(), rand.New(rand.NewSource(int64(seed))))
 		r.add(c)
-		if c.OracleVsNew.Tolerated != "" {
-			tolerated[c.OracleVsNew.Tolerated]++
+		for _, leg := range c.Legs() {
+			if leg.Verdict.Tolerated != "" {
+				tolerated[leg.Name+": "+leg.Verdict.Tolerated]++
+			}
+			if !leg.Verdict.Mismatch {
+				continue
+			}
+			k := leg.Name + ": " + divergenceClass(leg.Verdict.Reason)
+			cl, seen := classes[k]
+			if !seen {
+				cl = &class{firstSeed: seed, sampleWhy: leg.Verdict.Reason, sampleVars: c.Vars, sampleSrc: c.Script}
+				classes[k] = cl
+				order = append(order, k)
+			}
+			cl.count++
 		}
-		if !c.OracleVsNew.Mismatch {
-			continue
-		}
-		k := divergenceClass(c.OracleVsNew.Reason)
-		cl, seen := classes[k]
-		if !seen {
-			cl = &class{firstSeed: seed, sampleWhy: c.OracleVsNew.Reason, sampleVars: c.Vars, sampleSrc: c.Script}
-			classes[k] = cl
-			order = append(order, k)
-		}
-		cl.count++
 	}
 
 	t.Log(r.table())
@@ -78,7 +80,7 @@ func TestDifferentialSweep(t *testing.T) {
 	fmt.Fprintf(&sb, "%d divergence class(es) over %d seeds:\n", len(classes), sweepSeeds)
 	for _, k := range order {
 		cl := classes[k]
-		fmt.Fprintf(&sb, "  %-44s %4d scripts (first: seed %d)\n", k, cl.count, cl.firstSeed)
+		fmt.Fprintf(&sb, "  %-60s %4d scripts (first: seed %d)\n", k, cl.count, cl.firstSeed)
 	}
 	sb.WriteString("\nSee internal/oracle/DIVERGENCES.md.\n")
 
@@ -106,6 +108,11 @@ type reach struct {
 	allotRemaining int
 	portionVar     int
 	chainedOrigin  int
+	oneof          int
+	coloredSource  int
+	wrongAssetCap  int
+	portionDiv     int
+	oracleSkipped  int
 }
 
 func (r *reach) add(c difftest.Case) {
@@ -114,7 +121,7 @@ func (r *reach) add(c difftest.Case) {
 	}
 	sh := c.Shape
 	r.strategy[sh.Strategy]++
-	if !c.New.Failed() && !c.Oracle.Failed() {
+	if !c.New.Failed() && !c.Oracle.Failed() && !c.VM.Failed() {
 		r.completed++
 	}
 	if c.Oracle.CompileErr != "" {
@@ -131,10 +138,15 @@ func (r *reach) add(c difftest.Case) {
 	count(&r.sameResource, sh.SaveOverdraftSameResource)
 	count(&r.inOrder, sh.SaveOverdraftSameResourceInOrder)
 	count(&r.overdraws, sh.SaveOverdrawsInitial)
-	count(&r.inOrderDiverg, sh.SaveOverdraftSameResourceInOrder && c.OracleVsNew.Mismatch)
+	count(&r.inOrderDiverg, sh.SaveOverdraftSameResourceInOrder && c.AnyMismatch())
 	count(&r.allotRemaining, sh.HasAllotmentRemaining)
 	count(&r.portionVar, sh.HasPortionVar)
 	count(&r.chainedOrigin, sh.HasChainedOrigin)
+	count(&r.oneof, sh.HasOneof)
+	count(&r.coloredSource, sh.HasColoredSource)
+	count(&r.wrongAssetCap, sh.HasWrongAssetCap)
+	count(&r.portionDiv, sh.HasPortionDiv)
+	count(&r.oracleSkipped, sh.HasOneof || sh.HasColoredSource || sh.HasWrongAssetCap || sh.HasPortionDiv)
 }
 
 func (r *reach) table() string {
@@ -144,7 +156,7 @@ func (r *reach) table() string {
 	row("strategy: uniform", r.strategy[gen.StrategyUniform])
 	row("strategy: scenario + random", r.strategy[gen.StrategyScenarioMixed])
 	row("strategy: scenario only", r.strategy[gen.StrategyScenarioOnly])
-	row("both engines ran to completion", r.completed)
+	row("all three engines ran to completion", r.completed)
 	row("oracle rejected at compile time", r.oracleReject)
 	row("scripts containing a save", r.save)
 	row("containing a bounded overdraft", r.bounded)
@@ -156,6 +168,11 @@ func (r *reach) table() string {
 	row("allotment with a remaining clause", r.allotRemaining)
 	row("allotment portion through a var", r.portionVar)
 	row("origin var chained through another", r.chainedOrigin)
+	row("numscript-only: oneof", r.oneof)
+	row("numscript-only: colored source", r.coloredSource)
+	row("numscript-only: wrong-asset cap", r.wrongAssetCap)
+	row("numscript-only: division portion", r.portionDiv)
+	row("numscript-only total (oracle skipped)", r.oracleSkipped)
 	return sb.String()
 }
 
