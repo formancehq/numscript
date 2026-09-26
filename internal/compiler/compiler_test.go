@@ -40,18 +40,24 @@ func TestSimpleProgram(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
-  $r3 = "src"
-  $r4 = 0
-  $r5 = str_eq($r3, $r0)
-  jmp_if_false($r5, #not_world_0)
-  $r6 = pull_account(account: $r3, cap: $r2)
-  jmp(#pull_end_1)
-#not_world_0
-  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
-#pull_end_1
-  check_enough_funds($r6, $r2)
-  $r7 = "dest"
-  send_to_account(account: $r7)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
+  $r6 = "src"
+  $r7 = 0
+  $r8 = str_eq($r6, $r0)
+  jmp_if_false($r8, #not_world_1)
+  $r9 = pull_account(account: $r6, cap: $r4)
+  jmp(#pull_end_2)
+#not_world_1
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+#pull_end_2
+  check_enough_funds($r9, $r2)
+  $r10 = "dest"
+  send_to_account(account: $r10)
 `))
 }
 
@@ -71,18 +77,24 @@ func TestIntAddition(t *testing.T) {
   $r4 = $r2 + $r3
   assert_non_negative_amount($r4)
   set_current_asset($r1)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = str_eq($r5, $r0)
-  jmp_if_false($r7, #not_world_0)
-  $r8 = pull_account(account: $r5, cap: $r4)
-  jmp(#pull_end_1)
-#not_world_0
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-#pull_end_1
-  check_enough_funds($r8, $r4)
-  $r9 = "dest"
-  send_to_account(account: $r9)
+  $r5 = 0
+  $r6 = int_copy($r4)
+  $r7 = lt_int($r5, $r4)
+  jmp_if_true($r7, #max_end_0)
+  $r6 = int_copy($r5)
+#max_end_0
+  $r8 = "src"
+  $r9 = 0
+  $r10 = str_eq($r8, $r0)
+  jmp_if_false($r10, #not_world_1)
+  $r11 = pull_account(account: $r8, cap: $r6)
+  jmp(#pull_end_2)
+#not_world_1
+  $r11 = pull_account(account: $r8, cap: $r6, overdraft: $r9)
+#pull_end_2
+  check_enough_funds($r11, $r4)
+  $r12 = "dest"
+  send_to_account(account: $r12)
 `))
 }
 
@@ -102,18 +114,24 @@ func TestIntSubtraction(t *testing.T) {
   $r4 = $r2 - $r3
   assert_non_negative_amount($r4)
   set_current_asset($r1)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = str_eq($r5, $r0)
-  jmp_if_false($r7, #not_world_0)
-  $r8 = pull_account(account: $r5, cap: $r4)
-  jmp(#pull_end_1)
-#not_world_0
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-#pull_end_1
-  check_enough_funds($r8, $r4)
-  $r9 = "dest"
-  send_to_account(account: $r9)
+  $r5 = 0
+  $r6 = int_copy($r4)
+  $r7 = lt_int($r5, $r4)
+  jmp_if_true($r7, #max_end_0)
+  $r6 = int_copy($r5)
+#max_end_0
+  $r8 = "src"
+  $r9 = 0
+  $r10 = str_eq($r8, $r0)
+  jmp_if_false($r10, #not_world_1)
+  $r11 = pull_account(account: $r8, cap: $r6)
+  jmp(#pull_end_2)
+#not_world_1
+  $r11 = pull_account(account: $r8, cap: $r6, overdraft: $r9)
+#pull_end_2
+  check_enough_funds($r11, $r4)
+  $r12 = "dest"
+  send_to_account(account: $r12)
 `))
 }
 
@@ -139,18 +157,24 @@ func TestMonetaryAddition(t *testing.T) {
   $r5 = $r2 + $r4
   assert_non_negative_amount($r5)
   set_current_asset($r1)
-  $r6 = "src"
-  $r7 = 0
-  $r8 = str_eq($r6, $r0)
-  jmp_if_false($r8, #not_world_0)
-  $r9 = pull_account(account: $r6, cap: $r5)
-  jmp(#pull_end_1)
-#not_world_0
-  $r9 = pull_account(account: $r6, cap: $r5, overdraft: $r7)
-#pull_end_1
-  check_enough_funds($r9, $r5)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  $r6 = 0
+  $r7 = int_copy($r5)
+  $r8 = lt_int($r6, $r5)
+  jmp_if_true($r8, #max_end_0)
+  $r7 = int_copy($r6)
+#max_end_0
+  $r9 = "src"
+  $r10 = 0
+  $r11 = str_eq($r9, $r0)
+  jmp_if_false($r11, #not_world_1)
+  $r12 = pull_account(account: $r9, cap: $r7)
+  jmp(#pull_end_2)
+#not_world_1
+  $r12 = pull_account(account: $r9, cap: $r7, overdraft: $r10)
+#pull_end_2
+  check_enough_funds($r12, $r5)
+  $r13 = "dest"
+  send_to_account(account: $r13)
 `))
 }
 
@@ -176,18 +200,24 @@ func TestMonetarySubtraction(t *testing.T) {
   $r5 = $r2 - $r4
   assert_non_negative_amount($r5)
   set_current_asset($r1)
-  $r6 = "src"
-  $r7 = 0
-  $r8 = str_eq($r6, $r0)
-  jmp_if_false($r8, #not_world_0)
-  $r9 = pull_account(account: $r6, cap: $r5)
-  jmp(#pull_end_1)
-#not_world_0
-  $r9 = pull_account(account: $r6, cap: $r5, overdraft: $r7)
-#pull_end_1
-  check_enough_funds($r9, $r5)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  $r6 = 0
+  $r7 = int_copy($r5)
+  $r8 = lt_int($r6, $r5)
+  jmp_if_true($r8, #max_end_0)
+  $r7 = int_copy($r6)
+#max_end_0
+  $r9 = "src"
+  $r10 = 0
+  $r11 = str_eq($r9, $r0)
+  jmp_if_false($r11, #not_world_1)
+  $r12 = pull_account(account: $r9, cap: $r7)
+  jmp(#pull_end_2)
+#not_world_1
+  $r12 = pull_account(account: $r9, cap: $r7, overdraft: $r10)
+#pull_end_2
+  check_enough_funds($r12, $r5)
+  $r13 = "dest"
+  send_to_account(account: $r13)
 `))
 }
 
@@ -211,18 +241,24 @@ func TestGetAmount(t *testing.T) {
   $r3 = "USD/2"
   assert_non_negative_amount($r2)
   set_current_asset($r3)
-  $r4 = "src"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r4, cap: $r2)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r4, cap: $r2, overdraft: $r5)
-#pull_end_1
-  check_enough_funds($r7, $r2)
-  $r8 = "dest"
-  send_to_account(account: $r8)
+  $r4 = 0
+  $r5 = int_copy($r2)
+  $r6 = lt_int($r4, $r2)
+  jmp_if_true($r6, #max_end_0)
+  $r5 = int_copy($r4)
+#max_end_0
+  $r7 = "src"
+  $r8 = 0
+  $r9 = str_eq($r7, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r7, cap: $r5)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r7, cap: $r5, overdraft: $r8)
+#pull_end_2
+  check_enough_funds($r10, $r2)
+  $r11 = "dest"
+  send_to_account(account: $r11)
 `))
 }
 
@@ -246,18 +282,24 @@ func TestGetAsset(t *testing.T) {
   $r3 = 10
   assert_non_negative_amount($r3)
   set_current_asset($r1)
-  $r4 = "src"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r4, cap: $r3)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
-#pull_end_1
-  check_enough_funds($r7, $r3)
-  $r8 = "dest"
-  send_to_account(account: $r8)
+  $r4 = 0
+  $r5 = int_copy($r3)
+  $r6 = lt_int($r4, $r3)
+  jmp_if_true($r6, #max_end_0)
+  $r5 = int_copy($r4)
+#max_end_0
+  $r7 = "src"
+  $r8 = 0
+  $r9 = str_eq($r7, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r7, cap: $r5)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r7, cap: $r5, overdraft: $r8)
+#pull_end_2
+  check_enough_funds($r10, $r3)
+  $r11 = "dest"
+  send_to_account(account: $r11)
 `))
 }
 
@@ -281,18 +323,24 @@ func TestPrefixMinusMonetary(t *testing.T) {
   $r4 = neg_int($r3)
   assert_non_negative_amount($r4)
   set_current_asset($r1)
-  $r5 = "src"
-  $r6 = 0
-  $r7 = str_eq($r5, $r0)
-  jmp_if_false($r7, #not_world_0)
-  $r8 = pull_account(account: $r5, cap: $r4)
-  jmp(#pull_end_1)
-#not_world_0
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
-#pull_end_1
-  check_enough_funds($r8, $r4)
-  $r9 = "dest"
-  send_to_account(account: $r9)
+  $r5 = 0
+  $r6 = int_copy($r4)
+  $r7 = lt_int($r5, $r4)
+  jmp_if_true($r7, #max_end_0)
+  $r6 = int_copy($r5)
+#max_end_0
+  $r8 = "src"
+  $r9 = 0
+  $r10 = str_eq($r8, $r0)
+  jmp_if_false($r10, #not_world_1)
+  $r11 = pull_account(account: $r8, cap: $r6)
+  jmp(#pull_end_2)
+#not_world_1
+  $r11 = pull_account(account: $r8, cap: $r6, overdraft: $r9)
+#pull_end_2
+  check_enough_funds($r11, $r4)
+  $r12 = "dest"
+  send_to_account(account: $r12)
 `))
 }
 
@@ -315,18 +363,24 @@ func TestBalance(t *testing.T) {
   assert_non_negative_balance($r3, $r1)
   assert_non_negative_amount($r3)
   set_current_asset($r2)
-  $r4 = "src"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r4, cap: $r3)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
-#pull_end_1
-  check_enough_funds($r7, $r3)
-  $r8 = "dest"
-  send_to_account(account: $r8)
+  $r4 = 0
+  $r5 = int_copy($r3)
+  $r6 = lt_int($r4, $r3)
+  jmp_if_true($r6, #max_end_0)
+  $r5 = int_copy($r4)
+#max_end_0
+  $r7 = "src"
+  $r8 = 0
+  $r9 = str_eq($r7, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r7, cap: $r5)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r7, cap: $r5, overdraft: $r8)
+#pull_end_2
+  check_enough_funds($r10, $r3)
+  $r11 = "dest"
+  send_to_account(account: $r11)
 `))
 }
 
@@ -349,26 +403,32 @@ func TestAccountInterpolation(t *testing.T) {
   $r3 = 10
   assert_non_negative_amount($r3)
   set_current_asset($r2)
-  $r4 = "world"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r4, cap: $r3)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
-#pull_end_1
-  check_enough_funds($r7, $r3)
-  $r8 = "users"
-  $r9 = ":"
-  $r10 = ":"
-  $r11 = "wallet"
-  $r12 = add_string($r8, $r9)
-  $r13 = add_string($r12, $r1)
-  $r14 = add_string($r13, $r10)
-  $r15 = add_string($r14, $r11)
-  assert_valid_account($r15)
-  send_to_account(account: $r15)
+  $r4 = 0
+  $r5 = int_copy($r3)
+  $r6 = lt_int($r4, $r3)
+  jmp_if_true($r6, #max_end_0)
+  $r5 = int_copy($r4)
+#max_end_0
+  $r7 = "world"
+  $r8 = 0
+  $r9 = str_eq($r7, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r7, cap: $r5)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r7, cap: $r5, overdraft: $r8)
+#pull_end_2
+  check_enough_funds($r10, $r3)
+  $r11 = "users"
+  $r12 = ":"
+  $r13 = ":"
+  $r14 = "wallet"
+  $r15 = add_string($r11, $r12)
+  $r16 = add_string($r15, $r1)
+  $r17 = add_string($r16, $r13)
+  $r18 = add_string($r17, $r14)
+  assert_valid_account($r18)
+  send_to_account(account: $r18)
 `))
 }
 
@@ -391,23 +451,29 @@ func TestAccountInterpolationInt(t *testing.T) {
   $r3 = 10
   assert_non_negative_amount($r3)
   set_current_asset($r2)
-  $r4 = "world"
-  $r5 = 0
-  $r6 = str_eq($r4, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r4, cap: $r3)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r4, cap: $r3, overdraft: $r5)
-#pull_end_1
-  check_enough_funds($r7, $r3)
-  $r8 = "account"
-  $r9 = ":"
-  $r10 = int_to_string($r1)
-  $r11 = add_string($r8, $r9)
-  $r12 = add_string($r11, $r10)
-  assert_valid_account($r12)
-  send_to_account(account: $r12)
+  $r4 = 0
+  $r5 = int_copy($r3)
+  $r6 = lt_int($r4, $r3)
+  jmp_if_true($r6, #max_end_0)
+  $r5 = int_copy($r4)
+#max_end_0
+  $r7 = "world"
+  $r8 = 0
+  $r9 = str_eq($r7, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r7, cap: $r5)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r7, cap: $r5, overdraft: $r8)
+#pull_end_2
+  check_enough_funds($r10, $r3)
+  $r11 = "account"
+  $r12 = ":"
+  $r13 = int_to_string($r1)
+  $r14 = add_string($r11, $r12)
+  $r15 = add_string($r14, $r13)
+  assert_valid_account($r15)
+  send_to_account(account: $r15)
 `))
 }
 
@@ -431,46 +497,47 @@ func TestInorder(t *testing.T) {
   set_current_asset($r1)
   $r3 = 0
   $r4 = int_copy($r2)
-  $r5 = "a"
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
   $r6 = 0
-  $r7 = str_eq($r5, $r0)
-  jmp_if_false($r7, #not_world_1)
-  $r8 = pull_account(account: $r5, cap: $r4)
+  $r7 = int_copy($r4)
+  $r8 = "a"
+  $r9 = 0
+  $r10 = str_eq($r8, $r0)
+  jmp_if_false($r10, #not_world_1)
+  $r11 = pull_account(account: $r8, cap: $r7)
   jmp(#pull_end_2)
 #not_world_1
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  $r11 = pull_account(account: $r8, cap: $r7, overdraft: $r9)
 #pull_end_2
-  $r3 += $r8
-  $r4 -= $r8
-  $r9 = is_zero($r4)
-  jmp_if_true($r9, #inorder_end_0)
-  $r10 = "b"
-  $r11 = 0
-  $r12 = str_eq($r10, $r0)
-  jmp_if_false($r12, #not_world_3)
-  $r13 = pull_account(account: $r10, cap: $r4)
+  $r6 += $r11
+  $r7 -= $r11
+  $r12 = "b"
+  $r13 = 0
+  $r14 = str_eq($r12, $r0)
+  jmp_if_false($r14, #not_world_3)
+  $r15 = pull_account(account: $r12, cap: $r7)
   jmp(#pull_end_4)
 #not_world_3
-  $r13 = pull_account(account: $r10, cap: $r4, overdraft: $r11)
+  $r15 = pull_account(account: $r12, cap: $r7, overdraft: $r13)
 #pull_end_4
-  $r3 += $r13
-  $r4 -= $r13
-  $r14 = is_zero($r4)
-  jmp_if_true($r14, #inorder_end_0)
-  $r15 = "c"
-  $r16 = 0
-  $r17 = str_eq($r15, $r0)
-  jmp_if_false($r17, #not_world_5)
-  $r18 = pull_account(account: $r15, cap: $r4)
+  $r6 += $r15
+  $r7 -= $r15
+  $r16 = "c"
+  $r17 = 0
+  $r18 = str_eq($r16, $r0)
+  jmp_if_false($r18, #not_world_5)
+  $r19 = pull_account(account: $r16, cap: $r7)
   jmp(#pull_end_6)
 #not_world_5
-  $r18 = pull_account(account: $r15, cap: $r4, overdraft: $r16)
+  $r19 = pull_account(account: $r16, cap: $r7, overdraft: $r17)
 #pull_end_6
-  $r3 += $r18
-#inorder_end_0
-  check_enough_funds($r3, $r2)
-  $r19 = "dest"
-  send_to_account(account: $r19)
+  $r6 += $r19
+  check_enough_funds($r6, $r2)
+  $r20 = "dest"
+  send_to_account(account: $r20)
 `))
 }
 
@@ -494,54 +561,61 @@ func TestInorderWithCap(t *testing.T) {
   set_current_asset($r1)
   $r3 = 0
   $r4 = int_copy($r2)
-  $r5 = "a"
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
   $r6 = 0
-  $r7 = str_eq($r5, $r0)
-  jmp_if_false($r7, #not_world_1)
-  $r8 = pull_account(account: $r5, cap: $r4)
+  $r7 = int_copy($r4)
+  $r8 = "a"
+  $r9 = 0
+  $r10 = str_eq($r8, $r0)
+  jmp_if_false($r10, #not_world_1)
+  $r11 = pull_account(account: $r8, cap: $r7)
   jmp(#pull_end_2)
 #not_world_1
-  $r8 = pull_account(account: $r5, cap: $r4, overdraft: $r6)
+  $r11 = pull_account(account: $r8, cap: $r7, overdraft: $r9)
 #pull_end_2
-  $r3 += $r8
-  $r4 -= $r8
-  $r9 = is_zero($r4)
-  jmp_if_true($r9, #inorder_end_0)
-  $r10 = "USD/2"
-  $r11 = 5
-  assert_same_asset($r10, $r1)
-  $r12 = int_copy($r11)
-  $r13 = lt_int($r11, $r4)
-  jmp_if_true($r13, #min_end_3)
-  $r12 = int_copy($r4)
+  $r6 += $r11
+  $r7 -= $r11
+  $r12 = "USD/2"
+  $r13 = 5
+  assert_same_asset($r12, $r1)
+  $r14 = int_copy($r13)
+  $r15 = lt_int($r13, $r7)
+  jmp_if_true($r15, #min_end_3)
+  $r14 = int_copy($r7)
 #min_end_3
-  $r14 = "b"
-  $r15 = 0
-  $r16 = str_eq($r14, $r0)
-  jmp_if_false($r16, #not_world_4)
-  $r17 = pull_account(account: $r14, cap: $r12)
-  jmp(#pull_end_5)
-#not_world_4
-  $r17 = pull_account(account: $r14, cap: $r12, overdraft: $r15)
-#pull_end_5
-  $r3 += $r17
-  $r4 -= $r17
-  $r18 = is_zero($r4)
-  jmp_if_true($r18, #inorder_end_0)
-  $r19 = "c"
+  $r16 = 0
+  $r17 = int_copy($r14)
+  $r18 = lt_int($r16, $r14)
+  jmp_if_true($r18, #max_end_4)
+  $r17 = int_copy($r16)
+#max_end_4
+  $r19 = "b"
   $r20 = 0
   $r21 = str_eq($r19, $r0)
-  jmp_if_false($r21, #not_world_6)
-  $r22 = pull_account(account: $r19, cap: $r4)
-  jmp(#pull_end_7)
-#not_world_6
-  $r22 = pull_account(account: $r19, cap: $r4, overdraft: $r20)
-#pull_end_7
-  $r3 += $r22
-#inorder_end_0
-  check_enough_funds($r3, $r2)
-  $r23 = "dest"
-  send_to_account(account: $r23)
+  jmp_if_false($r21, #not_world_5)
+  $r22 = pull_account(account: $r19, cap: $r17)
+  jmp(#pull_end_6)
+#not_world_5
+  $r22 = pull_account(account: $r19, cap: $r17, overdraft: $r20)
+#pull_end_6
+  $r6 += $r22
+  $r7 -= $r22
+  $r23 = "c"
+  $r24 = 0
+  $r25 = str_eq($r23, $r0)
+  jmp_if_false($r25, #not_world_7)
+  $r26 = pull_account(account: $r23, cap: $r7)
+  jmp(#pull_end_8)
+#not_world_7
+  $r26 = pull_account(account: $r23, cap: $r7, overdraft: $r24)
+#pull_end_8
+  $r6 += $r26
+  check_enough_funds($r6, $r2)
+  $r27 = "dest"
+  send_to_account(account: $r27)
 `))
 }
 
@@ -562,36 +636,51 @@ func TestDestInorder(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
-  $r3 = "world"
-  $r4 = 0
-  $r5 = str_eq($r3, $r0)
-  jmp_if_false($r5, #not_world_0)
-  $r6 = pull_account(account: $r3, cap: $r2)
-  jmp(#pull_end_1)
-#not_world_0
-  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
-#pull_end_1
-  check_enough_funds($r6, $r2)
-  $r7 = int_copy($r6)
-  $r8 = "USD/2"
-  $r9 = 4
-  assert_same_asset($r8, $r1)
-  $r10 = 0
-  $r11 = int_copy($r7)
-  $r12 = lt_int($r7, $r9)
-  jmp_if_true($r12, #min_end_2)
-  $r11 = int_copy($r9)
-#min_end_2
-  $r13 = int_copy($r11)
-  $r14 = lt_int($r10, $r11)
-  jmp_if_true($r14, #max_end_3)
-  $r13 = int_copy($r10)
-#max_end_3
-  $r15 = "d1"
-  send_to_account(account: $r15, cap: $r13)
-  $r7 -= $r13
-  $r16 = "d2"
-  send_to_account(account: $r16, cap: $r7)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
+  $r6 = "world"
+  $r7 = 0
+  $r8 = str_eq($r6, $r0)
+  jmp_if_false($r8, #not_world_1)
+  $r9 = pull_account(account: $r6, cap: $r4)
+  jmp(#pull_end_2)
+#not_world_1
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+#pull_end_2
+  check_enough_funds($r9, $r2)
+  $r10 = int_copy($r9)
+  $r11 = is_zero($r10)
+  jmp_if_true($r11, #dest_inorder_end_3)
+  $r12 = "USD/2"
+  $r13 = 4
+  assert_same_asset($r12, $r1)
+  $r14 = 0
+  $r15 = int_copy($r10)
+  $r16 = lt_int($r10, $r13)
+  jmp_if_true($r16, #min_end_4)
+  $r15 = int_copy($r13)
+#min_end_4
+  $r17 = int_copy($r15)
+  $r18 = lt_int($r14, $r15)
+  jmp_if_true($r18, #max_end_5)
+  $r17 = int_copy($r14)
+#max_end_5
+  $r19 = is_zero($r17)
+  jmp_if_true($r19, #dest_inorder_skip_6)
+  $r20 = "d1"
+  send_to_account(account: $r20, cap: $r17)
+  $r10 -= $r17
+#dest_inorder_skip_6
+#dest_inorder_end_3
+  $r21 = is_zero($r10)
+  jmp_if_true($r21, #dest_inorder_rem_skip_7)
+  $r22 = "d2"
+  send_to_account(account: $r22, cap: $r10)
+#dest_inorder_rem_skip_7
 `))
 }
 
@@ -613,52 +702,58 @@ func TestSourceOneofSimple(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
   mark_push()
-  $r3 = "a"
-  $r4 = 0
-  $r5 = str_eq($r3, $r0)
-  jmp_if_false($r5, #not_world_1)
-  $r6 = pull_account(account: $r3, cap: $r2)
-  jmp(#pull_end_2)
-#not_world_1
-  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
-#pull_end_2
-  $r7 = int_copy($r6)
-  $r8 = $r2 - $r6
-  $r9 = is_zero($r8)
-  jmp_if_true($r9, #oneof_end_0)
+  $r6 = "a"
+  $r7 = 0
+  $r8 = str_eq($r6, $r0)
+  jmp_if_false($r8, #not_world_2)
+  $r9 = pull_account(account: $r6, cap: $r4)
+  jmp(#pull_end_3)
+#not_world_2
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+#pull_end_3
+  $r10 = int_copy($r9)
+  $r11 = $r4 - $r9
+  $r12 = is_zero($r11)
+  jmp_if_true($r12, #oneof_end_1)
   mark_rewind()
   mark_push()
-  $r10 = "b"
-  $r11 = 0
-  $r12 = str_eq($r10, $r0)
-  jmp_if_false($r12, #not_world_3)
-  $r13 = pull_account(account: $r10, cap: $r2)
-  jmp(#pull_end_4)
-#not_world_3
-  $r13 = pull_account(account: $r10, cap: $r2, overdraft: $r11)
-#pull_end_4
-  $r7 = int_copy($r13)
-  $r14 = $r2 - $r13
-  $r15 = is_zero($r14)
-  jmp_if_true($r15, #oneof_end_0)
+  $r13 = "b"
+  $r14 = 0
+  $r15 = str_eq($r13, $r0)
+  jmp_if_false($r15, #not_world_4)
+  $r16 = pull_account(account: $r13, cap: $r4)
+  jmp(#pull_end_5)
+#not_world_4
+  $r16 = pull_account(account: $r13, cap: $r4, overdraft: $r14)
+#pull_end_5
+  $r10 = int_copy($r16)
+  $r17 = $r4 - $r16
+  $r18 = is_zero($r17)
+  jmp_if_true($r18, #oneof_end_1)
   mark_rewind()
   mark_push()
-  $r16 = "c"
-  $r17 = 0
-  $r18 = str_eq($r16, $r0)
-  jmp_if_false($r18, #not_world_5)
-  $r19 = pull_account(account: $r16, cap: $r2)
-  jmp(#pull_end_6)
-#not_world_5
-  $r19 = pull_account(account: $r16, cap: $r2, overdraft: $r17)
-#pull_end_6
-  $r7 = int_copy($r19)
-#oneof_end_0
+  $r19 = "c"
+  $r20 = 0
+  $r21 = str_eq($r19, $r0)
+  jmp_if_false($r21, #not_world_6)
+  $r22 = pull_account(account: $r19, cap: $r4)
+  jmp(#pull_end_7)
+#not_world_6
+  $r22 = pull_account(account: $r19, cap: $r4, overdraft: $r20)
+#pull_end_7
+  $r10 = int_copy($r22)
+#oneof_end_1
   mark_commit()
-  check_enough_funds($r7, $r2)
-  $r20 = "dest"
-  send_to_account(account: $r20)
+  check_enough_funds($r10, $r2)
+  $r23 = "dest"
+  send_to_account(account: $r23)
 `))
 }
 
@@ -680,37 +775,43 @@ func TestSourceOneofBounded(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
   mark_push()
-  $r3 = "a"
-  $r4 = 0
-  $r5 = str_eq($r3, $r0)
-  jmp_if_false($r5, #not_world_1)
-  $r6 = pull_account(account: $r3, cap: $r2)
-  jmp(#pull_end_2)
-#not_world_1
-  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
-#pull_end_2
-  $r7 = int_copy($r6)
-  $r8 = $r2 - $r6
-  $r9 = is_zero($r8)
-  jmp_if_true($r9, #oneof_end_0)
+  $r6 = "a"
+  $r7 = 0
+  $r8 = str_eq($r6, $r0)
+  jmp_if_false($r8, #not_world_2)
+  $r9 = pull_account(account: $r6, cap: $r4)
+  jmp(#pull_end_3)
+#not_world_2
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+#pull_end_3
+  $r10 = int_copy($r9)
+  $r11 = $r4 - $r9
+  $r12 = is_zero($r11)
+  jmp_if_true($r12, #oneof_end_1)
   mark_rewind()
   mark_push()
-  $r10 = "b"
-  $r11 = 0
-  $r12 = str_eq($r10, $r0)
-  jmp_if_false($r12, #not_world_3)
-  $r13 = pull_account(account: $r10, cap: $r2)
-  jmp(#pull_end_4)
-#not_world_3
-  $r13 = pull_account(account: $r10, cap: $r2, overdraft: $r11)
-#pull_end_4
-  $r7 = int_copy($r13)
-#oneof_end_0
+  $r13 = "b"
+  $r14 = 0
+  $r15 = str_eq($r13, $r0)
+  jmp_if_false($r15, #not_world_4)
+  $r16 = pull_account(account: $r13, cap: $r4)
+  jmp(#pull_end_5)
+#not_world_4
+  $r16 = pull_account(account: $r13, cap: $r4, overdraft: $r14)
+#pull_end_5
+  $r10 = int_copy($r16)
+#oneof_end_1
   mark_commit()
-  check_enough_funds($r7, $r2)
-  $r14 = "dest"
-  send_to_account(account: $r14)
+  check_enough_funds($r10, $r2)
+  $r17 = "dest"
+  send_to_account(account: $r17)
 `))
 }
 
@@ -731,35 +832,41 @@ func TestDestOneof(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
-  $r3 = "world"
-  $r4 = 0
-  $r5 = str_eq($r3, $r0)
-  jmp_if_false($r5, #not_world_0)
-  $r6 = pull_account(account: $r3, cap: $r2)
-  jmp(#pull_end_1)
-#not_world_0
-  $r6 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
-#pull_end_1
-  check_enough_funds($r6, $r2)
-  $r7 = "USD/2"
-  $r8 = 4
-  assert_same_asset($r7, $r1)
-  $r9 = int_copy($r6)
-  $r10 = lt_int($r6, $r8)
-  jmp_if_true($r10, #min_end_4)
-  $r9 = int_copy($r8)
-#min_end_4
-  $r11 = $r6 - $r9
-  $r12 = is_zero($r11)
-  jmp_if_true($r12, #oneof_dest_clause_3)
-  $r13 = "b"
-  send_to_account(account: $r13)
-  jmp(#oneof_dest_end_2)
-#oneof_dest_clause_3
-  $r14 = "a"
-  send_to_account(account: $r14)
-  jmp(#oneof_dest_end_2)
-#oneof_dest_end_2
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
+  $r6 = "world"
+  $r7 = 0
+  $r8 = str_eq($r6, $r0)
+  jmp_if_false($r8, #not_world_1)
+  $r9 = pull_account(account: $r6, cap: $r4)
+  jmp(#pull_end_2)
+#not_world_1
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+#pull_end_2
+  check_enough_funds($r9, $r2)
+  $r10 = "USD/2"
+  $r11 = 4
+  assert_same_asset($r10, $r1)
+  $r12 = int_copy($r9)
+  $r13 = lt_int($r9, $r11)
+  jmp_if_true($r13, #min_end_5)
+  $r12 = int_copy($r11)
+#min_end_5
+  $r14 = $r9 - $r12
+  $r15 = is_zero($r14)
+  jmp_if_true($r15, #oneof_dest_clause_4)
+  $r16 = "b"
+  send_to_account(account: $r16)
+  jmp(#oneof_dest_end_3)
+#oneof_dest_clause_4
+  $r17 = "a"
+  send_to_account(account: $r17)
+  jmp(#oneof_dest_end_3)
+#oneof_dest_end_3
 `))
 }
 
@@ -778,20 +885,26 @@ func TestColoredSource(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
-  $r3 = "src"
-  $r4 = "RED"
-  assert_valid_color($r4)
-  $r5 = 0
-  $r6 = str_eq($r3, $r0)
-  jmp_if_false($r6, #not_world_0)
-  $r7 = pull_account(account: $r3, cap: $r2, color: $r4)
-  jmp(#pull_end_1)
-#not_world_0
-  $r7 = pull_account(account: $r3, cap: $r2, overdraft: $r5, color: $r4)
-#pull_end_1
-  check_enough_funds($r7, $r2)
-  $r8 = "dest"
-  send_to_account(account: $r8)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
+  $r6 = "src"
+  $r7 = "RED"
+  assert_valid_color($r7)
+  $r8 = 0
+  $r9 = str_eq($r6, $r0)
+  jmp_if_false($r9, #not_world_1)
+  $r10 = pull_account(account: $r6, cap: $r4, color: $r7)
+  jmp(#pull_end_2)
+#not_world_1
+  $r10 = pull_account(account: $r6, cap: $r4, overdraft: $r8, color: $r7)
+#pull_end_2
+  check_enough_funds($r10, $r2)
+  $r11 = "dest"
+  send_to_account(account: $r11)
 `))
 }
 
@@ -810,12 +923,18 @@ func TestColoredOverdraftSource(t *testing.T) {
   $r2 = 10
   assert_non_negative_amount($r2)
   set_current_asset($r1)
-  $r3 = "src"
-  $r4 = "RED"
-  assert_valid_color($r4)
-  $r5 = pull_account(account: $r3, cap: $r2, color: $r4)
-  check_enough_funds($r5, $r2)
-  $r6 = "dest"
-  send_to_account(account: $r6)
+  $r3 = 0
+  $r4 = int_copy($r2)
+  $r5 = lt_int($r3, $r2)
+  jmp_if_true($r5, #max_end_0)
+  $r4 = int_copy($r3)
+#max_end_0
+  $r6 = "src"
+  $r7 = "RED"
+  assert_valid_color($r7)
+  $r8 = pull_account(account: $r6, cap: $r4, color: $r7)
+  check_enough_funds($r8, $r2)
+  $r9 = "dest"
+  send_to_account(account: $r9)
 `))
 }

@@ -69,6 +69,11 @@ type SideResult struct {
 	// other vm-side rejection of a script another engine ran stays a
 	// mismatch.
 	RegisterOverflow bool
+	// ProgramTooLarge is RegisterOverflow's sibling for the encoding's other
+	// capacity bound: an instruction stream outgrowing what a uint16 jump
+	// target can address (ir.ErrProgramTooLarge). Same treatment: tolerated by
+	// name and counted.
+	ProgramTooLarge bool
 	// InternalErr is set when an engine broke its own contract, as opposed to
 	// rejecting the script. Deliberately not CompileErr: Compare tolerates one
 	// side rejecting what the other accepted, so a self-inconsistency reported as
