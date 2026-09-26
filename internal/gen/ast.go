@@ -29,6 +29,9 @@ const (
 	SrcCapped
 	SrcInorder
 	SrcAllotment
+	// numscript-only (experimental-oneof): scripts containing it skip the
+	// oracle legs.
+	SrcOneof
 )
 
 type Source struct {
@@ -38,6 +41,12 @@ type Source struct {
 	Account      string
 	AccountAsVar bool
 
+	// SrcAccount, SrcAccountOverdraft: non-empty adds a `\ "COLOR"` clause.
+	// numscript-only (experimental-asset-colors): scripts containing it skip
+	// the oracle legs.
+	Color      string
+	ColorAsVar bool
+
 	// SrcAccountOverdraft only: nil means unbounded overdraft
 	Overdraft *Monetary
 
@@ -45,7 +54,7 @@ type Source struct {
 	Cap   *Monetary
 	Inner *Source
 
-	// SrcInorder only
+	// SrcInorder, SrcOneof
 	Sources []Source
 
 	// SrcAllotment only
@@ -55,13 +64,29 @@ type Source struct {
 	AllotmentRemaining *Source
 }
 
+// PortionDiv is a portion written as a division expression `$num/den` (the
+// numerator always renders through a runtime-bound number var, so any sign is
+// expressible without unary minus). Unlike literals and portion vars, the value
+// is unconstrained: negative and over-one portions are reachable this way, and
+// both engines must agree on what they do. numscript-only: the oracle's grammar
+// has no division expression.
+type PortionDiv struct {
+	Num *big.Int
+	Den *big.Int
+}
+
+func (d PortionDiv) Rat() *big.Rat { return new(big.Rat).SetFrac(d.Num, d.Den) }
+
 type SourceAllotmentClause struct {
 	Portion *big.Rat
 	// Rendered as a runtime-bound portion var instead of an n/d literal. Only
 	// legal in an allotment with a remaining clause: without one, the oracle
 	// rejects the block at compile time ("might be less than 100%").
 	PortionAsVar bool
-	Source       Source
+	// When non-nil, the clause portion is Div rendered as a division expression
+	// and Portion/PortionAsVar are ignored.
+	Div    *PortionDiv
+	Source Source
 }
 
 type DestKind int
@@ -70,6 +95,8 @@ const (
 	DestAccount DestKind = iota
 	DestInorder
 	DestAllotment
+	// numscript-only (experimental-oneof), same clause fields as DestInorder.
+	DestOneof
 )
 
 type Destination struct {
@@ -79,7 +106,7 @@ type Destination struct {
 	Account      string
 	AccountAsVar bool
 
-	// DestInorder only
+	// DestInorder, DestOneof
 	InorderClauses []DestInorderClause
 	Remaining      *KeptOrDest
 
@@ -99,7 +126,9 @@ type DestAllotmentClause struct {
 	Portion *big.Rat
 	// Same constraint as SourceAllotmentClause.PortionAsVar.
 	PortionAsVar bool
-	KeptOrDest   KeptOrDest
+	// Same meaning as SourceAllotmentClause.Div.
+	Div        *PortionDiv
+	KeptOrDest KeptOrDest
 }
 
 type KeptOrDestKind int

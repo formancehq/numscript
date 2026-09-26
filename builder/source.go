@@ -53,6 +53,16 @@ func SrcColoredOverdraft(
 	}
 }
 
+// SrcOneof renders `oneof { ... }`. The construct exists only in numscript
+// (experimental-oneof feature flag); the legacy machine's grammar has no
+// oneof, so scripts using it cannot be compared against the oracle.
+func SrcOneof(sources ...Source) Source {
+	return func(env *env, w int) {
+		env.builder.WriteString("oneof ")
+		SrcInorder(sources...)(env, w)
+	}
+}
+
 func SrcInorder(sources ...Source) Source {
 	return func(env *env, w int) {
 		env.builder.WriteString("{\n")

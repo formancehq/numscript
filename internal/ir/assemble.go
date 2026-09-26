@@ -17,6 +17,12 @@ const maxReg = 0xFF
 // engine, not a semantic rejection of the script.
 var ErrRegisterBankOverflow = errors.New("register bank overflow")
 
+// ErrProgramTooLarge is the assembler refusing a program whose instruction
+// stream outgrows what a jump target can address — the encoding's uint16
+// operand limit. Like ErrRegisterBankOverflow, a capacity bound of the
+// compiled engine, not a semantic rejection of the script.
+var ErrProgramTooLarge = errors.New("program too large")
+
 // regPool assigns each virtual Reg a physical bank index (0..maxReg-1),
 // reusing an index once its Reg's last reference has been processed.
 //
@@ -984,7 +990,7 @@ func (i LoadVar) assemble(a *assembler) error {
 func (i LabelMarker) assemble(a *assembler) error {
 	l := len(a.instructions)
 	if l > math.MaxUint16 {
-		return fmt.Errorf("too many labels: overflown max safe uint16")
+		return fmt.Errorf("%w: a label sits past instruction %d, the most a jump target can address", ErrProgramTooLarge, math.MaxUint16)
 	}
 
 	a.labels[i.Label] = uint16(l)

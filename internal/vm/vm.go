@@ -230,7 +230,11 @@ func Exec[S Store](
 		case Op_CheckEnoughFunds:
 			got := &intsRegs[instr.A]
 			needed := &intsRegs[instr.B]
-			if got.Cmp(needed) == -1 {
+			// an exact-pull check, not a >=: needed can be negative (an allotment
+			// share of a negative portion), and the pull clamps at zero, so got >
+			// needed. The interpreter's tryTakingExact fails on any difference and
+			// classifies it as missing funds; so does this.
+			if got.Cmp(needed) != 0 {
 				return funds.ExecutionResult{}, MissingFundsError{
 					Asset:  currentAsset,
 					Got:    got,

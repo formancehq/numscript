@@ -61,6 +61,11 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 			// script the b-side ran stays the interesting direction below.
 			return tolerated("vm register capacity")
 		}
+		if aRes.ProgramTooLarge {
+			// The encoding's other capacity bound (uint16 jump targets), with
+			// the same reasoning and the same fail-closed behavior.
+			return tolerated("vm program size")
+		}
 		// The interesting direction: the generator stays within the b-side's
 		// grammar and a-side should be a strict superset, so a-side rejecting what
 		// b-side compiled is a genuine divergence.
@@ -201,13 +206,14 @@ func metaWroteSameOrNothing(what string, from, to map[string]string, fromLabel, 
 	return ok()
 }
 
-// postingKey groups postings that move the same asset between the same
-// two accounts, regardless of how many separate posting lines an engine
+// postingKey groups postings that move the same (asset, color) between the
+// same two accounts, regardless of how many separate posting lines an engine
 // happened to split that movement into.
 type postingKey struct {
 	Source      string
 	Destination string
 	Asset       string
+	Color       string
 }
 
 func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
@@ -221,7 +227,7 @@ func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
 			// enforce it here too so the equivalence lives in one place.
 			continue
 		}
-		k := postingKey{Source: p.Source, Destination: p.Destination, Asset: p.Asset}
+		k := postingKey{Source: p.Source, Destination: p.Destination, Asset: p.Asset, Color: p.Color}
 		total, ok := agg[k]
 		if !ok {
 			total = new(big.Int)

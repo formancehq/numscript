@@ -78,14 +78,20 @@ func TestCompareStillToleratesAPlainRejection(t *testing.T) {
 }
 
 // An a-side compile rejection is a mismatch (the vm refusing a script another
-// engine ran), with one named exception: the register-capacity bound, a
-// fail-closed limit of the bytecode encoding that a pathological generated
-// script can exceed (ir.ErrRegisterBankOverflow). Tolerated and counted;
-// every other a-side rejection stays flagged.
-func TestCompareToleratesOnlyTheRegisterCapacityRejection(t *testing.T) {
+// engine ran), with two named exceptions, both fail-closed capacity bounds of
+// the bytecode encoding that a pathological generated script can exceed: the
+// register bank (ir.ErrRegisterBankOverflow) and the instruction count a jump
+// target can address (ir.ErrProgramTooLarge). Tolerated and counted; every
+// other a-side rejection stays flagged.
+func TestCompareToleratesOnlyTheCapacityRejections(t *testing.T) {
 	overflow := difftest.SideResult{CompileErr: "register bank overflow: ...", RegisterOverflow: true}
 	if v := difftest.Compare(overflow, difftest.SideResult{}, "vm", "oracle"); v.Mismatch || v.Tolerated != "vm register capacity" {
 		t.Fatalf("expected the register-capacity tolerance, got %+v", v)
+	}
+
+	tooLarge := difftest.SideResult{CompileErr: "program too large: ...", ProgramTooLarge: true}
+	if v := difftest.Compare(tooLarge, difftest.SideResult{}, "vm", "oracle"); v.Mismatch || v.Tolerated != "vm program size" {
+		t.Fatalf("expected the program-size tolerance, got %+v", v)
 	}
 
 	plain := difftest.SideResult{CompileErr: "no such feature"}

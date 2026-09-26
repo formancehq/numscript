@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/formancehq/numscript/builder"
+	"github.com/formancehq/numscript/internal/flags"
 )
 
 // RandFromBytes derives an RNG from arbitrary bytes, so a Go fuzz target can
@@ -25,6 +26,15 @@ type Generated struct {
 	Metadata map[MetaKey]string
 	Script   string
 	Shape    Shape
+
+	// Flags are the feature flags the script needs on the numscript engines
+	// (interpreter and compiler+VM). Derived from Shape.
+	Flags []string
+	// OracleCompatible is false when the script uses shapes outside the legacy
+	// machine's grammar or decided behavior (oneof, colors, division portions,
+	// wrong-asset caps): the harness then runs only the two numscript engines
+	// and compares them against each other.
+	OracleCompatible bool
 }
 
 // Generate formats a random Script as a runnable numscript program. The
@@ -44,12 +54,24 @@ func Generate(rng *rand.Rand) Generated {
 		}
 	}
 
+	shape := computeShape(s)
+	var featureFlags []string
+	if shape.HasOneof {
+		featureFlags = append(featureFlags, flags.ExperimentalOneofFeatureFlag)
+	}
+	if shape.HasColoredSource {
+		featureFlags = append(featureFlags, flags.ExperimentalAssetColors)
+	}
+
 	return Generated{
 		Vars:     vars,
 		Balances: s.Balances,
 		Metadata: s.Metadata,
 		Script:   script,
-		Shape:    computeShape(s),
+		Shape:    shape,
+
+		Flags:            featureFlags,
+		OracleCompatible: !shape.HasOneof && !shape.HasColoredSource && !shape.HasWrongAssetCap && !shape.HasPortionDiv,
 	}
 }
 

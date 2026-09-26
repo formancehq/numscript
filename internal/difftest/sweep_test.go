@@ -108,6 +108,11 @@ type reach struct {
 	allotRemaining int
 	portionVar     int
 	chainedOrigin  int
+	oneof          int
+	coloredSource  int
+	wrongAssetCap  int
+	portionDiv     int
+	oracleSkipped  int
 }
 
 func (r *reach) add(c difftest.Case) {
@@ -137,6 +142,11 @@ func (r *reach) add(c difftest.Case) {
 	count(&r.allotRemaining, sh.HasAllotmentRemaining)
 	count(&r.portionVar, sh.HasPortionVar)
 	count(&r.chainedOrigin, sh.HasChainedOrigin)
+	count(&r.oneof, sh.HasOneof)
+	count(&r.coloredSource, sh.HasColoredSource)
+	count(&r.wrongAssetCap, sh.HasWrongAssetCap)
+	count(&r.portionDiv, sh.HasPortionDiv)
+	count(&r.oracleSkipped, sh.HasOneof || sh.HasColoredSource || sh.HasWrongAssetCap || sh.HasPortionDiv)
 }
 
 func (r *reach) table() string {
@@ -158,6 +168,11 @@ func (r *reach) table() string {
 	row("allotment with a remaining clause", r.allotRemaining)
 	row("allotment portion through a var", r.portionVar)
 	row("origin var chained through another", r.chainedOrigin)
+	row("numscript-only: oneof", r.oneof)
+	row("numscript-only: colored source", r.coloredSource)
+	row("numscript-only: wrong-asset cap", r.wrongAssetCap)
+	row("numscript-only: division portion", r.portionDiv)
+	row("numscript-only total (oracle skipped)", r.oracleSkipped)
 	return sb.String()
 }
 

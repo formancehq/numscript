@@ -280,24 +280,31 @@ func toBuilderPortion(r *big.Rat, asVar bool) builder.Expression[builder.ExprTyp
 func toBuilderSource(s Source) builder.Source {
 	switch s.Kind {
 	case SrcAccount:
+		if s.Color != "" {
+			return builder.SrcColored(toBuilderAccount(s.Account, s.AccountAsVar), toBuilderString(s.Color, s.ColorAsVar))
+		}
 		return builder.SrcAccount(toBuilderAccount(s.Account, s.AccountAsVar))
 
 	case SrcAccountOverdraft:
-		if s.Overdraft == nil {
-			return builder.SrcAccountOverdraft(toBuilderAccount(s.Account, s.AccountAsVar), builder.UnboundedOverdraft())
+		overdraft := builder.UnboundedOverdraft()
+		if s.Overdraft != nil {
+			overdraft = builder.BoundedOverdraft(toBuilderMonetary(*s.Overdraft))
 		}
-		return builder.SrcAccountOverdraft(
-			toBuilderAccount(s.Account, s.AccountAsVar),
-			builder.BoundedOverdraft(toBuilderMonetary(*s.Overdraft)),
-		)
+		if s.Color != "" {
+			return builder.SrcColoredOverdraft(toBuilderAccount(s.Account, s.AccountAsVar), toBuilderString(s.Color, s.ColorAsVar), overdraft)
+		}
+		return builder.SrcAccountOverdraft(toBuilderAccount(s.Account, s.AccountAsVar), overdraft)
 
 	case SrcCapped:
 		return builder.SrcCapped(toBuilderMonetary(*s.Cap), toBuilderSource(*s.Inner))
 
-	case SrcInorder:
+	case SrcInorder, SrcOneof:
 		sources := make([]builder.Source, len(s.Sources))
 		for i, inner := range s.Sources {
 			sources[i] = toBuilderSource(inner)
+		}
+		if s.Kind == SrcOneof {
+			return builder.SrcOneof(sources...)
 		}
 		return builder.SrcInorder(sources...)
 
@@ -305,7 +312,7 @@ func toBuilderSource(s Source) builder.Source {
 		clauses := make([]builder.AllotmentClause[builder.Source], len(s.Clauses))
 		for i, c := range s.Clauses {
 			clauses[i] = builder.AllotmentClause[builder.Source]{
-				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
+				Portion: toBuilderClausePortion(c.Portion, c.PortionAsVar, c.Div),
 				Payload: toBuilderSource(c.Source),
 			}
 		}
@@ -319,12 +326,25 @@ func toBuilderSource(s Source) builder.Source {
 	}
 }
 
+// toBuilderClausePortion renders one allotment clause's portion: a division
+// expression when Div is set (numerator through a number var, so negative
+// values need no unary minus), otherwise the literal/var portion.
+func toBuilderClausePortion(r *big.Rat, asVar bool, div *PortionDiv) builder.Expression[builder.ExprTypePortion] {
+	if div != nil {
+		return builder.ExprPortionDiv(
+			builder.ExprNumberVar(div.Num),
+			builder.ExprNumberBigInt(div.Den),
+		)
+	}
+	return toBuilderPortion(r, asVar)
+}
+
 func toBuilderDestination(d Destination) builder.Destination {
 	switch d.Kind {
 	case DestAccount:
 		return builder.DestAccount(toBuilderAccount(d.Account, d.AccountAsVar))
 
-	case DestInorder:
+	case DestInorder, DestOneof:
 		clauses := make([]builder.DestInorderClause, len(d.InorderClauses))
 		for i, c := range d.InorderClauses {
 			clauses[i] = builder.DestInorderClause{
@@ -332,13 +352,16 @@ func toBuilderDestination(d Destination) builder.Destination {
 				Dest: toBuilderKeptOrDest(c.KeptOrDest),
 			}
 		}
+		if d.Kind == DestOneof {
+			return builder.DestOneof(clauses, toBuilderKeptOrDest(*d.Remaining))
+		}
 		return builder.DestInorder(clauses, toBuilderKeptOrDest(*d.Remaining))
 
 	case DestAllotment:
 		clauses := make([]builder.AllotmentClause[builder.KeptOrDest], len(d.AllotClauses))
 		for i, c := range d.AllotClauses {
 			clauses[i] = builder.AllotmentClause[builder.KeptOrDest]{
-				Portion: toBuilderPortion(c.Portion, c.PortionAsVar),
+				Portion: toBuilderClausePortion(c.Portion, c.PortionAsVar, c.Div),
 				Payload: toBuilderKeptOrDest(c.KeptOrDest),
 			}
 		}

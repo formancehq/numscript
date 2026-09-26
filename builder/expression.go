@@ -115,6 +115,18 @@ func ExprNumberVar(amount *big.Int) Expression[ExprTypeNumber] {
 	}
 }
 
+// ExprPortionDiv renders `<num>/<den>`: the division-expression form of a
+// portion, which unlike an n/d Portion literal can carry a var numerator and
+// therefore any sign or magnitude. numscript-only: the legacy machine's
+// grammar has no division expression, so the oracle rejects scripts using it.
+func ExprPortionDiv(num, den Expression[ExprTypeNumber]) Expression[ExprTypePortion] {
+	return func(env *env, w int) {
+		num(env, w)
+		env.builder.WriteString("/")
+		den(env, w)
+	}
+}
+
 // ExprStringLit renders s inline, as a quoted string literal. ExprString is
 // the var form.
 func ExprStringLit(s string) Expression[ExprTypeString] {
