@@ -44,7 +44,7 @@ func FuzzExec(f *testing.F) {
 			IntsPool:     intsPool,
 		})
 
-		if VerifyWithVars(prog, vars) != nil {
+		if _, err := VerifyWithVars(prog, vars); err != nil {
 			return
 		}
 

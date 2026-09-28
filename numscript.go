@@ -200,7 +200,14 @@ var (
 //
 // VerifyCompiledProgramWithVars additionally checks the program against the vars
 // it will be given; prefer it whenever vars are in play, since a program that
-// loads a variable is only safe against a pool that actually has it.
+// loads a variable is only safe against a pool that actually has it. On
+// success it also returns a VerifiedVarsInfo: a caller that reuses the same
+// compiled Program across many calls (e.g. an LRU cache keyed on the compiled
+// bytes) can keep this and use its CheckVars method to skip re-running
+// verification — a whole-program static pass — when it sees a Vars shape it
+// already knows is compatible.
+type VerifiedVarsInfo = vm.VerifiedVarsInfo
+
 var (
 	VerifyCompiledProgram         = vm.Verify
 	VerifyCompiledProgramWithVars = vm.VerifyWithVars

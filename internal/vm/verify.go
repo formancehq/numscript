@@ -88,26 +88,54 @@ func Verify(p Program) error {
 	return err
 }
 
+// VerifiedVarsInfo records, opaquely, the variable-pool sizes a Program was
+// found to require by a successful VerifyWithVars call. A caller that keeps
+// the Program around — e.g. one compiled artifact reused across many calls
+// with (normally) the same Vars shape — can hold on to this instead of the
+// Program's raw pool-size requirements, and later ask CheckVars whether a
+// new Vars value would still satisfy VerifyWithVars, without paying for the
+// static pass again. The fields are deliberately unexported: what "shape"
+// means is this package's business, not a caller's.
+type VerifiedVarsInfo struct {
+	varIntsLen int
+	varStrsLen int
+}
+
+// CheckVars reports, in O(1) and without re-running verification, whether
+// vars is guaranteed to satisfy the Program this VerifiedVarsInfo was
+// obtained from — i.e. whether VerifyWithVars(thatProgram, vars) would
+// succeed, without calling it. A false result is not itself a rejection: it
+// only means the caller must call VerifyWithVars to get an authoritative
+// answer (and, on failure, a precise error).
+func (info VerifiedVarsInfo) CheckVars(vars *Vars) bool {
+	if vars == nil {
+		return info.varIntsLen == 0 && info.varStrsLen == 0
+	}
+	return len(vars.IntsPool) >= info.varIntsLen && len(vars.StringsPool) >= info.varStrsLen
+}
+
 // VerifyWithVars is Verify plus the check that vars carries every variable the
-// program loads. A nil *Vars is only legal for a program that reads none.
-func VerifyWithVars(p Program, vars *Vars) error {
+// program loads. A nil *Vars is only legal for a program that reads none. On
+// success it also returns the VerifiedVarsInfo backing that check; see its
+// doc for why a caller would want to keep it.
+func VerifyWithVars(p Program, vars *Vars) (VerifiedVarsInfo, error) {
 	info, err := verify(p)
 	if err != nil {
-		return err
+		return VerifiedVarsInfo{}, err
 	}
-	if info.varIntsLen == 0 && info.varStrsLen == 0 {
-		return nil
+
+	result := VerifiedVarsInfo{varIntsLen: info.varIntsLen, varStrsLen: info.varStrsLen}
+	if result.CheckVars(vars) {
+		return result, nil
 	}
+
 	if vars == nil {
-		return fmt.Errorf("program reads variables but none were provided")
+		return VerifiedVarsInfo{}, fmt.Errorf("program reads variables but none were provided")
 	}
 	if len(vars.IntsPool) < info.varIntsLen {
-		return fmt.Errorf("program reads int var %d but only %d were provided", info.varIntsLen-1, len(vars.IntsPool))
+		return VerifiedVarsInfo{}, fmt.Errorf("program reads int var %d but only %d were provided", info.varIntsLen-1, len(vars.IntsPool))
 	}
-	if len(vars.StringsPool) < info.varStrsLen {
-		return fmt.Errorf("program reads string var %d but only %d were provided", info.varStrsLen-1, len(vars.StringsPool))
-	}
-	return nil
+	return VerifiedVarsInfo{}, fmt.Errorf("program reads string var %d but only %d were provided", info.varStrsLen-1, len(vars.StringsPool))
 }
 
 // instrWords is how many 4-byte words an opcode occupies. The ones returning 2

@@ -170,16 +170,31 @@ func TestVerifyWithVars(t *testing.T) {
 
 	require.NoError(t, Verify(p), "Verify alone says nothing about vars")
 
-	require.Error(t, VerifyWithVars(p, nil))
-	require.Error(t, VerifyWithVars(p, &Vars{IntsPool: []big.Int{*big.NewInt(0)}}))
-	require.NoError(t, VerifyWithVars(p, &Vars{IntsPool: []big.Int{*big.NewInt(0), *big.NewInt(1)}}))
+	_, err := VerifyWithVars(p, nil)
+	require.Error(t, err)
+
+	_, err = VerifyWithVars(p, &Vars{IntsPool: []big.Int{*big.NewInt(0)}})
+	require.Error(t, err)
+
+	info, err := VerifyWithVars(p, &Vars{IntsPool: []big.Int{*big.NewInt(0), *big.NewInt(1)}})
+	require.NoError(t, err)
+	require.True(t, info.CheckVars(&Vars{IntsPool: []big.Int{*big.NewInt(0), *big.NewInt(1)}}),
+		"the exact vars just verified must be reported sufficient")
+	require.True(t, info.CheckVars(&Vars{IntsPool: []big.Int{*big.NewInt(0), *big.NewInt(1), *big.NewInt(2)}}),
+		"a larger pool still satisfies the same requirement")
+	require.False(t, info.CheckVars(&Vars{IntsPool: []big.Int{*big.NewInt(0)}}),
+		"a smaller pool no longer satisfies the requirement")
+	require.False(t, info.CheckVars(nil),
+		"nil is only sufficient when the program reads no vars")
 }
 
 func TestVerifyWithVarsAllowsNilWhenNoneAreRead(t *testing.T) {
-	require.NoError(t, VerifyWithVars(fullBanks(Program{
+	info, err := VerifyWithVars(fullBanks(Program{
 		Instructions: []Instruction{bc(Op_LoadInt, 0, 0)},
 		IntsPool:     []big.Int{*big.NewInt(1)},
-	}), nil))
+	}), nil)
+	require.NoError(t, err)
+	require.True(t, info.CheckVars(nil))
 }
 
 func TestVerifyEmptyProgram(t *testing.T) {

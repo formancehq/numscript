@@ -171,7 +171,7 @@ func bytecodeRun(bytecodePath string, opts BytecodeRunArgs) error {
 	// so it is the one place that has to assume nothing about it: Exec would
 	// crash rather than error on a malformed program
 	if !opts.SkipVerify {
-		if err := vm.VerifyWithVars(program, vars); err != nil {
+		if _, err := vm.VerifyWithVars(program, vars); err != nil {
 			return fmt.Errorf("bytecode file '%s' is malformed: %w", bytecodePath, err)
 		}
 	}
