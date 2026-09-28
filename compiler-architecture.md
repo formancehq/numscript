@@ -133,12 +133,13 @@ The VM implementation itself is trivial, and most of the complexity is moved to 
 
 The program bytecode encoding is designed so that the hydration can be fast, and so that it stays stable across versions.
 
-After a magic word (so that we reject right away random bytes that didn't come from the compiler), we have a small header with a format version and the number of sections. The version lets a decoder reject a payload encoded by a newer, incompatible version instead of silently misreading it.
+After a magic word (so that we reject right away random bytes that didn't come from the compiler), we have a small header with the bytecode version and the number of sections. The version lets a decoder reject a payload it cannot read instead of silently misreading it.
 
 ```
 | "NUMB"                   4 B  | magic
 +-------------------------------+
-| version : u16            2 B  | header
+| major   : u16            2 B  | header
+| minor   : u16            2 B  |
 | count   : u16            2 B  |
 +-------------------------------+
 | section 0                     | sections
@@ -168,6 +169,18 @@ Missing sections are valid and considered as empty. Unkown sections are allowed 
 
 > Note: this design would make it possible to have very fast hydration by re-intepreting the instruction slice via unsafe casting, or by using mmap. In our case this is more dangerous than useful, but it's a nice property to have
 
+#### Bytecode version
+
+The version is `major.minor` (`vm.BytecodeVersion`, exported as `numscript.BytecodeVersion`), two `u16` header fields with major first. It versions the bytecode format only: the compiler and the library are released independently of it, and a new compiler version does not imply a new bytecode version. Sixteen bits each is deliberately more than a byte: the header width is the one part of the format that cannot be widened later without also changing the magic word, and minor is the field that moves on every additive change.
+
+The split encodes the compatibility rule. A reader accepts a payload of its own major whose minor is no newer than its own, and nothing else:
+
+- a **minor** bump is additive — new opcodes, new sections, new optional operands — and leaves the meaning of everything an older writer could produce untouched, so a 1.1 VM runs 1.0 bytecode;
+- a 1.0 VM does **not** run 1.1 bytecode: it may happen to know every opcode a given payload uses, but that is not assumed;
+- a **major** bump changes the meaning of existing encodings, so a 2.0 VM runs no 1.x bytecode at all.
+
+`Encode` always stamps `vm.CurrentBytecodeVersion`; the decoders return `vm.UnsupportedBytecodeVersionError` (carrying the encoded and the supported version) for a payload they cannot read. `PeekProgramVersion` / `PeekVarsVersion` read the version off the raw header without decoding the rest and without applying the rule, so a host can report which version an unreadable payload was written with. A host that stores bytecode compiled by one build and executes it with another should compare the stored payload's version with `CurrentBytecodeVersion` (or `CanRead`, if it accepts older minors) before trusting it to run.
+
 ### Constant pools
 
 Both the str and int pool start with the count of elems and then have contiguos sequence of strings/ints.
@@ -194,7 +207,8 @@ Int follows the same encoding as its `.Bytes()` and `.SetBytes()` methods.
 ```
 | "NVAR"                   4 B  | magic
 +-------------------------------+
-| version : u16            2 B  | header
+| major   : u16            2 B  | header
+| minor   : u16            2 B  |
 | count   : u16            2 B  |
 +-------------------------------+
 | str pool section              |

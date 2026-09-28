@@ -13,7 +13,7 @@ func TestVarsRoundTrip(t *testing.T) {
 	in := Vars{
 		StringsPool: []string{"alice", "USD/2"},
 		IntsPool:    []big.Int{*big.NewInt(1), *big.NewInt(4), *big.NewInt(-100)},
-		Version:     FormatVersion,
+		Version:     CurrentBytecodeVersion,
 	}
 
 	out, err := DecodeVars(in.Encode())
@@ -49,7 +49,7 @@ func TestDecodeVarsMalformed(t *testing.T) {
 	badMagic[0] = 'X'
 
 	newerVersion := Vars{}.Encode()
-	le.PutUint16(newerVersion[4:], FormatVersion+1)
+	le.PutUint16(newerVersion[6:], CurrentBytecodeVersion.Minor+1) // the minor field
 
 	cases := map[string][]byte{
 		"bad magic":              badMagic,
