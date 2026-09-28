@@ -16,6 +16,11 @@ type Program struct {
 	MaxRegInt     byte
 	MaxRegPortion byte
 	MaxRegBool    byte
+
+	// Version is the wire format version this program was assembled for, or
+	// (after DecodeProgram) the version it was actually encoded with. Encode
+	// always writes the current FormatVersion regardless of this field.
+	Version uint16
 }
 
 var le = binary.LittleEndian
@@ -191,7 +196,7 @@ func parseIntsPool(buf []byte) ([]big.Int, error) {
 }
 
 func DecodeProgram(buf []byte) (Program, error) {
-	sections, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool, SectionMaxRegisters)
+	sections, version, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool, SectionMaxRegisters)
 	if err != nil {
 		return Program{}, err
 	}
@@ -221,5 +226,6 @@ func DecodeProgram(buf []byte) (Program, error) {
 		MaxRegInt:     maxInt,
 		MaxRegPortion: maxPortion,
 		MaxRegBool:    maxBool,
+		Version:       version,
 	}, nil
 }
