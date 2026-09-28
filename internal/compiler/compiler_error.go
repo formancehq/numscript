@@ -85,6 +85,19 @@ type (
 		parser.Range
 		Feature string
 	}
+
+	// UnsupportedNode is the compiler's defensive backstop for a switch over an
+	// AST node, operator, or builtin name that's meant to be exhaustive (every
+	// case the parser/typecheck can currently produce is handled) but isn't
+	// enforced as such by the Go compiler — e.g. a switch on a string-typed
+	// operator, or a fixed set of builtin names. Reaching it means the compiler
+	// has drifted out of sync with the parser or typecheck, not something a
+	// script can trigger, so the message carries a debug dump rather than
+	// user-actionable text.
+	UnsupportedNode struct {
+		parser.Range
+		Node any
+	}
 )
 
 func (UnboundVar) compileError()                     {}
@@ -98,6 +111,7 @@ func (InvalidScopedAccountPosition) compileError()   {}
 func (FeatureNotImplemented) compileError()          {}
 func (ExperimentalFeature) compileError()            {}
 func (InvalidFeature) compileError()                 {}
+func (UnsupportedNode) compileError()                {}
 
 func (e FeatureNotImplemented) Error() string {
 	return "internal error: feature not implemented: " + e.Feature
@@ -130,6 +144,9 @@ func (e ExperimentalFeature) Error() string {
 func (e InvalidFeature) Error() string {
 	return fmt.Sprintf("Invalid feature: %s", e.Feature)
 }
+func (e UnsupportedNode) Error() string {
+	return fmt.Sprintf("internal error: unsupported node %#v", e.Node)
+}
 
 var (
 	_ CompilerError = (*UnboundVar)(nil)
@@ -143,4 +160,5 @@ var (
 	_ CompilerError = (*FeatureNotImplemented)(nil)
 	_ CompilerError = (*ExperimentalFeature)(nil)
 	_ CompilerError = (*InvalidFeature)(nil)
+	_ CompilerError = (*UnsupportedNode)(nil)
 )
