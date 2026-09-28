@@ -38,7 +38,7 @@ func (e VarsEncoder) Encode(vars map[string]string) (vm.Vars, error) {
 		}
 	}
 
-	return vm.Vars{StringsPool: strs, IntsPool: ints, Version: vm.FormatVersion}, nil
+	return vm.Vars{StringsPool: strs, IntsPool: ints, Version: vm.CurrentBytecodeVersion}, nil
 }
 
 // TODO review AI blob

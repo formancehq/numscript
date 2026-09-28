@@ -17,10 +17,10 @@ type Program struct {
 	MaxRegPortion byte
 	MaxRegBool    byte
 
-	// Version is the wire format version this program was assembled for, or
-	// (after DecodeProgram) the version it was actually encoded with. Encode
-	// always writes the current FormatVersion regardless of this field.
-	Version uint16
+	// Version is the bytecode version this program was assembled for, or (after
+	// DecodeProgram) the version it was actually encoded with. Encode always
+	// writes CurrentBytecodeVersion regardless of this field.
+	Version BytecodeVersion
 }
 
 var le = binary.LittleEndian
@@ -196,12 +196,10 @@ func parseIntsPool(buf []byte) ([]big.Int, error) {
 }
 
 // PeekProgramVersion checks that buf starts with a valid NUMB header and
-// returns its format version, without parsing the sections that follow.
-func PeekProgramVersion(buf []byte) (uint16, error) {
-	if len(buf) < formatHeaderLen || string(buf[0:4]) != "NUMB" {
-		return 0, fmt.Errorf("bad magic (expected %q)", "NUMB")
-	}
-	return le.Uint16(buf[4:]), nil
+// returns its bytecode version, without parsing the sections that follow and
+// without checking that this build can read it.
+func PeekProgramVersion(buf []byte) (BytecodeVersion, error) {
+	return peekVersion("NUMB", buf)
 }
 
 func DecodeProgram(buf []byte) (Program, error) {
