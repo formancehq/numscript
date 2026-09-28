@@ -169,6 +169,30 @@ func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (V
 
 var DecodeCompiledProgram = vm.DecodeProgram
 
+// BytecodeVersion is the version of the bytecode wire format a compiled
+// program or an encoded Vars was written with — major.minor, versioned
+// independently of the library itself: a new library release does not imply a
+// new bytecode version. A reader accepts a blob of its own major with a minor
+// no newer than its own (BytecodeVersion.CanRead); anything else the decoders
+// reject with UnsupportedBytecodeVersionError.
+//
+// CurrentBytecodeVersion is what this build's Compile and Encode write and the
+// newest it can execute. A host that stores bytecode compiled by one build and
+// executes it with another can compare it against the stored blob's version
+// before trusting the bytecode to run; PeekCompiledProgramVersion and
+// PeekVarsVersion read that version from the raw bytes without decoding the
+// rest, and without checking that this build can read it.
+type (
+	BytecodeVersion                 = vm.BytecodeVersion
+	UnsupportedBytecodeVersionError = vm.UnsupportedBytecodeVersionError
+)
+
+var (
+	CurrentBytecodeVersion     = vm.CurrentBytecodeVersion
+	PeekCompiledProgramVersion = vm.PeekProgramVersion
+	PeekVarsVersion            = vm.PeekVarsVersion
+)
+
 // VerifyCompiledProgram statically checks that a program is safe to execute:
 // ExecVm assumes well-formed bytecode and will panic rather than error on a
 // program that is not. Compile's output always is, so this is for programs that
