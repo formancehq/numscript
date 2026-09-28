@@ -122,6 +122,7 @@ func loadVars(inputsPath string, inputs BytecodeInputsFile, varsPath string) (*v
 	return &vm.Vars{
 		StringsPool: inputs.VarsPool.Strings,
 		IntsPool:    ints,
+		Version:     vm.FormatVersion,
 	}, nil
 }
 

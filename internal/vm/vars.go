@@ -7,10 +7,15 @@ import (
 type Vars struct {
 	StringsPool []string
 	IntsPool    []big.Int
+
+	// Version is the wire format version these vars were built for, or (after
+	// DecodeVars) the version they were actually encoded with. Encode always
+	// writes the current FormatVersion regardless of this field.
+	Version uint16
 }
 
 func DecodeVars(buf []byte) (Vars, error) {
-	sections, err := decodeSections("NVAR", buf, SectionStringsPool, SectionIntsPool)
+	sections, version, err := decodeSections("NVAR", buf, SectionStringsPool, SectionIntsPool)
 	if err != nil {
 		return Vars{}, err
 	}
@@ -28,6 +33,7 @@ func DecodeVars(buf []byte) (Vars, error) {
 	return Vars{
 		StringsPool: stringsPool,
 		IntsPool:    intsPool,
+		Version:     version,
 	}, nil
 }
 

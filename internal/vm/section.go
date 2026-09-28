@@ -40,13 +40,15 @@ func appendSection(buf []byte, tag uint16, content []byte) []byte {
 // decodeSections validates the magic and version, then walks the section list
 // into a tag -> content map. Missing sections are simply absent (callers treat
 // them as empty). Unknown tags are skipped unless they carry mustUnderstandBit.
-func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][]byte, error) {
+// The encoded format version is returned alongside, for callers that want to
+// record which version a decoded value was written by.
+func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][]byte, uint16, error) {
 	if len(buf) < formatHeaderLen || string(buf[0:4]) != magic {
-		return nil, fmt.Errorf("bad magic (expected %q)", magic)
+		return nil, 0, fmt.Errorf("bad magic (expected %q)", magic)
 	}
 	version := le.Uint16(buf[4:])
 	if version > FormatVersion {
-		return nil, fmt.Errorf("encoded by a newer numscript version (format v%d, supported up to v%d)", version, FormatVersion)
+		return nil, 0, fmt.Errorf("encoded by a newer numscript version (format v%d, supported up to v%d)", version, FormatVersion)
 	}
 
 	known := make(map[uint16]bool, len(knownTags))
@@ -59,7 +61,7 @@ func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][
 	sections := make(map[uint16][]byte, count)
 	for i := range count {
 		if idx+6 > len(buf) {
-			return nil, fmt.Errorf("section %d: header truncated at offset %d", i, idx)
+			return nil, 0, fmt.Errorf("section %d: header truncated at offset %d", i, idx)
 		}
 		tag := le.Uint16(buf[idx:])
 		length := le.Uint32(buf[idx+2:])
@@ -67,17 +69,17 @@ func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][
 
 		end := uint64(idx) + uint64(length)
 		if end > uint64(len(buf)) {
-			return nil, fmt.Errorf("section %d (tag 0x%x): content [%d:%d] exceeds buffer %d", i, tag, idx, end, len(buf))
+			return nil, 0, fmt.Errorf("section %d (tag 0x%x): content [%d:%d] exceeds buffer %d", i, tag, idx, end, len(buf))
 		}
 
 		if !known[tag] && tag&mustUnderstandBit != 0 {
-			return nil, fmt.Errorf("unknown required section tag 0x%x", tag)
+			return nil, 0, fmt.Errorf("unknown required section tag 0x%x", tag)
 		}
 		if _, dup := sections[tag]; dup {
-			return nil, fmt.Errorf("duplicate section tag 0x%x", tag)
+			return nil, 0, fmt.Errorf("duplicate section tag 0x%x", tag)
 		}
 		sections[tag] = buf[idx:end]
 		idx = int(end)
 	}
-	return sections, nil
+	return sections, version, nil
 }

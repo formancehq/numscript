@@ -269,6 +269,8 @@ func Assemble(instrs []Instr) (vm.Program, error) {
 		MaxRegPortion: byte(a.Portions.next),
 		MaxRegInt:     byte(a.ints.next),
 		MaxRegBool:    byte(a.bools.next),
+
+		Version: vm.FormatVersion,
 	}, nil
 }
 
