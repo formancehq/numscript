@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "a negative allotment share fails as missing funds, not silently over-pulling the remaining share",
+      "variables": {
+        "n": "-1"
+      },
+      "balances": [
+        { "account": "a", "asset": "COIN", "amount": 500 },
+        { "account": "b", "asset": "COIN", "amount": 500 }
+      ],
+      "expect.error.missingFunds": true
+    }
+  ]
+}

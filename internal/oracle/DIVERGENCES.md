@@ -373,29 +373,36 @@ without the harness.
 
 ## What the sweep compares
 
-Only scripts both engines run to completion have their postings compared: 1129
-of 3000. Of the rest, 393 are rejected by the oracle at compile time (the
-generator's cleanup pass is best-effort; counted as `b-side compile rejection`),
-112 are tolerated under #1, and the remainder fail on both engines for the same
-missing-funds reason. A scenario block glued to a random program is often
-wasted this way, which is why the generator has a scenario-only strategy.
+Only scripts both engines run to completion have their postings compared. Of
+the rest, some are rejected by the oracle at compile time (the generator's
+cleanup pass is best-effort; counted as `b-side compile rejection`), some are
+tolerated under #1, and the remainder fail on both engines for the same
+missing-funds reason (the sweep's reach table and tolerated counts print the
+live numbers). A scenario block glued to a random program is often wasted this
+way, which is why the generator has a scenario-only strategy.
 
-Since 2026-09-25 the generator also reaches allotment `remaining` clauses
-(1613 of 3000 scripts), portions written through vars (1513, only ever inside a
-`remaining` block, summing strictly below 100% — see #6) and origin vars
-chained through a meta-account var, `balance($a, ...)` with
-`account $a = meta(...)` (the sweep's reach table prints the live numbers).
-Percent-form portions, origin vars in cap positions and a handful of other
-shared shapes the generator still cannot emit are pinned by
-`TestUncoveredShapeAgreements` instead.
+Since 2026-09-25 the generator also reaches allotment `remaining` clauses,
+portions written through vars (only ever inside a `remaining` block, summing
+strictly below 100% — see #6) and origin vars chained through a meta-account
+var, `balance($a, ...)` with `account $a = meta(...)`. Percent-form portions,
+origin vars in cap positions and a handful of other shared shapes the
+generator still cannot emit are pinned by `TestUncoveredShapeAgreements`
+instead.
 
 One specific case of one engine moving money the other refused to move is
 tolerated by `Compare` and counted, by name, `negative max clause`; see #4.
 Any other one-sided runtime failure is a mismatch.
 
-Asset scaling, account interpolation, colors and `oneof` exist only in
-numscript. The oracle has no syntax for them, so this harness says nothing
-about them; they are checked by the interpreter's own tests or not at all.
+A quarter of generated scripts may draw numscript-only shapes — `oneof`,
+colored sources, division-expression portions (`$n/3`, any sign, the only
+route to negative or over-one portions), caps in a different asset than their
+statement — and any script actually containing one skips the oracle leg
+(counted by name, `numscript-only script, oracle skipped`): the oracle has no
+grammar for them. Until the compiler+VM leg lands, such a script is executed
+by the interpreter alone — a panic still fails the fuzz target, and the reach
+table counts the shapes — and the fixture corpus pins their semantics; the VM
+leg is what will compare them engine-against-engine. Asset scaling and account
+interpolation still have no generator coverage.
 
 ---
 

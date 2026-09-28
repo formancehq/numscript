@@ -10,13 +10,16 @@ import (
 	"github.com/formancehq/numscript/internal/gen"
 )
 
-// Posting is the normalized shape both engines' postings are reduced to. The
-// interpreter also tracks scopes and colors; internal/gen never emits the
-// syntax for either, so they are not compared.
+// Posting is the normalized shape both engines' postings are reduced to.
+// Colors are part of the comparison: the generator emits colored sources
+// (numscript-only scripts), and two engines crediting the same amount under
+// different colors is a real disagreement. Scopes are not compared — the
+// generator has no syntax for scoped() yet; fixtures cover it.
 type Posting struct {
 	Source      string
 	Destination string
 	Asset       string
+	Color       string
 	Amount      *big.Int
 }
 
@@ -85,10 +88,15 @@ func (r SideResult) Failed() bool {
 	return r.CompileErr != "" || r.ResolveErr != "" || r.RunErr != ""
 }
 
-func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string) SideResult {
+func runNew(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string, featureFlags []string) SideResult {
 	parseResult := numscript.Parse(script)
 	if errs := parseResult.GetParsingErrors(); len(errs) != 0 {
 		return SideResult{CompileErr: errs[0].Error()}
+	}
+
+	flagSet := make(map[string]struct{}, len(featureFlags))
+	for _, f := range featureFlags {
+		flagSet[f] = struct{}{}
 	}
 
 	store := numscript.StaticStore{}
@@ -108,7 +116,7 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 	}
 
 	// Defensive copy: vars is shared with runOracle's call in RunOne.
-	execResult, err := parseResult.Run(ctx, maps.Clone(vars), store)
+	execResult, err := parseResult.RunWithFeatureFlags(ctx, maps.Clone(vars), store, flagSet)
 	if err != nil {
 		var missingFundsErr numscript.MissingFundsErr
 		var negativeAmountErr numscript.NegativeAmountErr
@@ -123,6 +131,7 @@ func runNew(ctx context.Context, script string, vars map[string]string, balances
 			Source:      p.Source,
 			Destination: p.Destination,
 			Asset:       p.Asset,
+			Color:       p.Color,
 			Amount:      p.Amount,
 		})
 	}

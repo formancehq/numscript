@@ -39,9 +39,12 @@ func main() {
 			fmt.Printf("--- seed %d ---\n%s\n\n", rngSeed, c.Script)
 		}
 
-		if c.OracleVsNew.Mismatch {
+		for _, leg := range c.Legs() {
+			if !leg.Verdict.Mismatch {
+				continue
+			}
 			mismatches++
-			fmt.Printf("MISMATCH (oracle-vs-new) at seed %d: %s\n\nvars: %v\n\nscript:\n%s\n\n", rngSeed, c.OracleVsNew.Reason, c.Vars, c.Script)
+			fmt.Printf("MISMATCH (%s) at seed %d: %s\n\nvars: %v\n\nscript:\n%s\n\n", leg.Name, rngSeed, leg.Verdict.Reason, c.Vars, c.Script)
 			if *stopOnFirst {
 				os.Exit(1)
 			}

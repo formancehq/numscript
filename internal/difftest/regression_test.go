@@ -212,7 +212,7 @@ send [COIN *] (
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
@@ -240,7 +240,7 @@ func TestDestinationSideNegativeMaxTolerated(t *testing.T) {
   }
 )`
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	v := Compare(newRes, oracleRes, "new interpreter", "oracle")
@@ -277,7 +277,7 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 )`
 
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	if v := Compare(newRes, oracleRes, "new interpreter", "oracle"); v.Mismatch {
@@ -305,7 +305,7 @@ func TestMissingFundsClassificationMismatchStillCaught(t *testing.T) {
   destination = @acc1
 )`
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	if !oracleRes.Failed() || oracleRes.MissingFunds {
@@ -356,7 +356,7 @@ func TestKnownOpenDivergences(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, nil, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, nil)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")

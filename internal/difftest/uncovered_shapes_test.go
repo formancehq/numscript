@@ -261,7 +261,7 @@ send [COIN *] (
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
+			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata, nil)
 			oracleRes := runOracle(ctx, tc.script, tc.vars, tc.balances, tc.metadata)
 
 			v := Compare(newRes, oracleRes, "new interpreter", "oracle")
@@ -302,7 +302,7 @@ func TestAllotmentFullSumPlusRemainingRejectedByOracleOnly(t *testing.T) {
   }
 )`
 	ctx := context.Background()
-	newRes := runNew(ctx, script, nil, nil, nil)
+	newRes := runNew(ctx, script, nil, nil, nil, nil)
 	oracleRes := runOracle(ctx, script, nil, nil, nil)
 
 	v := Compare(newRes, oracleRes, "new interpreter", "oracle")
