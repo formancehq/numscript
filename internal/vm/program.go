@@ -195,6 +195,15 @@ func parseIntsPool(buf []byte) ([]big.Int, error) {
 	return out, nil
 }
 
+// PeekProgramVersion checks that buf starts with a valid NUMB header and
+// returns its format version, without parsing the sections that follow.
+func PeekProgramVersion(buf []byte) (uint16, error) {
+	if len(buf) < formatHeaderLen || string(buf[0:4]) != "NUMB" {
+		return 0, fmt.Errorf("bad magic (expected %q)", "NUMB")
+	}
+	return le.Uint16(buf[4:]), nil
+}
+
 func DecodeProgram(buf []byte) (Program, error) {
 	sections, version, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool, SectionMaxRegisters)
 	if err != nil {
