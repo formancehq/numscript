@@ -11,7 +11,6 @@ import (
 	"github.com/formancehq/numscript/internal/ir"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/typecheck"
-	"github.com/formancehq/numscript/internal/utils"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -97,7 +96,7 @@ func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue)
 			}
 			remainingIdx = i
 		default:
-			utils.NonExhaustiveMatchPanic[any](al)
+			return nil, UnsupportedNode{Node: al}
 		}
 	}
 
@@ -336,7 +335,7 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 			})
 
 		default:
-			panic("TODO compileExpr binary op " + string(expr.Operator))
+			return 0, UnsupportedNode{Range: expr.Range, Node: expr.Operator}
 		}
 
 	case *parser.Prefix:
@@ -351,14 +350,14 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 			})
 
 		default:
-			panic("TODO compileExpr prefix op " + string(expr.Operator))
+			return 0, UnsupportedNode{Range: expr.Range, Node: expr.Operator}
 		}
 
 	case *parser.FnCall:
 		return st.compileFnCall(expr, false)
 
 	default:
-		return utils.NonExhaustiveMatchPanic[ir.Reg](expr), nil
+		return 0, UnsupportedNode{Range: expr.GetRange(), Node: expr}
 	}
 }
 
@@ -404,7 +403,7 @@ func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, C
 		return 0, InvalidScopedAccountPosition{Range: expr.Range}
 
 	default:
-		panic("TODO compileExpr fn call " + expr.Caller.Name)
+		return 0, UnsupportedNode{Range: expr.Range, Node: expr.Caller.Name}
 	}
 }
 
@@ -452,7 +451,7 @@ func (st *state) compileMonetaryExpr(expr parser.ValueExpr) (monetaryValue, Comp
 		case parser.InfixOperatorMinus:
 			op = ir.OpSubInt{}
 		default:
-			panic("TODO compileMonetaryExpr binary op " + string(expr.Operator))
+			return monetaryValue{}, UnsupportedNode{Range: expr.Range, Node: expr.Operator}
 		}
 		amount := st.PushWithDest(func(dest ir.Reg) ir.Instr {
 			return ir.BinaryOp{Op: op, Left: left.Amount, Right: right.Amount, Dest: dest}
@@ -462,7 +461,7 @@ func (st *state) compileMonetaryExpr(expr parser.ValueExpr) (monetaryValue, Comp
 
 	case *parser.Prefix:
 		if expr.Operator != parser.PrefixOperatorMinus {
-			panic("TODO compileMonetaryExpr prefix op " + string(expr.Operator))
+			return monetaryValue{}, UnsupportedNode{Range: expr.Range, Node: expr.Operator}
 		}
 		arg, err := st.compileMonetaryExpr(expr.Expr)
 		if err != nil {
@@ -477,7 +476,7 @@ func (st *state) compileMonetaryExpr(expr parser.ValueExpr) (monetaryValue, Comp
 		return st.compileMonetaryFnCall(expr, false)
 
 	default:
-		return utils.NonExhaustiveMatchPanic[monetaryValue](expr), nil
+		return monetaryValue{}, UnsupportedNode{Range: expr.GetRange(), Node: expr}
 	}
 }
 
@@ -535,7 +534,7 @@ func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (m
 		return monetaryValue{}, InvalidMetaPosition{Range: expr.Range}
 
 	default:
-		panic("TODO compileMonetaryExpr fn call " + expr.Caller.Name)
+		return monetaryValue{}, UnsupportedNode{Range: expr.Range, Node: expr.Caller.Name}
 	}
 }
 
@@ -955,7 +954,7 @@ func (st *state) compileSource(
 		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "scaling"}
 
 	default:
-		return utils.NonExhaustiveMatchPanic[ir.Reg](src), nil
+		return 0, UnsupportedNode{Range: src.GetRange(), Node: src}
 	}
 }
 
@@ -1107,7 +1106,7 @@ func (st *state) compileDestination(
 		return nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](dest)
+		return UnsupportedNode{Range: dest.GetRange(), Node: dest}
 	}
 
 	return nil
@@ -1134,10 +1133,8 @@ func (st *state) compileKeptOrDestination(
 		return nil
 
 	default:
-		utils.NonExhaustiveMatchPanic[any](keptOrDest)
+		return UnsupportedNode{Node: keptOrDest}
 	}
-
-	return nil
 }
 
 func (st *state) compileSentValue(
@@ -1170,7 +1167,7 @@ func (st *state) compileSentValue(
 		return st.compileSource(nil, source)
 
 	default:
-		return utils.NonExhaustiveMatchPanic[ir.Reg](sentValue), nil
+		return 0, UnsupportedNode{Range: sentValue.GetRange(), Node: sentValue}
 	}
 
 }
@@ -1209,7 +1206,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			}
 			assetReg = r
 		default:
-			utils.NonExhaustiveMatchPanic[any](stmt.SentValue)
+			return UnsupportedNode{Range: stmt.SentValue.GetRange(), Node: stmt.SentValue}
 		}
 
 		acc, err := st.compileAccountExpr(stmt.Account)
@@ -1249,11 +1246,11 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			return nil
 
 		default:
-			return utils.NonExhaustiveMatchPanic[CompilerError](stmt.Caller.Name)
+			return UnsupportedNode{Range: stmt.Range, Node: stmt.Caller.Name}
 		}
 
 	default:
-		return utils.NonExhaustiveMatchPanic[CompilerError](stmt)
+		return UnsupportedNode{Range: stmt.GetRange(), Node: stmt}
 	}
 }
 
@@ -1308,7 +1305,7 @@ func (st *state) compileMetaValue(expr parser.ValueExpr) (ir.Reg, CompilerError)
 			return ir.UnaryOp{Op: ir.OpPortionToString{}, Arg: r, Dest: dest}
 		}), nil
 	default:
-		panic("TODO meta value of type " + st.exprTypes[expr])
+		return 0, CannotCastToString{Range: expr.GetRange(), Type: st.exprTypes[expr]}
 	}
 }
 
@@ -1363,8 +1360,7 @@ func compileProgramToIR(program parser.Program, featureFlags map[string]struct{}
 
 func (st *state) compileVarDeclaration(decl parser.VarDeclaration) CompilerError {
 	if decl.Origin == nil {
-		st.compileExternalVar(decl)
-		return nil
+		return st.compileExternalVar(decl)
 	}
 	if decl.Type.Name == typecheck.TypeMonetary {
 		if fnCall, ok := (*decl.Origin).(*parser.FnCall); ok {
@@ -1466,7 +1462,7 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 	case typecheck.TypePortion:
 		typ = ir.MetaPortion{}
 	default:
-		panic("unexpected meta var type: " + decl.Type.Name)
+		return UnsupportedNode{Range: decl.Type.Range, Node: decl.Type.Name}
 	}
 
 	st.vars[decl.Name.Name] = scalarValue(st.PushWithDest(func(dest ir.Reg) ir.Instr {
@@ -1476,7 +1472,7 @@ func (st *state) compileMetaVar(decl parser.VarDeclaration, fnCall *parser.FnCal
 }
 
 // TODO review AI blob
-func (st *state) compileExternalVar(decl parser.VarDeclaration) {
+func (st *state) compileExternalVar(decl parser.VarDeclaration) CompilerError {
 	name := decl.Name.Name
 	st.varDecls = append(st.varDecls, varDecl{name: name, typ: decl.Type.Name})
 
@@ -1502,8 +1498,10 @@ func (st *state) compileExternalVar(decl parser.VarDeclaration) {
 		st.vars[name] = monValue(monetaryValue{Asset: asset, Amount: amount})
 
 	default:
-		panic("unexpected var type: " + decl.Type.Name)
+		return UnsupportedNode{Range: decl.Type.Range, Node: decl.Type.Name}
 	}
+
+	return nil
 }
 
 func (st *state) loadIntVar() ir.Reg {
