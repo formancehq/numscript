@@ -31,7 +31,7 @@ var (
 )
 
 type Vm struct {
-	program  Program
+	Program  Program
 	runstate *funds.RunState
 
 	// a monetary is not a bank of its own: it travels as a (str asset, int amount)
@@ -53,7 +53,7 @@ func NewVm(
 	program Program,
 ) *Vm {
 	return &Vm{
-		program:      program,
+		Program:      program,
 		stringsRegs:  make([]string, program.MaxRegString),
 		intsRegs:     make([]big.Int, program.MaxRegInt),
 		portionsRegs: make([]big.Rat, program.MaxRegPortion),
@@ -135,10 +135,10 @@ func Exec[S Store](
 	stringsRegs := vm.stringsRegs
 	portionsRegs := vm.portionsRegs
 	boolsRegs := vm.boolsRegs
-	intsPool := vm.program.IntsPool
-	stringsPool := vm.program.StringsPool
+	intsPool := vm.Program.IntsPool
+	stringsPool := vm.Program.StringsPool
 
-	instrs := vm.program.Instructions
+	instrs := vm.Program.Instructions
 	instructionsLen := len(instrs)
 
 	var currentAsset string
