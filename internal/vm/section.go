@@ -2,10 +2,57 @@ package vm
 
 import "fmt"
 
-// v2 dropped the monetary register bank: MK_MONETARY/GET_AMOUNT/GET_ASSET are
-// gone, BALANCE/ASSERT_NON_NEGATIVE_BALANCE/MONETARY_TO_STRING changed operand
-// banks, META_MONETARY grew an ext word, and SectionMaxRegisters lost its 4th byte.
-const FormatVersion uint16 = 2
+// BytecodeVersion identifies the bytecode wire format a program or vars blob
+// was encoded with, as major.minor — two 16-bit header fields, major first.
+// It versions the bytecode format only: the compiler and the library are
+// versioned independently of it, and a new compiler release does not imply a
+// new bytecode version.
+//
+// The split carries the compatibility rule (see CanRead). A minor bump is
+// additive — new opcodes, new sections, new optional operands — and leaves the
+// meaning of everything an older writer could produce untouched, so a 1.1
+// reader runs 1.0 bytecode. A 1.0 reader does not accept 1.1 bytecode: it may
+// happen to know every opcode a given blob uses, but that is not assumed. A
+// major bump changes the meaning of existing encodings, so a 2.0 reader
+// accepts no 1.x blob at all.
+type BytecodeVersion struct {
+	Major uint16
+	Minor uint16
+}
+
+// CurrentBytecodeVersion is the version Encode writes and the newest one the
+// decoders read.
+//
+// History:
+//   - 1.0: the initial register-VM format.
+//   - 2.0: dropped the monetary register bank (MK_MONETARY/GET_AMOUNT/GET_ASSET
+//     are gone), BALANCE/ASSERT_NON_NEGATIVE_BALANCE/MONETARY_TO_STRING changed
+//     operand banks, META_MONETARY grew an ext word, and SectionMaxRegisters
+//     lost its 4th byte — every one a meaning change, hence major.
+var CurrentBytecodeVersion = BytecodeVersion{Major: 2, Minor: 0}
+
+// CanRead reports whether a reader at version v accepts a blob encoded with
+// version encoded: the same major, and a minor no newer than the reader's.
+func (v BytecodeVersion) CanRead(encoded BytecodeVersion) bool {
+	return encoded.Major == v.Major && encoded.Minor <= v.Minor
+}
+
+func (v BytecodeVersion) String() string {
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor)
+}
+
+// UnsupportedBytecodeVersionError is what the decoders return for a blob this
+// build cannot read: another major, or a minor newer than
+// CurrentBytecodeVersion.
+type UnsupportedBytecodeVersionError struct {
+	Encoded   BytecodeVersion
+	Supported BytecodeVersion
+}
+
+func (e UnsupportedBytecodeVersionError) Error() string {
+	return fmt.Sprintf("bytecode version %s is not readable by this build, which reads %d.0 through %s",
+		e.Encoded, e.Supported.Major, e.Supported)
+}
 
 const (
 	SectionInstructions uint16 = 0x01 // NUMB only
@@ -18,14 +65,15 @@ const (
 // such tag is a hard error rather than a skipped section.
 const mustUnderstandBit uint16 = 0x8000
 
-// magic(4) + version(2) + section count(2)
-const formatHeaderLen = 4 + 2 + 2
+// magic(4) + major(2) + minor(2) + section count(2)
+const formatHeaderLen = 4 + 2 + 2 + 2
 
 func appendFormatHeader(buf []byte, magic string, sectionCount uint16) []byte {
 	buf = append(buf, magic...)
-	var h [4]byte
-	le.PutUint16(h[0:], FormatVersion)
-	le.PutUint16(h[2:], sectionCount)
+	var h [6]byte
+	le.PutUint16(h[0:], CurrentBytecodeVersion.Major)
+	le.PutUint16(h[2:], CurrentBytecodeVersion.Minor)
+	le.PutUint16(h[4:], sectionCount)
 	return append(buf, h[:]...)
 }
 
@@ -37,18 +85,28 @@ func appendSection(buf []byte, tag uint16, content []byte) []byte {
 	return append(buf, content...)
 }
 
+// peekVersion validates the magic and returns the header's version without
+// checking that this build can read it, so a caller can report which version
+// a blob it cannot read was written with.
+func peekVersion(magic string, buf []byte) (BytecodeVersion, error) {
+	if len(buf) < formatHeaderLen || string(buf[0:4]) != magic {
+		return BytecodeVersion{}, fmt.Errorf("bad magic (expected %q)", magic)
+	}
+	return BytecodeVersion{Major: le.Uint16(buf[4:]), Minor: le.Uint16(buf[6:])}, nil
+}
+
 // decodeSections validates the magic and version, then walks the section list
 // into a tag -> content map. Missing sections are simply absent (callers treat
 // them as empty). Unknown tags are skipped unless they carry mustUnderstandBit.
-// The encoded format version is returned alongside, for callers that want to
-// record which version a decoded value was written by.
-func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][]byte, uint16, error) {
-	if len(buf) < formatHeaderLen || string(buf[0:4]) != magic {
-		return nil, 0, fmt.Errorf("bad magic (expected %q)", magic)
+// The encoded version is returned alongside, for callers that want to record
+// which version a decoded value was written by.
+func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][]byte, BytecodeVersion, error) {
+	version, err := peekVersion(magic, buf)
+	if err != nil {
+		return nil, BytecodeVersion{}, err
 	}
-	version := le.Uint16(buf[4:])
-	if version > FormatVersion {
-		return nil, 0, fmt.Errorf("encoded by a newer numscript version (format v%d, supported up to v%d)", version, FormatVersion)
+	if !CurrentBytecodeVersion.CanRead(version) {
+		return nil, BytecodeVersion{}, UnsupportedBytecodeVersionError{Encoded: version, Supported: CurrentBytecodeVersion}
 	}
 
 	known := make(map[uint16]bool, len(knownTags))
@@ -56,12 +114,12 @@ func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][
 		known[t] = true
 	}
 
-	count := le.Uint16(buf[6:])
+	count := le.Uint16(buf[8:])
 	idx := formatHeaderLen
 	sections := make(map[uint16][]byte, count)
 	for i := range count {
 		if idx+6 > len(buf) {
-			return nil, 0, fmt.Errorf("section %d: header truncated at offset %d", i, idx)
+			return nil, BytecodeVersion{}, fmt.Errorf("section %d: header truncated at offset %d", i, idx)
 		}
 		tag := le.Uint16(buf[idx:])
 		length := le.Uint32(buf[idx+2:])
@@ -69,14 +127,14 @@ func decodeSections(magic string, buf []byte, knownTags ...uint16) (map[uint16][
 
 		end := uint64(idx) + uint64(length)
 		if end > uint64(len(buf)) {
-			return nil, 0, fmt.Errorf("section %d (tag 0x%x): content [%d:%d] exceeds buffer %d", i, tag, idx, end, len(buf))
+			return nil, BytecodeVersion{}, fmt.Errorf("section %d (tag 0x%x): content [%d:%d] exceeds buffer %d", i, tag, idx, end, len(buf))
 		}
 
 		if !known[tag] && tag&mustUnderstandBit != 0 {
-			return nil, 0, fmt.Errorf("unknown required section tag 0x%x", tag)
+			return nil, BytecodeVersion{}, fmt.Errorf("unknown required section tag 0x%x", tag)
 		}
 		if _, dup := sections[tag]; dup {
-			return nil, 0, fmt.Errorf("duplicate section tag 0x%x", tag)
+			return nil, BytecodeVersion{}, fmt.Errorf("duplicate section tag 0x%x", tag)
 		}
 		sections[tag] = buf[idx:end]
 		idx = int(end)

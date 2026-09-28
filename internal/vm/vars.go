@@ -8,10 +8,17 @@ type Vars struct {
 	StringsPool []string
 	IntsPool    []big.Int
 
-	// Version is the wire format version these vars were built for, or (after
+	// Version is the bytecode version these vars were built for, or (after
 	// DecodeVars) the version they were actually encoded with. Encode always
-	// writes the current FormatVersion regardless of this field.
-	Version uint16
+	// writes CurrentBytecodeVersion regardless of this field.
+	Version BytecodeVersion
+}
+
+// PeekVarsVersion checks that buf starts with a valid NVAR header and returns
+// its bytecode version, without parsing the sections that follow and without
+// checking that this build can read it.
+func PeekVarsVersion(buf []byte) (BytecodeVersion, error) {
+	return peekVersion("NVAR", buf)
 }
 
 func DecodeVars(buf []byte) (Vars, error) {

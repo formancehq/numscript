@@ -38,7 +38,7 @@ func TestDecodeSkipsUnknownSection(t *testing.T) {
 	}
 	buf := prog.Encode()
 	// bump the section count and append an unknown (skippable) section
-	le.PutUint16(buf[6:], le.Uint16(buf[6:])+1)
+	le.PutUint16(buf[8:], le.Uint16(buf[8:])+1)
 	buf = appendSection(buf, 0x0999, []byte("future"))
 
 	got, err := DecodeProgram(buf)
@@ -48,7 +48,7 @@ func TestDecodeSkipsUnknownSection(t *testing.T) {
 
 func TestDecodeRejectsUnknownRequiredSection(t *testing.T) {
 	buf := Program{}.Encode()
-	le.PutUint16(buf[6:], le.Uint16(buf[6:])+1)
+	le.PutUint16(buf[8:], le.Uint16(buf[8:])+1)
 	buf = appendSection(buf, mustUnderstandBit|0x0999, []byte("required"))
 
 	_, err := DecodeProgram(buf)
@@ -57,10 +57,10 @@ func TestDecodeRejectsUnknownRequiredSection(t *testing.T) {
 
 func TestDecodeRejectsNewerVersion(t *testing.T) {
 	buf := Program{}.Encode()
-	le.PutUint16(buf[4:], FormatVersion+1)
+	le.PutUint16(buf[6:], CurrentBytecodeVersion.Minor+1) // the minor field
 
 	_, err := DecodeProgram(buf)
-	require.Error(t, err)
+	require.ErrorAs(t, err, new(UnsupportedBytecodeVersionError))
 }
 
 func TestDecodeRejectsTruncatedSection(t *testing.T) {
@@ -71,7 +71,7 @@ func TestDecodeRejectsTruncatedSection(t *testing.T) {
 
 func TestDecodeRejectsDuplicateSection(t *testing.T) {
 	buf := Program{}.Encode()
-	le.PutUint16(buf[6:], le.Uint16(buf[6:])+1)
+	le.PutUint16(buf[8:], le.Uint16(buf[8:])+1)
 	buf = appendSection(buf, SectionStringsPool, nil)
 
 	_, err := DecodeProgram(buf)
