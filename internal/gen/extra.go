@@ -535,13 +535,18 @@ func riffleOrder(rng *rand.Rand, a, b int) []bool {
 // genExtraStatements for the same reason, and drops their output.
 func generateScriptAST(rng *rand.Rand) Script {
 	poolSize := pickPoolSize(rng)
+	// Decided per script, not per occurrence: most scripts must stay inside the
+	// oracle's grammar or the oracle legs lose their corpus. A quarter may use
+	// numscript-only shapes (oneof, colors, wrong-asset caps, division
+	// portions); those that actually do skip the oracle — see scriptFlags.
+	numscriptOnly := rng.Intn(4) == 0
 
 	balances, seeds := genBalances(rng, poolSize, assetPool)
 	metadata := map[MetaKey]string{}
 	metaTypes := genPresetMetadata(rng, poolSize, metadata)
 	vars := genVarDecls(rng, poolSize, balances, metadata, metaTypes)
 	accountVars := genAccountVarDecls(rng, poolSize)
-	program := cleanupProgram(genProgram(rng, poolSize))
+	program := cleanupProgram(genProgram(rng, poolSize, numscriptOnly))
 	extra := genExtraStatements(rng, poolSize, vars, accountVars)
 	order := riffleOrder(rng, len(program), len(extra))
 

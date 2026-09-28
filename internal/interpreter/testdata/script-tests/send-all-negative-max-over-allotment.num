@@ -1,0 +1,6 @@
+send [COIN *] (
+  source = max [COIN 0] - [COIN 5] from {
+    1/1 from @a
+  }
+  destination = @d
+)

@@ -192,13 +192,14 @@ func metaWroteSameOrNothing(what string, from, to map[string]string, fromLabel, 
 	return ok()
 }
 
-// postingKey groups postings that move the same asset between the same
-// two accounts, regardless of how many separate posting lines an engine
+// postingKey groups postings that move the same (asset, color) between the
+// same two accounts, regardless of how many separate posting lines an engine
 // happened to split that movement into.
 type postingKey struct {
 	Source      string
 	Destination string
 	Asset       string
+	Color       string
 }
 
 func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
@@ -212,7 +213,7 @@ func aggregatePostings(postings []Posting) map[postingKey]*big.Int {
 			// enforce it here too so the equivalence lives in one place.
 			continue
 		}
-		k := postingKey{Source: p.Source, Destination: p.Destination, Asset: p.Asset}
+		k := postingKey{Source: p.Source, Destination: p.Destination, Asset: p.Asset, Color: p.Color}
 		total, ok := agg[k]
 		if !ok {
 			total = new(big.Int)
