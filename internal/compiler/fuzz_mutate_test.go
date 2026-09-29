@@ -97,7 +97,7 @@ func FuzzMutatedBytecode(f *testing.F) {
 		prog := base
 		prog.Instructions = instrs
 
-		if vm.VerifyWithVars(prog, vars) != nil {
+		if _, err := vm.VerifyWithVars(prog, vars); err != nil {
 			return // the mutation broke something static: nothing left to prove
 		}
 
