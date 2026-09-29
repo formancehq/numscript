@@ -86,7 +86,7 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 	//
 	// Worth having here specifically because internal/gen reaches shapes the
 	// hand-written corpus doesn't, and it does so on inputs nobody chose.
-	if err := vm.VerifyWithVars(program, &encodedVars); err != nil {
+	if _, err := vm.VerifyWithVars(program, &encodedVars); err != nil {
 		return SideResult{InternalErr: "compiled program failed verification: " + err.Error()}
 	}
 
