@@ -1116,3 +1116,34 @@ func TestEndToEnd_TwoSourcesSplitAcrossDestinations(t *testing.T) {
 		}
 	}
 }
+
+// TestAccountBalances_DeterministicOrder: entries come back sorted by
+// (asset, color) on every run, independent of the balances map's iteration
+// order.
+func TestAccountBalances_DeterministicOrder(t *testing.T) {
+	balances := map[funds.PairKey]*big.Int{
+		{"A", "", "EUR/2", ""}:    big.NewInt(1),
+		{"A", "", "EUR", "RED"}:   big.NewInt(2),
+		{"A", "", "EUR", ""}:      big.NewInt(3),
+		{"A", "", "EUR/4", ""}:    big.NewInt(4),
+		{"A", "", "EUR/2", "RED"}: big.NewInt(5),
+		{"B", "", "EUR", ""}:      big.NewInt(6), // other account
+		{"A", "", "USD", ""}:      big.NewInt(7), // other family
+	}
+	want := []funds.AccountBalance{
+		{Asset: "EUR", Color: "", Amount: big.NewInt(3)},
+		{Asset: "EUR", Color: "RED", Amount: big.NewInt(2)},
+		{Asset: "EUR/2", Color: "", Amount: big.NewInt(1)},
+		{Asset: "EUR/2", Color: "RED", Amount: big.NewInt(5)},
+		{Asset: "EUR/4", Color: "", Amount: big.NewInt(4)},
+	}
+
+	for range 50 {
+		rs, _ := newRS(nil)
+		rs.Prewarm(balances)
+
+		got, err := rs.AccountBalances("A", "", "EUR")
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	}
+}

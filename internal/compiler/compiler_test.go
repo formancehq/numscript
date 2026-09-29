@@ -938,3 +938,44 @@ func TestColoredOverdraftSource(t *testing.T) {
   send_to_account(account: $r9)
 `))
 }
+
+// TestCompileIsDeterministic: compiling the same script repeatedly yields
+// byte-identical bytecode. Several registers die on the same instruction here
+// (each ADD is the last use of both operands), which is where the register
+// allocator used to push freed slots in map order and assemble a different —
+// equivalent — program on each run.
+func TestCompileIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	script := `vars {
+  number $a
+  number $b
+  number $c
+  number $d
+  number $e
+  number $f
+  monetary $x
+  monetary $y
+}
+
+send [COIN ($a + $b) + ($c + $d) + ($e + $f)] (
+  source = @world
+  destination = @dst
+)
+
+send $x (source = @world destination = @a)
+send $y (source = @world destination = @b)
+`
+	parsed := parser.Parse(script)
+	require.Empty(t, parsed.Errors)
+
+	_, first, err := Compile(parsed.Value, nil)
+	require.NoError(t, err)
+	want := first.Encode()
+
+	for range 200 {
+		_, program, err := Compile(parsed.Value, nil)
+		require.NoError(t, err)
+		require.Equal(t, want, program.Encode())
+	}
+}
