@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/formancehq/numscript/internal/vm"
 )
@@ -71,8 +72,23 @@ func newAllocRegPool(lastUse map[Reg]int) regPool {
 
 // endInstr frees every register whose last reference was curPos. Called by
 // the assembler driver after an instruction has been fully assembled.
+//
+// The freed slots are pushed in ascending Reg order, not map order: freeList
+// is popped as a stack, so the push order decides which physical slot the next
+// allocation reuses, and ranging over the map directly made the same program
+// assemble to different (equivalent) bytecode from one run to the next.
 func (b *regPool) endInstr() {
+	if len(b.pendingFree) == 0 {
+		return
+	}
+
+	regs := make([]Reg, 0, len(b.pendingFree))
 	for r := range b.pendingFree {
+		regs = append(regs, r)
+	}
+	slices.Sort(regs)
+
+	for _, r := range regs {
 		b.freeList = append(b.freeList, b.indexByReg[r])
 		delete(b.indexByReg, r)
 		delete(b.pendingFree, r)
