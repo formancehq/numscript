@@ -22,14 +22,7 @@ type BytecodeVersion struct {
 
 // CurrentBytecodeVersion is the version Encode writes and the newest one the
 // decoders read.
-//
-// History:
-//   - 1.0: the initial register-VM format.
-//   - 2.0: dropped the monetary register bank (MK_MONETARY/GET_AMOUNT/GET_ASSET
-//     are gone), BALANCE/ASSERT_NON_NEGATIVE_BALANCE/MONETARY_TO_STRING changed
-//     operand banks, META_MONETARY grew an ext word, and SectionMaxRegisters
-//     lost its 4th byte — every one a meaning change, hence major.
-var CurrentBytecodeVersion = BytecodeVersion{Major: 2, Minor: 0}
+var CurrentBytecodeVersion = BytecodeVersion{Major: 1, Minor: 0}
 
 // CanRead reports whether a reader at version v accepts a blob encoded with
 // version encoded: the same major, and a minor no newer than the reader's.
