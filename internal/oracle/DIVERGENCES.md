@@ -8,7 +8,7 @@ written down here.
 Baseline: `formancehq/ledger` `internal/machine`, main at `8880965c2`.
 Everything below was measured by running all three engines, not recalled.
 
-## The six differences
+## The differences
 
 | # | what | ledger | oracle | numscript |
 |---|---|---|---|---|
@@ -18,8 +18,10 @@ Everything below was measured by running all three engines, not recalled.
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 | 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
 | 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | rejects the script (fixed 2026-09-25) |
+| 7 | negative division portion, destination side | rejects a negative portion | same | commits, sends the money elsewhere (rejected at `edde2b1`) |
+| 8 | asset var with an underscore suffix (`USD_CASH`) | runs the script | runs the script | rejects the asset (accepted at `edde2b1`) |
 
-The oracle matches ledger on 1, 4, 5 and 6. It does not on 2 and 3, the two
+The oracle matches ledger on 1, 4, 5, 6, 7 and 8. It does not on 2 and 3, the two
 places it cannot be trusted to check numscript.
 
 `TestDifferentialSweep` is green: 0 divergences over 3000 seeds, 112 of those
@@ -369,6 +371,76 @@ directions of the var form, and the interpreter's own
 `TestInvalidDestinationAllotmentSumOverOneWithRemaining` pin the rejection
 without the harness.
 
+## 7. Negative division portion, destination side
+
+**numscript at `edde2b1` rejected this script. It now commits it and ignores
+the declared split.**
+
+```numscript
+vars {
+  number $n
+}
+
+// bound to n = -1
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $n/3 to @acc1
+    remaining to @acc2
+  }
+)
+```
+
+| engine | result |
+|---|---|
+| ledger | no division portions; the same portion passed as a var (`-1/3`) is rejected |
+| oracle | same as ledger |
+| numscript at `edde2b1` | `The script produced a posting with invalid values: {world acc1 -30}` |
+| numscript (interpreter and vm) | commits: `world->acc2 90` |
+
+The same happens without `remaining` (`$n/3` and `$m/3` with n = -1, m = 4),
+with `1/$d` for d = -3, and nested under a `max`. With real sources the whole
+amount still goes to the non-negative destinations. The source side is
+unchanged: every engine fails it as missing funds.
+
+The oracle cannot run a division portion, so `Compare` never sees this shape:
+the oracle's var-form rejection is a tolerated one-sided rejection.
+`TestNegativeDivisionPortionCommits` asserts each engine's outcome directly.
+
+**Open question:** reject a negative portion (as ledger does for the var form
+and as numscript did before), or keep committing.
+
+## 8. Asset var with an underscore suffix
+
+```numscript
+vars {
+  asset $a
+}
+
+// bound to a = USD_CASH
+
+send [$a 10] (
+  source = @world
+  destination = @acc1
+)
+```
+
+| engine | result |
+|---|---|
+| ledger | commits: `world->acc1 10` |
+| oracle | same as ledger |
+| numscript at `edde2b1` | same as ledger |
+| numscript interpreter | `Invalid asset name: USD_CASH`, while running |
+| numscript vm | `variable $a: invalid asset: "USD_CASH"`, while encoding the var |
+
+Introduced by `67969d4` (#186, "update color regex"). A monetary var
+(`USD_CASH 10`) behaves the same. The two numscript engines reject at
+different stages, so the case cannot sit in `TestKnownOpenDivergences`, which
+also requires them to agree; `TestUnderscoreAssetVarRejected` pins it.
+
+**Open question:** whether the stricter asset name is intended.
+
 ---
 
 ## What the sweep compares
@@ -416,6 +488,8 @@ numscript engines run) and `TestNumscriptOnlyShapeAgreements`.
 | 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
 | 5 | `TestKnownOpenDivergences` |
 | 6 | `TestKnownBugRepros` (the engines agree now), both sides, and the interpreter's own over-100% tests |
+| 7 | `TestNegativeDivisionPortionCommits` |
+| 8 | `TestUnderscoreAssetVarRejected` |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
 starts agreeing, it fails; update this file and move the case to

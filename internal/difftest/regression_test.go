@@ -405,3 +405,90 @@ func TestKnownOpenDivergences(t *testing.T) {
 		})
 	}
 }
+
+// TestNegativeDivisionPortionCommits pins DIVERGENCES.md #7: a negative
+// division portion on the destination side. numscript at edde2b1 rejected the
+// script (it produced the posting world->acc1 -30); the interpreter and the vm
+// now both commit and send the whole 90 to @acc2, ignoring the declared split.
+// The oracle has no division portions, so it gets the same allotment with the
+// portion passed as a var, and rejects the negative portion. Compare cannot
+// flag it -- the oracle rejects while resolving vars, a tolerated one-sided
+// rejection -- so this test asserts each engine's outcome directly.
+func TestNegativeDivisionPortionCommits(t *testing.T) {
+	const script = `vars {
+  number $n
+}
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $n/3 to @acc1
+    remaining to @acc2
+  }
+)`
+	const oracleScript = `vars {
+  portion $p
+}
+
+send [COIN 90] (
+  source = @world
+  destination = {
+    $p to @acc1
+    remaining to @acc2
+  }
+)`
+	ctx := context.Background()
+	vars := map[string]string{"n": "-1"}
+
+	oracleRes := runOracle(ctx, oracleScript, map[string]string{"p": "-1/3"}, nil, nil)
+	if !oracleRes.Failed() {
+		t.Fatalf("expected the oracle to reject a negative portion; got %+v", oracleRes)
+	}
+
+	newRes := runNew(ctx, script, vars, nil, nil, nil)
+	vmRes := runVM(ctx, script, vars, nil, nil, nil)
+	for name, res := range map[string]SideResult{"new interpreter": newRes, "vm": vmRes} {
+		if res.Failed() {
+			t.Fatalf("%s: expected it to commit (the divergence is gone -- update DIVERGENCES.md #7); got %+v", name, res)
+		}
+		if len(res.Postings) != 1 || res.Postings[0].Destination != "acc2" || res.Postings[0].Amount.Int64() != 90 {
+			t.Fatalf("%s: expected the whole 90 to go to @acc2; got %+v", name, res.Postings)
+		}
+	}
+	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+		t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
+	}
+}
+
+// TestUnderscoreAssetVarRejected pins DIVERGENCES.md #8: an asset with an
+// underscore suffix passed through a var. The oracle (and numscript at
+// edde2b1) run the script; numscript rejects the asset name since 67969d4
+// (#186). The two numscript engines reject at different stages -- the vm while
+// encoding the var, the interpreter while running -- so the case cannot live in
+// TestKnownOpenDivergences, which also requires the engines to agree.
+func TestUnderscoreAssetVarRejected(t *testing.T) {
+	const script = `vars {
+  asset $a
+}
+
+send [$a 10] (
+  source = @world
+  destination = @acc1
+)`
+	ctx := context.Background()
+	vars := map[string]string{"a": "USD_CASH"}
+
+	oracleRes := runOracle(ctx, script, vars, nil, nil)
+	if oracleRes.Failed() || len(oracleRes.Postings) != 1 {
+		t.Fatalf("expected the oracle to run the script; got %+v", oracleRes)
+	}
+
+	for name, res := range map[string]SideResult{
+		"new interpreter": runNew(ctx, script, vars, nil, nil, nil),
+		"vm":              runVM(ctx, script, vars, nil, nil, nil),
+	} {
+		if !res.Failed() {
+			t.Fatalf("%s: expected it to reject the asset (the divergence is gone -- update DIVERGENCES.md #8); got %+v", name, res)
+		}
+	}
+}
