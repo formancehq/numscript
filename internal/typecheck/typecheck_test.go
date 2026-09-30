@@ -87,3 +87,11 @@ func TestInfixInvalidLeftStillChecksRight(t *testing.T) {
 		typecheck.UnboundVariable{Name: "missing", Type: typecheck.TypeAny},
 	}, kinds(res))
 }
+
+func TestBadArityStillChecksSurplusArgs(t *testing.T) {
+	res := check(t, `vars { monetary $m = balance(@a, USD/2, $missing) }`)
+	require.Equal(t, []typecheck.ErrorKind{
+		typecheck.BadArity{Expected: 2, Actual: 3},
+		typecheck.UnboundVariable{Name: "missing", Type: typecheck.TypeAny},
+	}, kinds(res))
+}

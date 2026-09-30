@@ -440,9 +440,10 @@ func (c *checker) checkFnCallArity(fnCall *parser.FnCall) {
 	}
 
 	for i, arg := range validArgs {
-		if i >= len(sig.params) {
-			break
+		want := TypeAny
+		if i < len(sig.params) {
+			want = sig.params[i]
 		}
-		c.checkExpr(arg, sig.params[i])
+		c.checkExpr(arg, want)
 	}
 }
