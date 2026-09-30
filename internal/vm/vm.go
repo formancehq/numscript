@@ -625,8 +625,15 @@ func Exec[S Store](
 		})
 	}
 
+	postings := runstate.GetPostings()
+	for _, p := range postings {
+		if !funds.ValidatePosting(p) {
+			return funds.ExecutionResult{}, InternalError{Err: InvalidPostingError{Posting: p}}
+		}
+	}
+
 	return funds.ExecutionResult{
-		Postings:         runstate.GetPostings(),
+		Postings:         postings,
 		Metadata:         txMeta,
 		AccountsMetadata: accountsMetaRows,
 	}, nil

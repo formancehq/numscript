@@ -33,6 +33,15 @@ func ValidateAsset(v string) bool      { return assetNameRegex.MatchString(v) }
 func ValidateColor(v string) bool      { return v == "" || colorNameRegex.MatchString(v) }
 func ValidateScope(v string) bool      { return scopeNameRegex.MatchString(v) }
 
+// ValidatePosting reports whether a posting has a non-negative amount and
+// well-formed accounts, scopes, asset and color.
+func ValidatePosting(p Posting) bool {
+	return p.Amount != nil && p.Amount.Sign() >= 0 &&
+		ValidateAccount(p.Source) && ValidateScope(p.SourceScope) &&
+		ValidateAccount(p.Destination) && ValidateScope(p.DestinationScope) &&
+		ValidateAsset(p.Asset) && ValidateColor(p.Color)
+}
+
 // ParseNumber parses a base-10 integer (arbitrary precision).
 func ParseNumber(s string) (*big.Int, bool) {
 	return new(big.Int).SetString(s, 10)
