@@ -79,3 +79,11 @@ func TestExprTypes(t *testing.T) {
 	}
 	require.True(t, found, "expected a monetary-typed expr")
 }
+
+func TestInfixInvalidLeftStillChecksRight(t *testing.T) {
+	res := check(t, `set_tx_meta("k", "text" + $missing)`)
+	require.Equal(t, []typecheck.ErrorKind{
+		typecheck.TypeMismatch{Expected: typecheck.TypeNumber + "|" + typecheck.TypeMonetary, Got: typecheck.TypeString},
+		typecheck.UnboundVariable{Name: "missing", Type: typecheck.TypeAny},
+	}, kinds(res))
+}

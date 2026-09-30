@@ -386,6 +386,7 @@ func (c *checker) checkInfixOverload(bin *parser.BinaryInfix, allowed []Type) Ty
 		return leftType
 	}
 	c.push(bin.Left.GetRange(), TypeMismatch{Expected: strings.Join(allowed, "|"), Got: leftType})
+	c.checkExpr(bin.Right, TypeAny)
 	return TypeAny
 }
 
