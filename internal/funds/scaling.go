@@ -52,6 +52,11 @@ func BuildScaledAsset(baseAsset string, scale int64) string {
 // GetAssets collects, per scale, the (uncolored) amount an account holds of
 // baseAsset. Scaling converts only uncolored balances and emits uncolored
 // postings, so colored balances are excluded.
+//
+// Postings name the asset with BuildScaledAsset, so a balance whose asset is not
+// in that form (e.g. "EUR/0", "EUR/02") is excluded too: it can't be withdrawn
+// under the name the conversion would post, and it would collide with the
+// canonical asset of the same scale.
 func GetAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*big.Int {
 	result := make(map[int64]*big.Int)
 	for _, accBalance := range accountBalances {
@@ -59,7 +64,7 @@ func GetAssets(accountBalances []AccountBalance, baseAsset string) map[int64]*bi
 			continue
 		}
 		accBalanceAsset, scale := GetBaseAndScale(accBalance.Asset)
-		if accBalanceAsset == baseAsset {
+		if accBalanceAsset == baseAsset && BuildScaledAsset(baseAsset, scale) == accBalance.Asset {
 			result[scale] = new(big.Int).Set(accBalance.Amount)
 		}
 	}
