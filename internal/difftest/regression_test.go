@@ -406,15 +406,15 @@ func TestKnownOpenDivergences(t *testing.T) {
 	}
 }
 
-// TestNegativeDivisionPortionCommits pins DIVERGENCES.md #7: a negative
-// division portion on the destination side. numscript at edde2b1 rejected the
-// script (it produced the posting world->acc1 -30); the interpreter and the vm
-// now both commit and send the whole 90 to @acc2, ignoring the declared split.
-// The oracle has no division portions, so it gets the same allotment with the
-// portion passed as a var, and rejects the negative portion. Compare cannot
-// flag it -- the oracle rejects while resolving vars, a tolerated one-sided
-// rejection -- so this test asserts each engine's outcome directly.
-func TestNegativeDivisionPortionCommits(t *testing.T) {
+// TestNegativeDivisionPortionRejected pins DIVERGENCES.md #7, now fixed: a
+// negative division portion on the destination side. numscript at edde2b1
+// rejected the script, then the funds rewrite made it commit and send the whole
+// 90 to @acc2; both engines reject it again, as ledger does. The oracle has no
+// division portions, so it gets the same allotment with the portion passed as a
+// var. Compare cannot flag a regression here -- the oracle rejects while
+// resolving vars, a tolerated one-sided rejection -- so this test asserts each
+// engine's outcome directly.
+func TestNegativeDivisionPortionRejected(t *testing.T) {
 	const script = `vars {
   number $n
 }
@@ -448,11 +448,8 @@ send [COIN 90] (
 	newRes := runNew(ctx, script, vars, nil, nil, nil)
 	vmRes := runVM(ctx, script, vars, nil, nil, nil)
 	for name, res := range map[string]SideResult{"new interpreter": newRes, "vm": vmRes} {
-		if res.Failed() {
-			t.Fatalf("%s: expected it to commit (the divergence is gone -- update DIVERGENCES.md #7); got %+v", name, res)
-		}
-		if len(res.Postings) != 1 || res.Postings[0].Destination != "acc2" || res.Postings[0].Amount.Int64() != 90 {
-			t.Fatalf("%s: expected the whole 90 to go to @acc2; got %+v", name, res.Postings)
+		if !res.Failed() {
+			t.Fatalf("%s: expected it to reject a negative portion; got %+v", name, res)
 		}
 	}
 	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {

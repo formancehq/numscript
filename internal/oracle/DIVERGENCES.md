@@ -18,7 +18,7 @@ Everything below was measured by running all three engines, not recalled.
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 | 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
 | 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | rejects the script (fixed 2026-09-25) |
-| 7 | negative division portion, destination side | rejects a negative portion | same | commits, sends the money elsewhere (rejected at `edde2b1`) |
+| 7 | negative division portion, destination side | rejects a negative portion | same | rejects the script (fixed 2026-09-30) |
 | 8 | asset var with an underscore suffix (`USD_CASH`) | runs the script | runs the script | rejects the asset (accepted at `edde2b1`) |
 
 The oracle matches ledger on 1, 4, 5, 6, 7 and 8. It does not on 2 and 3, the two
@@ -373,8 +373,8 @@ without the harness.
 
 ## 7. Negative division portion, destination side
 
-**numscript at `edde2b1` rejected this script. It now commits it and ignores
-the declared split.**
+**numscript at `edde2b1` rejected this script. The funds rewrite made it commit
+and ignore the declared split; it rejects again since 2026-09-30.**
 
 ```numscript
 vars {
@@ -397,19 +397,15 @@ send [COIN 90] (
 | ledger | no division portions; the same portion passed as a var (`-1/3`) is rejected |
 | oracle | same as ledger |
 | numscript at `edde2b1` | `The script produced a posting with invalid values: {world acc1 -30}` |
-| numscript (interpreter and vm) | commits: `world->acc2 90` |
+| numscript before the fix | commits: `world->acc2 90` |
+| numscript (interpreter and vm) | `Invalid allotment: portions cannot be negative (got -1/3)` |
 
-The same happens without `remaining` (`$n/3` and `$m/3` with n = -1, m = 4),
-with `1/$d` for d = -3, and nested under a `max`. With real sources the whole
-amount still goes to the non-negative destinations. The source side is
-unchanged: every engine fails it as missing funds.
+Before the fix the same happened without `remaining` (`$n/3` and `$m/3` with
+n = -1, m = 4), with `1/$d` for d = -3, and nested under a `max`.
 
 The oracle cannot run a division portion, so `Compare` never sees this shape:
 the oracle's var-form rejection is a tolerated one-sided rejection.
-`TestNegativeDivisionPortionCommits` asserts each engine's outcome directly.
-
-**Open question:** reject a negative portion (as ledger does for the var form
-and as numscript did before), or keep committing.
+`TestNegativeDivisionPortionRejected` asserts each engine's outcome directly.
 
 ## 8. Asset var with an underscore suffix
 
@@ -488,7 +484,7 @@ numscript engines run) and `TestNumscriptOnlyShapeAgreements`.
 | 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
 | 5 | `TestKnownOpenDivergences` |
 | 6 | `TestKnownBugRepros` (the engines agree now), both sides, and the interpreter's own over-100% tests |
-| 7 | `TestNegativeDivisionPortionCommits` |
+| 7 | `TestNegativeDivisionPortionRejected` (the engines agree now) |
 | 8 | `TestUnderscoreAssetVarRejected` |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
