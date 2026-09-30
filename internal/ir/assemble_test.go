@@ -210,6 +210,17 @@ func TestAssemble_JmpDelta(t *testing.T) {
 		require.ErrorContains(t, err, "backward jump")
 	})
 
+	t.Run("duplicate label is rejected", func(t *testing.T) {
+		_, err := Assemble([]Instr{
+			ConstBool{Dest: 0, Value: true},
+			JmpIfFalse{Cond: 0, Target: "end"},
+			LabelMarker{Label: "end"},
+			LoadInt{Dest: 1, Value: *big.NewInt(1)},
+			LabelMarker{Label: "end"},
+		})
+		require.ErrorContains(t, err, "duplicate label")
+	})
+
 	t.Run("jump to itself is rejected", func(t *testing.T) {
 		_, err := Assemble([]Instr{
 			ConstBool{Dest: 0, Value: true},

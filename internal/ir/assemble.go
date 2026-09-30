@@ -1022,6 +1022,9 @@ func (i LabelMarker) assemble(a *assembler) error {
 		return fmt.Errorf("%w: a label sits past instruction %d, the most a jump target can address", ErrProgramTooLarge, math.MaxUint16)
 	}
 
+	if _, ok := a.labels[i.Label]; ok {
+		return fmt.Errorf("duplicate label declaration of `%s`", string(i.Label))
+	}
 	a.labels[i.Label] = uint16(l)
 
 	return nil
