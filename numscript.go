@@ -233,6 +233,7 @@ type (
 	VmMetadataNotFoundError = vm.MetadataNotFoundError
 	VmBadMetaValueError     = vm.BadMetaValueError
 	VmInternalError         = vm.InternalError
+	VmInvalidPostingError   = vm.InvalidPostingError
 	VmStoreError            = vm.StoreError
 )
 

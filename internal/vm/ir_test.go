@@ -854,6 +854,31 @@ func TestIRAssertions(t *testing.T) {
 	})
 }
 
+func TestIRRejectsInvalidPostings(t *testing.T) {
+	for name, tc := range map[string]struct{ asset, dest string }{
+		"account": {asset: "USD/2", dest: "not valid"},
+		"asset":   {asset: "usd", dest: "dest"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			execErr := runIRExpectingError(t, `
+  $asset = "`+tc.asset+`"
+  set_current_asset($asset)
+  $src = "src"
+  $amount = 10
+  $overdraft = 100
+  $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  $dest = "`+tc.dest+`"
+  send_to_account(account: $dest)
+`, balances(map[string]int64{"src": 70}), nil)
+
+			var invalid vm.InvalidPostingError
+			require.IsType(t, vm.InternalError{}, execErr)
+			require.ErrorAs(t, execErr, &invalid)
+			require.Equal(t, tc.dest, invalid.Posting.Destination)
+		})
+	}
+}
+
 func TestIRAssertNonNegativePortionAcceptsZero(t *testing.T) {
 	runIR(t, `
   $zero = 0

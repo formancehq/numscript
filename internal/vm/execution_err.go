@@ -3,6 +3,8 @@ package vm
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/formancehq/numscript/internal/funds"
 )
 
 type (
@@ -108,6 +110,16 @@ func (e InternalError) Error() string {
 }
 
 func (e InternalError) Unwrap() error { return e.Err }
+
+// InvalidPostingError is wrapped in an InternalError when a posting fails
+// funds.ValidatePosting.
+type InvalidPostingError struct {
+	Posting funds.Posting
+}
+
+func (e InvalidPostingError) Error() string {
+	return fmt.Sprintf("produced a posting with invalid values: %+v", e.Posting)
+}
 
 func (e DivideByZeroError) Error() string {
 	return fmt.Sprintf("cannot divide by zero (in %s/0)", e.Numerator.String())
