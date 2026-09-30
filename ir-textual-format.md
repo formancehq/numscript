@@ -299,11 +299,33 @@ Together they express an if/else, which is how `@world`'s unboundedness is compi
 ### Backtracking (`oneof`)
 
 ```
-  $mark = snapshot()      // int: marks the current position of the source queue
-  restore($mark)          // rewinds the source queue to a mark
+  mark_push()     // opens a region
+  mark_rewind()   // closes the innermost region, undoing what was pulled in it
+  mark_commit()   // closes the innermost region, keeping what was pulled in it
 ```
 
-`snapshot` takes no arguments and writes an `int` mark; `restore` reads one back. A `oneof` source compiles to a `snapshot` before the first branch and a `restore` before each retry.
+The three take no operands and write no register; the run state keeps the stack of open regions. `mark_rewind` and `mark_commit` are one instruction (`Op_MarkEnd`) differing in a flag.
+
+A `oneof` source opens a region per branch. A branch that covers the whole amount jumps to the end with its region still open, and `mark_commit` closes it there; otherwise `mark_rewind` undoes it and the next branch runs. The last branch has no check. `source = oneof { @a @b }` compiles to (simplified: the cap is a constant and the `@world` checks are trimmed):
+
+```
+  $r4 = 10
+  $r7 = 0
+  mark_push()
+  $r6 = "a"
+  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+  $r10 = int_copy($r9)
+  $r11 = $r4 - $r9
+  $r12 = is_zero($r11)
+  jmp_if_true($r12, #oneof_end_1)
+  mark_rewind()
+  mark_push()
+  $r13 = "b"
+  $r16 = pull_account(account: $r13, cap: $r4, overdraft: $r7)
+  $r10 = int_copy($r16)
+#oneof_end_1
+  mark_commit()
+```
 
 ## A full example
 
