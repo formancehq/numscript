@@ -431,6 +431,9 @@ Let's compile the allotment source `<p1> from <s1>, .., <pn> from <sn>`, bounded
 Note that an allotment source is always bounded.
 
 ```
+// only for a <pi> that could be negative, i.e. a division with a non-literal operand
+assert_non_negative_portion(<pi>)
+
 // portions must cover exactly 1 (no `remaining` clause here)
 $leftover = 1 - <p1> - .. - <pn>
 assert_leftover_exact($leftover) // plain "assert_leftover" if there's a remaining clause

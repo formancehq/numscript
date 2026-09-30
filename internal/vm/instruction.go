@@ -64,6 +64,10 @@ const (
 	// errors if the scope in str reg A is not well-formed
 	Op_AssertValidScope Opcode = 0x08
 
+	// errors (NegativePortionError) if the portion in reg A is negative — an
+	// allotment clause portion
+	Op_AssertNonNegativePortion Opcode = 0x09
+
 	// --- constants & variables (0x10) ---
 	// may split into one opcode per expr_typ later
 	Op_LoadInt Opcode = 0x10 // LoadConst (`Int)    -> b_c = const-pool index

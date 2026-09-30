@@ -60,7 +60,22 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Traps if the color in <code>str_regs[A]</code> is malformed (only uppercase letters; the empty string is valid)</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x07..0x0F reserved</em></td>
+      <td>7</td><td><code>0x07</code></td><td><strong>ASSERT_NON_NEGATIVE_AMOUNT</strong></td>
+      <td>amt</td><td>-</td><td>-</td>
+      <td>Traps if <code>int_regs[A]</code> (a sent/saved amount) is negative</td>
+    </tr>
+    <tr>
+      <td>8</td><td><code>0x08</code></td><td><strong>ASSERT_VALID_SCOPE</strong></td>
+      <td>scope</td><td>-</td><td>-</td>
+      <td>Traps if the scope in <code>str_regs[A]</code> is malformed</td>
+    </tr>
+    <tr>
+      <td>9</td><td><code>0x09</code></td><td><strong>ASSERT_NON_NEGATIVE_PORTION</strong></td>
+      <td>por</td><td>-</td><td>-</td>
+      <td>Traps if <code>por_regs[A]</code> (an allotment clause portion) is negative</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x0A..0x0F reserved</em></td>
     </tr>
   </tbody>
 </table>

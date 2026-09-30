@@ -230,10 +230,7 @@ func Exec[S Store](
 		case Op_CheckEnoughFunds:
 			got := &intsRegs[instr.A]
 			needed := &intsRegs[instr.B]
-			// an exact-pull check, not a >=: needed can be negative (an allotment
-			// share of a negative portion), and the pull clamps at zero, so got >
-			// needed. The interpreter's tryTakingExact fails on any difference and
-			// classifies it as missing funds; so does this.
+			// exact, like the interpreter's tryTakingExact
 			if got.Cmp(needed) != 0 {
 				return funds.ExecutionResult{}, MissingFundsError{
 					Asset:  currentAsset,
@@ -334,6 +331,12 @@ func Exec[S Store](
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {
 				return funds.ExecutionResult{}, NegativeAmountError{Amount: *amount}
+			}
+
+		case Op_AssertNonNegativePortion:
+			portion := &portionsRegs[instr.A]
+			if portion.Sign() < 0 {
+				return funds.ExecutionResult{}, NegativePortionError{Portion: *portion}
 			}
 
 		case Op_SetTxMeta:

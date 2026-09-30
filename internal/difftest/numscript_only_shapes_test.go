@@ -50,13 +50,10 @@ func TestNumscriptOnlyShapeAgreements(t *testing.T) {
 )`,
 		},
 		{
-			// A oneof under a negative allotment share: the interpreter clamps
-			// the requested amount at zero on entry, so the first branch
-			// trivially covers it and later branches are never evaluated; the
-			// vm once compared pulls against the raw negative cap and walked
-			// into the second branch, whose over-100% allotment then errored
-			// with the wrong classification (found by the sweep, seed 571).
-			name:       "oneof under a negative allotment share stops at the first branch",
+			// The negative portion is rejected before the oneof runs, so the
+			// over-100% allotment in its second branch is never evaluated
+			// (sweep seed 571).
+			name:       "negative allotment portion rejected before its oneof runs",
 			flags:      []string{flags.ExperimentalOneofFeatureFlag},
 			bothReject: true,
 			vars:       map[string]string{"n": "-1"},

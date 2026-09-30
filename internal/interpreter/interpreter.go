@@ -864,6 +864,9 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			if err != nil {
 				return nil, err
 			}
+			if rat.Sign() < 0 {
+				return nil, NegativePortion{Range: allotment.Value.GetRange(), Portion: *rat}
+			}
 
 			totalAllotment.Add(totalAllotment, rat)
 			allotments = append(allotments, rat)
