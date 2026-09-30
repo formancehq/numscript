@@ -1,7 +1,6 @@
 package syntax
 
 import (
-	"strconv"
 
 	"github.com/formancehq/numscript/internal/parser"
 
@@ -324,12 +323,7 @@ func buildConst(ctx antlrParser.IConst_Context) Const {
 	switch c := ctx.(type) {
 	case *antlrParser.ConstStringContext:
 		tok := c.STRING().GetSymbol()
-		raw := tok.GetText()
-		// strip surrounding quotes
-		s, err := strconv.Unquote(raw)
-		if err != nil {
-			s = raw[1 : len(raw)-1]
-		}
+		s := tok.GetText()
 		return Const{Range: tokenToRange(tok), Kind: ConstString, StrVal: &s}
 	case *antlrParser.ConstIntContext:
 		tok := c.INT().GetSymbol()

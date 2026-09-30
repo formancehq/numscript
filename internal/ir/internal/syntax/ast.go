@@ -103,7 +103,7 @@ type Const struct {
 	Kind  ConstKind
 
 	// Exactly one is set:
-	StrVal  *string
+	StrVal  *string // raw quoted literal
 	IntVal  *string // raw numeric string
 	BoolVal *bool
 }

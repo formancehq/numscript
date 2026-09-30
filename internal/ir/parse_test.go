@@ -24,6 +24,22 @@ func TestParseErrors(t *testing.T) {
 		require.Contains(t, errs[0].Msg, "unknown instruction")
 	})
 
+	t.Run("invalid string escape", func(t *testing.T) {
+		_, errs := Parse(`
+  $r0 = "a\q"
+`)
+		require.NotEmpty(t, errs)
+		require.Contains(t, errs[0].Msg, "invalid string literal")
+	})
+
+	t.Run("valid string escapes", func(t *testing.T) {
+		instrs, errs := Parse(`
+  $r0 = "a\"b\\c\n"
+`)
+		require.Empty(t, errs)
+		require.Equal(t, "a\"b\\c\n", instrs[0].(LoadStr).Value)
+	})
+
 	t.Run("invalid arg type", func(t *testing.T) {
 		_, errs := Parse(`
   $r0 = neg_int(42)

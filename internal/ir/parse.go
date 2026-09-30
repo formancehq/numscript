@@ -165,7 +165,11 @@ func (t *transformer) transformConst(s *syntax.InstrStmt) (Instr, *Error) {
 
 	switch s.Const.Kind {
 	case syntax.ConstString:
-		return LoadStr{Dest: dest, Value: *s.Const.StrVal}, nil
+		str, err := strconv.Unquote(*s.Const.StrVal)
+		if err != nil {
+			return nil, &Error{Range: s.Const.Range, Msg: fmt.Sprintf("invalid string literal: %s", *s.Const.StrVal)}
+		}
+		return LoadStr{Dest: dest, Value: str}, nil
 	case syntax.ConstInt:
 		n, ok := new(big.Int).SetString(*s.Const.IntVal, 10)
 		if !ok {
