@@ -123,7 +123,7 @@ func (InvalidUncappedSource) Error() string {
 	return "cannot take all balance of an unbounded source"
 }
 func (DuplicateRemaining) Error() string {
-	return "a 'remaining' clause should be the last in an allotment expression"
+	return "only one 'remaining' clause is allowed in an allotment expression"
 }
 func (e TypeError) Error() string { return e.Kind.Message() }
 func (InvalidMetaPosition) Error() string {

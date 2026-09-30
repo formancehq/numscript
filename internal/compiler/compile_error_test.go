@@ -225,7 +225,7 @@ func TestCompilerErrorMessages(t *testing.T) {
 		{"UnboundVar", UnboundVar{Var: "x"}, "the variable '$x' was not declared"},
 		{"TypeError", TypeError{Kind: typecheck.UnboundVariable{Name: "x"}}, "The variable '$x' was not declared"},
 		{"InvalidUncappedSource", InvalidUncappedSource{}, "cannot take all balance of an unbounded source"},
-		{"DuplicateRemaining", DuplicateRemaining{}, "a 'remaining' clause should be the last in an allotment expression"},
+		{"DuplicateRemaining", DuplicateRemaining{}, "only one 'remaining' clause is allowed in an allotment expression"},
 		{"InvalidMetaPosition", InvalidMetaPosition{}, "meta() is only allowed as a variable origin"},
 		{"CannotCastToString", CannotCastToString{Type: typecheck.TypeMonetary}, "cannot cast a value of type monetary to string"},
 		{"FeatureNotImplemented", FeatureNotImplemented{Feature: "scaling"}, "internal error: feature not implemented: scaling"},
