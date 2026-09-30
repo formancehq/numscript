@@ -124,7 +124,7 @@ func VerifyWithVars(p Program, vars *Vars) (VerifiedVarsInfo, error) {
 		return VerifiedVarsInfo{}, err
 	}
 
-	result := VerifiedVarsInfo{varIntsLen: info.varIntsLen, varStrsLen: info.varStrsLen}
+	result := VerifiedVarsInfo(info)
 	if result.CheckVars(vars) {
 		return result, nil
 	}
