@@ -771,6 +771,17 @@ func (i AssertNonNegativeAmount) assemble(a *assembler) error {
 	return nil
 }
 
+func (i AssertNonNegativePortion) assemble(a *assembler) error {
+	portion, err := a.portionReg(i.Portion)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertNonNegativePortion, portion, maxReg, maxReg)
+
+	return nil
+}
+
 func (i SetTxMeta) assemble(a *assembler) error {
 	key, err := a.strReg(i.Key)
 	if err != nil {

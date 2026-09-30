@@ -371,6 +371,52 @@ func TestE2E_AllotmentOverSum(t *testing.T) {
 	require.EqualError(t, allotErr, "invalid allotment: portions must sum to 1, got 4/3")
 }
 
+func TestE2E_NegativeAllotmentPortion(t *testing.T) {
+	for name, src := range map[string]string{
+		"source": `
+			send [USD/2 90] (
+				source = {
+					-1/3 from @s1
+					remaining from @s2
+				}
+				destination = @dest
+			)
+		`,
+		"destination": `
+			send [USD/2 90] (
+				source = @world
+				destination = {
+					-1/3 to @a
+					remaining to @b
+				}
+			)
+		`,
+		"portions summing to one": `
+			send [USD/2 90] (
+				source = @world
+				destination = {
+					4/3 to @a
+					-1/3 to @b
+				}
+			)
+		`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			parsed := parser.Parse(src)
+			require.Empty(t, parsed.Errors)
+			_, program, cErr := compiler.Compile(parsed.Value, nil)
+			require.Nil(t, cErr)
+			machine := vm.NewVm(program)
+			_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{
+				{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(500),
+				{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(500),
+			}})
+			require.IsType(t, vm.NegativePortionError{}, execErr)
+			require.EqualError(t, execErr, "invalid allotment: portions cannot be negative, got -1/3")
+		})
+	}
+}
+
 // TestE2E_AllotmentUnderSum: without a `remaining` clause the portions must sum
 // to exactly 1, so 1/3 + 1/3 = 2/3 must error.
 func TestE2E_AllotmentUnderSum(t *testing.T) {

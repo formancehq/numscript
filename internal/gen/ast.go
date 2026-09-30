@@ -68,7 +68,7 @@ type Source struct {
 // numerator always renders through a runtime-bound number var, so any sign is
 // expressible without unary minus). Unlike literals and portion vars, the value
 // is unconstrained: negative and over-one portions are reachable this way, and
-// both engines must agree on what they do. numscript-only: the oracle's grammar
+// both engines must reject them the same way. numscript-only: the oracle's grammar
 // has no division expression.
 type PortionDiv struct {
 	Num *big.Int

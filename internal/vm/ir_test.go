@@ -840,6 +840,27 @@ func TestIRAssertions(t *testing.T) {
 `, balances(nil), nil)
 		require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
 	})
+
+	t.Run("negative allotment portion", func(t *testing.T) {
+		execErr := runIRExpectingError(t, `
+  $zero = 0
+  $one = 1
+  $minusOne = sub_int($zero, $one)
+  $three = 3
+  $portion = mk_portion($minusOne, $three)
+  assert_non_negative_portion($portion)
+`, balances(nil), nil)
+		require.IsType(t, vm.NegativePortionError{}, execErr)
+	})
+}
+
+func TestIRAssertNonNegativePortionAcceptsZero(t *testing.T) {
+	runIR(t, `
+  $zero = 0
+  $one = 1
+  $portion = mk_portion($zero, $one)
+  assert_non_negative_portion($portion)
+`, balances(nil), nil)
 }
 
 func TestIRUncappedPull(t *testing.T) {

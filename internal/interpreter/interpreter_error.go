@@ -217,6 +217,15 @@ func (e InvalidAllotmentSum) Error() string {
 	return fmt.Sprintf("Invalid allotment: portions sum should be 1 (got %s instead)", e.ActualSum.String())
 }
 
+type NegativePortion struct {
+	parser.Range
+	Portion big.Rat
+}
+
+func (e NegativePortion) Error() string {
+	return fmt.Sprintf("Invalid allotment: portions cannot be negative (got %s)", e.Portion.String())
+}
+
 type QueryBalanceError struct {
 	parser.Range
 	WrappedError error

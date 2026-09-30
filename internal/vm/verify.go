@@ -411,6 +411,8 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankStr, instr.B)
 	case Op_AssertNonNegativeAmount:
 		read(bankInt, instr.A)
+	case Op_AssertNonNegativePortion:
+		read(bankPortion, instr.A)
 	case Op_AssertLeftover:
 		read(bankPortion, instr.A)
 		flag(instr.B)

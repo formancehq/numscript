@@ -242,6 +242,7 @@ There is no allotment instruction. Splitting an amount across portions is built 
 | `check_enough_funds($got, $needed)` | `int, int` |
 | `assert_leftover($portion)` | `portion` — leftover must be `>= 0` |
 | `assert_leftover_exact($portion)` | `portion` — leftover must be exactly `0` |
+| `assert_non_negative_portion($portion)` | `portion` — an allotment clause portion must be `>= 0` |
 | `assert_same_asset($l, $r)` | `str, str` |
 | `assert_valid_account($a)` | `str` |
 | `assert_valid_color($c)` | `str` |

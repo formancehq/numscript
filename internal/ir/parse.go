@@ -524,6 +524,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
 	case "assert_non_negative_amount":
 		instr = AssertNonNegativeAmount{Amount: ap.reg()}
+	case "assert_non_negative_portion":
+		instr = AssertNonNegativePortion{Portion: ap.reg()}
 
 	// two names for one instruction, as assert_leftover/assert_leftover_exact are
 	case "mark_push":

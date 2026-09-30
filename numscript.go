@@ -224,6 +224,7 @@ type (
 	VmNegativeBalanceError  = vm.NegativeBalanceError
 	VmAssetMismatchError    = vm.AssetMismatchError
 	VmInvalidAllotmentSum   = vm.InvalidAllotmentSum
+	VmNegativePortionError  = vm.NegativePortionError
 	VmDivideByZeroError     = vm.DivideByZeroError
 	VmInvalidAccountName    = vm.InvalidAccountName
 	VmInvalidColor          = vm.InvalidColor

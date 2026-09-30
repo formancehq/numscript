@@ -118,6 +118,7 @@ type (
 	AssertValidScope         struct{ Scope Reg }            // str
 	AssertNonNegativeBalance struct{ Balance, Account Reg } // int (the amount), str
 	AssertNonNegativeAmount  struct{ Amount Reg }           // int (a sent/saved amount, not tied to an account)
+	AssertNonNegativePortion struct{ Portion Reg }          // portion (an allotment clause portion)
 	SetTxMeta                struct{ Key, Value Reg }       // str, str
 	SetAccountMeta           struct {
 		Account, Key, Value Reg  // str, str, str
@@ -255,6 +256,9 @@ func (i AssertNonNegativeBalance) sources() []Reg { return []Reg{i.Balance, i.Ac
 
 func (i AssertNonNegativeAmount) dests() []Reg   { return nil }
 func (i AssertNonNegativeAmount) sources() []Reg { return []Reg{i.Amount} }
+
+func (i AssertNonNegativePortion) dests() []Reg   { return nil }
+func (i AssertNonNegativePortion) sources() []Reg { return []Reg{i.Portion} }
 
 func (i SetTxMeta) dests() []Reg   { return nil }
 func (i SetTxMeta) sources() []Reg { return []Reg{i.Key, i.Value} }

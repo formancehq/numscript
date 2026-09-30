@@ -594,6 +594,105 @@ func TestInvalidDestinationAllotmentSumOverOneWithRemaining(t *testing.T) {
 	test(t, tc)
 }
 
+func TestNegativeSourceAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = {
+			$n/3 from @a
+			remaining from @b
+		}
+		destination = @dest
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1"}`)
+	tc.setBalance("a", "COIN", 500)
+	tc.setBalance("b", "COIN", 500)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestNegativeDestinationAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$n/3 to @a
+			remaining to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1"}`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestNegativeAllotmentPortionBalancedToOne(t *testing.T) {
+	// the portions sum to 1, so only the per-clause check rejects it
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+		number $m
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$m/3 to @a
+			$n/3 to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1", "m": "4"}`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestZeroAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$n/3 to @a
+			remaining to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "0"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Asset: "COIN", Amount: big.NewInt(90), Source: "world", Destination: "b"},
+		},
+	}
+	test(t, tc)
+}
+
 func TestRejectsDuplicateRemainingAllotments(t *testing.T) {
 	tc := NewTestCase()
 	src := tc.compile(t, `send [COIN 100] (

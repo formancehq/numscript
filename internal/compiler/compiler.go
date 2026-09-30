@@ -89,6 +89,9 @@ func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue)
 			if err != nil {
 				return nil, err
 			}
+			if !nonNegativePortionExpr(al.Value) {
+				st.Push(ir.AssertNonNegativePortion{Portion: p})
+			}
 			portions[i] = p
 		case *parser.RemainingAllotment:
 			if remainingIdx != -1 {
@@ -117,6 +120,25 @@ func (st *state) compileAllot(amount ir.Reg, allotments []parser.AllotmentValue)
 	}
 
 	return st.compileAllotmentSplit(amount, portions), nil
+}
+
+// nonNegativePortionExpr reports whether a portion expression cannot evaluate to a
+// negative value: portion vars and meta() portions are range-checked when parsed,
+// so only a division with a non-literal or negative operand can.
+func nonNegativePortionExpr(expr parser.ValueExpr) bool {
+	switch expr := expr.(type) {
+	case *parser.PercentageLiteral:
+		return expr.Amount.Sign() >= 0
+	case *parser.Variable:
+		return true
+	case *parser.BinaryInfix:
+		num, numOk := expr.Left.(*parser.NumberLiteral)
+		den, denOk := expr.Right.(*parser.NumberLiteral)
+		return expr.Operator == parser.InfixOperatorDiv && numOk && denOk &&
+			num.Number.Sign() >= 0 && den.Number.Sign() > 0
+	default:
+		return false
+	}
 }
 
 // TODO properly review claude-generated compileAllotmentSplit
@@ -960,11 +982,8 @@ func (st *state) compileSource(
 
 // compileSourceWithRequiredAmount is the interpreter's tryTakingExact: pull up
 // to capReg, then fail as missing funds unless exactly capReg was pulled. The
-// cap handed to the source is clamped at zero first — tryTakingUpTo does the
-// same at entry — while the exactness check keeps the raw value: a negative
-// required amount (an allotment share of a negative portion) must fail the
-// check, not leak downward, where e.g. a oneof would compare its pulls against
-// the negative cap and walk into branches the interpreter never evaluates.
+// cap handed to the source is clamped at zero first, as tryTakingUpTo does at
+// entry.
 func (st *state) compileSourceWithRequiredAmount(
 	capReg ir.Reg,
 	src parser.Source,
