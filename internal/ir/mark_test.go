@@ -11,7 +11,7 @@ import (
 // wrong — and, more to the point, no operand a caller could use to name a queue
 // depth the run-state never marked. What does need checking about them (that pushes
 // and ends balance, and that no send or asset change sits inside a region) is a
-// control-flow property, left to run time until a verifier pass exists.
+// control-flow property, checked by vm.Verify on the assembled program.
 func TestMark_Typecheck(t *testing.T) {
 	require.NoError(t, Typecheck([]Instr{
 		MarkPush{},

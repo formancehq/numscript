@@ -163,6 +163,64 @@ func TestVerifyFlagOperand(t *testing.T) {
 	}})
 }
 
+func requireRejectedWith(t *testing.T, p Program, msg string) {
+	t.Helper()
+	require.ErrorContains(t, Verify(fullBanks(p)), msg)
+}
+
+func TestVerifyMarkBalance(t *testing.T) {
+	push := abc(Op_MarkPush, nilReg, nilReg, nilReg)
+	commit := abc(Op_MarkEnd, 0, nilReg, nilReg)
+	rewind := abc(Op_MarkEnd, 1, nilReg, nilReg)
+
+	t.Run("end with no open mark", func(t *testing.T) {
+		requireRejectedWith(t, Program{Instructions: []Instruction{commit}}, "mark end with no open mark")
+		requireRejectedWith(t, Program{Instructions: []Instruction{push, rewind, commit}}, "mark end with no open mark")
+	})
+
+	t.Run("mark open at the end", func(t *testing.T) {
+		requireRejectedWith(t, Program{Instructions: []Instruction{push}}, "end with 1 open marks")
+	})
+
+	t.Run("mark open when jumping past the end", func(t *testing.T) {
+		requireRejectedWith(t, Program{Instructions: []Instruction{
+			abc(Op_ConstTrue, 0, nilReg, nilReg), // 0
+			push,                                 // 1
+			bc(Op_JmpIfTrue, 0, 1),               // 2: -> 4, past the end
+			commit,                               // 3
+		}}, "end with 1 open marks")
+	})
+
+	t.Run("paths join with different depths", func(t *testing.T) {
+		requireRejectedWith(t, Program{Instructions: []Instruction{
+			abc(Op_ConstTrue, 0, nilReg, nilReg), // 0
+			bc(Op_JmpIfTrue, 0, 1),               // 1: -> 3, skipping the push
+			push,                                 // 2
+			commit,                               // 3
+		}}, "different numbers of open marks")
+	})
+
+	// the oneof shape: a branch that covers the amount jumps out with its mark
+	// still open, and the commit after the join closes it
+	t.Run("oneof shape is fine", func(t *testing.T) {
+		mustAccept(t, Program{Instructions: []Instruction{
+			abc(Op_ConstTrue, 0, nilReg, nilReg), // 0
+			push,                                 // 1
+			bc(Op_JmpIfTrue, 0, 2),               // 2: -> 5
+			rewind,                               // 3
+			push,                                 // 4
+			commit,                               // 5
+		}})
+	})
+
+	t.Run("unreachable mark end is ignored", func(t *testing.T) {
+		mustAccept(t, Program{Instructions: []Instruction{
+			bc(Op_Jmp, 0, 1), // 0: -> 2
+			commit,           // 1
+		}})
+	})
+}
+
 func TestVerifyWithVars(t *testing.T) {
 	p := fullBanks(Program{Instructions: []Instruction{
 		bc(Op_LoadVarInt, 0, 1), // reads int var 1, so 2 are needed

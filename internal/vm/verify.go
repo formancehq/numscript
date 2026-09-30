@@ -65,6 +65,10 @@ type decoded struct {
 	// only. Giving it a fallthrough edge too would intersect the assigned-set
 	// with a path that cannot be taken, rejecting valid programs.
 	noFallThrough bool
+	// markDelta is +1 for a mark push, -1 for a mark end, 0 otherwise
+	markDelta int
+	// notInMark marks an op Exec refuses while a mark is open
+	notInMark bool
 }
 
 type programInfo struct {
@@ -238,7 +242,11 @@ func verify(p Program) (programInfo, error) {
 		}
 	}
 
-	if err := checkDefiniteAssignment(steps); err != nil {
+	g := buildCFG(steps)
+	if err := checkDefiniteAssignment(steps, g); err != nil {
+		return programInfo{}, err
+	}
+	if err := checkMarkBalance(steps, g); err != nil {
 		return programInfo{}, err
 	}
 
@@ -261,65 +269,75 @@ func (s step) target() int {
 	return s.at + s.words + s.d.jumpDelta
 }
 
-// checkDefiniteAssignment rejects a read of a register (or of the current asset)
-// that was not written on every path reaching that instruction.
-//
+// cfg is the control-flow graph over steps: edges are fallthroughs and jump
+// targets, indexed by position in steps.
+type cfg struct {
+	preds     [][]int
+	reachable []bool
+	// exits[k] is true when step k can end the run: by falling off the last
+	// instruction or jumping to len(instrs) or beyond
+	exits []bool
+}
+
 // Jumps are forward-only, so every predecessor of a step is earlier in the
-// stream and one ordered pass over the intersection of the predecessors'
-// written-sets reaches a fixed point — no worklist needed.
-//
-// This subsumes bytecode-level type confusion: a bank is part of a regRef, so a
-// slot written as an int and later read as a string is a read of a register that
-// was never written.
-func checkDefiniteAssignment(steps []step) error {
+// stream: one ordered pass over the steps sees each step after all of its
+// predecessors.
+func buildCFG(steps []step) cfg {
 	at2idx := make(map[int]int, len(steps))
 	for k, st := range steps {
 		at2idx[st.at] = k
 	}
 
-	preds := make([][]int, len(steps))
+	g := cfg{
+		preds:     make([][]int, len(steps)),
+		reachable: make([]bool, len(steps)),
+		exits:     make([]bool, len(steps)),
+	}
+	edge := func(k, at int) {
+		if j, ok := at2idx[at]; ok {
+			g.preds[j] = append(g.preds[j], k)
+		} else {
+			g.exits[k] = true
+		}
+	}
 	for k, st := range steps {
 		if !st.d.noFallThrough {
-			if j, ok := at2idx[st.at+st.words]; ok {
-				preds[j] = append(preds[j], k)
-			}
+			edge(k, st.at+st.words)
 		}
 		if t := st.target(); t >= 0 {
-			if j, ok := at2idx[t]; ok {
-				preds[j] = append(preds[j], k)
-			}
+			edge(k, t)
 		}
 	}
 
 	// An unreachable step never executes, so its reads cannot crash and its
 	// (empty) assigned-set must not poison the intersection at a later join.
-	// Reachability propagates forward, along the same edges.
-	reachable := make([]bool, len(steps))
-	if len(reachable) > 0 {
-		reachable[0] = true
+	if len(steps) > 0 {
+		g.reachable[0] = true
 	}
-	for k, st := range steps {
-		if !reachable[k] {
-			continue
-		}
-		if !st.d.noFallThrough {
-			if j, ok := at2idx[st.at+st.words]; ok {
-				reachable[j] = true
-			}
-		}
-		if t := st.target(); t >= 0 {
-			if j, ok := at2idx[t]; ok {
-				reachable[j] = true
+	for k := range steps {
+		for _, p := range g.preds[k] {
+			if g.reachable[p] {
+				g.reachable[k] = true
+				break
 			}
 		}
 	}
+	return g
+}
 
+// checkDefiniteAssignment rejects a read of a register (or of the current asset)
+// that was not written on every path reaching that instruction.
+//
+// This subsumes bytecode-level type confusion: a bank is part of a regRef, so a
+// slot written as an int and later read as a string is a read of a register that
+// was never written.
+func checkDefiniteAssignment(steps []step, g cfg) error {
 	assignedOut := make([]map[regRef]bool, len(steps))
 	for k, st := range steps {
-		if !reachable[k] {
+		if !g.reachable[k] {
 			continue
 		}
-		in := intersectAssigned(assignedOut, filterReachable(preds[k], reachable))
+		in := intersectAssigned(assignedOut, filterReachable(g.preds[k], g.reachable))
 		for _, r := range st.d.reads {
 			if !in[r] {
 				return fmt.Errorf("at instruction %d: %s read before being assigned on all paths", st.at, r)
@@ -329,6 +347,40 @@ func checkDefiniteAssignment(steps []step) error {
 			in[r] = true
 		}
 		assignedOut[k] = in
+	}
+	return nil
+}
+
+// checkMarkBalance rejects a program in which the number of open marks is not
+// the same on every path reaching an instruction, a mark end runs with no open
+// mark, a send, save or set_current_asset runs with a mark open, or the run can
+// end with a mark open.
+func checkMarkBalance(steps []step, g cfg) error {
+	depthOut := make([]int, len(steps))
+	for k, st := range steps {
+		if !g.reachable[k] {
+			continue
+		}
+		in := 0
+		preds := filterReachable(g.preds[k], g.reachable)
+		for i, p := range preds {
+			if i == 0 {
+				in = depthOut[p]
+			} else if depthOut[p] != in {
+				return fmt.Errorf("at instruction %d: paths join with different numbers of open marks (%d and %d)", st.at, in, depthOut[p])
+			}
+		}
+		if st.d.notInMark && in > 0 {
+			return fmt.Errorf("at instruction %d: send, save or set_current_asset while a mark is open", st.at)
+		}
+		out := in + st.d.markDelta
+		if out < 0 {
+			return fmt.Errorf("at instruction %d: mark end with no open mark", st.at)
+		}
+		if g.exits[k] && out != 0 {
+			return fmt.Errorf("at instruction %d: the run can end with %d open marks", st.at, out)
+		}
+		depthOut[k] = out
 	}
 	return nil
 }
@@ -401,6 +453,7 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 	case Op_SetCurrentAsset:
 		read(bankStr, instr.A)
 		d.writes = append(d.writes, currentAssetRef)
+		d.notInMark = true
 	case Op_AssertSameAsset:
 		read(bankStr, instr.A)
 		read(bankStr, instr.B)
@@ -536,16 +589,20 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		readOpt(bankInt, instr.B) // cap
 		readOpt(bankStr, instr.C) // scope
 		d.reads = append(d.reads, currentAssetRef)
+		d.notInMark = true
 	case Op_Save:
 		read(bankStr, instr.A)    // account
 		read(bankStr, instr.B)    // asset
 		readOpt(bankInt, instr.C) // amount, nil = save all
 		readOpt(bankStr, ext.A)   // scope
+		d.notInMark = true
 
 	// --- marks
 	case Op_MarkPush:
+		d.markDelta = 1
 	case Op_MarkEnd:
 		flag(instr.A)
+		d.markDelta = -1
 		// a rewind repays queued sources into the current asset's balance, but it
 		// is not listed as a reader: the repay loop only runs over sources queued
 		// inside the region, and queueing one takes an Op_PullAccount, which

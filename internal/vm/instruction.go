@@ -189,10 +189,10 @@ const (
 	//
 	// There is no "rewind but keep the mark" opcode: a retry is Op_MarkEnd with the
 	// rewind flag followed by a fresh Op_MarkPush, so pushes and ends match strictly
-	// and mark depth is a function of position in the instruction stream. A future
-	// IR verifier can therefore prove pushes and ends balance and that no
-	// Op_SendToAccount / Op_SetCurrentAsset / Op_Save sits inside a region; until it
-	// exists the VM enforces that at execution time.
+	// and mark depth is a function of position in the instruction stream. Verify
+	// proves pushes and ends balance and that no Op_SendToAccount /
+	// Op_SetCurrentAsset / Op_Save sits inside a region; Exec enforces the same at
+	// execution time, since it does not require a verified program.
 
 	// opens a region at the current source-queue depth and posting count
 	Op_MarkPush Opcode = 0x55

@@ -37,6 +37,7 @@ that passes vars should use the second form.
 | Flag operands are 0 or 1 | `Op_MarkEnd` tests `A == 1`, so a 2 silently commits a region that meant to rewind |
 | Definite assignment | Reading a register not written on every path reaching the instruction |
 | The current asset is set before it is used | A `send` or `pull` before any `set_current_asset` |
+| Mark discipline (see below) | An `Op_MarkEnd` with no open mark, a send/save/asset change inside a region, a run ending with a region open |
 | (`VerifyWithVars`) Var-pool indices are in range | `Op_LoadVar*` indexing past the pool, or dereferencing a nil `*Vars` |
 
 Two properties come for free rather than as their own pass:
@@ -50,30 +51,30 @@ Two properties come for free rather than as their own pass:
   definite-assignment dataflow a single ordered pass rather than a worklist:
   every predecessor of a step is earlier in the stream.
 
-## What it does not check
-
 ### Mark discipline
 
 `Op_MarkPush`/`Op_MarkEnd` take no operand, so mark depth is a function of
-position in the instruction stream and a verifier could decide statically that:
+position in the instruction stream. The pass carries a depth along the same
+forward dataflow as definite assignment, and rejects a program where:
 
-- pushes and ends balance on every path,
-- no `Op_MarkEnd` runs at depth 0,
-- no `Op_SendToAccount`, `Op_SetCurrentAsset` or `Op_Save` sits at depth > 0.
+- predecessors disagree on the depth at a join,
+- an `Op_MarkEnd` runs at depth 0,
+- an `Op_SendToAccount`, `Op_SetCurrentAsset` or `Op_Save` runs at depth > 0,
+- the run can end (falling off the last instruction, or jumping past it) at depth > 0.
 
-None of that is implemented. The VM enforces all three at execution time, via
+`ir/instr.go` asks emitters to keep this decidable ("never emit a mark op on
+only one side of a branch").
+
+The VM still enforces the same rules at execution time, via
 `runstate.HasOpenMark()` and the `errSendWhileMarkOpen` /
-`errSetAssetWhileMarkOpen` / `errSaveWhileMarkOpen` sentinels in `vm.go`.
-Landing the static pass would let those five lines go.
-
-The shape is the same forward dataflow the definite-assignment pass already
-uses: carry a depth instead of an assigned-set, and require predecessors to
-agree at a join. `ir/instr.go` already asks emitters to keep this decidable
-("never emit a mark op on only one side of a branch").
+`errSetAssetWhileMarkOpen` / `errSaveWhileMarkOpen` sentinels in `vm.go`:
+`Exec` does not require a verified program.
 
 **`internal/funds` must not be relaxed along with it.** The tree-walking
 interpreter shares `RunState.MarkEnd` (see `interpreter.go`), and it is not
 verified, so `ErrNoOpenMark` and the INVARIANT documented on `MarkEnd` stay.
+
+## What it does not check
 
 ### Unbounded sources
 

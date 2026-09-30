@@ -79,9 +79,9 @@ func allot2IR(amount, portion1, portion2, share1, share2 string) string {
 `, amount, portion1, portion2, share1, share2)
 }
 
-// assembleIR turns an IR text into a runnable program, failing the test on any
-// error the format's own layers report.
-func assembleIR(t *testing.T, src string) vm.Program {
+// assembleUnverifiedIR is assembleIR without the verifier, for the malformed
+// programs that exercise Exec's own guards.
+func assembleUnverifiedIR(t *testing.T, src string) vm.Program {
 	t.Helper()
 
 	instrs, errs := ir.Parse(src)
@@ -90,6 +90,15 @@ func assembleIR(t *testing.T, src string) vm.Program {
 
 	program, err := ir.Assemble(instrs)
 	require.NoError(t, err)
+	return program
+}
+
+// assembleIR turns an IR text into a runnable program, failing the test on any
+// error the format's own layers report.
+func assembleIR(t *testing.T, src string) vm.Program {
+	t.Helper()
+
+	program := assembleUnverifiedIR(t, src)
 
 	// every assembled program in this file goes through the verifier, so these
 	// tests double as its corpus for sequences the compiler never emits
@@ -105,6 +114,19 @@ func runIR(t *testing.T, src string, store irStore, vars *vm.Vars) funds.Executi
 	res, execErr := vm.Exec(context.Background(), vm.NewVm(assembleIR(t, src)), vars, store)
 	require.Nil(t, execErr, "unexpected execution error: %v", execErr)
 	return res
+}
+
+// runUnverifiedIRExpectingError is runIRExpectingError for a program the
+// verifier rejects with an error containing verifyErr.
+func runUnverifiedIRExpectingError(t *testing.T, src string, verifyErr string, store irStore, vars *vm.Vars) vm.ExecutionError {
+	t.Helper()
+
+	program := assembleUnverifiedIR(t, src)
+	require.ErrorContains(t, vm.Verify(program), verifyErr)
+
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), vars, store)
+	require.NotNil(t, execErr, "expected an execution error")
+	return execErr
 }
 
 // runIRExpectingError is runIR for the cases that must fail at run time.
@@ -436,8 +458,8 @@ func TestIRMarkNestedRegions(t *testing.T) {
 }
 
 // A mark op with nothing to act on is a malformed program, not a script outcome:
-// it is a bug in whatever produced the bytecode, so it surfaces as an
-// InternalError. The point is that it never panics — the old index-valued restore
+// it is a bug in whatever produced the bytecode, so Verify rejects it and, run
+// unverified, it surfaces as an InternalError. The point is that it never panics — the old index-valued restore
 // truncated the source queue to an arbitrary int, which panicked out of range or,
 // worse, resurrected already-consumed entries.
 func TestIRMarkWithNoOpenRegionIsAnInternalError(t *testing.T) {
@@ -468,7 +490,7 @@ func TestIRMarkWithNoOpenRegionIsAnInternalError(t *testing.T) {
 
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
-			execErr := runIRExpectingError(t, src, balances(nil), nil)
+			execErr := runUnverifiedIRExpectingError(t, src, "mark end with no open mark", balances(nil), nil)
 			require.IsType(t, vm.InternalError{}, execErr)
 			require.ErrorContains(t, execErr, "no open mark")
 		})
@@ -480,8 +502,7 @@ func TestIRMarkWithNoOpenRegionIsAnInternalError(t *testing.T) {
 // that would break it are rejected inside a region rather than silently corrupting
 // balances. Compiled numscript never emits any of them inside one — sources only
 // pull, and `save` is a statement — so this is reachable only from hand-written IR
-// (or a hand-crafted .numb), and it is exactly what a mark-depth verifier would
-// reject statically.
+// (or a hand-crafted .numb), and Verify rejects it statically.
 func TestIRSendAndSetAssetAreRejectedInsideARegion(t *testing.T) {
 	prelude := `
   $asset = "USD/2"
@@ -495,27 +516,27 @@ func TestIRSendAndSetAssetAreRejectedInsideARegion(t *testing.T) {
 	store := balances(map[string]int64{"src": 100})
 
 	t.Run("send inside a region", func(t *testing.T) {
-		execErr := runIRExpectingError(t, prelude+`
+		execErr := runUnverifiedIRExpectingError(t, prelude+`
   $dest = "dest"
   send_to_account(account: $dest)
-`, store, nil)
+`, "while a mark is open", store, nil)
 		require.IsType(t, vm.InternalError{}, execErr)
 		require.ErrorContains(t, execErr, "send while a mark is open")
 	})
 
 	t.Run("uncapped send inside a region", func(t *testing.T) {
-		execErr := runIRExpectingError(t, prelude+`
+		execErr := runUnverifiedIRExpectingError(t, prelude+`
   send_to_account()
-`, store, nil)
+`, "while a mark is open", store, nil)
 		require.IsType(t, vm.InternalError{}, execErr)
 		require.ErrorContains(t, execErr, "send while a mark is open")
 	})
 
 	t.Run("set_current_asset inside a region", func(t *testing.T) {
-		execErr := runIRExpectingError(t, prelude+`
+		execErr := runUnverifiedIRExpectingError(t, prelude+`
   $other = "EUR/2"
   set_current_asset($other)
-`, store, nil)
+`, "while a mark is open", store, nil)
 		require.IsType(t, vm.InternalError{}, execErr)
 		require.ErrorContains(t, execErr, "set_current_asset while a mark is open")
 	})
@@ -525,18 +546,18 @@ func TestIRSendAndSetAssetAreRejectedInsideARegion(t *testing.T) {
 	// forbidden no matter how much rollback is added later: its floor at zero is not
 	// invertible from a delta.
 	t.Run("save inside a region", func(t *testing.T) {
-		execErr := runIRExpectingError(t, prelude+`
+		execErr := runUnverifiedIRExpectingError(t, prelude+`
   $five = 5
   save(account: $src, asset: $asset, amount: $five)
-`, store, nil)
+`, "while a mark is open", store, nil)
 		require.IsType(t, vm.InternalError{}, execErr)
 		require.ErrorContains(t, execErr, "save while a mark is open")
 	})
 
 	t.Run("save-all inside a region", func(t *testing.T) {
-		execErr := runIRExpectingError(t, prelude+`
+		execErr := runUnverifiedIRExpectingError(t, prelude+`
   save(account: $src, asset: $asset)
-`, store, nil)
+`, "while a mark is open", store, nil)
 		require.IsType(t, vm.InternalError{}, execErr)
 		require.ErrorContains(t, execErr, "save while a mark is open")
 	})
@@ -595,7 +616,7 @@ func TestIRMarkAcrossAJump(t *testing.T) {
 // A run that dies inside a region must not leak the open mark into the next run
 // on the same Vm: the reused RunState drops it, so the second run's send works.
 func TestIRMarkDoesNotLeakAcrossRuns(t *testing.T) {
-	program := assembleIR(t, `
+	program := assembleUnverifiedIR(t, `
   $asset = "USD/2"
   set_current_asset($asset)
   $overdraft = 0
