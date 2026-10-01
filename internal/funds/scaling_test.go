@@ -24,6 +24,21 @@ func TestGetAssetsExcludesColoredBalances(t *testing.T) {
 	}, assets)
 }
 
+func TestGetAssetsExcludesNonCanonicalAssets(t *testing.T) {
+	assets := funds.GetAssets([]funds.AccountBalance{
+		{Asset: "EUR", Amount: big.NewInt(5)},
+		{Asset: "EUR/0", Amount: big.NewInt(0)},
+		{Asset: "EUR/02", Amount: big.NewInt(3)},
+		{Asset: "EUR/x", Amount: big.NewInt(4)},
+		{Asset: "EUR/2", Amount: big.NewInt(100)},
+	}, "EUR")
+
+	require.Equal(t, map[int64]*big.Int{
+		0: big.NewInt(5),
+		2: big.NewInt(100),
+	}, assets)
+}
+
 func TestScalingAvoidSwappingAlreadyHaveAsset(t *testing.T) {
 	// Need [USD/2 200]
 	// Got: {USD/2 100, USD 2}
