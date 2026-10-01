@@ -365,22 +365,35 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 	}
 
 	// Resolve dest
-	var dest Reg
+	var destReg *Reg
 	var dests []Reg
 	if s.Dest != nil {
 		switch s.Dest.Kind {
 		case syntax.DestReg:
-			dest = t.resolveReg(s.Dest.Regs[0])
+			r := t.resolveReg(s.Dest.Regs[0])
+			destReg = &r
 		case syntax.DestDiscard:
 			// `_` only exists in the text: desugar it to a fresh register, which
 			// no other statement can name and nothing reads back.
-			dest = t.freshReg()
+			r := t.freshReg()
+			destReg = &r
 		case syntax.DestList:
 			dests = make([]Reg, len(s.Dest.Regs))
 			for i, r := range s.Dest.Regs {
 				dests[i] = t.resolveReg(r)
 			}
 		}
+	}
+	// A call with no dest discards its result, as `_` does. The fresh register
+	// is allocated only when the instruction writes one: registers are numbered
+	// by first appearance, so one allocated for an effect-only call would shift
+	// every later register and break the dump round-trip.
+	dest := func() Reg {
+		if destReg == nil {
+			r := t.freshReg()
+			destReg = &r
+		}
+		return *destReg
 	}
 
 	name, typeParam := s.Call.Name, s.Call.TypeParam
@@ -403,7 +416,7 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		default:
 			return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("load_var: expected type parameter int or str, got %q", typeParam)}
 		}
-		instr = LoadVar{Dest: dest, Typ: typ, Index: ap.intLit()}
+		instr = LoadVar{Dest: dest(), Typ: typ, Index: ap.intLit()}
 
 	case "meta":
 		var typ MetaType
@@ -417,64 +430,64 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		default:
 			return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("meta: expected type parameter str, int or portion, got %q", typeParam)}
 		}
-		instr = MetaVar{Dest: dest, Typ: typ, Account: ap.reg(), Key: ap.reg(), Scope: ap.optLabeledReg("scope")}
+		instr = MetaVar{Dest: dest(), Typ: typ, Account: ap.reg(), Key: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "balance":
-		instr = FetchBalance{Dest: dest, Account: ap.reg(), Asset: ap.reg(), Scope: ap.optLabeledReg("scope")}
+		instr = FetchBalance{Dest: dest(), Account: ap.reg(), Asset: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "monetary_to_string":
-		instr = ap.BinaryOp(dest, OpMonetaryToString{})
+		instr = ap.BinaryOp(dest(), OpMonetaryToString{})
 	case "mk_portion":
-		instr = ap.BinaryOp(dest, OpMakePortion{})
+		instr = ap.BinaryOp(dest(), OpMakePortion{})
 	case "add_int":
-		instr = ap.BinaryOp(dest, OpAddInt{})
+		instr = ap.BinaryOp(dest(), OpAddInt{})
 	case "sub_int":
-		instr = ap.BinaryOp(dest, OpSubInt{})
+		instr = ap.BinaryOp(dest(), OpSubInt{})
 	case "add_string":
-		instr = ap.BinaryOp(dest, OpAddString{})
+		instr = ap.BinaryOp(dest(), OpAddString{})
 	case "str_eq":
-		instr = ap.BinaryOp(dest, OpStrEq{})
+		instr = ap.BinaryOp(dest(), OpStrEq{})
 	case "sub_portion":
-		instr = ap.BinaryOp(dest, OpSubPortion{})
+		instr = ap.BinaryOp(dest(), OpSubPortion{})
 	case "mul_portion":
-		instr = ap.BinaryOp(dest, OpMulPortion{})
+		instr = ap.BinaryOp(dest(), OpMulPortion{})
 	case "add_portion":
-		instr = ap.BinaryOp(dest, OpAddPortion{})
+		instr = ap.BinaryOp(dest(), OpAddPortion{})
 	case "lt_int":
-		instr = ap.BinaryOp(dest, OpLtInt{})
+		instr = ap.BinaryOp(dest(), OpLtInt{})
 	case "eq_int":
-		instr = ap.BinaryOp(dest, OpEqInt{})
+		instr = ap.BinaryOp(dest(), OpEqInt{})
 	case "lt_portion":
-		instr = ap.BinaryOp(dest, OpLtPortion{})
+		instr = ap.BinaryOp(dest(), OpLtPortion{})
 	case "eq_portion":
-		instr = ap.BinaryOp(dest, OpEqPortion{})
+		instr = ap.BinaryOp(dest(), OpEqPortion{})
 
 	case "int_copy":
-		instr = UnaryOp{Dest: dest, Op: OpIntCopy{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpIntCopy{}, Arg: ap.reg()}
 	case "portion_copy":
-		instr = UnaryOp{Dest: dest, Op: OpPortionCopy{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpPortionCopy{}, Arg: ap.reg()}
 	case "str_copy":
-		instr = UnaryOp{Dest: dest, Op: OpStrCopy{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpStrCopy{}, Arg: ap.reg()}
 	case "bool_copy":
-		instr = UnaryOp{Dest: dest, Op: OpBoolCopy{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpBoolCopy{}, Arg: ap.reg()}
 	case "neg_int":
-		instr = UnaryOp{Dest: dest, Op: OpNegInt{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpNegInt{}, Arg: ap.reg()}
 	case "int_to_string":
-		instr = UnaryOp{Dest: dest, Op: OpIntToString{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpIntToString{}, Arg: ap.reg()}
 	case "is_zero":
-		instr = UnaryOp{Dest: dest, Op: OpIsZero{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpIsZero{}, Arg: ap.reg()}
 	case "not":
-		instr = UnaryOp{Dest: dest, Op: OpNot{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpNot{}, Arg: ap.reg()}
 	case "portion_to_string":
-		instr = UnaryOp{Dest: dest, Op: OpPortionToString{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpPortionToString{}, Arg: ap.reg()}
 	case "int_to_portion":
-		instr = UnaryOp{Dest: dest, Op: OpIntToPortion{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpIntToPortion{}, Arg: ap.reg()}
 	case "portion_to_int":
-		instr = UnaryOp{Dest: dest, Op: OpPortionToInt{}, Arg: ap.reg()}
+		instr = UnaryOp{Dest: dest(), Op: OpPortionToInt{}, Arg: ap.reg()}
 
 	case "pull_account":
 		instr = PullAccount{
-			Dest:      dest,
+			Dest:      dest(),
 			Account:   ap.reqLabeledReg("account"),
 			Cap:       ap.optLabeledReg("cap"),
 			Overdraft: ap.optLabeledReg("overdraft"),
@@ -566,6 +579,16 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 
 	default:
 		return nil, &Error{Range: s.Call.Range, Msg: fmt.Sprintf("unknown instruction: %s", name)}
+	}
+
+	// meta_monetary checks its own two-register dest list above
+	if instr != nil && name != "meta_monetary" {
+		switch n := len(instr.dests()); {
+		case n == 0 && s.Dest != nil:
+			ap.addErr(s.Range, "%s produces no value, so it takes no destination", name)
+		case n == 1 && s.Dest != nil && s.Dest.Kind == syntax.DestList:
+			ap.addErr(s.Range, "%s writes one register, not a list", name)
+		}
 	}
 
 	// Check for unconsumed args (skip labeled args that were already seen)

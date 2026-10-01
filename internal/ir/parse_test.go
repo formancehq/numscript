@@ -41,6 +41,41 @@ func TestParseErrors(t *testing.T) {
 		require.Equal(t, "a\"b\\c\n", instrs[0].(LoadStr).Value)
 	})
 
+	t.Run("destination shape must match what the instruction writes", func(t *testing.T) {
+		for name, src := range map[string]string{
+			"single-result call with a dest list":  "  $a = 1\n  [$b, $c] = neg_int($a)\n",
+			"effect-only call with a dest":         "  $a = \"USD/2\"\n  $b = set_current_asset($a)\n",
+			"effect-only call with a discard dest": "  $a = \"USD/2\"\n  _ = set_current_asset($a)\n",
+		} {
+			t.Run(name, func(t *testing.T) {
+				_, errs := Parse(src)
+				require.Len(t, errs, 1)
+				require.Equal(t, 1, errs[0].Range.Start.Line) // 0-based: the second line
+			})
+		}
+
+		_, errs := Parse("  $a = 1\n  _ = neg_int($a)\n")
+		require.Empty(t, errs)
+	})
+
+	// as if written `_ = load_var<int>(0)`: the value lands in a fresh register
+	t.Run("a value-producing call without a dest discards its result", func(t *testing.T) {
+		instrs, errs := Parse("  $a = 1\n  load_var<int>(0)\n  $b = neg_int($a)\n")
+		require.Empty(t, errs)
+		require.Equal(t, []Instr{
+			LoadInt{Dest: 0, Value: *big.NewInt(1)},
+			LoadVar{Dest: 1, Typ: VarInt{}, Index: 0},
+			UnaryOp{Dest: 2, Op: OpNegInt{}, Arg: 0},
+		}, instrs)
+	})
+
+	// an effect-only call takes no register, so the numbering after it is unchanged
+	t.Run("an effect-only call allocates no register", func(t *testing.T) {
+		instrs, errs := Parse("  $a = \"USD/2\"\n  set_current_asset($a)\n  $b = 1\n")
+		require.Empty(t, errs)
+		require.Equal(t, LoadInt{Dest: 1, Value: *big.NewInt(1)}, instrs[2])
+	})
+
 	t.Run("negative int constant round-trips", func(t *testing.T) {
 		instrs := []Instr{LoadInt{Dest: 0, Value: *big.NewInt(-1)}}
 		parsed, errs := Parse(Dump(instrs))

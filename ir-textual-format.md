@@ -66,6 +66,8 @@ $r0                single register
 _                  discard
 ```
 
+A call that writes a register may also have no destination at all (`load_var<int>(0)`): that is the same as writing `_ =` in front of it. A call that writes nothing (`set_current_asset($r0)`) takes no destination, not even `_`, and a register list is only for `meta_monetary`.
+
 `_` discards the result, and exists **only in the text**: there is no discard at the `ir.Instr` level. `ir.Parse` desugars each occurrence to a fresh register — allocated from the same counter as named ones, but bound to no name, so nothing can refer to it and each `_` gets its own (two discards that aliased would be forced to share a type). The write is still a write: the assembler gives that register a slot in its bank, so a discard costs a register even though nothing reads it.
 
 Because the desugaring happens on the way in, `_` doesn't survive a dump: `_ = int_copy($r0)` comes back as `$r1 = int_copy($r0)`.
