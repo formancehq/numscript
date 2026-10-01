@@ -54,10 +54,7 @@ func TestE2E_AllotmentOverSum(t *testing.T) {
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
-	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
-	allotErr := execErr.(vm.InvalidAllotmentSum)
-	require.Equal(t, "4/3", allotErr.ActualSum.String())
-	require.EqualError(t, allotErr, "invalid allotment: portions must sum to 1, got 4/3")
+	require.Equal(t, vm.InvalidAllotmentSum{ActualSum: *big.NewRat(4, 3)}, execErr)
 }
 
 func TestE2E_NegativeAllotmentPortion(t *testing.T) {
@@ -100,8 +97,7 @@ func TestE2E_NegativeAllotmentPortion(t *testing.T) {
 				{Account: "s1", Asset: "USD/2", Color: ""}: big.NewInt(500),
 				{Account: "s2", Asset: "USD/2", Color: ""}: big.NewInt(500),
 			}})
-			require.IsType(t, vm.NegativePortionError{}, execErr)
-			require.EqualError(t, execErr, "invalid allotment: portions cannot be negative, got -1/3")
+			require.Equal(t, vm.NegativePortionError{Portion: *big.NewRat(-1, 3)}, execErr)
 		})
 	}
 }
@@ -124,7 +120,7 @@ func TestE2E_AllotmentUnderSum(t *testing.T) {
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
-	require.IsType(t, vm.InvalidAllotmentSum{}, execErr)
+	require.Equal(t, vm.InvalidAllotmentSum{ActualSum: *big.NewRat(2, 3)}, execErr)
 }
 
 func TestE2E_MonetarySubtractionAssetMismatch(t *testing.T) {
@@ -145,7 +141,7 @@ func TestE2E_MonetarySubtractionAssetMismatch(t *testing.T) {
 	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
-	require.IsType(t, vm.AssetMismatchError{}, execErr)
+	require.Equal(t, vm.AssetMismatchError{Expected: "USD/2", Got: "EUR/2"}, execErr)
 }
 
 func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
@@ -171,7 +167,7 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	}}
 
 	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, store)
-	require.IsType(t, vm.AssetMismatchError{}, execErr)
+	require.Equal(t, vm.AssetMismatchError{Expected: "USD/2", Got: "EUR/2"}, execErr)
 }
 
 func TestE2E_CapAssetMismatch(t *testing.T) {
@@ -187,7 +183,7 @@ func TestE2E_CapAssetMismatch(t *testing.T) {
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
-	require.IsType(t, vm.AssetMismatchError{}, execErr)
+	require.Equal(t, vm.AssetMismatchError{Expected: "USD/2", Got: "EUR/2"}, execErr)
 }
 
 func TestE2E_OverdraftAssetMismatch(t *testing.T) {
@@ -203,7 +199,7 @@ func TestE2E_OverdraftAssetMismatch(t *testing.T) {
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
-	require.IsType(t, vm.AssetMismatchError{}, execErr)
+	require.Equal(t, vm.AssetMismatchError{Expected: "USD/2", Got: "EUR/2"}, execErr)
 }
 
 func TestE2E_BalanceNegativeErrors(t *testing.T) {
@@ -219,7 +215,7 @@ func TestE2E_BalanceNegativeErrors(t *testing.T) {
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "acc", Asset: "USD/2", Color: ""}: big.NewInt(-1),
 	}})
-	require.IsType(t, vm.NegativeBalanceError{}, execErr)
+	require.Equal(t, vm.NegativeBalanceError{Account: "acc", Amount: *big.NewInt(-1)}, execErr)
 }
 
 func TestE2E_DivideByZero(t *testing.T) {
@@ -238,7 +234,7 @@ func TestE2E_DivideByZero(t *testing.T) {
 	require.Nil(t, cErr)
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{balances: map[funds.PairKey]*big.Int{}})
-	require.IsType(t, vm.DivideByZeroError{}, execErr)
+	require.Equal(t, vm.DivideByZeroError{Numerator: *big.NewInt(1)}, execErr)
 }
 
 func TestE2E_InvalidColor(t *testing.T) {
@@ -258,7 +254,7 @@ func TestE2E_InvalidColor(t *testing.T) {
 
 	machine := vm.NewVm(program)
 	_, execErr := vm.Exec(context.Background(), machine, nil, e2eStore{})
-	require.IsType(t, vm.InvalidColor{}, execErr)
+	require.Equal(t, vm.InvalidColor{Color: "not a color"}, execErr)
 }
 
 // countingStore is an e2eStore that records how many balances it was asked for.
