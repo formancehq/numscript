@@ -401,8 +401,10 @@ statement — and any script actually containing one skips the oracle legs
 (counted by name, `numscript-only script, oracle skipped`): the oracle has no
 grammar for them. Those scripts are compared on `new vs vm` only, where
 nothing is tolerated. Asset scaling and account interpolation still have no
-generator coverage; they are checked by the fixture corpus (which both
-numscript engines run) and `TestNumscriptOnlyShapeAgreements`.
+generator coverage. Account interpolation is checked by the fixture corpus
+(which both numscript engines run) and `TestNumscriptOnlyShapeAgreements`.
+Asset scaling has no compiler lowering yet: its fixtures run on the
+interpreter only, and `internal/compiler/scripts_test.go` skips them.
 
 ---
 

@@ -226,24 +226,16 @@ The compiler is free to choose any encoding it wants for the vars (e.g. the firs
 
 ### Soundness verification
 
-> [!NOTE]
-> This isn't yet implemented in the `feat/exp/vm` branch. There is a branch with a POC of those checks.
+`vm.Verify(program)` and `vm.VerifyWithVars(program, vars)` (in `internal/vm/verify.go`) analyse the bytecode statically, so a bug in the compiler or a corrupted payload is caught before it can make the VM crash. See [bytecode-verifier.md](bytecode-verifier.md) for the full list of checks and what each one prevents. In short:
 
-Even if there are bugs in the compiler, we can analyse the bytecode to prove statically that the bytecode can't make the vm crash, that the computation always halts (the instruction set is designed so that this is a decidable problem). We can also prova statically most of the interesting properties that ensure that the bytecode isn't resulting in undefined behaviour.
-Some of the examples are:
+- No undefined opcodes, and no truncated multi-word instruction
+- Const indices stay inside the const pool; with `VerifyWithVars`, var indices stay inside the vars pool
+- Register indices stay below the counts the program declares
+- Jumps land on an instruction boundary. They can only go forward (the delta is unsigned), so every program halts
+- No read before write, on every path. This is what makes reusing a VM instance safe
+- Mark regions (`oneof`) open and close in matching pairs on every path, and no send, `save` or asset change runs inside one
 
-- No undefined opcodes. Ensures no panic
-- Extended instructions aren't truncated. Ensures no panic
-- Const idx doesn't overflow the const pool array. Ensures no panic
-- Var idx doesn't overflow the vars pool array. Ensures no panic
-- We don't overflow the max register declared by the compiler output. Ensures no panic
-- Only jump forward. Ensures termination
-- No read before write (undefined behaviour). This ensures we can re-use vm instances. Note this has to be checked on every path (including possible jumps)
-
-Vm is simple enough that we can easily audit every line of code that could panic (e.g. array access), and perform static checks on bytecode.
-
-The static check is optional: the compiler should emit valid bytecode anyway.
-Still, we can use this as a sanity-check right after program is compiled, or after the raft node receives the bytes payload, to make sure nothing went wrong in the meanwhile.
+The check is opt-in: `Exec` and `compiler.Compile` don't call it, since the compiler's output is valid by construction (the test corpus runs every compiled script through it). Call it on any program that didn't just come out of the compiler, for example after a Raft node decodes the bytes payload.
 
 ## Compiler
 
@@ -460,7 +452,7 @@ check_enough_funds($pulled_sn, $share_n)
 ### Optimisations
 
 > [!NOTE]
-> Peephole optimisations aren't yet implemented in the `feat/exp/vm` branch. There is a POC in another branch, to measure how much perf could be impacted, but it's too soon to consider
+> Peephole optimisations aren't implemented yet. There is a POC in another branch, to measure how much perf could be impacted, but it's too soon to consider
 
 You may have noticed that the previous compilation examples emit _a lot_ of garbage.
 That's done by design: the compiler must be simple and declarative. We don't want dozens of special cases in the compilation logic, which must express a general, albeit redundant, template which focuses on correctness.

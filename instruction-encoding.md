@@ -1,4 +1,4 @@
-# VM Bytecode Specification (proposal)
+# VM Bytecode Specification
 
 Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
 
@@ -9,7 +9,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
 - There is **no `HALT`**: programs terminate by design (jumps are forward-only).
 - Opcodes are grouped by category with gaps, so new instructions slot into a category without renumbering. Unused values are reserved (users can't emit them, so we stay free to define them later).
 
-> Opcode numbers are a proposal and don't yet match the `iota` values in `instruction.go`.
+> Opcode values match the constants in `internal/vm/instruction.go`; operand layouts match `decodeInstr` in `internal/vm/verify.go`.
 
 ---
 
@@ -52,7 +52,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>5</td><td><code>0x05</code></td><td><strong>CHECK_ENOUGH_FUNDS</strong></td>
       <td>pulled</td><td>target</td><td>-</td>
-      <td>Traps if <code>int_regs[A] &lt; int_regs[B]</code> (missing funds)</td>
+      <td>Traps (missing funds) unless <code>int_regs[A] == int_regs[B]</code>: the pulled amount must match the target exactly</td>
     </tr>
     <tr>
       <td>6</td><td><code>0x06</code></td><td><strong>ASSERT_VALID_COLOR</strong></td>
@@ -151,22 +151,32 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>33</td><td><code>0x21</code></td><td><strong>SET_ACCOUNT_META</strong></td>
       <td>acc</td><td>key</td><td>val</td>
-      <td>Sets account metadata: account <code>A</code>, key <code>B</code>, value <code>C</code></td>
+      <td>Sets account metadata: account <code>A</code>, key <code>B</code>, value <code>C</code>. 2 words:</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>scope</td><td>-</td><td>-</td>
+      <td>Scope reg (<code>0xFF</code> = unscoped)</td>
     </tr>
     <tr>
       <td>34</td><td><code>0x22</code></td><td><strong>META_STR</strong></td>
       <td>dest</td><td>acc</td><td>key</td>
-      <td><code>str_regs[A] = meta(account B, key C)</code></td>
+      <td><code>str_regs[A] = meta(account B, key C)</code>. 2 words:</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>scope</td><td>-</td><td>-</td>
+      <td>Scope reg (<code>0xFF</code> = unscoped)</td>
     </tr>
     <tr>
       <td>35</td><td><code>0x23</code></td><td><strong>META_INT</strong></td>
       <td>dest</td><td>acc</td><td>key</td>
-      <td>as <code>META_STR</code>, typed <code>int</code></td>
+      <td>as <code>META_STR</code>, typed <code>int</code>, same continuation word</td>
     </tr>
     <tr>
       <td>36</td><td><code>0x24</code></td><td><strong>META_PORTION</strong></td>
       <td>dest</td><td>acc</td><td>key</td>
-      <td>as <code>META_STR</code>, typed <code>portion</code></td>
+      <td>as <code>META_STR</code>, typed <code>portion</code>, same continuation word</td>
     </tr>
     <tr>
       <td>37</td><td><code>0x25</code></td><td><strong>META_MONETARY</strong></td>
@@ -175,8 +185,8 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     </tr>
     <tr>
       <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
-      <td>dest amt</td><td>-</td><td>-</td>
-      <td><code>int_regs[A] =</code> amount</td>
+      <td>dest amt</td><td>scope</td><td>-</td>
+      <td><code>int_regs[A] =</code> amount; scope reg in <code>B</code> (<code>0xFF</code> = unscoped)</td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x26..0x2F reserved</em></td>
@@ -235,7 +245,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>por_regs[A] = por_regs[B] + por_regs[C]</code>. A rational sum, so unequal denominators combine correctly and the result is normalised; it may exceed 1</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x39..0x3F reserved</em></td>
+      <td>57</td><td><code>0x39</code></td><td><strong>MUL_PORTION</strong></td>
+      <td>dest</td><td>left</td><td>right</td>
+      <td><code>por_regs[A] = por_regs[B] * por_regs[C]</code>. With PORTION_TO_INT, this is how an allotment share is computed</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x3A..0x3F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -301,7 +316,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>bool_regs[A] = bool_regs[B]</code></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x4C..0x4F reserved</em></td>
+      <td>76</td><td><code>0x4C</code></td><td><strong>INT_TO_PORTION</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>por_regs[A] = int_regs[B]</code>, exact</td>
+    </tr>
+    <tr>
+      <td>77</td><td><code>0x4D</code></td><td><strong>PORTION_TO_INT</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>int_regs[A] = floor(por_regs[B])</code></td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x4E..0x4F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -320,42 +345,50 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>80</td><td><code>0x50</code></td><td><strong>PULL_ACCOUNT</strong></td>
       <td>dest</td><td>acc</td><td>cap</td>
-      <td>Pulls funds from account <code>B</code> capped by <code>int_regs[C]</code> (<code>0xFF</code> = uncapped); pulled amount → <code>int_regs[A]</code>. 2 words:</td>
+      <td>Pulls the current asset from account <code>str_regs[B]</code> into the source queue, capped by <code>int_regs[C]</code> (<code>0xFF</code> = uncapped); pulled amount → <code>int_regs[A]</code>. 2 words:</td>
     </tr>
     <tr>
       <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
-      <td>overdraft</td><td>color</td><td>-</td>
-      <td>Overdraft cap reg and color reg (<code>0xFF</code> = none)</td>
+      <td>overdraft</td><td>color</td><td>scope</td>
+      <td>Overdraft bound <code>int_regs[A]</code> (<code>0xFF</code> = unbounded), color <code>str_regs[B]</code> and scope <code>str_regs[C]</code> (<code>0xFF</code> = none). Cap and overdraft both <code>0xFF</code> traps (unbounded source)</td>
     </tr>
     <tr>
       <td>81</td><td><code>0x51</code></td><td><strong>SEND_TO_ACCOUNT</strong></td>
-      <td>acc</td><td>cap</td><td>color</td>
-      <td>Emits a posting to account <code>A</code> (<code>0xFF</code> = world), each operand optional (<code>0xFF</code> = none)</td>
+      <td>acc</td><td>cap</td><td>scope</td>
+      <td>Drains the source queue in the current asset to account <code>str_regs[A]</code>, up to <code>int_regs[B]</code> (<code>0xFF</code> = everything queued), scope <code>str_regs[C]</code> (<code>0xFF</code> = unscoped). <code>A = 0xFF</code> is <code>kept</code>: the funds go back to their sources and no posting is emitted. Traps while a mark is open</td>
     </tr>
     <tr>
       <td>82</td><td><code>0x52</code></td><td><strong>SAVE</strong></td>
       <td>acc</td><td>asset</td><td>amount</td>
-      <td>Reduce balance of account <code>A</code> for asset <code>B</code> by <code>int_regs[C]</code> (<code>C = 0xFF</code> ⇒ save all), floored at 0</td>
+      <td>Reduces the balance of account <code>str_regs[A]</code> for asset <code>str_regs[B]</code> by <code>int_regs[C]</code> (<code>C = 0xFF</code> ⇒ save all), floored at 0. Traps while a mark is open. 2 words:</td>
     </tr>
     <tr>
-      <td>83</td><td><code>0x53</code></td><td><strong>MK_ALLOTMENT</strong></td>
-      <td>dest0</td><td>in0</td><td>size</td>
-      <td>Splits the current amount across <code>size</code> portions in <code>por_regs[in0..]</code>, writing shares to <code>int_regs[dest0..]</code></td>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>scope</td><td>-</td><td>-</td>
+      <td>Scope reg (<code>0xFF</code> = unscoped)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x53 reserved (was MK_ALLOTMENT: an allotment share is built from MUL_PORTION, PORTION_TO_INT and the leftover fixup, so there is no variadic instruction)</em></td>
     </tr>
     <tr>
       <td>84</td><td><code>0x54</code></td><td><strong>BALANCE</strong></td>
       <td>dest amt</td><td>acc</td><td>asset</td>
-      <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state. Only the amount: the resulting monetary's asset is operand <code>C</code>, which the caller already holds</td>
+      <td><code>int_regs[A] = balance(account B, asset C)</code> from the run-state. Only the amount: the resulting monetary's asset is operand <code>C</code>, which the caller already holds. 2 words:</td>
     </tr>
     <tr>
-      <td>85</td><td><code>0x55</code></td><td><strong>SNAPSHOT</strong></td>
-      <td>dest</td><td>-</td><td>-</td>
-      <td><code>int_regs[A] =</code> current source-queue mark (<code>len(sources)</code>), for <code>oneof</code> backtracking</td>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>scope</td><td>-</td><td>-</td>
+      <td>Scope reg (<code>0xFF</code> = unscoped)</td>
     </tr>
     <tr>
-      <td>86</td><td><code>0x56</code></td><td><strong>RESTORE</strong></td>
-      <td>snap</td><td>-</td><td>-</td>
-      <td>Rolls the source queue back to the mark in <code>int_regs[A]</code> (repays debited balances, then truncates)</td>
+      <td>85</td><td><code>0x55</code></td><td><strong>MARK_PUSH</strong></td>
+      <td>-</td><td>-</td><td>-</td>
+      <td>Opens a region at the current source-queue depth and posting count, for <code>oneof</code> backtracking. The run-state keeps the stack of open regions; no register is involved</td>
+    </tr>
+    <tr>
+      <td>86</td><td><code>0x56</code></td><td><strong>MARK_END</strong></td>
+      <td>rewind</td><td>-</td><td>-</td>
+      <td>Closes the innermost region. <code>A = 1</code> rewinds it: repays everything pulled and reverses everything posted since the matching MARK_PUSH. <code>A = 0</code> commits it. Any other value is rejected by the verifier; traps if no region is open. Textual IR: <code>mark_rewind()</code> / <code>mark_commit()</code></td>
     </tr>
     <tr>
       <td colspan="7" align="center"><em>0x57..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving nine slots for the four specializations sketched in <code>instruction.go</code></em></td>
