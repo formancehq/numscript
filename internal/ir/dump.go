@@ -93,6 +93,10 @@ func (i AssertValidScope) String() string {
 	return fmt.Sprintf("assert_valid_scope(%s)", i.Scope)
 }
 
+func (i AssertUnscoped) String() string {
+	return fmt.Sprintf("assert_unscoped(%s, %s)", i.Scope, i.Account)
+}
+
 func (i AssertNonNegativeBalance) String() string {
 	return fmt.Sprintf("assert_non_negative_balance(%s, %s)", i.Balance, i.Account)
 }

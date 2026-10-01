@@ -68,6 +68,10 @@ const (
 	// allotment clause portion
 	Op_AssertNonNegativePortion Opcode = 0x09
 
+	// errors (CannotCastScopedAccountToString) if the scope in str reg A is not
+	// empty; B = account str reg (for the error)
+	Op_AssertUnscoped Opcode = 0x0A
+
 	// --- constants & variables (0x10) ---
 	// may split into one opcode per expr_typ later
 	Op_LoadInt Opcode = 0x10 // LoadConst (`Int)    -> b_c = const-pool index

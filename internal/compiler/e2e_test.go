@@ -170,6 +170,27 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 	require.Equal(t, vm.AssetMismatchError{Expected: "USD/2", Got: "EUR/2"}, execErr)
 }
 
+// not a spec fixture: specs can only expect missing funds or a negative amount.
+// The interpreter rejects this with CannotCastScopedAccountToString.
+func TestE2E_AccountInterpolationOfScopedAccountIsRejected(t *testing.T) {
+	src := `
+		#![feature("experimental-account-interpolation", "experimental-scoped-function")]
+		vars {
+			account $a = scoped(@src, "reserve")
+		}
+		send [USD/2 10] (
+			source = @world
+			destination = @dest:$a
+		)
+	`
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value, nil)
+	require.Nil(t, cErr)
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{})
+	require.Equal(t, vm.CannotCastScopedAccountToString{Account: "src", Scope: "reserve"}, execErr)
+}
+
 func TestE2E_CapAssetMismatch(t *testing.T) {
 	src := `
 		send [USD/2 100] (

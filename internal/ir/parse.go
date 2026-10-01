@@ -524,6 +524,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = AssertValidColor{Color: ap.reg()}
 	case "assert_valid_scope":
 		instr = AssertValidScope{Scope: ap.reg()}
+	case "assert_unscoped":
+		instr = AssertUnscoped{Scope: ap.reg(), Account: ap.reg()}
 	case "assert_non_negative_balance":
 		instr = AssertNonNegativeBalance{Balance: ap.reg(), Account: ap.reg()}
 	case "assert_non_negative_amount":

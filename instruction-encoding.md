@@ -75,7 +75,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Traps if <code>por_regs[A]</code> (an allotment clause portion) is negative</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x0A..0x0F reserved</em></td>
+      <td>10</td><td><code>0x0A</code></td><td><strong>ASSERT_UNSCOPED</strong></td>
+      <td>scope</td><td>acc</td><td>-</td>
+      <td>Traps (cannot cast a scoped account to string) if <code>str_regs[A]</code> is not empty; <code>B</code> = account (for the error). Emitted before a scoped account is interpolated into an account name</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x0B..0x0F reserved</em></td>
     </tr>
   </tbody>
 </table>

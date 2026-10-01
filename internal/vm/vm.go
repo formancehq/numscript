@@ -318,6 +318,11 @@ func Exec[S Store](
 				return funds.ExecutionResult{}, InvalidScope{Scope: scope}
 			}
 
+		case Op_AssertUnscoped:
+			if scope := stringsRegs[instr.A]; scope != "" {
+				return funds.ExecutionResult{}, CannotCastScopedAccountToString{Account: stringsRegs[instr.B], Scope: scope}
+			}
+
 		case Op_AssertNonNegativeBalance:
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {

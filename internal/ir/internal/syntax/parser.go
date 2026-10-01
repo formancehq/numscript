@@ -1,7 +1,6 @@
 package syntax
 
 import (
-
 	"github.com/formancehq/numscript/internal/parser"
 
 	"github.com/antlr4-go/antlr/v4"

@@ -283,9 +283,22 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 				default:
 					return 0, CannotCastToString{Range: part.GetRange(), Type: t}
 				}
-				r, err := st.compileExpr(part)
-				if err != nil {
-					return 0, err
+				var r ir.Reg
+				if t == typecheck.TypeAccount {
+					acc, err := st.compileAccountExpr(part)
+					if err != nil {
+						return 0, err
+					}
+					if acc.Scope != nil {
+						st.Push(ir.AssertUnscoped{Scope: *acc.Scope, Account: acc.Name})
+					}
+					r = acc.Name
+				} else {
+					var err CompilerError
+					r, err = st.compileExpr(part)
+					if err != nil {
+						return 0, err
+					}
 				}
 				if t == typecheck.TypeNumber {
 					r = st.PushWithDest(func(dest ir.Reg) ir.Instr {

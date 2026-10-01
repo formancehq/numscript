@@ -219,22 +219,23 @@ var (
 // interpreter's MissingFundsErr/NegativeAmountErr, which are different types
 // with different fields.
 type (
-	VmMissingFundsError     = vm.MissingFundsError
-	VmNegativeAmountError   = vm.NegativeAmountError
-	VmNegativeBalanceError  = vm.NegativeBalanceError
-	VmAssetMismatchError    = vm.AssetMismatchError
-	VmInvalidAllotmentSum   = vm.InvalidAllotmentSum
-	VmNegativePortionError  = vm.NegativePortionError
-	VmDivideByZeroError     = vm.DivideByZeroError
-	VmInvalidAccountName    = vm.InvalidAccountName
-	VmInvalidColor          = vm.InvalidColor
-	VmInvalidScope          = vm.InvalidScope
-	VmInvalidUncappedSource = vm.InvalidUncappedSource
-	VmMetadataNotFoundError = vm.MetadataNotFoundError
-	VmBadMetaValueError     = vm.BadMetaValueError
-	VmInternalError         = vm.InternalError
-	VmInvalidPostingError   = vm.InvalidPostingError
-	VmStoreError            = vm.StoreError
+	VmMissingFundsError               = vm.MissingFundsError
+	VmNegativeAmountError             = vm.NegativeAmountError
+	VmNegativeBalanceError            = vm.NegativeBalanceError
+	VmAssetMismatchError              = vm.AssetMismatchError
+	VmInvalidAllotmentSum             = vm.InvalidAllotmentSum
+	VmNegativePortionError            = vm.NegativePortionError
+	VmDivideByZeroError               = vm.DivideByZeroError
+	VmInvalidAccountName              = vm.InvalidAccountName
+	VmInvalidColor                    = vm.InvalidColor
+	VmInvalidScope                    = vm.InvalidScope
+	VmCannotCastScopedAccountToString = vm.CannotCastScopedAccountToString
+	VmInvalidUncappedSource           = vm.InvalidUncappedSource
+	VmMetadataNotFoundError           = vm.MetadataNotFoundError
+	VmBadMetaValueError               = vm.BadMetaValueError
+	VmInternalError                   = vm.InternalError
+	VmInvalidPostingError             = vm.InvalidPostingError
+	VmStoreError                      = vm.StoreError
 )
 
 func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (ExecutionResult, error) {

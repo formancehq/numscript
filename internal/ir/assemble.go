@@ -745,6 +745,21 @@ func (i AssertValidScope) assemble(a *assembler) error {
 	return nil
 }
 
+func (i AssertUnscoped) assemble(a *assembler) error {
+	scope, err := a.strReg(i.Scope)
+	if err != nil {
+		return err
+	}
+	account, err := a.strReg(i.Account)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_AssertUnscoped, scope, account, maxReg)
+
+	return nil
+}
+
 func (i AssertNonNegativeBalance) assemble(a *assembler) error {
 	balance, err := a.intReg(i.Balance)
 	if err != nil {

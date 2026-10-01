@@ -116,6 +116,7 @@ type (
 	AssertValidAccount       struct{ Account Reg }          // str
 	AssertValidColor         struct{ Color Reg }            // str
 	AssertValidScope         struct{ Scope Reg }            // str
+	AssertUnscoped           struct{ Scope, Account Reg }   // str, str
 	AssertNonNegativeBalance struct{ Balance, Account Reg } // int (the amount), str
 	AssertNonNegativeAmount  struct{ Amount Reg }           // int (a sent/saved amount, not tied to an account)
 	AssertNonNegativePortion struct{ Portion Reg }          // portion (an allotment clause portion)
@@ -250,6 +251,9 @@ func (i AssertValidColor) sources() []Reg { return []Reg{i.Color} }
 
 func (i AssertValidScope) dests() []Reg   { return nil }
 func (i AssertValidScope) sources() []Reg { return []Reg{i.Scope} }
+
+func (i AssertUnscoped) dests() []Reg   { return nil }
+func (i AssertUnscoped) sources() []Reg { return []Reg{i.Scope, i.Account} }
 
 func (i AssertNonNegativeBalance) dests() []Reg   { return nil }
 func (i AssertNonNegativeBalance) sources() []Reg { return []Reg{i.Balance, i.Account} }

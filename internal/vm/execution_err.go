@@ -55,6 +55,11 @@ type (
 		Scope string
 	}
 
+	CannotCastScopedAccountToString struct {
+		Account string
+		Scope   string
+	}
+
 	NegativeBalanceError struct {
 		Account string
 		Amount  big.Int
@@ -137,6 +142,10 @@ func (e InvalidScope) Error() string {
 	return fmt.Sprintf("invalid scope name: %q", e.Scope)
 }
 
+func (e CannotCastScopedAccountToString) Error() string {
+	return fmt.Sprintf("cannot cast a scoped account to string (account %q has scope %q)", e.Account, e.Scope)
+}
+
 func (e NegativeBalanceError) Error() string {
 	return fmt.Sprintf("cannot fetch negative balance from account @%s", e.Account)
 }
@@ -164,21 +173,22 @@ func (e BadMetaValueError) Error() string {
 func (e StoreError) Error() string { return "store error: " + e.Wrapped.Error() }
 func (e StoreError) Unwrap() error { return e.Wrapped }
 
-func (MissingFundsError) execErr()     {}
-func (AssetMismatchError) execErr()    {}
-func (InvalidUncappedSource) execErr() {}
-func (InvalidAllotmentSum) execErr()   {}
-func (NegativePortionError) execErr()  {}
-func (MetadataNotFoundError) execErr() {}
-func (BadMetaValueError) execErr()     {}
-func (InvalidAccountName) execErr()    {}
-func (InvalidColor) execErr()          {}
-func (InvalidScope) execErr()          {}
-func (NegativeBalanceError) execErr()  {}
-func (NegativeAmountError) execErr()   {}
-func (DivideByZeroError) execErr()     {}
-func (InternalError) execErr()         {}
-func (StoreError) execErr()            {}
+func (MissingFundsError) execErr()               {}
+func (AssetMismatchError) execErr()              {}
+func (InvalidUncappedSource) execErr()           {}
+func (InvalidAllotmentSum) execErr()             {}
+func (NegativePortionError) execErr()            {}
+func (MetadataNotFoundError) execErr()           {}
+func (BadMetaValueError) execErr()               {}
+func (InvalidAccountName) execErr()              {}
+func (InvalidColor) execErr()                    {}
+func (InvalidScope) execErr()                    {}
+func (CannotCastScopedAccountToString) execErr() {}
+func (NegativeBalanceError) execErr()            {}
+func (NegativeAmountError) execErr()             {}
+func (DivideByZeroError) execErr()               {}
+func (InternalError) execErr()                   {}
+func (StoreError) execErr()                      {}
 
 var (
 	_ ExecutionError = (*MissingFundsError)(nil)
@@ -191,6 +201,7 @@ var (
 	_ ExecutionError = (*InvalidAccountName)(nil)
 	_ ExecutionError = (*InvalidColor)(nil)
 	_ ExecutionError = (*InvalidScope)(nil)
+	_ ExecutionError = (*CannotCastScopedAccountToString)(nil)
 	_ ExecutionError = (*NegativeBalanceError)(nil)
 	_ ExecutionError = (*NegativeAmountError)(nil)
 	_ ExecutionError = (*DivideByZeroError)(nil)
