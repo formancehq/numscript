@@ -211,7 +211,7 @@ func (st *state) compileCapAmount(monExpr parser.ValueExpr) (ir.Reg, CompilerErr
 	if st.currentAssetReg == nil {
 		panic("compileCapAmount: no current asset (compileSentValue must run first)")
 	}
-	st.Push(ir.AssertSameAsset{Left: mon.Asset, Right: *st.currentAssetReg})
+	st.Push(ir.AssertSameAsset{Left: *st.currentAssetReg, Right: mon.Asset})
 	return mon.Amount, nil
 }
 

@@ -580,7 +580,7 @@ func TestInorderWithCap(t *testing.T) {
   $r7 -= $r11
   $r12 = "USD/2"
   $r13 = 5
-  assert_same_asset($r12, $r1)
+  assert_same_asset($r1, $r12)
   $r14 = int_copy($r13)
   $r15 = lt_int($r13, $r7)
   jmp_if_true($r15, #min_end_3)
@@ -657,7 +657,7 @@ func TestDestInorder(t *testing.T) {
   jmp_if_true($r11, #dest_inorder_end_3)
   $r12 = "USD/2"
   $r13 = 4
-  assert_same_asset($r12, $r1)
+  assert_same_asset($r1, $r12)
   $r14 = 0
   $r15 = int_copy($r10)
   $r16 = lt_int($r10, $r13)
@@ -850,7 +850,7 @@ func TestDestOneof(t *testing.T) {
   check_enough_funds($r9, $r2)
   $r10 = "USD/2"
   $r11 = 4
-  assert_same_asset($r10, $r1)
+  assert_same_asset($r1, $r10)
   $r12 = int_copy($r9)
   $r13 = lt_int($r9, $r11)
   jmp_if_true($r13, #min_end_5)
