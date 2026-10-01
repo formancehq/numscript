@@ -1,0 +1,8 @@
+send [USD/2 10] (
+  source = {
+    @a
+    max [USD/2 5] from @b
+    @c
+  }
+  destination = @dest
+)

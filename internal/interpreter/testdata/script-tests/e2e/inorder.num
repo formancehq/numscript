@@ -1,0 +1,8 @@
+send [USD/2 10] (
+  source = {
+    @a
+    @b
+    @c
+  }
+  destination = @dest
+)

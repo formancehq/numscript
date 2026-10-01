@@ -1,0 +1,7 @@
+send [USD/2 100] (
+  source = @world
+  destination = {
+    max [USD/2 30] kept
+    remaining to @y
+  }
+)

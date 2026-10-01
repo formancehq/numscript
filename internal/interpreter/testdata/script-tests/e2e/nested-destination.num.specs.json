@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "splits a share again",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "x",
+          "amount": 10,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "a",
+          "amount": 40,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "b",
+          "amount": 50,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

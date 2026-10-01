@@ -1,0 +1,8 @@
+vars {
+  monetary $neg_mon = [USD/2 -10]
+  monetary $pos_mon = -$neg_mon
+}
+send $pos_mon (
+  source = @src
+  destination = @dest
+)
