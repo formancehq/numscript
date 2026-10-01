@@ -234,8 +234,8 @@ func Exec[S Store](
 			if got.Cmp(needed) != 0 {
 				return funds.ExecutionResult{}, MissingFundsError{
 					Asset:  currentAsset,
-					Got:    got,
-					Needed: needed,
+					Got:    new(big.Int).Set(got),
+					Needed: new(big.Int).Set(needed),
 				}
 			}
 
@@ -278,7 +278,7 @@ func Exec[S Store](
 			sign := leftover.Sign()
 			if sign < 0 || (instr.B == 1 && sign != 0) {
 				sum := new(big.Rat).Sub(big.NewRat(1, 1), leftover)
-				return funds.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *sum}
+				return funds.ExecutionResult{}, InvalidAllotmentSum{ActualSum: *new(big.Rat).Set(sum)}
 			}
 
 		case Op_SetCurrentAsset:
@@ -328,20 +328,20 @@ func Exec[S Store](
 			if amount.Sign() < 0 {
 				return funds.ExecutionResult{}, NegativeBalanceError{
 					Account: stringsRegs[instr.B],
-					Amount:  *amount,
+					Amount:  *new(big.Int).Set(amount),
 				}
 			}
 
 		case Op_AssertNonNegativeAmount:
 			amount := &intsRegs[instr.A]
 			if amount.Sign() < 0 {
-				return funds.ExecutionResult{}, NegativeAmountError{Amount: *amount}
+				return funds.ExecutionResult{}, NegativeAmountError{Amount: *new(big.Int).Set(amount)}
 			}
 
 		case Op_AssertNonNegativePortion:
 			portion := &portionsRegs[instr.A]
 			if portion.Sign() < 0 {
-				return funds.ExecutionResult{}, NegativePortionError{Portion: *portion}
+				return funds.ExecutionResult{}, NegativePortionError{Portion: *new(big.Rat).Set(portion)}
 			}
 
 		case Op_SetTxMeta:
@@ -543,7 +543,7 @@ func Exec[S Store](
 			num := &intsRegs[instr.B]
 			den := &intsRegs[instr.C]
 			if den.Sign() == 0 {
-				return funds.ExecutionResult{}, DivideByZeroError{Numerator: *num}
+				return funds.ExecutionResult{}, DivideByZeroError{Numerator: *new(big.Int).Set(num)}
 			}
 			portionsRegs[instr.A].SetFrac(num, den)
 

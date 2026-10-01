@@ -1344,3 +1344,35 @@ func TestIRAllotmentFromPureOps(t *testing.T) {
 		posting("world", "c", 33),
 	}, res.Postings)
 }
+
+// An error returned by one run must not change when the same Vm runs again.
+func TestIRErrorsDoNotAliasRegisters(t *testing.T) {
+	t.Run("missing funds", func(t *testing.T) {
+		machine := vm.NewVm(assembleIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $amount = load_var<int>(0)
+  $a = "a"
+  $overdraft = 0
+  $pulled = pull_account(account: $a, cap: $amount, overdraft: $overdraft)
+  check_enough_funds($pulled, $amount)
+`))
+		_, first := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(10)}}, balances(map[string]int64{"a": 4}))
+		_, second := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(20)}}, balances(map[string]int64{"a": 7}))
+
+		require.Equal(t, vm.MissingFundsError{Asset: "USD/2", Needed: big.NewInt(10), Got: big.NewInt(4)}, first)
+		require.Equal(t, vm.MissingFundsError{Asset: "USD/2", Needed: big.NewInt(20), Got: big.NewInt(7)}, second)
+	})
+
+	t.Run("negative amount", func(t *testing.T) {
+		machine := vm.NewVm(assembleIR(t, `
+  $amount = load_var<int>(0)
+  assert_non_negative_amount($amount)
+`))
+		_, first := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(-10)}}, balances(nil))
+		_, second := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(-20)}}, balances(nil))
+
+		require.Equal(t, vm.NegativeAmountError{Amount: *big.NewInt(-10)}, first)
+		require.Equal(t, vm.NegativeAmountError{Amount: *big.NewInt(-20)}, second)
+	})
+}
