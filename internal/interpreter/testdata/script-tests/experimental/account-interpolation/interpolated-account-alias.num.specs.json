@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
+  "testCases": [
+    {
+      "it": "interpolates the name of an account var whose origin is another account",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "dest:src",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}
