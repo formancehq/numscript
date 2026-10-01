@@ -103,24 +103,10 @@ func evaluateVarOrigin(env *evalEnv, type_ string, expr parser.ValueExpr) (Value
 	return evaluateExpr(env, expr)
 }
 
-// Check the following invariants:
-//   - no negative postings
-//   - no invalid account names
-//   - no invalid asset names
-//   - no invalid colors
 func checkPostingInvariants(posting Posting) InterpreterError {
-	isAmtNegative := posting.Amount.Cmp(big.NewInt(0)) == -1
-
-	isInvalidPosting := (isAmtNegative ||
-		!funds.ValidateAsset(posting.Asset) ||
-		!funds.ValidateColor(posting.Color) ||
-		!funds.ValidateAccount(posting.Source) ||
-		!funds.ValidateAccount(posting.Destination))
-
-	if isInvalidPosting {
+	if !funds.ValidatePosting(posting) {
 		return InternalError{Posting: posting}
 	}
-
 	return nil
 }
 
@@ -863,6 +849,9 @@ func (s *programState) makeAllotment(monetary *big.Int, items []parser.Allotment
 			rat, err := evaluateExprAs(&s.evalEnv, allotment.Value, expectPortion)
 			if err != nil {
 				return nil, err
+			}
+			if rat.Sign() < 0 {
+				return nil, NegativePortion{Range: allotment.Value.GetRange(), Portion: *rat}
 			}
 
 			totalAllotment.Add(totalAllotment, rat)

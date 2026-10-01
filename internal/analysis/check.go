@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/formancehq/numscript/internal/builtins"
 	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/utils"
@@ -55,17 +56,17 @@ func (r VarOriginFnCallResolution) GetParams() []string { return r.Params }
 func (r StatementFnCallResolution) GetParams() []string { return r.Params }
 
 const (
-	// Statemetn fns
-	FnSetTxMeta      = "set_tx_meta"
-	FnSetAccountMeta = "set_account_meta"
+	// Statement fns
+	FnSetTxMeta      = builtins.SetTxMeta
+	FnSetAccountMeta = builtins.SetAccountMeta
 
 	// Expr fns
-	FnVarOriginMeta      = "meta"
-	FnVarOriginBalance   = "balance"
-	FnVarOriginOverdraft = "overdraft"
-	FnVarOriginGetAsset  = "get_asset"
-	FnVarOriginGetAmount = "get_amount"
-	FnVarOriginScoped    = "scoped"
+	FnVarOriginMeta      = builtins.Meta
+	FnVarOriginBalance   = builtins.Balance
+	FnVarOriginOverdraft = builtins.Overdraft
+	FnVarOriginGetAsset  = builtins.GetAsset
+	FnVarOriginGetAmount = builtins.GetAmount
+	FnVarOriginScoped    = builtins.Scoped
 )
 
 var Builtins = map[string]FnCallResolution{
