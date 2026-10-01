@@ -616,42 +616,35 @@ func TestIRMarkAcrossAJump(t *testing.T) {
 // A run that dies inside a region must not leak the open mark into the next run
 // on the same Vm: the reused RunState drops it, so the second run's send works.
 func TestIRMarkDoesNotLeakAcrossRuns(t *testing.T) {
-	program := assembleUnverifiedIR(t, `
+	// var 0 != 0 opens a mark before the send, which fails inside the region
+	machine := vm.NewVm(assembleUnverifiedIR(t, `
   $asset = "USD/2"
   set_current_asset($asset)
   $overdraft = 0
   $ten = 10
   $src = "src"
+  $dest = "dest"
+  $open = load_var<int>(0)
+  $skip = is_zero($open)
+  jmp_if_true($skip, #send)
   mark_push()
+#send
   $pulled = pull_account(account: $src, cap: $ten, overdraft: $overdraft)
-  $dest = "dest"
   send_to_account(account: $dest)
-`)
-	machine := vm.NewVm(program)
+`))
 	store := balances(map[string]int64{"src": 100})
+	withMark := &vm.Vars{IntsPool: []big.Int{*big.NewInt(1)}}
+	withoutMark := &vm.Vars{IntsPool: []big.Int{*big.NewInt(0)}}
 
-	// the send inside the region fails, leaving the mark open
-	_, execErr := vm.Exec(context.Background(), machine, nil, store)
-	require.IsType(t, vm.InternalError{}, execErr)
+	_, execErr := vm.Exec(context.Background(), machine, withMark, store)
+	require.Equal(t, vm.InternalError{Err: vm.ErrSendWhileMarkOpen}, execErr)
 
-	// a well-formed program on the same Vm must not inherit that mark
-	res, execErr := vm.Exec(context.Background(), vm.NewVm(assembleIR(t, `
-  $asset = "USD/2"
-  set_current_asset($asset)
-  $overdraft = 0
-  $ten = 10
-  $src = "src"
-  $pulled = pull_account(account: $src, cap: $ten, overdraft: $overdraft)
-  $dest = "dest"
-  send_to_account(account: $dest)
-`)), nil, store)
+	res, execErr := vm.Exec(context.Background(), machine, withoutMark, store)
 	require.Nil(t, execErr)
 	requirePostings(t, []funds.Posting{posting("src", "dest", 10)}, res.Postings)
 
-	// and the same Vm, rerun, is clean too
-	res, execErr = vm.Exec(context.Background(), machine, nil, store)
-	require.IsType(t, vm.InternalError{}, execErr)
-	require.ErrorContains(t, execErr, "send while a mark is open")
+	res, execErr = vm.Exec(context.Background(), machine, withMark, store)
+	require.Equal(t, vm.InternalError{Err: vm.ErrSendWhileMarkOpen}, execErr)
 	require.Empty(t, res.Postings)
 }
 
