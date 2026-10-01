@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "a capped clause takes its cap and remaining takes the rest",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "x",
+          "amount": 30,
+          "asset": "USD/2"
+        },
+        {
+          "source": "world",
+          "destination": "y",
+          "amount": 70,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

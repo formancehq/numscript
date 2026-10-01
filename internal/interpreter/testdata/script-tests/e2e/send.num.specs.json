@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "sends from a funded source",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "fails when the source cannot cover the amount",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD/2",
+          "amount": 4
+        }
+      ],
+      "expect.error.missingFunds": true
+    }
+  ]
+}

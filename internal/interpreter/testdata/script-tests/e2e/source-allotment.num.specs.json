@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "pulls each share from its source",
+      "balances": [
+        {
+          "account": "s1",
+          "asset": "USD/2",
+          "amount": 1000
+        },
+        {
+          "account": "s2",
+          "asset": "USD/2",
+          "amount": 1000
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "s1",
+          "destination": "dest",
+          "amount": 25,
+          "asset": "USD/2"
+        },
+        {
+          "source": "s2",
+          "destination": "dest",
+          "amount": 75,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+vars {
+  account $acc = @src
+}
+send [USD/2 10] (
+  source = $acc
+  destination = @dest
+)

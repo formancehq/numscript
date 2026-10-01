@@ -1,0 +1,7 @@
+vars {
+  monetary $bal = balance(@src, USD/2)
+}
+send $bal (
+  source = @src
+  destination = @dest
+)

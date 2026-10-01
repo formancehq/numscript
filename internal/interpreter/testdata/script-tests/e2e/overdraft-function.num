@@ -1,0 +1,7 @@
+vars {
+  monetary $od = overdraft(@acc, USD/2)
+}
+send $od (
+  source = @world
+  destination = @dest
+)

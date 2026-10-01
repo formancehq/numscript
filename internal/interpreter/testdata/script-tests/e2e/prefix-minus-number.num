@@ -1,0 +1,8 @@
+vars {
+  number $neg = -10
+  number $pos = -$neg
+}
+send [USD/2 $pos] (
+  source = @src
+  destination = @dest
+)

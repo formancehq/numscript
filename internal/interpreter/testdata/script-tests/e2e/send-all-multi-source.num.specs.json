@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "pulls everything from each source in order",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 10
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 100
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 7
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        },
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD/2"
+        },
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 7,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

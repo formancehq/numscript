@@ -1,0 +1,5 @@
+save [USD/2 30] from @a
+send [USD/2 *] (
+  source = @a
+  destination = @dest
+)
