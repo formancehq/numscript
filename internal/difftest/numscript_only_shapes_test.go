@@ -317,7 +317,7 @@ send $m (
 			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata, tc.flags)
 			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, tc.metadata, tc.flags)
 
-			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+			if v := CompareEngines(vmRes, newRes); v.Mismatch {
 				t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 			}
 			if tc.bothReject {

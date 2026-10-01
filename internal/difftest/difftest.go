@@ -61,7 +61,7 @@ func RunOne(ctx context.Context, rng *rand.Rand) Case {
 		New:    newRes,
 		VM:     vmRes,
 
-		NewVsVM: Compare(vmRes, newRes, "vm", "new interpreter"),
+		NewVsVM: CompareEngines(vmRes, newRes),
 	}
 
 	if g.OracleCompatible {

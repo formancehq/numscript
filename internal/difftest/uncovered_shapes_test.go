@@ -272,7 +272,7 @@ send [COIN *] (
 			if v.Tolerated != "" {
 				t.Fatalf("nothing was compared (tolerated: %s)\nnew: %+v\noracle: %+v", v.Tolerated, newRes, oracleRes)
 			}
-			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+			if v := CompareEngines(vmRes, newRes); v.Mismatch {
 				t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 			}
 			if tc.bothReject {
@@ -325,7 +325,7 @@ func TestAllotmentFullSumPlusRemainingRejectedByOracleOnly(t *testing.T) {
 	if vmRes.Failed() {
 		t.Fatalf("expected the vm to run the script; got %+v", vmRes)
 	}
-	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+	if v := CompareEngines(vmRes, newRes); v.Mismatch {
 		t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 	}
 }

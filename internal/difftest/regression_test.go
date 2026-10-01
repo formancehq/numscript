@@ -222,7 +222,7 @@ send [COIN *] (
 			if v := Compare(vmRes, oracleRes, "vm", "oracle"); v.Mismatch {
 				t.Fatalf("mismatch: %s\nvm: %+v\noracle: %+v", v.Reason, vmRes, oracleRes)
 			}
-			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+			if v := CompareEngines(vmRes, newRes); v.Mismatch {
 				t.Fatalf("mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 			}
 		})
@@ -311,7 +311,7 @@ func TestSourceSideNegativeMaxClauseTolerated(t *testing.T) {
 
 	// The vm must side with the interpreter on the gap.
 	vmRes := runVM(ctx, script, nil, nil, nil, nil)
-	if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+	if v := CompareEngines(vmRes, newRes); v.Mismatch {
 		t.Fatalf("the vm does not side with the interpreter: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 	}
 }
@@ -399,7 +399,7 @@ func TestKnownOpenDivergences(t *testing.T) {
 
 			// The divergence is numscript-vs-ledger; within numscript the two
 			// engines must still agree on it.
-			if v := Compare(vmRes, newRes, "vm", "new interpreter"); v.Mismatch {
+			if v := CompareEngines(vmRes, newRes); v.Mismatch {
 				t.Fatalf("the vm does not side with the interpreter: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
 			}
 		})

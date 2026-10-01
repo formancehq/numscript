@@ -24,12 +24,24 @@ func mismatch(format string, args ...any) Verdict {
 	return Verdict{Mismatch: true, Reason: fmt.Sprintf(format, args...)}
 }
 
-// Compare normalizes and diffs two engines' results for the same script.
-// aLabel/bLabel appear in mismatch messages only.
+// Compare normalizes and diffs two engines' results for the same script, with
+// the oracle on the b-side. aLabel/bLabel appear in mismatch messages only.
 //
 // Error strings are never compared, only whether an error occurred and at which
 // stage: wording legitimately differs between implementations.
 func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+	return compare(aRes, bRes, aLabel, bLabel, true)
+}
+
+// CompareEngines is Compare for the vm against the interpreter. Both live in
+// this repo and must agree exactly, so only the vm's capacity bounds are
+// tolerated: every tolerance that exists for a legacy-machine behavior is a
+// mismatch here.
+func CompareEngines(vmRes, newRes SideResult) Verdict {
+	return compare(vmRes, newRes, "vm", "new interpreter", false)
+}
+
+func compare(aRes, bRes SideResult, aLabel, bLabel string, oracle bool) Verdict {
 	// Checked before anything else, and symmetrically: an engine breaking its
 	// own contract is never an expected outcome, and every tolerance below is
 	// about the two engines legitimately disagreeing. Ordering matters — the
@@ -45,6 +57,9 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	bCompileFailed := bRes.CompileErr != ""
 
 	if bCompileFailed && !aCompileFailed {
+		if !oracle {
+			return mismatch("%s rejected a script %s compiled: compileErr=%q", bLabel, aLabel, bRes.CompileErr)
+		}
 		// Expected, not a mismatch: internal/gen's cleanup pass is best-effort, not
 		// a guarantee — it does not track unboundedness propagating up through
 		// nested inorder blocks, so it can still emit a script the b-side rejects.
@@ -89,6 +104,9 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 			// sides failing to compile.
 			return ok()
 		}
+		if !oracle {
+			return mismatch("%s rejected a script %s resolved: resolveErr=%q", bLabel, aLabel, bRes.ResolveErr)
+		}
 		// Same shape as the compile-stage tolerance above, one stage later:
 		// the generator's cleanup pass does not track everything the oracle's
 		// resolve stage refuses (e.g. binding `@world` to an account variable
@@ -124,7 +142,7 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 		// The reverse is DIVERGENCES.md #4, where b-side rejects the script and
 		// a-side silently zeroes the clause and runs short. That one must still be
 		// a mismatch -- see TestMissingFundsClassificationMismatchStillCaught.
-		if aNegativeAmount(aRes) && bRes.MissingFunds {
+		if oracle && aNegativeAmount(aRes) && bRes.MissingFunds {
 			return tolerated("negative amount vs missing funds")
 		}
 		return mismatch(
@@ -141,7 +159,7 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 		// keeps going. Anything else here is a real bug -- one engine moved
 		// money the other refused to, or vice versa -- and must not be
 		// absorbed.
-		if bRunFailed && !aRunFailed && bRes.NegativeMaxReject {
+		if oracle && bRunFailed && !aRunFailed && bRes.NegativeMaxReject {
 			return tolerated("negative max clause")
 		}
 		return mismatch(
