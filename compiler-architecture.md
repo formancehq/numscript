@@ -107,7 +107,7 @@ Instructions can move data by manipulating registers. Registers banks are separa
 A simple example of an instruction is:
 
 ```
-INT_ADD 0x00 0x01 0x02
+ADD_INT 0x00 0x01 0x02
 ```
 
 which behaves like this:
@@ -120,12 +120,15 @@ Note that this model plays very well with golang's `big.Int` mutable API.
 
 The instruction set has
 
-- a few pure, binary or unary arithmetic/logic operations (int min, string add, int add, portion sub, etc)
-- a few domain instructions which call the `runtime.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitives can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
-- conditional jumps (`JMP_IF_ZERO`), which can only jump forward (so that the vm always halts by design)
-- a `MK_ALLOTMENT` instruction which computes the allotment-related calculations
+- a few pure, binary or unary arithmetic/logic operations (string add, int add, portion mul and sub, int/portion conversions, etc). There is no min instruction: a min is a comparison plus a copy
+- comparisons that write a bool register (`LT_INT`, `EQ_INT`, `STR_EQ`, `IS_ZERO`, ...) and `NOT`
+- a few domain instructions which call the `funds.RunState`'s API (such as `PULL_ACCOUNT`, `SEND_TO_ACCOUNT`, `SAVE`). Those domain primitives can allocate funds, pull them to allocate postings, etc. This runtime logic is shared with the interpreter implementation.
+- `MARK_PUSH` / `MARK_END`, which open and close a backtracking region for `oneof`
+- jumps on a bool register (`JMP_IF_TRUE`, `JMP_IF_FALSE`) and an unconditional `JMP`, which can only jump forward (so that the vm always halts by design)
 - constant pool loading instructions: `LOAD_STR(dest:u8, idx:u16)`, which performs `str_regs[dest] = program.str_pool[idx]`, and `LOAD_INT`.
-- `LOAD_VAR_STRING(dest:u8, idx:u16)`, which performs `str_regs[dest] = vars.str_pool[idx]`, and `LOAD_VAR_INT` instructions, to load vars encoded in the `vm.Vars` struct
+- `LOAD_VAR_STR(dest:u8, idx:u16)`, which performs `str_regs[dest] = vars.str_pool[idx]`, and `LOAD_VAR_INT` instructions, to load vars encoded in the `vm.Vars` struct
+
+There is no allotment instruction either: an allotment share is computed with `INT_TO_PORTION`, `MUL_PORTION` and `PORTION_TO_INT`, plus a fixup that hands the rounding leftover to the earliest shares. [instruction-encoding.md](instruction-encoding.md) has the full opcode table.
 
 The VM implementation itself is trivial, and most of the complexity is moved to the compiler
 
