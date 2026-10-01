@@ -24,7 +24,7 @@ The whole IR layer lives in [internal/ir/](internal/ir/), and that package is th
 ```
 REG          '$' [a-zA-Z_] [a-zA-Z0-9_]*      $r0, $r12, $pulled
 LABEL        '#' [a-zA-Z_] [a-zA-Z0-9_]*      #inorder_end_0
-INT          [0-9]+                           42                (no sign, no separators)
+INT          [0-9]+                           42                (no separators; a constant may be preceded by `-`)
 STRING       '"' ('\"' | ~["\r\n])* '"'       "USD/2", "a\"b"
 IDENTIFIER   [a-z] [a-z0-9_]*                 mk_portion, account
 TYPE_KEYWORD 'int' | 'str' | 'portion' | 'monetary'
@@ -351,7 +351,6 @@ Known asymmetries between what `ir.Dump` writes and what the parser accepts:
 
 * **Register names don't survive.** `$src` comes back as `$r<k>`, numbered by first appearance (see [Registers](#registers)).
 * **`_` doesn't survive.** It's desugared to a fresh register on the way in, so it dumps as that register (see [Destinations](#destinations)).
-* **Negative int literals are not expressible.** `INT` has no sign, so `$r0 = -1` is a syntax error, while `ir.Dump` would happily print it for a negative `ir.LoadInt`. This is not reachable today — the compiler emits `neg_int` for negative literals rather than a negative constant — but a constant-folding peephole could produce a dump that no longer parses.
 
 ## Error handling
 

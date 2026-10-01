@@ -327,7 +327,12 @@ func buildConst(ctx antlrParser.IConst_Context) Const {
 	case *antlrParser.ConstIntContext:
 		tok := c.INT().GetSymbol()
 		s := tok.GetText()
-		return Const{Range: tokenToRange(tok), Kind: ConstInt, IntVal: &s}
+		rng := tokenToRange(tok)
+		if minus := c.MINUS(); minus != nil {
+			s = "-" + s
+			rng.Start = tokenToRange(minus.GetSymbol()).Start
+		}
+		return Const{Range: rng, Kind: ConstInt, IntVal: &s}
 	case *antlrParser.ConstBoolContext:
 		tok := c.BOOL().GetSymbol()
 		b := tok.GetText() == "true"

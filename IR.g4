@@ -46,7 +46,7 @@ value
 
 const_
     : STRING                              # constString
-    | INT                                 # constInt
+    | MINUS? INT                          # constInt
     | BOOL                                # constBool
     ;
 

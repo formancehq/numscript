@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,6 +39,13 @@ func TestParseErrors(t *testing.T) {
 `)
 		require.Empty(t, errs)
 		require.Equal(t, "a\"b\\c\n", instrs[0].(LoadStr).Value)
+	})
+
+	t.Run("negative int constant round-trips", func(t *testing.T) {
+		instrs := []Instr{LoadInt{Dest: 0, Value: *big.NewInt(-1)}}
+		parsed, errs := Parse(Dump(instrs))
+		require.Empty(t, errs)
+		require.Equal(t, instrs, parsed)
 	})
 
 	t.Run("invalid arg type", func(t *testing.T) {
@@ -334,7 +342,6 @@ func TestMalformedInputIsRejected(t *testing.T) {
 		{"garbage", "$$$ !!!"},
 		{"unclosed paren", "  $r0 = neg_int($r1"},
 		{"uppercase instr name", "  $r0 = NEG_INT($r1)"},
-		{"negative int literal", "  $r0 = -1\n"},
 		{"empty dest list", "  [] = meta_monetary($r0, $r1)\n"},
 		{"missing dest", "  = neg_int($r0)\n"},
 		{"unterminated string", "  $r0 = \"oops\n"},
