@@ -376,10 +376,11 @@ without the harness.
 Only scripts both engines run to completion have their postings compared. Of
 the rest, some are rejected by the oracle at compile time (the generator's
 cleanup pass is best-effort; counted as `b-side compile rejection`), some are
-tolerated under #1, and the remainder fail on both engines for the same
-missing-funds reason (the sweep's reach table and tolerated counts print the
-live numbers). A scenario block glued to a random program is often wasted this
-way, which is why the generator has a scenario-only strategy.
+tolerated under #1, some are numscript-only (below) and skip the oracle
+altogether, and the remainder fail on both engines for the same missing-funds
+reason (the sweep's reach table and tolerated counts print the live numbers).
+A scenario block glued to a random program is often wasted this way, which is
+why the generator has a scenario-only strategy.
 
 Since 2026-09-25 the generator also reaches allotment `remaining` clauses,
 portions written through vars (only ever inside a `remaining` block, summing
@@ -396,13 +397,14 @@ Any other one-sided runtime failure is a mismatch.
 A quarter of generated scripts may draw numscript-only shapes — `oneof`,
 colored sources, division-expression portions (`$n/3`, any sign, the only
 route to negative or over-one portions), caps in a different asset than their
-statement — and any script actually containing one skips the oracle leg
+statement — and any script actually containing one skips the oracle legs
 (counted by name, `numscript-only script, oracle skipped`): the oracle has no
-grammar for them. Until the compiler+VM leg lands, such a script is executed
-by the interpreter alone — a panic still fails the fuzz target, and the reach
-table counts the shapes — and the fixture corpus pins their semantics; the VM
-leg is what will compare them engine-against-engine. Asset scaling and account
-interpolation still have no generator coverage.
+grammar for them. Those scripts are compared on `new vs vm` only, where
+nothing is tolerated. Asset scaling and account interpolation still have no
+generator coverage. Account interpolation is checked by the fixture corpus
+(which both numscript engines run) and `TestNumscriptOnlyShapeAgreements`.
+Asset scaling has no compiler lowering yet: its fixtures run on the
+interpreter only, and `internal/compiler/scripts_test.go` skips them.
 
 ---
 

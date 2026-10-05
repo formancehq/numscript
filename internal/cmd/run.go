@@ -29,6 +29,32 @@ type RunArgs struct {
 	OutFormatOpt string
 }
 
+// validateInputRows rejects a malformed inputs file before running anything: a
+// balance list is a map keyed by (account, asset, color, scope) and a metadata
+// list by (account, key, scope), so a repeated key is ambiguous.
+func validateInputRows(inputsPath string, balances interpreter.Balances, meta interpreter.AccountsMetadata) error {
+	if dup, ok := balances.FirstDuplicate(); ok {
+		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
+		if dup.Color != "" {
+			key += fmt.Sprintf(" color=%q", dup.Color)
+		}
+		if dup.Scope != "" {
+			key += fmt.Sprintf(" scope=%q", dup.Scope)
+		}
+		return fmt.Errorf("invalid inputs file '%s': balances must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
+	}
+
+	if dup, ok := meta.FirstDuplicate(); ok {
+		key := fmt.Sprintf("account=%q key=%q", dup.Account, dup.Key)
+		if dup.Scope != "" {
+			key += fmt.Sprintf(" scope=%q", dup.Scope)
+		}
+		return fmt.Errorf("invalid inputs file '%s': metadata must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
+	}
+
+	return nil
+}
+
 func run(scriptPath string, opts RunArgs) error {
 	numscriptContent, err := os.ReadFile(scriptPath)
 	if err != nil {
@@ -57,26 +83,8 @@ func run(scriptPath string, opts RunArgs) error {
 		return fmt.Errorf("failed to parse inputs file '%s' as JSON: %w", inputsPath, err)
 	}
 
-	// Reject a malformed inputs file before running anything: a balance list is a
-	// map keyed by (account, asset, color, scope), so a repeated key is ambiguous.
-	if dup, ok := inputs.Balances.FirstDuplicate(); ok {
-		key := fmt.Sprintf("account=%q asset=%q", dup.Account, dup.Asset)
-		if dup.Color != "" {
-			key += fmt.Sprintf(" color=%q", dup.Color)
-		}
-		if dup.Scope != "" {
-			key += fmt.Sprintf(" scope=%q", dup.Scope)
-		}
-		return fmt.Errorf("invalid inputs file '%s': balances must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
-	}
-
-	// Likewise, a metadata list is keyed by (account, key, scope).
-	if dup, ok := inputs.Meta.FirstDuplicate(); ok {
-		key := fmt.Sprintf("account=%q key=%q", dup.Account, dup.Key)
-		if dup.Scope != "" {
-			key += fmt.Sprintf(" scope=%q", dup.Scope)
-		}
-		return fmt.Errorf("invalid inputs file '%s': metadata must not contain duplicate entries: duplicate entry for %s", inputsPath, key)
+	if err := validateInputRows(inputsPath, inputs.Balances, inputs.Meta); err != nil {
+		return err
 	}
 
 	featureFlags := map[string]struct{}{}

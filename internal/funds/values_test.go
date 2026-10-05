@@ -52,6 +52,32 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestValidatePosting(t *testing.T) {
+	valid := Posting{Source: "a", Destination: "b:c", Amount: big.NewInt(0), Asset: "USD/2"}
+	require.True(t, ValidatePosting(valid))
+
+	scoped := valid
+	scoped.SourceScope, scoped.DestinationScope, scoped.Color = "s1", "s_2", "RED"
+	require.True(t, ValidatePosting(scoped))
+
+	for name, mutate := range map[string]func(*Posting){
+		"negative amount":   func(p *Posting) { p.Amount = big.NewInt(-1) },
+		"nil amount":        func(p *Posting) { p.Amount = nil },
+		"source":            func(p *Posting) { p.Source = "a b" },
+		"destination":       func(p *Posting) { p.Destination = "" },
+		"source scope":      func(p *Posting) { p.SourceScope = "S" },
+		"destination scope": func(p *Posting) { p.DestinationScope = "a-b" },
+		"asset":             func(p *Posting) { p.Asset = "usd" },
+		"color":             func(p *Posting) { p.Color = "red" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := valid
+			mutate(&p)
+			require.False(t, ValidatePosting(p))
+		})
+	}
+}
+
 func TestParseNumber(t *testing.T) {
 	n, ok := ParseNumber("42")
 	require.True(t, ok)

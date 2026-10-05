@@ -273,8 +273,8 @@ func srcColor(rng *rand.Rand, numscriptOnly bool) (string, bool) {
 }
 
 // divPortion maybe replaces one allotment clause's portion with a division
-// expression `$n/den`, whose value is unconstrained: negative (a negative
-// share), zero, ordinary, or above one. Only next to a `remaining` clause —
+// expression `$n/den`, whose value is unconstrained: negative (rejected by both
+// engines), zero, ordinary, or above one. Only next to a `remaining` clause —
 // without one the sum must be exactly 1 and nearly every draw would be a
 // same-on-both-engines rejection that compares nothing.
 func divPortion(rng *rand.Rand, numscriptOnly, withRemaining bool) *PortionDiv {

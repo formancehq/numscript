@@ -25,6 +25,8 @@ package funds
 import (
 	"errors"
 	"math/big"
+	"slices"
+	"strings"
 )
 
 // ErrNegativePosting is returned by ForcePosting for a negative amount. A
@@ -188,15 +190,31 @@ type AccountBalance struct {
 // entry outside the family can hold only a write delta whose base was never
 // prewarmed, and against a zero-backed Store loadBase would stamp it loaded,
 // masking the starting balance from every later read of that asset.
+//
+// Entries are visited in (asset, color) order, not map order, so both the
+// returned slice and the sequence of Store reads — hence which error surfaces
+// when several reads fail — are the same on every run.
 func (s *RunState) AccountBalances(account, scope, baseAsset string) ([]AccountBalance, error) {
-	var out []AccountBalance
-	for key, e := range s.balances {
+	var keys []PairKey
+	for key := range s.balances {
 		if key.Account != account || key.Scope != scope {
 			continue
 		}
 		if base, _ := GetBaseAndScale(key.Asset); base != baseAsset {
 			continue
 		}
+		keys = append(keys, key)
+	}
+	slices.SortFunc(keys, func(a, b PairKey) int {
+		if c := strings.Compare(a.Asset, b.Asset); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Color, b.Color)
+	})
+
+	out := make([]AccountBalance, 0, len(keys))
+	for _, key := range keys {
+		e := s.balances[key]
 		if err := s.loadBase(key, e); err != nil {
 			return nil, err
 		}
