@@ -15,6 +15,11 @@ import "fmt"
 // happen to know every opcode a given blob uses, but that is not assumed. A
 // major bump changes the meaning of existing encodings, so a 2.0 reader
 // accepts no 1.x blob at all.
+//
+// Major 0 is unstable: any 0.x change may change the meaning of existing
+// encodings, so a 0.x reader accepts exactly its own version, older and newer
+// minors alike. A host holding a 0.x blob that this build rejects should
+// recompile the script from source rather than fail.
 type BytecodeVersion struct {
 	Major uint16
 	Minor uint16
@@ -22,11 +27,15 @@ type BytecodeVersion struct {
 
 // CurrentBytecodeVersion is the version Encode writes and the newest one the
 // decoders read.
-var CurrentBytecodeVersion = BytecodeVersion{Major: 1, Minor: 0}
+var CurrentBytecodeVersion = BytecodeVersion{Major: 0, Minor: 1}
 
 // CanRead reports whether a reader at version v accepts a blob encoded with
-// version encoded: the same major, and a minor no newer than the reader's.
+// version encoded: the same major, and a minor no newer than the reader's. An
+// unstable (0.x) reader accepts only its exact version.
 func (v BytecodeVersion) CanRead(encoded BytecodeVersion) bool {
+	if v.Major == 0 {
+		return encoded == v
+	}
 	return encoded.Major == v.Major && encoded.Minor <= v.Minor
 }
 
@@ -35,14 +44,18 @@ func (v BytecodeVersion) String() string {
 }
 
 // UnsupportedBytecodeVersionError is what the decoders return for a blob this
-// build cannot read: another major, or a minor newer than
-// CurrentBytecodeVersion.
+// build cannot read: another major, a minor newer than CurrentBytecodeVersion,
+// or, while the current version is unstable, any other 0.x minor.
 type UnsupportedBytecodeVersionError struct {
 	Encoded   BytecodeVersion
 	Supported BytecodeVersion
 }
 
 func (e UnsupportedBytecodeVersionError) Error() string {
+	if e.Supported.Major == 0 {
+		return fmt.Sprintf("bytecode version %s is not readable by this build, which reads only the unstable version %s",
+			e.Encoded, e.Supported)
+	}
 	return fmt.Sprintf("bytecode version %s is not readable by this build, which reads %d.0 through %s",
 		e.Encoded, e.Supported.Major, e.Supported)
 }

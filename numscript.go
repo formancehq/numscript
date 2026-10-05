@@ -174,7 +174,9 @@ var DecodeCompiledProgram = vm.DecodeProgram
 // independently of the library itself: a new library release does not imply a
 // new bytecode version. A reader accepts a blob of its own major with a minor
 // no newer than its own (BytecodeVersion.CanRead); anything else the decoders
-// reject with UnsupportedBytecodeVersionError.
+// reject with UnsupportedBytecodeVersionError. Major 0 is unstable: a 0.x build
+// reads only its exact version, so a host holding a 0.x blob this build
+// rejects should recompile the script from source.
 //
 // CurrentBytecodeVersion is what this build's Compile and Encode write and the
 // newest it can execute. A host that stores bytecode compiled by one build and

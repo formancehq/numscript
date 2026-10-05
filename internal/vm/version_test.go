@@ -20,6 +20,12 @@ func TestBytecodeVersionCanRead(t *testing.T) {
 		{BytecodeVersion{1, 9}, BytecodeVersion{2, 0}, false},
 		{BytecodeVersion{2, 0}, BytecodeVersion{2, 0}, true},
 		{BytecodeVersion{1, 300}, BytecodeVersion{1, 299}, true}, // minor is a full u16, not a byte
+		// 0.x is unstable: only the exact version is readable
+		{BytecodeVersion{0, 1}, BytecodeVersion{0, 1}, true},
+		{BytecodeVersion{0, 2}, BytecodeVersion{0, 1}, false},
+		{BytecodeVersion{0, 1}, BytecodeVersion{0, 2}, false},
+		{BytecodeVersion{1, 0}, BytecodeVersion{0, 9}, false},
+		{BytecodeVersion{0, 9}, BytecodeVersion{1, 0}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.reader.String()+" reads "+tc.encoded.String(), func(t *testing.T) {
@@ -98,23 +104,23 @@ func TestDecodeAppliesVersionRule(t *testing.T) {
 	}
 
 	current := CurrentBytecodeVersion
-	require.Positive(t, current.Major, "a 0.x current version would leave no older major to test against")
 
-	versions := map[string]struct {
+	type version struct {
 		v  BytecodeVersion
 		ok bool
-	}{
+	}
+	versions := map[string]version{
 		"current":         {current, true},
 		"newer minor":     {BytecodeVersion{current.Major, current.Minor + 1}, false},
 		"far newer minor": {BytecodeVersion{current.Major, 0xFFFF}, false},
 		"newer major":     {BytecodeVersion{current.Major + 1, 0}, false},
-		"older major":     {BytecodeVersion{current.Major - 1, current.Minor}, false},
+	}
+	if current.Major > 0 {
+		versions["older major"] = version{BytecodeVersion{current.Major - 1, current.Minor}, false}
 	}
 	if current.Minor > 0 {
-		versions["older minor"] = struct {
-			v  BytecodeVersion
-			ok bool
-		}{BytecodeVersion{current.Major, current.Minor - 1}, true}
+		// an unstable reader rejects older minors too
+		versions["older minor"] = version{BytecodeVersion{current.Major, current.Minor - 1}, current.Major > 0}
 	}
 
 	blobs := []struct {

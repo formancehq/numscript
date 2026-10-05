@@ -182,6 +182,8 @@ The split encodes the compatibility rule. A reader accepts a payload of its own 
 - a 1.0 VM does **not** run 1.1 bytecode: it may happen to know every opcode a given payload uses, but that is not assumed;
 - a **major** bump changes the meaning of existing encodings, so a 2.0 VM runs no 1.x bytecode at all.
 
+Major 0 is **unstable**, and the format is at `0.1` today. Any 0.x change may change the meaning of existing encodings, so a 0.x VM runs only bytecode of its exact version: a 0.1 VM rejects 0.0 and 0.2 alike. A host that stores 0.x bytecode and gets `vm.UnsupportedBytecodeVersionError` for it should recompile the script from source instead of failing. The rules above apply from 1.0.
+
 `Encode` always stamps `vm.CurrentBytecodeVersion`; the decoders return `vm.UnsupportedBytecodeVersionError` (carrying the encoded and the supported version) for a payload they cannot read. `PeekProgramVersion` / `PeekVarsVersion` read the version off the raw header without decoding the rest and without applying the rule, so a host can report which version an unreadable payload was written with. A host that stores bytecode compiled by one build and executes it with another should compare the stored payload's version with `CurrentBytecodeVersion` (or `CanRead`, if it accepts older minors) before trusting it to run.
 
 ### Constant pools
