@@ -202,6 +202,16 @@ func PeekProgramVersion(buf []byte) (BytecodeVersion, error) {
 	return peekVersion("NUMB", buf)
 }
 
+// CanReadProgram reports whether buf carries a NUMB header with a bytecode
+// version this build can decode and execute (CurrentBytecodeVersion.CanRead),
+// without parsing the sections that follow. A buf without a valid header is
+// not readable either. It does not guarantee that DecodeProgram succeeds on
+// the rest of the bytes, only that their format is this build's.
+func CanReadProgram(buf []byte) bool {
+	version, err := PeekProgramVersion(buf)
+	return err == nil && CurrentBytecodeVersion.CanRead(version)
+}
+
 func DecodeProgram(buf []byte) (Program, error) {
 	sections, version, err := decodeSections("NUMB", buf, SectionInstructions, SectionStringsPool, SectionIntsPool, SectionMaxRegisters)
 	if err != nil {

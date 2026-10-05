@@ -11,7 +11,8 @@ import (
 
 // The public surface a host needs to keep stored bytecode and the executing
 // build in step: the current version, the version stamped on what Compile and
-// Encode produce, a peek that reads it off raw bytes, and the typed rejection.
+// Encode produce, the predicates that tell whether this build can run stored
+// bytes, a peek that reads the version off them, and the typed rejection.
 func TestBytecodeVersionPublicAPI(t *testing.T) {
 	varsEncoder, program, err := numscript.Compile(`vars {
   monetary $amt
@@ -38,6 +39,9 @@ send $amt (
 	require.Equal(t, numscript.CurrentBytecodeVersion, vars.Version)
 
 	varsBytes := vars.Encode()
+	require.True(t, numscript.CanReadCompiledProgram(programBytes))
+	require.True(t, numscript.CanReadVars(varsBytes))
+
 	peeked, err = numscript.PeekVarsVersion(varsBytes)
 	require.NoError(t, err)
 	require.Equal(t, numscript.CurrentBytecodeVersion, peeked)
@@ -53,6 +57,7 @@ send $amt (
 	require.NoError(t, err)
 	require.Equal(t, next, peeked)
 	require.False(t, numscript.CurrentBytecodeVersion.CanRead(peeked))
+	require.False(t, numscript.CanReadCompiledProgram(foreign))
 
 	_, err = numscript.DecodeCompiledProgram(foreign)
 	var unsupported numscript.UnsupportedBytecodeVersionError

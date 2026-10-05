@@ -94,7 +94,8 @@ func TestPeekVersionChecksMagicOnly(t *testing.T) {
 
 // The decoders apply CanRead against CurrentBytecodeVersion and report an
 // unreadable blob with the typed error carrying both versions, while the peek
-// still returns the encoded version so a caller can say what it was.
+// still returns the encoded version so a caller can say what it was. The
+// CanRead predicates agree with the decoders on every version.
 func TestDecodeAppliesVersionRule(t *testing.T) {
 	withVersion := func(buf []byte, v BytecodeVersion) []byte {
 		out := bytes.Clone(buf)
@@ -124,19 +125,20 @@ func TestDecodeAppliesVersionRule(t *testing.T) {
 	}
 
 	blobs := []struct {
-		name   string
-		magic  string
-		buf    []byte
-		decode func([]byte) (BytecodeVersion, error)
+		name    string
+		magic   string
+		buf     []byte
+		decode  func([]byte) (BytecodeVersion, error)
+		canRead func([]byte) bool
 	}{
 		{"program", "NUMB", Program{}.Encode(), func(b []byte) (BytecodeVersion, error) {
 			p, err := DecodeProgram(b)
 			return p.Version, err
-		}},
+		}, CanReadProgram},
 		{"vars", "NVAR", Vars{}.Encode(), func(b []byte) (BytecodeVersion, error) {
 			v, err := DecodeVars(b)
 			return v.Version, err
-		}},
+		}, CanReadVars},
 	}
 
 	for name, tc := range versions {
@@ -147,6 +149,8 @@ func TestDecodeAppliesVersionRule(t *testing.T) {
 				peeked, err := peekVersion(blob.magic, buf)
 				require.NoError(t, err)
 				require.Equal(t, tc.v, peeked)
+
+				require.Equal(t, tc.ok, blob.canRead(buf))
 
 				got, err := blob.decode(buf)
 				if tc.ok {
@@ -163,4 +167,19 @@ func TestDecodeAppliesVersionRule(t *testing.T) {
 			})
 		}
 	}
+}
+
+// A blob without a valid header of its own kind is not readable: the
+// predicates never report a version they could not peek.
+func TestCanReadRejectsInvalidHeader(t *testing.T) {
+	require.True(t, CanReadProgram(Program{}.Encode()))
+	require.True(t, CanReadVars(Vars{}.Encode()))
+
+	require.False(t, CanReadProgram(Vars{}.Encode()), "a vars blob is not a program")
+	require.False(t, CanReadVars(Program{}.Encode()), "a program blob is not vars")
+
+	require.False(t, CanReadProgram(nil))
+	require.False(t, CanReadVars(nil))
+	require.False(t, CanReadProgram(Program{}.Encode()[:formatHeaderLen-1]))
+	require.False(t, CanReadVars(Vars{}.Encode()[:formatHeaderLen-1]))
 }

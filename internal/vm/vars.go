@@ -21,6 +21,12 @@ func PeekVarsVersion(buf []byte) (BytecodeVersion, error) {
 	return peekVersion("NVAR", buf)
 }
 
+// CanReadVars is CanReadProgram for an encoded Vars (NVAR header).
+func CanReadVars(buf []byte) bool {
+	version, err := PeekVarsVersion(buf)
+	return err == nil && CurrentBytecodeVersion.CanRead(version)
+}
+
 func DecodeVars(buf []byte) (Vars, error) {
 	sections, version, err := decodeSections("NVAR", buf, SectionStringsPool, SectionIntsPool)
 	if err != nil {

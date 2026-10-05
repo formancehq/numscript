@@ -180,10 +180,13 @@ var DecodeCompiledProgram = vm.DecodeProgram
 //
 // CurrentBytecodeVersion is what this build's Compile and Encode write and the
 // newest it can execute. A host that stores bytecode compiled by one build and
-// executes it with another can compare it against the stored blob's version
-// before trusting the bytecode to run; PeekCompiledProgramVersion and
-// PeekVarsVersion read that version from the raw bytes without decoding the
-// rest, and without checking that this build can read it.
+// executes it with another asks CanReadCompiledProgram and CanReadVars before
+// decoding a stored blob, and recompiles the script from source when either
+// says no; the versioning rules stay in this library. The header carrying the
+// version keeps its layout across every version, so both answer for blobs
+// written by any past or future build. PeekCompiledProgramVersion and
+// PeekVarsVersion read the version itself, for diagnostics, without checking
+// that this build can read it.
 type (
 	BytecodeVersion                 = vm.BytecodeVersion
 	UnsupportedBytecodeVersionError = vm.UnsupportedBytecodeVersionError
@@ -193,6 +196,8 @@ var (
 	CurrentBytecodeVersion     = vm.CurrentBytecodeVersion
 	PeekCompiledProgramVersion = vm.PeekProgramVersion
 	PeekVarsVersion            = vm.PeekVarsVersion
+	CanReadCompiledProgram     = vm.CanReadProgram
+	CanReadVars                = vm.CanReadVars
 )
 
 // VerifyCompiledProgram statically checks that a program is safe to execute:
