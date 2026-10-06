@@ -121,6 +121,11 @@ func Exec[S Store](
 		vm.runstate.Reset(fundsStore)
 	}
 	runstate := vm.runstate
+	// A VM is meant to be reused across executions, so it must not keep this
+	// run's store — nor anything the store references — reachable once Exec
+	// returns. Release it, with the per-run balances, on every exit, including
+	// a panic raised by the store.
+	defer runstate.Reset(nil)
 
 	var txMeta map[string]string
 	// accountsMeta accumulates with upsert semantics (last write to a given

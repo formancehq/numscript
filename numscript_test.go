@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"runtime"
 	"testing"
+	"time"
+	"weak"
 
 	"github.com/formancehq/numscript"
 	"github.com/formancehq/numscript/internal/flags"
@@ -693,4 +696,100 @@ func TestExecVmErrorsAreClassifiable(t *testing.T) {
 
 	var missingFunds numscript.VmMissingFundsError
 	require.True(t, errors.As(execErr, &missingFunds))
+}
+
+// releaseTestStore is a VMStore with a heap identity (its map field also keeps
+// it off the tiny allocator), so a weak pointer can observe whether a VM still
+// references it.
+type releaseTestStore struct {
+	balances map[string]int64
+	panics   bool
+}
+
+func (s *releaseTestStore) GetBalance(_ context.Context, account, _, _, _ string) (*big.Int, error) {
+	if s.panics {
+		panic("store panic")
+	}
+	return big.NewInt(s.balances[account]), nil
+}
+
+func (s *releaseTestStore) GetMetadata(_ context.Context, _, _, _ string) (string, bool, error) {
+	return "", false, nil
+}
+
+// A VM is reused across executions, so once ExecVm returns — successfully,
+// with an error, or by a panic from the store — it must not keep the store it
+// ran with reachable: the store may reference arbitrarily large caller state.
+func TestExecVmReleasesStore(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	for _, tc := range []struct {
+		name  string
+		store func() *releaseTestStore
+		check func(t *testing.T, execErr error, panicked bool)
+	}{
+		{
+			name:  "success",
+			store: func() *releaseTestStore { return &releaseTestStore{balances: map[string]int64{"src": 100}} },
+			check: func(t *testing.T, execErr error, panicked bool) {
+				require.False(t, panicked)
+				require.Nil(t, execErr)
+			},
+		},
+		{
+			name:  "error",
+			store: func() *releaseTestStore { return &releaseTestStore{balances: map[string]int64{"src": 10}} },
+			check: func(t *testing.T, execErr error, panicked bool) {
+				require.False(t, panicked)
+				var missingFunds numscript.VmMissingFundsError
+				require.True(t, errors.As(execErr, &missingFunds))
+			},
+		},
+		{
+			name:  "store panic",
+			store: func() *releaseTestStore { return &releaseTestStore{panics: true} },
+			check: func(t *testing.T, _ error, panicked bool) {
+				require.True(t, panicked)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			machine := numscript.NewVm(program)
+
+			// Run in its own frame so no local of this test keeps the store
+			// reachable; only what the VM kept can.
+			released := func() weak.Pointer[releaseTestStore] {
+				store := tc.store()
+				ref := weak.Make(store)
+
+				var (
+					execErr  error
+					panicked bool
+				)
+				func() {
+					defer func() { panicked = recover() != nil }()
+					_, execErr = numscript.ExecVm(context.Background(), machine, &vars, store)
+				}()
+				tc.check(t, execErr, panicked)
+
+				return ref
+			}()
+
+			// Collect until the store is released; a reference the VM holds
+			// never releases it.
+			require.Eventually(t, func() bool {
+				runtime.GC()
+				return released.Value() == nil
+			}, 5*time.Second, 10*time.Millisecond, "the VM still references the store it ran with")
+
+			runtime.KeepAlive(machine)
+		})
+	}
 }

@@ -134,6 +134,7 @@ func (s *RunState) SetCurrentAsset(asset string) {
 // open by a run that failed mid-region is dropped.
 //
 // GetPostings returns copies, so a result obtained before Reset stays valid.
+// Reset(nil) releases the store between executions.
 func (s *RunState) Reset(store Store) {
 	s.store = store
 	clear(s.balances)
