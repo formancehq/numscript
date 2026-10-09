@@ -10,6 +10,7 @@ import (
 
 type (
 	CompilerError interface {
+		error
 		parser.Ranged
 		compileError()
 	}

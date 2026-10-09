@@ -20,6 +20,33 @@ type varDecl struct {
 	typ  typecheck.Type
 }
 
+// MissingVariable is returned by Encode when the payload has no value for a
+// declared variable.
+type MissingVariable struct {
+	Name string
+}
+
+func (e MissingVariable) Error() string {
+	return fmt.Sprintf("missing variable: $%s", e.Name)
+}
+
+// InvalidVariableValue is returned by Encode when a variable's raw value does
+// not parse as its declared type.
+type InvalidVariableValue struct {
+	Name  string
+	Type  typecheck.Type
+	Raw   string
+	Cause error
+}
+
+func (e InvalidVariableValue) Error() string {
+	return fmt.Sprintf("variable $%s: %v", e.Name, e.Cause)
+}
+
+func (e InvalidVariableValue) Unwrap() error {
+	return e.Cause
+}
+
 // TODO review AI blob
 func (e VarsEncoder) Encode(vars map[string]string) (vm.Vars, error) {
 	strs := make([]string, 0, e.nStr)
@@ -28,13 +55,13 @@ func (e VarsEncoder) Encode(vars map[string]string) (vm.Vars, error) {
 	for _, d := range e.decls {
 		raw, ok := vars[d.name]
 		if !ok {
-			return vm.Vars{}, fmt.Errorf("missing variable: $%s", d.name)
+			return vm.Vars{}, MissingVariable{Name: d.name}
 		}
 
 		var err error
 		strs, ints, err = appendVar(strs, ints, d.typ, raw)
 		if err != nil {
-			return vm.Vars{}, fmt.Errorf("variable $%s: %w", d.name, err)
+			return vm.Vars{}, InvalidVariableValue{Name: d.name, Type: d.typ, Raw: raw, Cause: err}
 		}
 	}
 

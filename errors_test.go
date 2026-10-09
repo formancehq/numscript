@@ -3,6 +3,7 @@ package numscript_test
 import (
 	"context"
 	"errors"
+	"maps"
 	"math/big"
 	"testing"
 
@@ -356,4 +357,178 @@ func TestResolveDependenciesRejectsScaling(t *testing.T) {
 
 	_, err := parsed.ResolveDependencies(context.Background(), nil, numscript.StaticStore{})
 	require.ErrorIs(t, err, numscript.ErrScalingNotSupported)
+}
+
+// Hosts classify compile failures the same way, so the compiler's error types
+// carry the same contract as the interpreter's.
+func TestCompilerErrorsAreClassifiable(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+		flags  []string
+		check  func(t *testing.T, err error)
+	}{
+		{
+			name:   "type mismatch",
+			script: `vars { number $n } send $n ( source = @a destination = @b )`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckTypeMismatch{Expected: "monetary", Got: "number"}, kind)
+			},
+		},
+		{
+			name:   "unbound variable",
+			script: `send $m ( source = @a destination = @b )`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckUnboundVariable{Name: "m", Type: "monetary"}, kind)
+			},
+		},
+		{
+			name:   "invalid type",
+			script: `vars { invalidt $x }`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckInvalidType{Name: "invalidt"}, kind)
+			},
+		},
+		{
+			name:   "bad arity",
+			script: `set_tx_meta()`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckBadArity{Expected: 2, Actual: 0}, kind)
+			},
+		},
+		{
+			name:   "unknown function",
+			script: `unbound_fn(1, 2)`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckUnknownFunction{Name: "unbound_fn"}, kind)
+			},
+		},
+		{
+			name:   "duplicate variable",
+			script: `vars { number $a number $a }`,
+			check: func(t *testing.T, err error) {
+				kind := requireAs[numscript.CompilerTypeError](t, err).Kind
+				require.Equal(t, numscript.TypecheckDuplicateVariable{Name: "a"}, kind)
+			},
+		},
+		{
+			name: "allotment in send all",
+			script: `send [USD *] (
+				source = { 1/2 from @a remaining from @b }
+				destination = @c
+			)`,
+			check: func(t *testing.T, err error) { requireAs[numscript.CompilerInvalidUncappedSource](t, err) },
+		},
+		{
+			name: "duplicate remaining allotment",
+			script: `send [USD 10] (
+				source = { remaining from @world remaining from @world }
+				destination = @b
+			)`,
+			check: func(t *testing.T, err error) { requireAs[numscript.CompilerDuplicateRemaining](t, err) },
+		},
+		{
+			name:   "meta outside a variable origin",
+			script: `set_tx_meta("k", meta(@acc, "k"))`,
+			flags:  []string{flags.ExperimentalMidScriptFunctionCall},
+			check:  func(t *testing.T, err error) { requireAs[numscript.CompilerInvalidMetaPosition](t, err) },
+		},
+		{
+			name:   "cannot cast to string",
+			script: `vars { monetary $m } set_tx_meta("k", @acc:$m)`,
+			flags:  []string{flags.ExperimentalAccountInterpolationFlag},
+			check: func(t *testing.T, err error) {
+				require.Equal(t, "monetary", requireAs[numscript.CompilerCannotCastToString](t, err).Type)
+			},
+		},
+		{
+			name:   "cannot store scoped account in meta",
+			script: `vars { account $s = scoped(@a, "s") } set_tx_meta("k", $s)`,
+			flags:  []string{flags.ExperimentalScopedFunction},
+			check: func(t *testing.T, err error) {
+				requireAs[numscript.CompilerCannotStoreScopedAccountInMeta](t, err)
+			},
+		},
+		{
+			name:   "experimental feature",
+			script: `vars { account $s = scoped(@b, "s") }`,
+			check: func(t *testing.T, err error) {
+				e := requireAs[numscript.CompilerExperimentalFeature](t, err)
+				require.Equal(t, flags.ExperimentalScopedFunction, e.FlagName)
+			},
+		},
+		{
+			name:   "invalid feature",
+			script: `#![feature("nope")]`,
+			check: func(t *testing.T, err error) {
+				require.Equal(t, "nope", requireAs[numscript.CompilerInvalidFeature](t, err).Feature)
+			},
+		},
+		{
+			name:   "feature not implemented",
+			script: `send [EUR/2 100] ( source = @a with scaling through @swap destination = @b )`,
+			flags:  []string{flags.AssetScaling},
+			check: func(t *testing.T, err error) {
+				require.Equal(t, "scaling", requireAs[numscript.CompilerFeatureNotImplemented](t, err).Feature)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			featureFlags := map[string]struct{}{}
+			for _, f := range tc.flags {
+				featureFlags[f] = struct{}{}
+			}
+
+			_, _, err := numscript.CompileWithFeatureFlags(tc.script, featureFlags)
+			require.Error(t, err)
+			requireAs[numscript.CompilerError](t, err)
+			tc.check(t, err)
+		})
+	}
+}
+
+func TestVarsEncodingErrorsAreClassifiable(t *testing.T) {
+	enc, _, err := numscript.Compile(`vars {
+		account $a
+		number $n
+		monetary $m
+	}`)
+	require.NoError(t, err)
+
+	valid := map[string]string{"a": "alice", "n": "1", "m": "USD 1"}
+	with := func(name, raw string) map[string]string {
+		vars := maps.Clone(valid)
+		vars[name] = raw
+		return vars
+	}
+
+	t.Run("missing variable", func(t *testing.T) {
+		vars := maps.Clone(valid)
+		delete(vars, "n")
+		_, err := enc.Encode(vars)
+		require.Equal(t, "n", requireAs[numscript.CompilerMissingVariable](t, err).Name)
+	})
+
+	for _, tc := range []struct {
+		name, typ, raw string
+	}{
+		{"a", "account", "@world"},
+		{"n", "number", "abc"},
+		{"m", "monetary", "USD"},
+	} {
+		t.Run("invalid "+tc.typ, func(t *testing.T) {
+			_, err := enc.Encode(with(tc.name, tc.raw))
+			e := requireAs[numscript.CompilerInvalidVariableValue](t, err)
+			require.Equal(t, tc.name, e.Name)
+			require.Equal(t, tc.typ, e.Type)
+			require.Equal(t, tc.raw, e.Raw)
+		})
+	}
 }
