@@ -198,11 +198,11 @@ type (
 // their exported fields, other than the embedded source range, are part of the
 // public contract: only ever added to, never renamed or removed. The Compiler
 // prefix keeps them apart from the interpreter's error types of the same name.
+//
+// CompilerError is implemented by every error Compile reports about the
+// script itself; the others in this block are caused by the script.
 type (
-	// Implemented by every error Compile reports about the script itself.
-	CompilerError = compiler.CompilerError
-
-	// Caused by the script.
+	CompilerError                          = compiler.CompilerError
 	CompilerTypeError                      = compiler.TypeError
 	CompilerInvalidUncappedSource          = compiler.InvalidUncappedSource
 	CompilerDuplicateRemaining             = compiler.DuplicateRemaining
@@ -211,19 +211,23 @@ type (
 	CompilerCannotStoreScopedAccountInMeta = compiler.CannotStoreScopedAccountInMeta
 	CompilerExperimentalFeature            = compiler.ExperimentalFeature
 	CompilerInvalidFeature                 = compiler.InvalidFeature
+)
 
-	// A valid construct the compiler does not support yet; the interpreter
-	// may still run the script.
-	CompilerFeatureNotImplemented = compiler.FeatureNotImplemented
+// CompilerFeatureNotImplemented reports a valid construct the compiler does not
+// support yet; the interpreter may still run the script.
+type CompilerFeatureNotImplemented = compiler.FeatureNotImplemented
 
-	// Defects in numscript itself, never caused by the script. Their fields
-	// are diagnostic only and not part of the contract.
+// Compiler errors reporting defects in numscript itself, never caused by the
+// script. Their fields are diagnostic only and not part of the contract.
+type (
 	CompilerUnboundVar                   = compiler.UnboundVar
 	CompilerInvalidScopedAccountPosition = compiler.InvalidScopedAccountPosition
 	CompilerUnsupportedNode              = compiler.UnsupportedNode
+)
 
-	// Returned by VarsEncoder.Encode: caused by the vars. Cause is the parser's
-	// error, diagnostic only.
+// Errors returned by VarsEncoder.Encode, caused by the vars. Cause is the
+// parser's error, diagnostic only.
+type (
 	CompilerMissingVariable      = compiler.MissingVariable
 	CompilerInvalidVariableValue = compiler.InvalidVariableValue
 )
