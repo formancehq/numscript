@@ -90,8 +90,9 @@ type (
 // All are returned by value. Their exported fields, other than the embedded
 // source range, are part of the public contract: hosts may persist them as
 // structured facts, so they are only ever added to, never renamed or removed.
+//
+// These are caused by the script, its vars, or the state it runs against.
 type (
-	// Caused by the script, its vars, or the state it runs against.
 	MissingFundsErr                         = interpreter.MissingFundsErr
 	NegativeAmountErr                       = interpreter.NegativeAmountErr
 	MissingVariableErr                      = interpreter.MissingVariableErr
@@ -123,13 +124,19 @@ type (
 	InvalidTypeErr                          = interpreter.InvalidTypeErr
 	ExperimentalFeature                     = interpreter.ExperimentalFeature
 	InvalidFeature                          = interpreter.InvalidFeature
+)
 
-	// A Store call failed; Unwrap yields the store's own error.
+// Interpreter errors reporting that a Store call failed; Unwrap yields the
+// store's own error.
+type (
 	QueryBalanceError  = interpreter.QueryBalanceError
 	QueryMetadataError = interpreter.QueryMetadataError
+)
 
-	// Defects in numscript itself, never caused by the script or its inputs.
-	// Their fields are diagnostic only and not part of the contract.
+// Interpreter errors reporting defects in numscript itself, never caused by the
+// script or its inputs. Their fields are diagnostic only and not part of the
+// contract.
+type (
 	InternalError  = interpreter.InternalError
 	UnhandledError = interpreter.UnhandledError
 )
