@@ -44,10 +44,10 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 		{
 			name:    "invalid account name",
 			script:  `vars { account $a } send [USD 1] ( source = $a destination = @b )`,
-			vars:    numscript.VariablesMap{"a": "＠world"},
+			vars:    numscript.VariablesMap{"a": "@world"},
 			resolve: true,
 			check: func(t *testing.T, err error) {
-				require.Equal(t, "＠world", requireAs[numscript.InvalidAccountName](t, err).Name)
+				require.Equal(t, "@world", requireAs[numscript.InvalidAccountName](t, err).Name)
 			},
 		},
 		{
