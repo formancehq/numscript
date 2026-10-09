@@ -6,6 +6,7 @@ import (
 	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/interpreter"
 	"github.com/formancehq/numscript/internal/parser"
+	"github.com/formancehq/numscript/internal/typecheck"
 	"github.com/formancehq/numscript/internal/vm"
 )
 
@@ -189,6 +190,58 @@ type (
 	VMStore         = vm.Store
 	Vm              = vm.Vm
 	Vars            = vm.Vars
+)
+
+// Compiler error types, aliased so callers of Compile and VarsEncoder.Encode
+// can classify failures with errors.As without reaching into internal
+// packages. All are returned by value. As with the interpreter's error types,
+// their exported fields, other than the embedded source range, are part of the
+// public contract: only ever added to, never renamed or removed. The Compiler
+// prefix keeps them apart from the interpreter's error types of the same name.
+//
+// CompilerError is implemented by every error Compile reports about the
+// script itself; the others in this block are caused by the script.
+type (
+	CompilerError                          = compiler.CompilerError
+	CompilerTypeError                      = compiler.TypeError
+	CompilerInvalidUncappedSource          = compiler.InvalidUncappedSource
+	CompilerDuplicateRemaining             = compiler.DuplicateRemaining
+	CompilerInvalidMetaPosition            = compiler.InvalidMetaPosition
+	CompilerCannotCastToString             = compiler.CannotCastToString
+	CompilerCannotStoreScopedAccountInMeta = compiler.CannotStoreScopedAccountInMeta
+	CompilerExperimentalFeature            = compiler.ExperimentalFeature
+	CompilerInvalidFeature                 = compiler.InvalidFeature
+)
+
+// CompilerFeatureNotImplemented reports a valid construct the compiler does not
+// support yet; the interpreter may still run the script.
+type CompilerFeatureNotImplemented = compiler.FeatureNotImplemented
+
+// Compiler errors reporting defects in numscript itself, never caused by the
+// script. Their fields are diagnostic only and not part of the contract.
+type (
+	CompilerUnboundVar                   = compiler.UnboundVar
+	CompilerInvalidScopedAccountPosition = compiler.InvalidScopedAccountPosition
+	CompilerUnsupportedNode              = compiler.UnsupportedNode
+)
+
+// Errors returned by VarsEncoder.Encode, caused by the vars. Cause is the
+// parser's error, diagnostic only.
+type (
+	CompilerMissingVariable      = compiler.MissingVariable
+	CompilerInvalidVariableValue = compiler.InvalidVariableValue
+)
+
+// The type checker's findings, carried by CompilerTypeError.Kind. Each kind is
+// a value type whose exported fields follow the same contract as above.
+type (
+	TypecheckErrorKind         = typecheck.ErrorKind
+	TypecheckTypeMismatch      = typecheck.TypeMismatch
+	TypecheckUnboundVariable   = typecheck.UnboundVariable
+	TypecheckInvalidType       = typecheck.InvalidType
+	TypecheckBadArity          = typecheck.BadArity
+	TypecheckUnknownFunction   = typecheck.UnknownFunction
+	TypecheckDuplicateVariable = typecheck.DuplicateVariable
 )
 
 var NewVm = vm.NewVm

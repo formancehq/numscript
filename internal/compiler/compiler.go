@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"fmt"
 	"maps"
 	"math/big"
 	"slices"
@@ -24,7 +23,7 @@ import (
 func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, vm.Program, error) {
 	compiled, cErr := compileProgramToIR(program, featureFlags)
 	if cErr != nil {
-		return VarsEncoder{}, vm.Program{}, fmt.Errorf("%v", cErr)
+		return VarsEncoder{}, vm.Program{}, cErr
 	}
 
 	if err := ir.Typecheck(compiled.instructions); err != nil {
