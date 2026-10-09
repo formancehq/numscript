@@ -78,13 +78,67 @@ type (
 
 	Value = interpreter.Value
 
-	InterpreterError  = interpreter.InterpreterError
-	MissingFundsErr   = interpreter.MissingFundsErr
-	NegativeAmountErr = interpreter.NegativeAmountErr
+	InterpreterError = interpreter.InterpreterError
 
 	ResolvedDependencies = interpreter.ResolvedDependencies
 	AccountDependency    = interpreter.AccountDependency
 	MetaDependency       = interpreter.MetaDependency
+)
+
+// Interpreter error types, aliased so callers of Run and ResolveDependencies
+// can classify failures with errors.As without reaching into internal packages.
+// All are returned by value. Their exported fields, other than the embedded
+// source range, are part of the public contract: hosts may persist them as
+// structured facts, so they are only ever added to, never renamed or removed.
+//
+// These are caused by the script, its vars, or the state it runs against.
+type (
+	MissingFundsErr                         = interpreter.MissingFundsErr
+	NegativeAmountErr                       = interpreter.NegativeAmountErr
+	MissingVariableErr                      = interpreter.MissingVariableErr
+	InvalidAccountName                      = interpreter.InvalidAccountName
+	InvalidAsset                            = interpreter.InvalidAsset
+	InvalidColor                            = interpreter.InvalidColor
+	InvalidScope                            = interpreter.InvalidScope
+	InvalidMonetaryLiteral                  = interpreter.InvalidMonetaryLiteral
+	InvalidNumberLiteral                    = interpreter.InvalidNumberLiteral
+	BadPortionParsingErr                    = interpreter.BadPortionParsingErr
+	MismatchedCurrencyError                 = interpreter.MismatchedCurrencyError
+	DivideByZero                            = interpreter.DivideByZero
+	TypeError                               = interpreter.TypeError
+	MetadataNotFound                        = interpreter.MetadataNotFound
+	NegativeBalanceError                    = interpreter.NegativeBalanceError
+	InvalidAllotmentSum                     = interpreter.InvalidAllotmentSum
+	NegativePortion                         = interpreter.NegativePortion
+	InvalidRemainingAllotment               = interpreter.InvalidRemainingAllotment
+	InvalidAllotmentInSendAll               = interpreter.InvalidAllotmentInSendAll
+	InvalidUnboundedInSendAll               = interpreter.InvalidUnboundedInSendAll
+	InvalidUnboundedAddressInScalingAddress = interpreter.InvalidUnboundedAddressInScalingAddress
+	InvalidNestedMeta                       = interpreter.InvalidNestedMeta
+	CannotCastToString                      = interpreter.CannotCastToString
+	CannotCastScopedAccountToString         = interpreter.CannotCastScopedAccountToString
+	CannotStoreScopedAccountInMeta          = interpreter.CannotStoreScopedAccountInMeta
+	UnboundVariableErr                      = interpreter.UnboundVariableErr
+	UnboundFunctionErr                      = interpreter.UnboundFunctionErr
+	BadArityErr                             = interpreter.BadArityErr
+	InvalidTypeErr                          = interpreter.InvalidTypeErr
+	ExperimentalFeature                     = interpreter.ExperimentalFeature
+	InvalidFeature                          = interpreter.InvalidFeature
+)
+
+// Interpreter errors reporting that a Store call failed; Unwrap yields the
+// store's own error.
+type (
+	QueryBalanceError  = interpreter.QueryBalanceError
+	QueryMetadataError = interpreter.QueryMetadataError
+)
+
+// Interpreter errors reporting defects in numscript itself, never caused by the
+// script or its inputs. Their fields are diagnostic only and not part of the
+// contract.
+type (
+	InternalError  = interpreter.InternalError
+	UnhandledError = interpreter.UnhandledError
 )
 
 var ErrScalingNotSupported = interpreter.ErrScalingNotSupported
@@ -218,8 +272,8 @@ var (
 // VM execution error types, aliased so ExecVm callers can classify failures
 // with errors.As without reaching into internal packages — the same pattern as
 // the interpreter's error types above. The Vm prefix keeps them apart from the
-// interpreter's MissingFundsErr/NegativeAmountErr, which are different types
-// with different fields.
+// interpreter's error types of the same name, which are different types with
+// different fields.
 type (
 	VmMissingFundsError               = vm.MissingFundsError
 	VmNegativeAmountError             = vm.NegativeAmountError

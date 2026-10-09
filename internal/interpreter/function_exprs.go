@@ -156,6 +156,7 @@ func balance(
 		return Monetary{}, NegativeBalanceError{
 			Account: account.Name,
 			Scope:   account.Scope,
+			Asset:   string(asset),
 			Amount:  *balance,
 		}
 	}

@@ -749,6 +749,7 @@ func TestNegativeBalance(t *testing.T) {
 	tc.expected = CaseResult{
 		Error: interpreter.NegativeBalanceError{
 			Account: "a",
+			Asset:   "EUR/2",
 			Amount:  *big.NewInt(-100),
 		},
 	}
