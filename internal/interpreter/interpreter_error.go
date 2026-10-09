@@ -147,6 +147,7 @@ type NegativeBalanceError struct {
 	parser.Range
 	Account string
 	Scope   string
+	Asset   string
 	Amount  big.Int
 }
 
