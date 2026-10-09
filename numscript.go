@@ -265,8 +265,8 @@ var (
 // VM execution error types, aliased so ExecVm callers can classify failures
 // with errors.As without reaching into internal packages — the same pattern as
 // the interpreter's error types above. The Vm prefix keeps them apart from the
-// interpreter's MissingFundsErr/NegativeAmountErr, which are different types
-// with different fields.
+// interpreter's error types of the same name, which are different types with
+// different fields.
 type (
 	VmMissingFundsError               = vm.MissingFundsError
 	VmNegativeAmountError             = vm.NegativeAmountError
