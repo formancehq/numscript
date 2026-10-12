@@ -258,3 +258,25 @@ func TestVerifyWithVarsAllowsNilWhenNoneAreRead(t *testing.T) {
 func TestVerifyEmptyProgram(t *testing.T) {
 	mustAccept(t, Program{})
 }
+
+func TestVerifyPullDestAliasesCapOrOverdraft(t *testing.T) {
+	pull := func(dest, cap, overdraft byte) Program {
+		return Program{
+			Instructions: []Instruction{
+				bc(Op_LoadStr, 0, 0),
+				bc(Op_LoadInt, 0, 0),
+				bc(Op_LoadInt, 1, 0),
+				abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
+				abc(Op_PullAccount, dest, 0, cap),
+				abc(0, overdraft, nilReg, nilReg), // ext
+			},
+			StringsPool: []string{"acc"},
+			IntsPool:    []big.Int{*big.NewInt(1)},
+		}
+	}
+	requireRejectedWith(t, pull(0, 0, 1), "aliases its cap or overdraft")
+	requireRejectedWith(t, pull(1, 0, 1), "aliases its cap or overdraft")
+	mustAccept(t, pull(2, 0, 1))
+	// the two bounds are read-only, so they may share a register
+	mustAccept(t, pull(2, 0, 0))
+}
