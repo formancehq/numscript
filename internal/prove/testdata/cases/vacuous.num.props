@@ -1,0 +1,4 @@
+// the portions never sum to 1, so no run succeeds and anything guarded by
+// `success =>` holds; the report's "success reachable: no" is the tell
+prop anything: success => received(@dest, USD/2) == 1_000_000
+prop never_succeeds: fails

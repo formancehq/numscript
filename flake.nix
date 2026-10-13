@@ -47,6 +47,7 @@
             goperf
             gotools
             just
+            z3
           ];
           unstablePackages = with pkgs-unstable; [
             golangci-lint

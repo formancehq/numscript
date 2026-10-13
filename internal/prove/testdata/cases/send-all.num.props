@@ -1,0 +1,3 @@
+prop drains: before(@src, USD/2) >= 0 => sent(@src, USD/2) == before(@src, USD/2)
+prop ends_empty: after(@src, USD/2) == 0
+prop never_fails: success

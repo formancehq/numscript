@@ -1,0 +1,3 @@
+prop dest_capped: received(@dest, USD/2) <= 30
+prop rest_gets_the_rest: received(@rest, USD/2) == sent(@src, USD/2) - received(@dest, USD/2)
+prop pulls_everything: sent(@src, USD/2) == 100
