@@ -1,0 +1,12 @@
+{
+  "postings": [
+    {
+      "source": "world",
+      "destination": "system:hold",
+      "amount": 9223372036854776000,
+      "asset": "USDT/18"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

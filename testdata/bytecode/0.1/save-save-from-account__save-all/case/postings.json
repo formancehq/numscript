@@ -1,0 +1,12 @@
+{
+  "postings": [
+    {
+      "source": "world",
+      "destination": "bob",
+      "amount": 30,
+      "asset": "USD"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

@@ -1,0 +1,24 @@
+{
+  "postings": [
+    {
+      "source": "a",
+      "destination": "dest",
+      "amount": 34,
+      "asset": "USD/2"
+    },
+    {
+      "source": "b",
+      "destination": "dest",
+      "amount": 33,
+      "asset": "USD/2"
+    },
+    {
+      "source": "c",
+      "destination": "dest",
+      "amount": 33,
+      "asset": "USD/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

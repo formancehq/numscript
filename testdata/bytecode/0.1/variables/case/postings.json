@@ -1,0 +1,15 @@
+{
+  "postings": [
+    {
+      "source": "users:001",
+      "destination": "users:002",
+      "amount": 999,
+      "asset": "EUR/2"
+    }
+  ],
+  "txMeta": {
+    "description": "midnight ride",
+    "ride": "1"
+  },
+  "accountsMeta": []
+}

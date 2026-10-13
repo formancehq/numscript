@@ -1,0 +1,13 @@
+[
+  {
+    "account": "acc",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "acc",
+    "asset": "COIN",
+    "amount": 40,
+    "color": "RED"
+  }
+]

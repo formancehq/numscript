@@ -1,0 +1,13 @@
+[
+  {
+    "account": "a",
+    "asset": "COIN",
+    "amount": 999,
+    "scope": "s"
+  },
+  {
+    "account": "b",
+    "asset": "COIN",
+    "amount": 60
+  }
+]

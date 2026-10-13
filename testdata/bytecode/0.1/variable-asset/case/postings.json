@@ -1,0 +1,30 @@
+{
+  "postings": [
+    {
+      "source": "alice",
+      "destination": "swap",
+      "amount": 10,
+      "asset": "USD"
+    },
+    {
+      "source": "bob",
+      "destination": "swap",
+      "amount": 5,
+      "asset": "USD"
+    },
+    {
+      "source": "swap",
+      "destination": "alice_2",
+      "amount": 10,
+      "asset": "USD"
+    },
+    {
+      "source": "swap",
+      "destination": "bob_2",
+      "amount": 5,
+      "asset": "USD"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

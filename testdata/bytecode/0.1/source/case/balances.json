@@ -1,0 +1,12 @@
+[
+  {
+    "account": "payments:001",
+    "asset": "GEM",
+    "amount": 12
+  },
+  {
+    "account": "users:001",
+    "asset": "GEM",
+    "amount": 3
+  }
+]

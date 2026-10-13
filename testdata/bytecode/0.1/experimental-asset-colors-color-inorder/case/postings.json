@@ -1,0 +1,26 @@
+{
+  "postings": [
+    {
+      "source": "src",
+      "destination": "dest",
+      "amount": 20,
+      "asset": "COIN",
+      "color": "RED"
+    },
+    {
+      "source": "src",
+      "destination": "dest",
+      "amount": 30,
+      "asset": "COIN",
+      "color": "BLUE"
+    },
+    {
+      "source": "src",
+      "destination": "dest",
+      "amount": 50,
+      "asset": "COIN"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

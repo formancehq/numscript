@@ -186,6 +186,21 @@ Major 0 is **unstable**, and the format is at `0.1` today. Any 0.x change may ch
 
 `Encode` always stamps `vm.CurrentBytecodeVersion`; the decoders return `vm.UnsupportedBytecodeVersionError` (carrying the encoded and the supported version) for a payload they cannot read. `PeekProgramVersion` / `PeekVarsVersion` read the version off the raw header without decoding the rest and without applying the rule, so a host can report which version an unreadable payload was written with. A host that stores bytecode compiled by one build and executes it with another should compare the stored payload's version with `CurrentBytecodeVersion` (or `CanRead`, if it accepts older minors) before trusting it to run.
 
+#### Frozen bytecode
+
+`testdata/bytecode/` holds, per freeze, the bytecode the compiler produced from every script fixture at one point in time, with each test case's vars blob, inputs and the output it produced then. A freeze directory is named after the bytecode version (`0.1`, or `0.1-<suffix>` for a later freeze at the same version) and is never edited once committed. Inside it, `<script>.numb` is the program and `<script>/<case>/` holds `vars.nvar`, `balances.json`, `metadata.json` (when the case has any) and either `postings.json` or `error.json`.
+
+`TestBytecodeCorpus` (module root) runs every frozen case through the public API the ledger uses. A blob this build can read is decoded, verified and executed, and must produce the frozen output. A blob it cannot read must be rejected with `UnsupportedBytecodeVersionError`, which is what makes a host recompile from source. `TestBytecodeCorpusHasCurrentVersion` fails when `CurrentBytecodeVersion` has no directory.
+
+When to freeze (`just freeze-bytecode [suffix]`):
+
+- after every change of `CurrentBytecodeVersion`;
+- before a release whose compiler emits different bytes for the fixtures, under a suffix. Optional, but it keeps every kind of bytecode the ledger may have stored under test.
+
+Compiler changes never invalidate a freeze: the frozen files test the decoder, the verifier and the VM, not the compiler. A red `TestBytecodeCorpus` on a readable directory means this build runs existing bytecode differently. Either the change is a bug, or the bytecode version has to be bumped so that older blobs are rejected.
+
+Under 0.x every bump rejects all older bytecode, so until 1.0 the corpus only catches a forgotten bump. From 1.0 a 1.1 VM must run frozen 1.0 bytecode identically, and a VM fix that changes a frozen output is a major bump.
+
 ### Constant pools
 
 Both the str and int pool start with the count of elems and then have contiguos sequence of strings/ints.

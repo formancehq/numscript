@@ -1,0 +1,12 @@
+[
+  {
+    "account": "sales:042",
+    "key": "seller",
+    "value": "users:053"
+  },
+  {
+    "account": "users:053",
+    "key": "commission",
+    "value": "12.5%"
+  }
+]

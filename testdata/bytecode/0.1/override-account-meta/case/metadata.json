@@ -1,0 +1,12 @@
+[
+  {
+    "account": "acc",
+    "key": "initial",
+    "value": "0"
+  },
+  {
+    "account": "acc",
+    "key": "overridden",
+    "value": "1"
+  }
+]

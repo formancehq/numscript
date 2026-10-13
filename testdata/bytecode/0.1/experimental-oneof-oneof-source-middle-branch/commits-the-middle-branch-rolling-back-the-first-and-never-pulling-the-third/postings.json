@@ -1,0 +1,12 @@
+{
+  "postings": [
+    {
+      "source": "b",
+      "destination": "dest",
+      "amount": 100,
+      "asset": "GEM"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "account": "a",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "b",
+    "asset": "COIN",
+    "amount": 40
+  },
+  {
+    "account": "c",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "d",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "maxAcc",
+    "asset": "COIN",
+    "amount": 120
+  }
+]

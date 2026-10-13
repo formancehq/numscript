@@ -1,0 +1,13 @@
+[
+  {
+    "account": "acc",
+    "key": "amt",
+    "value": "EUR 1"
+  },
+  {
+    "account": "acc",
+    "key": "amt",
+    "value": "EUR 2",
+    "scope": "myscope"
+  }
+]
