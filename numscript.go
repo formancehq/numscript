@@ -255,15 +255,34 @@ func (p ParseResult) Compile() (VarsEncoder, CompiledProgram, error) {
 // CompileWithFeatureFlags compiles the program, rejecting any construct gated
 // behind an experimental feature flag that isn't in featureFlags.
 func (p ParseResult) CompileWithFeatureFlags(featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
+	return p.CompileWithOptions(CompileOptions{FeatureFlags: featureFlags})
+}
+
+// CompileOptions configures CompileWithOptions. The zero value is what Compile
+// uses.
+type CompileOptions struct {
+	// FeatureFlags is the set of experimental features the host allows, as in
+	// CompileWithFeatureFlags.
+	FeatureFlags map[string]struct{}
+
+	// Optimize runs the compiler's peephole passes over the program before it
+	// is assembled. The optimized program produces the same postings, metadata
+	// and errors as the plain one; it executes fewer instructions and allocates
+	// less. Off by default.
+	Optimize bool
+}
+
+func (p ParseResult) CompileWithOptions(opts CompileOptions) (VarsEncoder, CompiledProgram, error) {
 	if len(p.parseResult.Errors) != 0 {
 		return VarsEncoder{}, CompiledProgram{}, p.parseResult.Errors[0]
 	}
 
+	featureFlags := opts.FeatureFlags
 	if featureFlags == nil {
 		featureFlags = make(map[string]struct{})
 	}
 
-	return compiler.Compile(p.parseResult.Value, featureFlags)
+	return compiler.CompileWithOptions(p.parseResult.Value, featureFlags, compiler.Options{Optimize: opts.Optimize})
 }
 
 func Compile(source string) (VarsEncoder, CompiledProgram, error) {
@@ -272,6 +291,10 @@ func Compile(source string) (VarsEncoder, CompiledProgram, error) {
 
 func CompileWithFeatureFlags(source string, featureFlags map[string]struct{}) (VarsEncoder, CompiledProgram, error) {
 	return Parse(source).CompileWithFeatureFlags(featureFlags)
+}
+
+func CompileWithOptions(source string, opts CompileOptions) (VarsEncoder, CompiledProgram, error) {
+	return Parse(source).CompileWithOptions(opts)
 }
 
 var DecodeCompiledProgram = vm.DecodeProgram

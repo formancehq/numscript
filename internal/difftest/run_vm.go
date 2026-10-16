@@ -42,11 +42,22 @@ func (s vmStore) GetMetadata(_ context.Context, account, scope, key string) (str
 }
 
 func runVM(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string, featureFlags []string) SideResult {
+	return runVMWith(ctx, script, vars, balances, metadata, featureFlags, false)
+}
+
+// runVMOptimized is runVM on the program the compiler's peephole passes
+// produce. Same compiler and same engine as runVM, so its result must match
+// runVM's to the letter: see CompareIdentical.
+func runVMOptimized(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string, featureFlags []string) SideResult {
+	return runVMWith(ctx, script, vars, balances, metadata, featureFlags, true)
+}
+
+func runVMWith(ctx context.Context, script string, vars map[string]string, balances map[gen.BalanceKey]*big.Int, metadata map[gen.MetaKey]string, featureFlags []string, optimize bool) SideResult {
 	flagSet := make(map[string]struct{}, len(featureFlags))
 	for _, f := range featureFlags {
 		flagSet[f] = struct{}{}
 	}
-	varsEncoder, program, err := numscript.CompileWithFeatureFlags(script, flagSet)
+	varsEncoder, program, err := numscript.CompileWithOptions(script, numscript.CompileOptions{FeatureFlags: flagSet, Optimize: optimize})
 	if err != nil {
 		return SideResult{
 			CompileErr:       err.Error(),
