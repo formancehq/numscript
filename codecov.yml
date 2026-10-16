@@ -1,2 +1,3 @@
 ignore:
-  - "internal/parser/antlrParser"
+  - "internal/parser/internal/legacy"
+  - "internal/ir/internal/syntax/antlrParser"

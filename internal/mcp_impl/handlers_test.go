@@ -30,7 +30,7 @@ func TestHandleEvalToolRejectsParseErrors(t *testing.T) {
 	require.NotEmpty(t, result.Content)
 	text, ok := result.Content[0].(mcp.TextContent)
 	require.True(t, ok)
-	require.Contains(t, text.Text, "mismatched input")
+	require.Contains(t, text.Text, "expected `source`")
 }
 
 func TestHandleEvalToolRejectsDuplicateBalancesWithScope(t *testing.T) {
