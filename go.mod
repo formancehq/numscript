@@ -21,7 +21,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/pretty v0.3.1
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.9.2 // indirect
 	github.com/maruel/natural v1.3.0 // indirect

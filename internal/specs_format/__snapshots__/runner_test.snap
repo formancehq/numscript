@@ -131,16 +131,19 @@ Error: example.num.specs.json
 [31m
 Error: example.num:1:1
 
-[0mtoken recognition error at: '!'
-
-[31m
-Error: example.num:1:5
-
-[0mmismatched input '<EOF>' expecting '('
+[0minvalid character: `!`
 
 
   0 | !err
-    |     ~~~~
+    | ~
+[31m
+Error: example.num:1:2
+
+[0mexpected a statement, found `err`
+
+
+  0 | !err
+    |  ~~~
 
 ---
 

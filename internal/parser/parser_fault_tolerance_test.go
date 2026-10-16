@@ -96,3 +96,65 @@ save [COIN 10] from
 	`)
 	snaps.MatchSnapshot(t, p.Value)
 }
+
+// The cases below used to lose (or garble) most of the statement with the ANTLR parser
+
+func TestFaultToleranceBareAt(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+  source = { @a @ }
+  destination = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceIncompleteOverdraft(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+  source = @a allowing
+  destination = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceIncompleteInfix(t *testing.T) {
+	p := parser.Parse(`send $m + (
+  source = @a
+  destination = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceBareDollar(t *testing.T) {
+	p := parser.Parse(`send [COIN $`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceMisspelledKeyword(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] (
+  source = @a
+  destinaton = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceMissingParens(t *testing.T) {
+	p := parser.Parse(`set_tx_meta("k", 42
+send [COIN 10] (
+  source = @a
+  destination = @b
+)`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
+
+func TestFaultToleranceGarbageBetweenStatements(t *testing.T) {
+	p := parser.Parse(`send [COIN 10] ( source = @a destination = @b )
+!! this is not numscript ]]
+save [COIN 1] from @c`)
+	snaps.MatchSnapshot(t, p.Value)
+	snaps.MatchSnapshot(t, parser.ParseErrorsToString(p.Errors, p.Source))
+}
