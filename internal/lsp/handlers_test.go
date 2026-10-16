@@ -104,6 +104,57 @@ func TestGotoDef(t *testing.T) {
 	snaps.MatchJSON(t, raw)
 }
 
+func TestCompletion(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `vars {
+	monetary $mon
+	account $acc
+}
+
+send $mon (
+	source = $
+	destination = @dest
+)
+`)
+
+	// right after the `$` of the source
+	pos := *parser.PositionOfIndexed(input, "$", 3)
+	pos.Character++
+	raw, err := client.Completion(doc, pos)
+	require.Nil(t, err)
+	snaps.MatchJSON(t, raw)
+}
+
+func TestCompletionKeyword(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `send [COIN 100] (
+	source = @src allo
+	destination = @dest
+)
+`)
+
+	pos := *parser.PositionOf(input, "allo")
+	pos.Character += len("allo")
+	raw, err := client.Completion(doc, pos)
+	require.Nil(t, err)
+	snaps.MatchJSON(t, raw)
+}
+
+func TestSignatureHelp(t *testing.T) {
+	client := newTestClient()
+
+	doc, input, _ := client.OpenFile("example.num", `vars {
+	monetary $mon = balance(@acc, )
+}
+`)
+
+	raw, err := client.SignatureHelp(doc, *parser.PositionOf(input, ")"))
+	require.Nil(t, err)
+	snaps.MatchJSON(t, raw)
+}
+
 // Testing utilities
 type TestClient struct {
 	conn        *jsonrpc2.Conn
@@ -131,6 +182,24 @@ func (c *TestClient) OpenFile(uri string, text string) (protocol.TextDocumentIde
 
 func (c *TestClient) Hover(doc protocol.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
 	return c.conn.SendRequest("textDocument/hover", protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: doc,
+			Position:     lsp.ParserToLspPosition(position),
+		},
+	})
+}
+
+func (c *TestClient) Completion(doc protocol.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
+	return c.conn.SendRequest("textDocument/completion", protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: doc,
+			Position:     lsp.ParserToLspPosition(position),
+		},
+	})
+}
+
+func (c *TestClient) SignatureHelp(doc protocol.TextDocumentIdentifier, position parser.Position) (json.RawMessage, *jsonrpc2.ResponseError) {
+	return c.conn.SendRequest("textDocument/signatureHelp", protocol.SignatureHelpParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: doc,
 			Position:     lsp.ParserToLspPosition(position),
