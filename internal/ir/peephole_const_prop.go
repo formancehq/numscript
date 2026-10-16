@@ -270,6 +270,13 @@ func evalUnary(op UnKind, a any) (any, bool) {
 		if aInt {
 			return new(big.Int).Neg(ai), true
 		}
+	case OpMaxZero:
+		if aInt {
+			if ai.Sign() < 0 {
+				return new(big.Int), true
+			}
+			return ai, true
+		}
 	case OpIntToString:
 		if aInt {
 			return ai.String(), true

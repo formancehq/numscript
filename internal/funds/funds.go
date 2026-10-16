@@ -418,6 +418,21 @@ func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color strin
 	return s.addPosting(src, srcScope, dst, dstScope, asset, color, amount) // appends the posting and credits dst
 }
 
+// PostDirect appends a posting src->dst of amount in the current asset and
+// credits dst, without debiting src and without touching the queue. A
+// non-positive amount is a no-op. amount is cloned into the posting.
+//
+// The source side is the caller's: it either debited src itself or proved that
+// src's balance is never read afterwards. The compiler's post_account is emitted
+// only under that proof, for an unbounded source, whose debit is a delta that
+// only a later read would fold in.
+//
+// PRE: no mark is open, as for Send. A rewind reverses postings by crediting
+// their source back, which here would repay a debit that was never made.
+func (s *RunState) PostDirect(src, srcScope, dst, dstScope, color string, amount *big.Int) error {
+	return s.addPosting(src, srcScope, dst, dstScope, s.currentAsset, color, amount)
+}
+
 // Save implements the numscript `save` statement: it protects funds from being
 // pulled later by reducing the (account, asset, color) balance, floored at zero.
 //

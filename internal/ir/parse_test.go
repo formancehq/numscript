@@ -562,6 +562,34 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "post_account minimal",
+			ir: `
+  $r0 = "src"
+  $r1 = "dest"
+  $r2 = 10
+  post_account(source: $r0, destination: $r1, amount: $r2)
+`,
+		},
+		{
+			name: "post_account with all labeled args",
+			ir: `
+  $r0 = "src"
+  $r1 = "dest"
+  $r2 = 10
+  $r3 = "RED"
+  $r4 = "s1"
+  $r5 = "s2"
+  post_account(source: $r0, destination: $r1, amount: $r2, color: $r3, source_scope: $r4, destination_scope: $r5)
+`,
+		},
+		{
+			name: "max_zero",
+			ir: `
+  $r0 = -10
+  $r1 = max_zero($r0)
+`,
+		},
+		{
 			name: "save with amount",
 			ir: `
   $r0 = "acct"

@@ -20,6 +20,7 @@ func DefaultPeepholes() []Peephole {
 		constProp,
 		dropProvenAsserts,
 		pruneDeadBranches,
+		postFromUnbounded,
 		deadCode,
 	}
 }

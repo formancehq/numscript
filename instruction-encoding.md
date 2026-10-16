@@ -331,7 +331,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>int_regs[A] = floor(por_regs[B])</code></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x4E..0x4F reserved</em></td>
+      <td>78</td><td><code>0x4E</code></td><td><strong>MAX_ZERO</strong></td>
+      <td>dest</td><td>src</td><td>-</td>
+      <td><code>int_regs[A] = max(0, int_regs[B])</code> — what an unbounded <code>PULL_ACCOUNT</code> makes available out of its cap, as a pure op. Emitted by the <code>post_from_unbounded</code> peephole in place of the pull</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x4F reserved</em></td>
     </tr>
   </tbody>
 </table>
@@ -396,7 +401,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Closes the innermost region. <code>A = 1</code> rewinds it: repays everything pulled and reverses everything posted since the matching MARK_PUSH. <code>A = 0</code> commits it. Any other value is rejected by the verifier; traps if no region is open. Textual IR: <code>mark_rewind()</code> / <code>mark_commit()</code></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x57..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving nine slots for the four specializations sketched in <code>instruction.go</code></em></td>
+      <td>87</td><td><code>0x57</code></td><td><strong>POST_ACCOUNT</strong></td>
+      <td>src</td><td>dest</td><td>amount</td>
+      <td>Emits the posting <code>str_regs[A]</code> → <code>str_regs[B]</code> of <code>int_regs[C]</code> in the current asset and credits the destination, with no source debit and no queue. A non-positive amount posts nothing. Only the <code>post_from_unbounded</code> peephole emits it, where it proved the source balance is never read again. Traps while a mark is open. 2 words:</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>color</td><td>src scope</td><td>dest scope</td>
+      <td>Color <code>str_regs[A]</code>, source scope <code>str_regs[B]</code>, destination scope <code>str_regs[C]</code> (each <code>0xFF</code> = none)</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x58..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving eight slots for the four specializations sketched in <code>instruction.go</code></em></td>
     </tr>
   </tbody>
 </table>

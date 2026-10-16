@@ -149,6 +149,7 @@ func VerifyWithVars(p Program, vars *Vars) (VerifiedVarsInfo, error) {
 func instrWords(op byte) int {
 	switch Opcode(op) {
 	case Op_PullAccount,
+		Op_PostAccount,
 		Op_Save,
 		Op_SetAccountMeta,
 		Op_MetaStr,
@@ -549,7 +550,7 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		write(bankStr, instr.A)
 
 	// --- unary & conversions
-	case Op_IntCopy, Op_NegInt:
+	case Op_IntCopy, Op_NegInt, Op_MaxZero:
 		read(bankInt, instr.B)
 		write(bankInt, instr.A)
 	case Op_PortionCopy:
@@ -591,6 +592,15 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		readOpt(bankStr, instr.A) // destination
 		readOpt(bankInt, instr.B) // cap
 		readOpt(bankStr, instr.C) // scope
+		d.reads = append(d.reads, currentAssetRef)
+		d.notInMark = true
+	case Op_PostAccount:
+		read(bankStr, instr.A)  // source
+		read(bankStr, instr.B)  // destination
+		read(bankInt, instr.C)  // amount
+		readOpt(bankStr, ext.A) // color
+		readOpt(bankStr, ext.B) // source scope
+		readOpt(bankStr, ext.C) // destination scope
 		d.reads = append(d.reads, currentAssetRef)
 		d.notInMark = true
 	case Op_Save:

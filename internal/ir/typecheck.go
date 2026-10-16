@@ -109,6 +109,15 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 		)
 	case SendToAccount:
 		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt), tc.useOpt(i.Scope, regStr))
+	case PostAccount:
+		return firstErr(
+			tc.use(i.Source, regStr),
+			tc.use(i.Destination, regStr),
+			tc.use(i.Amount, regInt),
+			tc.useOpt(i.Color, regStr),
+			tc.useOpt(i.SourceScope, regStr),
+			tc.useOpt(i.DestinationScope, regStr),
+		)
 	case Save:
 		return firstErr(
 			tc.use(i.Account, regStr),
@@ -262,6 +271,8 @@ func unOpRegTypes(op UnKind) (dest, arg regType, err error) {
 		return regPortion, regInt, nil
 	case OpPortionToInt:
 		return regInt, regPortion, nil
+	case OpMaxZero:
+		return regInt, regInt, nil
 	default:
 		return 0, 0, fmt.Errorf("bytecode typechecker: unknown unary op %T", op)
 	}

@@ -26,6 +26,7 @@ type accountMetaKey struct {
 // clamp destroys the information needed to invert it.
 var (
 	errSendWhileMarkOpen     = errors.New("send while a mark is open")
+	errPostWhileMarkOpen     = errors.New("post while a mark is open")
 	errSetAssetWhileMarkOpen = errors.New("set_current_asset while a mark is open")
 	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
 )
@@ -230,6 +231,32 @@ func Exec[S Store](
 				if err := runstate.Send(dest, scope, cap, nil); err != nil {
 					return funds.ExecutionResult{}, StoreError{Wrapped: err}
 				}
+			}
+
+		case Op_PostAccount:
+			// a rewind would credit the source back for a debit this op never made
+			if runstate.HasOpenMark() {
+				return funds.ExecutionResult{}, InternalError{Err: errPostWhileMarkOpen}
+			}
+
+			instrExt := instrs[pc]
+			pc++
+
+			var color string
+			if instrExt.A != nilReg {
+				color = stringsRegs[instrExt.A]
+			}
+			var sourceScope string
+			if instrExt.B != nilReg {
+				sourceScope = stringsRegs[instrExt.B]
+			}
+			var destinationScope string
+			if instrExt.C != nilReg {
+				destinationScope = stringsRegs[instrExt.C]
+			}
+
+			if err := runstate.PostDirect(stringsRegs[instr.A], sourceScope, stringsRegs[instr.B], destinationScope, color, &intsRegs[instr.C]); err != nil {
+				return funds.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 
 		case Op_CheckEnoughFunds:
@@ -589,6 +616,14 @@ func Exec[S Store](
 		case Op_NegInt:
 			arg := &intsRegs[instr.B]
 			intsRegs[instr.A].Neg(arg)
+
+		case Op_MaxZero:
+			arg := &intsRegs[instr.B]
+			if arg.Sign() < 0 {
+				intsRegs[instr.A].SetInt64(0)
+			} else {
+				intsRegs[instr.A].Set(arg)
+			}
 
 		case Op_IntToString:
 			stringsRegs[instr.A] = intsRegs[instr.B].String()

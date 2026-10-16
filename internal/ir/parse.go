@@ -484,6 +484,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = UnaryOp{Dest: dest(), Op: OpIntToPortion{}, Arg: ap.reg()}
 	case "portion_to_int":
 		instr = UnaryOp{Dest: dest(), Op: OpPortionToInt{}, Arg: ap.reg()}
+	case "max_zero":
+		instr = UnaryOp{Dest: dest(), Op: OpMaxZero{}, Arg: ap.reg()}
 
 	case "pull_account":
 		instr = PullAccount{
@@ -499,6 +501,15 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Account: ap.optLabeledReg("account"),
 			Cap:     ap.optLabeledReg("cap"),
 			Scope:   ap.optLabeledReg("scope"),
+		}
+	case "post_account":
+		instr = PostAccount{
+			Source:           ap.reqLabeledReg("source"),
+			Destination:      ap.reqLabeledReg("destination"),
+			Amount:           ap.reqLabeledReg("amount"),
+			Color:            ap.optLabeledReg("color"),
+			SourceScope:      ap.optLabeledReg("source_scope"),
+			DestinationScope: ap.optLabeledReg("destination_scope"),
 		}
 	case "save":
 		instr = Save{

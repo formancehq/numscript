@@ -25,6 +25,7 @@ func TestVerifyTruncatedMultiWord(t *testing.T) {
 	// each of these needs an ext word the stream doesn't have
 	for _, op := range []Opcode{
 		Op_PullAccount,
+		Op_PostAccount,
 		Op_Save,
 		Op_SetAccountMeta,
 		Op_MetaStr,

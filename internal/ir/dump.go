@@ -33,6 +33,7 @@ func (OpNot) String() string             { return "not" }
 func (OpPortionToString) String() string { return "portion_to_string" }
 func (OpIntToPortion) String() string    { return "int_to_portion" }
 func (OpPortionToInt) String() string    { return "portion_to_int" }
+func (OpMaxZero) String() string         { return "max_zero" }
 
 func (i PullAccount) String() string {
 	opts := joinOpts(
@@ -51,6 +52,18 @@ func (i PullAccount) String() string {
 func (i SendToAccount) String() string {
 	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap), optLabel("scope", i.Scope))
 	return fmt.Sprintf("send_to_account(%s)", opts)
+}
+
+func (i PostAccount) String() string {
+	opts := joinOpts(
+		optLabel("source", &i.Source),
+		optLabel("destination", &i.Destination),
+		optLabel("amount", &i.Amount),
+		optLabel("color", i.Color),
+		optLabel("source_scope", i.SourceScope),
+		optLabel("destination_scope", i.DestinationScope),
+	)
+	return fmt.Sprintf("post_account(%s)", opts)
 }
 
 func (i CheckEnoughFunds) String() string {

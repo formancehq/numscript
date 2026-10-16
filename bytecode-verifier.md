@@ -37,7 +37,7 @@ that passes vars should use the second form.
 | Flag operands are 0 or 1 | `Op_MarkEnd` tests `A == 1`, so a 2 silently commits a region that meant to rewind |
 | Definite assignment | Reading a register not written on every path reaching the instruction |
 | The current asset is set before it is used | A `send` or `pull` before any `set_current_asset` |
-| Mark discipline (see below) | An `Op_MarkEnd` with no open mark, a send/save/asset change inside a region, a run ending with a region open |
+| Mark discipline (see below) | An `Op_MarkEnd` with no open mark, a send/post/save/asset change inside a region, a run ending with a region open |
 | (`VerifyWithVars`) Var-pool indices are in range | `Op_LoadVar*` indexing past the pool, or dereferencing a nil `*Vars` |
 
 Two properties come for free rather than as their own pass:
@@ -59,7 +59,7 @@ forward dataflow as definite assignment, and rejects a program where:
 
 - predecessors disagree on the depth at a join,
 - an `Op_MarkEnd` runs at depth 0,
-- an `Op_SendToAccount`, `Op_SetCurrentAsset` or `Op_Save` runs at depth > 0,
+- an `Op_SendToAccount`, `Op_PostAccount`, `Op_SetCurrentAsset` or `Op_Save` runs at depth > 0,
 - the run can end (falling off the last instruction, or jumping past it) at depth > 0.
 
 `ir/instr.go` asks emitters to keep this decidable ("never emit a mark op on

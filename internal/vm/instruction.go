@@ -161,7 +161,11 @@ const (
 	Op_IntToPortion Opcode = 0x4C
 	Op_PortionToInt Opcode = 0x4D
 
-	// 0x4E..0x4F reserved
+	// A = dest (int reg), B = src (int reg): dest = max(0, src). What an
+	// unbounded Op_PullAccount makes available out of its cap, as a pure op.
+	Op_MaxZero Opcode = 0x4E
+
+	// 0x4F reserved
 
 	// --- funds & postings (0x50) ---
 
@@ -206,7 +210,16 @@ const (
 	// Op_MarkPush, while A == 0 commits it.
 	Op_MarkEnd Opcode = 0x56
 
-	// reserved (0x57..0x5F) for PullAccount specializations, e.g.:
+	// A = source (str reg), B = destination (str reg), C = amount (int reg);
+	// ext.A = color (str reg), ext.B = source scope (str reg), ext.C =
+	// destination scope (str reg), each 0xFF when absent. Emits the posting
+	// source -> destination of amount in the current asset and credits the
+	// destination, with no source debit and no queue: the compiler only emits it
+	// where it proved the source balance is never read again. A non-positive
+	// amount posts nothing. Refused while a mark is open, like Op_SendToAccount.
+	Op_PostAccount Opcode = 0x57
+
+	// reserved (0x58..0x5F) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero
 	// Op_PullAccountBoundedZero
 	// // cap=None, overdraft=Bounded r

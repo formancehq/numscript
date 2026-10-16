@@ -488,6 +488,18 @@ Three of them share one analysis, `walkConsts`: a forward walk that knows, befor
 2. **`dropProvenAsserts`** — a check that passes on every path reaching it goes: the `assert_*` family and `check_enough_funds`. A check that may fail stays where it is, so the first error a run hits is unchanged. Dropping `assert_leftover` is what frees the portion arithmetic for `deadCode`.
 3. **`pruneDeadBranches`** — a conditional jump on a constant bool becomes an unconditional `jmp` or nothing; the instructions between a `jmp` and the next label a reachable jump targets go; a jump to the next instruction goes; a label no jump targets goes.
 4. **`deadCode`** — a pure instruction whose dests no path reads goes. Store reads, pulls and every check stay; a `mk_portion` goes only where its denominator is known not to be zero.
+5. **`postFromUnbounded`** — a send statement with a single unbounded source (`@world`, or `allowing unbounded overdraft`) and a single drain-all destination goes around the funds queue. Each instruction is rewritten in place, so every check runs in the order it did:
+
+   ```
+   $pulled = pull_account(account: $src, cap: $cap)   ->  $pulled = max_zero($cap)
+   check_enough_funds($pulled, $needed)                   (unchanged)
+   ..                                                     (unchanged)
+   send_to_account(account: $dst)                     ->  post_account(source: $src, destination: $dst, amount: $pulled)
+   ```
+
+   An unbounded pull makes `max(0, cap)` available without reading any balance, and a drain-all send posts exactly what the one pull queued, so the rewrite is the pull and the send minus the queue — and minus the source debit. For an unbounded source the debit is a delta that only a later read of that balance would fold in, so it is dropped only when no instruction in the program may read it: a bounded `pull_account`, a `save` or a `balance()` whose account is the source, or is not a constant and so could be the source at run time. An unbounded pull never reads a balance, so two `@world` sends do not block each other. The pass also requires the source account to be a constant, and nothing between the pull and the send to be a label or a jump, or to rewrite a register `post_account` reads.
+
+   The capped case (`max [USD/2 5] from @world`) is fused too: `max_zero` is exactly what the pull computed, so `check_enough_funds` still fails with the same `MissingFundsError`.
 
 The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is what the folding and the pruning are for: `str_eq` over two `load_str` folds, the branch on it goes, and a literal `@world` source is back to a single unbounded `pull_account` — any other literal account to a single bounded one. The amount clamp (`max($amount, 0)`) collapses the same way when the amount is a literal.
 
@@ -495,14 +507,11 @@ The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-
 
 ```
   $r0 = "USD/2"
-  $r1 = 42
   set_current_asset($r0)
+  $r1 = "world"
   $r2 = 42
-  $r3 = "world"
-  $r4 = pull_account(account: $r3, cap: $r2)
-  check_enough_funds($r4, $r1)
-  $r5 = "dest"
-  send_to_account(account: $r5)
+  $r3 = "dest"
+  post_account(source: $r1, destination: $r3, amount: $r2)
 ```
 
 and `send [USD/2 100] (source = @src destination = {1/3 to @a 1/3 to @b remaining to @c})` to three sends of the constants 34, 33 and 33: no portion op is left.
@@ -511,7 +520,6 @@ The passes can trade one capacity bound of the assembler for another (a shorter 
 
 #### Planned peepholes
 
-- **Post from unbounded** — a send statement with a single unbounded source (`@world`, or `allowing unbounded overdraft`) and a single destination becomes a direct posting, skipping the funds queue.
 - **Dead credit** — the destination credit of a direct posting whose destination's balance is never read.
 - **Funds bypass** — the Pull-then-Send → take + post rewrite for a bounded single source, a fan-out (one source, allotment destinations) and a fan-in (statically distinct sources, one destination). Never N×M, `oneof` or scaling.
 - **Integer allotment split** — `portion_to_int(mul_portion(p, int_to_portion(x)))` as one integer op, so an allotment over a var amount allocates no `big.Rat`. Needs a new opcode.

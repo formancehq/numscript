@@ -519,12 +519,401 @@ func TestPruneDeadBranchesLeavesLiveControlFlow(t *testing.T) {
 	}
 }
 
+// --- postFromUnbounded ---
+
+func TestPostFromUnbounded(t *testing.T) {
+	testCases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "single unbounded source to a single destination",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  send_to_account(account: $r4)
+`,
+			want: `  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = max_zero($r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  post_account(source: $r2, destination: $r4, amount: $r3)
+`,
+		},
+		{
+			name: "color and scopes are carried over",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = "RED"
+  $r4 = "s1"
+  $r5 = pull_account(account: $r2, cap: $r1, color: $r3, scope: $r4)
+  check_enough_funds($r5, $r1)
+  $r6 = "dest"
+  $r7 = "s2"
+  send_to_account(account: $r6, scope: $r7)
+`,
+			want: `  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = "RED"
+  $r4 = "s1"
+  $r5 = max_zero($r1)
+  check_enough_funds($r5, $r1)
+  $r6 = "dest"
+  $r7 = "s2"
+  post_account(source: $r2, destination: $r6, amount: $r5, color: $r3, source_scope: $r4, destination_scope: $r7)
+`,
+		},
+		{
+			// an unbounded pull never reads the balance, so two statements from
+			// the same unbounded source both go
+			name: "two statements from the same unbounded source",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "a"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "x"
+  send_to_account(account: $r4)
+  set_current_asset($r0)
+  $r5 = "a"
+  $r6 = pull_account(account: $r5, cap: $r1)
+  check_enough_funds($r6, $r1)
+  $r7 = "y"
+  send_to_account(account: $r7)
+`,
+			want: `  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "a"
+  $r3 = max_zero($r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "x"
+  post_account(source: $r2, destination: $r4, amount: $r3)
+  set_current_asset($r0)
+  $r5 = "a"
+  $r6 = max_zero($r1)
+  check_enough_funds($r6, $r1)
+  $r7 = "y"
+  post_account(source: $r5, destination: $r7, amount: $r6)
+`,
+		},
+		{
+			name: "a balance read of another account does not block",
+			src: `
+  $r0 = "USD/2"
+  $r1 = "other"
+  $r2 = balance($r1, $r0)
+  set_current_asset($r0)
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r2)
+  check_enough_funds($r4, $r2)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`,
+			want: `  $r0 = "USD/2"
+  $r1 = "other"
+  $r2 = balance($r1, $r0)
+  set_current_asset($r0)
+  $r3 = "world"
+  $r4 = max_zero($r2)
+  check_enough_funds($r4, $r2)
+  $r5 = "dest"
+  post_account(source: $r3, destination: $r5, amount: $r4)
+`,
+		},
+		{
+			// the assert stays where it was, after the check
+			name: "a check between the pull and the send stays in place",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "users:"
+  $r5 = load_var<str>(0)
+  $r6 = add_string($r4, $r5)
+  assert_valid_account($r6)
+  send_to_account(account: $r6)
+`,
+			want: `  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = max_zero($r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "users:"
+  $r5 = load_var<str>(0)
+  $r6 = add_string($r4, $r5)
+  assert_valid_account($r6)
+  post_account(source: $r2, destination: $r6, amount: $r3)
+`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requirePass(t, postFromUnbounded, tc.src, tc.want)
+		})
+	}
+}
+
+func TestPostFromUnboundedLeavesOtherShapes(t *testing.T) {
+	testCases := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "bounded source",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "src"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`,
+		},
+		{
+			name: "uncapped source",
+			src: `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "src"
+  $r2 = 0
+  $r3 = pull_account(account: $r1, overdraft: $r2)
+  $r4 = "dest"
+  send_to_account(account: $r4)
+`,
+		},
+		{
+			name: "capped send",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  send_to_account(account: $r4, cap: $r1)
+`,
+		},
+		{
+			name: "kept",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  send_to_account()
+`,
+		},
+		{
+			name: "two sources",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  $r4 = "a"
+  $r5 = pull_account(account: $r4, cap: $r1)
+  $r6 = "dest"
+  send_to_account(account: $r6)
+`,
+		},
+		{
+			name: "two destinations",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  $r4 = "a"
+  send_to_account(account: $r4, cap: $r1)
+  $r5 = "b"
+  send_to_account(account: $r5)
+`,
+		},
+		{
+			name: "source account from a var",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = load_var<str>(0)
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  send_to_account(account: $r4)
+`,
+		},
+		{
+			name: "balance read of the source",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  send_to_account(account: $r4)
+  $r5 = "world"
+  $r6 = balance($r5, $r0)
+`,
+		},
+		{
+			name: "balance read of an account from a var",
+			src: `
+  $r0 = "USD/2"
+  $r1 = load_var<str>(0)
+  $r2 = balance($r1, $r0)
+  set_current_asset($r0)
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r2)
+  check_enough_funds($r4, $r2)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`,
+		},
+		{
+			name: "bounded pull of the source elsewhere",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "a"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "x"
+  send_to_account(account: $r4)
+  set_current_asset($r0)
+  $r5 = "a"
+  $r6 = 0
+  $r7 = pull_account(account: $r5, cap: $r1, overdraft: $r6)
+  check_enough_funds($r7, $r1)
+  $r8 = "y"
+  send_to_account(account: $r8)
+`,
+		},
+		{
+			name: "bounded pull of an account from a var elsewhere",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r4 = "x"
+  send_to_account(account: $r4)
+  set_current_asset($r0)
+  $r5 = load_var<str>(0)
+  $r6 = 0
+  $r7 = pull_account(account: $r5, cap: $r1, overdraft: $r6)
+  check_enough_funds($r7, $r1)
+  $r8 = "y"
+  send_to_account(account: $r8)
+`,
+		},
+		{
+			name: "save of the source",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  $r2 = "world"
+  save(account: $r2, asset: $r0, amount: $r1)
+  set_current_asset($r0)
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r1)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`,
+		},
+		{
+			name: "pulled amount rewritten before the send",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  check_enough_funds($r3, $r1)
+  $r3 = 0
+  $r4 = "dest"
+  send_to_account(account: $r4)
+`,
+		},
+		{
+			name: "label between the pull and the send",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  $r4 = is_zero($r3)
+  jmp_if_true($r4, #skip)
+  check_enough_funds($r3, $r1)
+#skip
+  $r5 = "dest"
+  send_to_account(account: $r5)
+`,
+		},
+		{
+			name: "mark in the statement",
+			src: `
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  mark_push()
+  $r2 = "world"
+  $r3 = pull_account(account: $r2, cap: $r1)
+  mark_commit()
+  check_enough_funds($r3, $r1)
+  $r4 = "dest"
+  send_to_account(account: $r4)
+`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requireUnchanged(t, postFromUnbounded, tc.src)
+		})
+	}
+}
+
 // --- Optimize ---
 
 // The compiler's output for `send [USD/2 42] (source = @world destination =
-// @dest)`, minus the amount clamp: the passes have to compose for the
-// literal @world to end up as a single unbounded pull.
-func TestOptimizeCollapsesWorldDiamond(t *testing.T) {
+// @dest)`, minus the amount clamp: the three passes have to compose for the
+// literal @world to end up as one direct posting.
+func TestOptimizeCollapsesWorldDiamondIntoPostAccount(t *testing.T) {
 	src := `
   $r0 = "world"
   $r1 = "USD/2"
@@ -551,13 +940,11 @@ func TestOptimizeCollapsesWorldDiamond(t *testing.T) {
 	out := Optimize(instrs)
 	require.NoError(t, Typecheck(out))
 	require.Equal(t, `  $r1 = "USD/2"
-  $r2 = 42
   set_current_asset($r1)
   $r3 = "world"
-  $r6 = pull_account(account: $r3, cap: $r2)
-  check_enough_funds($r6, $r2)
+  $r6 = 42
   $r7 = "dest"
-  send_to_account(account: $r7)
+  post_account(source: $r3, destination: $r7, amount: $r6)
 `, Dump(out))
 }
 

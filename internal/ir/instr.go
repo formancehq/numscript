@@ -68,6 +68,9 @@ type (
 	// allotment share is made of.
 	OpIntToPortion struct{}
 	OpPortionToInt struct{}
+	// OpMaxZero is max(0, a): what an unbounded pull_account makes available out
+	// of its cap, as a pure op. Emitted by the post_from_unbounded peephole.
+	OpMaxZero struct{}
 )
 
 type VarType interface {
@@ -99,6 +102,16 @@ type (
 	}
 	SendToAccount struct {
 		Account, Cap, Scope *Reg // str, int, str
+	}
+	// PostAccount emits the posting Source -> Destination of Amount in the current
+	// asset and credits Destination, without debiting Source and without touching
+	// the funds queue. A non-positive Amount posts nothing. Only a peephole emits
+	// it, having proved that Source's balance is never read afterwards.
+	PostAccount struct {
+		Source, Destination           Reg  // str, str
+		Amount                        Reg  // int
+		Color                         *Reg // str
+		SourceScope, DestinationScope *Reg // str, str
 	}
 	Save struct {
 		Account Reg  // str
@@ -218,6 +231,11 @@ func (i PullAccount) sources() []Reg {
 
 func (i SendToAccount) dests() []Reg   { return nil }
 func (i SendToAccount) sources() []Reg { return present(i.Account, i.Cap, i.Scope) }
+
+func (i PostAccount) dests() []Reg { return nil }
+func (i PostAccount) sources() []Reg {
+	return present(&i.Source, &i.Destination, &i.Amount, i.Color, i.SourceScope, i.DestinationScope)
+}
 
 func (i CheckEnoughFunds) dests() []Reg   { return nil }
 func (i CheckEnoughFunds) sources() []Reg { return []Reg{i.Got, i.Needed} }

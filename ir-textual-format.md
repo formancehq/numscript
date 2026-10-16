@@ -166,6 +166,9 @@ So `add_int($a, $b)` parses fine, but a dump never contains it. No other operato
 | `$d = portion_to_string($a)` | `portion -> str` |
 | `$d = int_to_portion($a)` | `int -> portion` — exact |
 | `$d = portion_to_int($a)` | `portion -> int` — **floors** |
+| `$d = max_zero($a)` | `int -> int` — `max(0, a)` |
+
+`max_zero` is what an unbounded `pull_account` makes available out of its cap; the `post_from_unbounded` peephole emits it in the pull's place, so the compiler never writes it directly.
 
 `int_to_portion` and `portion_to_int` are the only numeric crossings between the int and portion banks. `portion_to_int` truncates towards negative infinity (a `big.Rat` denominator is always positive, so this is `Div`, not a rounding), which is what makes an allotment share exact.
 
@@ -229,6 +232,11 @@ a != b   ->   $t = eq_int($a, $b)  ;  not($t)
   send_to_account(account: $a, cap: $c, scope: $s)
 ```
 No destination. All arguments are optional: no `cap` sends everything currently queued; **no `account` refunds the funds to their sources without emitting postings**; no `scope` sends to the unscoped destination.
+
+```
+  post_account(source: $s, destination: $d, amount: $a, color: $c, source_scope: $ss, destination_scope: $ds)
+```
+No destination. `source: str`, `destination: str` and `amount: int` are required; `color: str`, `source_scope: str` and `destination_scope: str` are optional. Emits the posting `source -> destination` of `amount` in the current asset and credits the destination, **without debiting the source and without the funds queue**; a non-positive amount posts nothing. The compiler never writes it: the `post_from_unbounded` peephole emits it in place of a `send_to_account` whose only funding was an unbounded `pull_account`, having proved the source balance is never read afterwards (see `compiler-architecture.md`). Canonical dump order: `source, destination, amount, color, source_scope, destination_scope`.
 
 ```
   save(account: $a, asset: $as, amount: $amt, scope: $s)

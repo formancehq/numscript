@@ -395,6 +395,13 @@ func (OpPortionToInt) sig() unaryOpSig {
 		arg:    (*assembler).portionReg,
 	}
 }
+func (OpMaxZero) sig() unaryOpSig {
+	return unaryOpSig{
+		opcode: vm.Op_MaxZero,
+		dest:   (*assembler).intReg,
+		arg:    (*assembler).intReg,
+	}
+}
 func (i UnaryOp) assemble(a *assembler) error {
 	sig := i.Op.sig()
 
@@ -694,6 +701,44 @@ func (i SendToAccount) assemble(a *assembler) error {
 	}
 
 	a.emit(vm.Op_SendToAccount, account, cap, scope)
+	return nil
+}
+
+// PostAccount's three optional operands (color and the two scopes) go in an ext
+// word, like PullAccount's.
+func (i PostAccount) assemble(a *assembler) error {
+	source, err := a.strReg(i.Source)
+	if err != nil {
+		return err
+	}
+	destination, err := a.strReg(i.Destination)
+	if err != nil {
+		return err
+	}
+	amount, err := a.intReg(i.Amount)
+	if err != nil {
+		return err
+	}
+	color, err := a.optionalReg((*assembler).strReg, i.Color)
+	if err != nil {
+		return err
+	}
+	sourceScope, err := a.optionalReg((*assembler).strReg, i.SourceScope)
+	if err != nil {
+		return err
+	}
+	destinationScope, err := a.optionalReg((*assembler).strReg, i.DestinationScope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_PostAccount, source, destination, amount)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg,
+		A:      color,
+		B:      sourceScope,
+		C:      destinationScope,
+	})
 	return nil
 }
 
