@@ -21,6 +21,9 @@ type Case struct {
 	New    SideResult
 	Oracle SideResult
 	VM     SideResult
+	// VMOpt is the vm on the program the compiler's peephole passes produce
+	// from the same script.
+	VMOpt SideResult
 
 	// OracleVsNew compares this repo's interpreter against the vendored
 	// legacy machine, which is the only independent ground truth available:
@@ -38,6 +41,11 @@ type Case struct {
 	OracleVsNew Verdict
 	OracleVsVM  Verdict
 	NewVsVM     Verdict
+
+	// VMVsVMOpt compares the optimized program against the plain one with no
+	// tolerance at all (CompareIdentical): the passes promise the same postings,
+	// in the same order, and the same errors.
+	VMVsVMOpt Verdict
 }
 
 // RunOne generates one program from rng, runs it against all three engines,
@@ -53,6 +61,7 @@ func RunOne(ctx context.Context, rng *rand.Rand) Case {
 
 	newRes := runNew(ctx, g.Script, g.Vars, g.Balances, g.Metadata, g.Flags)
 	vmRes := runVM(ctx, g.Script, g.Vars, g.Balances, g.Metadata, g.Flags)
+	vmOptRes := runVMOptimized(ctx, g.Script, g.Vars, g.Balances, g.Metadata, g.Flags)
 
 	c := Case{
 		Script: g.Script,
@@ -60,8 +69,10 @@ func RunOne(ctx context.Context, rng *rand.Rand) Case {
 		Shape:  g.Shape,
 		New:    newRes,
 		VM:     vmRes,
+		VMOpt:  vmOptRes,
 
-		NewVsVM: CompareEngines(vmRes, newRes),
+		NewVsVM:   CompareEngines(vmRes, newRes),
+		VMVsVMOpt: CompareIdentical(vmOptRes, vmRes, "optimized vm", "vm"),
 	}
 
 	if g.OracleCompatible {
@@ -76,8 +87,8 @@ func RunOne(ctx context.Context, rng *rand.Rand) Case {
 	return c
 }
 
-// Legs returns the three pairwise verdicts with stable names, for callers
-// that report per leg.
+// Legs returns the pairwise verdicts with stable names, for callers that
+// report per leg.
 func (c Case) Legs() []struct {
 	Name    string
 	Verdict Verdict
@@ -89,11 +100,12 @@ func (c Case) Legs() []struct {
 		{"oracle vs new", c.OracleVsNew},
 		{"oracle vs vm", c.OracleVsVM},
 		{"new vs vm", c.NewVsVM},
+		{"vm vs optimized vm", c.VMVsVMOpt},
 	}
 }
 
-// AnyMismatch reports whether any of the three pairwise verdicts found a
+// AnyMismatch reports whether any of the pairwise verdicts found a
 // divergence.
 func (c Case) AnyMismatch() bool {
-	return c.OracleVsNew.Mismatch || c.OracleVsVM.Mismatch || c.NewVsVM.Mismatch
+	return c.OracleVsNew.Mismatch || c.OracleVsVM.Mismatch || c.NewVsVM.Mismatch || c.VMVsVMOpt.Mismatch
 }
