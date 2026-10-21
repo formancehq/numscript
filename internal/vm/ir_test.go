@@ -1369,3 +1369,35 @@ func TestIRErrorsDoNotAliasRegisters(t *testing.T) {
 		require.Equal(t, vm.NegativeAmountError{Amount: *big.NewInt(-20)}, second)
 	})
 }
+
+// A pull whose destination is also its cap or overdraft reads the bound after
+// having overwritten it.
+func TestIRPullDestAliasingItsBoundIsRejected(t *testing.T) {
+	t.Run("cap", func(t *testing.T) {
+		program := assembleUnverifiedIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $dest = "dest"
+  $overdraft = 0
+  $cap = 100
+  $cap = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  send_to_account(account: $dest)
+`)
+		require.ErrorContains(t, vm.Verify(program), "aliases its cap or overdraft")
+	})
+
+	t.Run("overdraft", func(t *testing.T) {
+		program := assembleUnverifiedIR(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $dest = "dest"
+  $overdraft = 0
+  $cap = 100
+  $overdraft = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  send_to_account(account: $dest)
+`)
+		require.ErrorContains(t, vm.Verify(program), "aliases its cap or overdraft")
+	})
+}
