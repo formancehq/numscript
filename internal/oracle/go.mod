@@ -2,6 +2,8 @@ module github.com/formancehq/numscript/internal/oracle
 
 go 1.26.0
 
+toolchain go1.27.3
+
 require (
 	github.com/antlr/antlr4/runtime/Go/antlr v1.4.10
 	github.com/formancehq/go-libs/v5 v5.6.1
