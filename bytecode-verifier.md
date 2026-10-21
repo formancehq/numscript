@@ -37,6 +37,7 @@ that passes vars should use the second form.
 | Flag operands are 0 or 1 | `Op_MarkEnd` tests `A == 1`, so a 2 silently commits a region that meant to rewind |
 | Definite assignment | Reading a register not written on every path reaching the instruction |
 | The current asset is set before it is used | A `send` or `pull` before any `set_current_asset` |
+| A pull's destination does not alias its cap or overdraft | `funds.Pull` writes the destination before it reads the bounds on the bounded path: aliased, the cap no longer bounds the pull and the overdraft doubles the balance |
 | Mark discipline (see below) | An `Op_MarkEnd` with no open mark, a send/save/asset change inside a region, a run ending with a region open |
 | (`VerifyWithVars`) Var-pool indices are in range | `Op_LoadVar*` indexing past the pool, or dereferencing a nil `*Vars` |
 
@@ -81,6 +82,18 @@ verified, so `ErrNoOpenMark` and the INVARIANT documented on `MarkEnd` stay.
 `Op_PullAccount` with both cap and overdraft nil is statically decidable, but
 it is a legitimate user-facing error (`InvalidUncappedSource`, "unbounded source
 is not allowed here"), not a malformed program. Deliberately left to run time.
+
+### Funds left in the queue
+
+A pull debits its source at once; the posting only exists once a send drains the
+queue. Funds still queued when `Op_SetCurrentAsset` runs would be posted under
+the new asset, and funds still queued when the run ends are a debit that never
+became a posting. Whether a capped send empties the queue depends on the
+balances, so neither is decidable from the instruction stream: `Exec` checks
+both at run time (`errSetAssetWithQueuedFunds`, `errEndWithQueuedFunds`, via
+`runstate.HasQueuedFunds()`). Compiled numscript never trips them: every send
+statement either pulls exactly what it sends (`Op_CheckEnoughFunds`) or sends
+everything it pulled.
 
 ### Anything semantic
 

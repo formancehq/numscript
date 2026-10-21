@@ -1,3 +1,7 @@
 package vm
 
-var ErrSendWhileMarkOpen = errSendWhileMarkOpen
+var (
+	ErrSendWhileMarkOpen       = errSendWhileMarkOpen
+	ErrSetAssetWithQueuedFunds = errSetAssetWithQueuedFunds
+	ErrEndWithQueuedFunds      = errEndWithQueuedFunds
+)

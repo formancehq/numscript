@@ -244,6 +244,18 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 	return new(big.Int).Set(bal), nil
 }
 
+// HasQueuedFunds reports whether a queued source still holds a positive amount.
+// Zero-amount entries do not count: a Pull of a zero cap queues one, and a Send
+// of a zero cap does not consume it.
+func (s *RunState) HasQueuedFunds() bool {
+	for i := range s.sources {
+		if s.sources[i].amount.Sign() > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Pull debits up to cap from src's (currentAsset, color) balance, queues the
 // pulled amount as a funding source tagged with color, and writes the amount made
 // available into out:

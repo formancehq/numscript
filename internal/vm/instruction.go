@@ -36,6 +36,8 @@ type Opcode byte
 // a category without renumbering. See instruction-encoding.md.
 const (
 	// --- state & assertions (0x00) ---
+	// InternalError while a mark is open or while the source queue still holds
+	// funds pulled under the previous asset
 	Op_SetCurrentAsset Opcode = 0x00
 
 	Op_AssertSameAsset Opcode = 0x01
@@ -168,6 +170,7 @@ const (
 	// The most general form: account,cap,overdraft,color,scope
 	// The 0xFF special register means NULL for cap,overdraft,color and scope
 	// ext.A = overdraft (int reg), ext.B = color (str reg), ext.C = scope (str reg)
+	// A (dest) may not be the same register as C or ext.A: verifier-rejected
 	Op_PullAccount Opcode = 0x50
 
 	// account?, cap?, scope?
