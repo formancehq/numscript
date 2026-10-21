@@ -7,7 +7,7 @@ on:
       - release/*
       - releases/*
   pull_request:
-    types: [ assigned, opened, synchronize, reopened, labeled, edited ]
+    types: [ assigned, opened, synchronize, reopened, edited ]
 
 permissions:
   contents: read
