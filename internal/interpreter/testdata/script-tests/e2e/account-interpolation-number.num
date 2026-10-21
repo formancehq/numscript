@@ -1,0 +1,7 @@
+vars {
+  number $n = 42
+}
+send [USD/2 10] (
+  source = @world
+  destination = @account:$n
+)

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-get-amount-function"
+  ],
+  "testCases": [
+    {
+      "it": "reads the amount of a monetary",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 42,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

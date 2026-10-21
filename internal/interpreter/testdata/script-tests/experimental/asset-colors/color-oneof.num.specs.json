@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-colors",
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "rolls the short branch back to its own color and commits the next one",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 10,
+          "color": "RED"
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 50,
+          "color": "BLUE"
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 50,
+          "asset": "COIN",
+          "color": "BLUE"
+        }
+      ],
+      "expect.endBalances": [
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 10,
+          "color": "RED"
+        },
+        {
+          "account": "src",
+          "asset": "COIN",
+          "amount": 0,
+          "color": "BLUE"
+        },
+        {
+          "account": "dest",
+          "asset": "COIN",
+          "amount": 50,
+          "color": "BLUE"
+        }
+      ]
+    }
+  ]
+}

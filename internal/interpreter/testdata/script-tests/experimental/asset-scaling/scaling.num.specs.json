@@ -105,6 +105,41 @@
       ]
     },
     {
+      "it": "a non-canonical asset of the same scale does not mask the canonical one",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "EUR",
+          "amount": 4
+        },
+        {
+          "account": "src",
+          "asset": "EUR/0",
+          "amount": 0
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "swap",
+          "asset": "EUR",
+          "amount": 4
+        },
+        {
+          "source": "swap",
+          "destination": "src",
+          "asset": "EUR/2",
+          "amount": 400
+        },
+        {
+          "source": "src",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 400
+        }
+      ]
+    },
+    {
       "it": "fails when there aren't enough funds",
       "balances": [
         {

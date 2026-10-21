@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "the first branch covers it",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 10
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 10
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "backtracks past a short branch",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 3
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 10
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "backtracks twice, to the last branch",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 3
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 9
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "fails when no branch covers it",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 3
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 4
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 5
+        }
+      ],
+      "expect.error.missingFunds": true
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "an inner backtrack keeps the outer branch's funds",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 4
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 5
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 6
+        },
+        {
+          "account": "d",
+          "asset": "USD/2",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 4,
+          "asset": "USD/2"
+        },
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 6,
+          "asset": "USD/2"
+        }
+      ]
+    },
+    {
+      "it": "an outer backtrack discards the inner region too",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 4
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 3
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 5
+        },
+        {
+          "account": "d",
+          "asset": "USD/2",
+          "amount": 10
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "d",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

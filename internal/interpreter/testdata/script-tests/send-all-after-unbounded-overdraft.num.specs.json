@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "send-all sees the starting balance after an unbounded-overdraft debit",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "d1",
+          "amount": 1,
+          "asset": "USD"
+        },
+        {
+          "source": "src",
+          "destination": "d2",
+          "amount": 99,
+          "asset": "USD"
+        }
+      ]
+    }
+  ]
+}

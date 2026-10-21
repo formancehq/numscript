@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-colors"
+  ],
+  "testCases": [
+    {
+      "it": "the overdraft applies to the colored balance only",
+      "balances": [
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": 1000
+        },
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": 40,
+          "color": "RED"
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "acc",
+          "destination": "dest",
+          "amount": 100,
+          "asset": "COIN",
+          "color": "RED"
+        }
+      ],
+      "expect.endBalances.include": [
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": -60,
+          "color": "RED"
+        },
+        {
+          "account": "acc",
+          "asset": "COIN",
+          "amount": 1000
+        }
+      ]
+    }
+  ]
+}

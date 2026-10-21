@@ -1,0 +1,7 @@
+send [USD/2 100] (
+  source = {
+    1/4 from @s1
+    remaining from @s2
+  }
+  destination = @dest
+)

@@ -101,6 +101,28 @@ func TestResolveDependenciesCoversRuntime(t *testing.T) {
 			},
 		},
 		{
+			// get_amount turns a balance into a number, and an interpolated
+			// account can be built from that number — so a balance decides
+			// which account is touched. Resolution must therefore evaluate
+			// balances to their real values, not a placeholder: with a zero
+			// placeholder this resolves "user:0" while execution posts from
+			// "user:100".
+			name: "balance names an interpolated account",
+			src: `
+				vars {
+					monetary $b = balance(@treasury, USD)
+					number $id = get_amount($b)
+				}
+				send [USD 1] (
+					source = @user:$id allowing unbounded overdraft
+					destination = @out
+				)
+			`,
+			balances: interpreter.Balances{
+				{Account: "treasury", Asset: "USD", Amount: big.NewInt(100)},
+			},
+		},
+		{
 			name: "balance inside a cap",
 			src: `
 				send [USD 5] (

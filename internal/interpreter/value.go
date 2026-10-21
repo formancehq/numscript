@@ -3,10 +3,9 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
-	"strconv"
-	"strings"
 
 	"github.com/formancehq/numscript/internal/analysis"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -41,14 +40,14 @@ func (Portion) value()        {}
 func (Asset) value()          {}
 
 func NewAccountAddress(src string) (AccountAddress, InterpreterError) {
-	if !checkAccountName(src) {
+	if !funds.ValidateAccount(src) {
 		return AccountAddress{}, InvalidAccountName{Name: src}
 	}
 	return AccountAddress{Name: src}, nil
 }
 
 func NewAsset(src string) (Asset, InterpreterError) {
-	if !checkAssetName(src) {
+	if !funds.ValidateAsset(src) {
 		return Asset(""), InvalidAsset{Name: src}
 	}
 	return Asset(src), nil
@@ -279,18 +278,4 @@ func (m MonetaryInt) Sub(other MonetaryInt) MonetaryInt {
 
 	sum := new(big.Int).Sub(&bi, &otherBi)
 	return MonetaryInt(*sum)
-}
-
-func (asset Asset) GetBaseAndScale() (string, int64) {
-	parts := strings.Split(string(asset), "/")
-	if len(parts) == 2 {
-		scale, err := strconv.ParseInt(parts[1], 10, 64)
-		if err == nil {
-			return parts[0], scale
-		}
-		// fallback if parsing fails
-		return parts[0], 0
-	}
-	return string(asset), 0
-
 }

@@ -1,0 +1,10 @@
+send [COIN 10] (
+  source = {
+    max [COIN 0] - [COIN 6] from {
+      1/2 from @a
+      remaining from @b
+    }
+    @world
+  }
+  destination = @d
+)

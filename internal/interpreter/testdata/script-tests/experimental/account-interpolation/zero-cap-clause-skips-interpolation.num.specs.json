@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
+  "testCases": [
+    {
+      "it": "a zero-amount clause never evaluates its destination, invalid interpolation included",
+      "variables": {
+        "id": "not a valid segment!"
+      },
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "c",
+          "amount": 10,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

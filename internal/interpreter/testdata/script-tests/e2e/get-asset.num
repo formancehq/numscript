@@ -1,0 +1,8 @@
+vars {
+  monetary $m = [USD/2 42]
+  asset $a = get_asset($m)
+}
+send [$a 10] (
+  source = @src
+  destination = @dest
+)

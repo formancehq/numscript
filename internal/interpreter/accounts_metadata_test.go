@@ -3,6 +3,7 @@ package interpreter
 import (
 	"testing"
 
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
@@ -47,19 +48,19 @@ func TestCompareSetAccountsMetadata(t *testing.T) {
 
 func TestScopeValidation(t *testing.T) {
 	t.Run("valid scopes", func(t *testing.T) {
-		require.True(t, checkScopeName(""))
-		require.True(t, checkScopeName("myscope"))
-		require.True(t, checkScopeName("x"))
-		require.True(t, checkScopeName("x1"))
-		require.True(t, checkScopeName("my_scope_with_underscores"))
+		require.True(t, funds.ValidateScope(""))
+		require.True(t, funds.ValidateScope("myscope"))
+		require.True(t, funds.ValidateScope("x"))
+		require.True(t, funds.ValidateScope("x1"))
+		require.True(t, funds.ValidateScope("my_scope_with_underscores"))
 	})
 
 	t.Run("invalid scopes", func(t *testing.T) {
-		require.False(t, checkScopeName("!"))
-		require.False(t, checkScopeName("$"))
-		require.False(t, checkScopeName("UPPERCASE"))
-		require.False(t, checkScopeName("dash-case"))
-		require.False(t, checkScopeName("colons:within"))
+		require.False(t, funds.ValidateScope("!"))
+		require.False(t, funds.ValidateScope("$"))
+		require.False(t, funds.ValidateScope("UPPERCASE"))
+		require.False(t, funds.ValidateScope("dash-case"))
+		require.False(t, funds.ValidateScope("colons:within"))
 	})
 }
 

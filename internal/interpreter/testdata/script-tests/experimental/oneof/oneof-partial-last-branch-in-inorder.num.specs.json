@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-oneof"
+  ],
+  "testCases": [
+    {
+      "it": "keeps the partially-satisfying last branch and takes the rest from the next inorder source",
+      "balances": [
+        {
+          "account": "b",
+          "asset": "GEM",
+          "amount": 30
+        },
+        {
+          "account": "c",
+          "asset": "GEM",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 30,
+          "asset": "GEM"
+        },
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 70,
+          "asset": "GEM"
+        }
+      ]
+    }
+  ]
+}

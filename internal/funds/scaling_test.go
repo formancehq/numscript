@@ -1,0 +1,306 @@
+package funds_test
+
+import (
+	"math/big"
+	"testing"
+
+	"github.com/formancehq/numscript/internal/funds"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGetAssetsExcludesColoredBalances(t *testing.T) {
+	// Scaling converts only uncolored balances and emits uncolored postings, so a
+	// colored balance for the same base asset must not be offered as a candidate.
+	assets := funds.GetAssets([]funds.AccountBalance{
+		{Asset: "USD", Color: "", Amount: big.NewInt(2)},
+		{Asset: "USD/4", Color: "RED", Amount: big.NewInt(999)}, // colored: excluded
+		{Asset: "USD/2", Color: "", Amount: big.NewInt(50)},
+		{Asset: "EUR", Color: "", Amount: big.NewInt(7)}, // different base: excluded
+	}, "USD")
+
+	require.Equal(t, map[int64]*big.Int{
+		0: big.NewInt(2),
+		2: big.NewInt(50),
+	}, assets)
+}
+
+func TestGetAssetsExcludesNonCanonicalAssets(t *testing.T) {
+	assets := funds.GetAssets([]funds.AccountBalance{
+		{Asset: "EUR", Amount: big.NewInt(5)},
+		{Asset: "EUR/0", Amount: big.NewInt(0)},
+		{Asset: "EUR/02", Amount: big.NewInt(3)},
+		{Asset: "EUR/x", Amount: big.NewInt(4)},
+		{Asset: "EUR/2", Amount: big.NewInt(100)},
+	}, "EUR")
+
+	require.Equal(t, map[int64]*big.Int{
+		0: big.NewInt(5),
+		2: big.NewInt(100),
+	}, assets)
+}
+
+func TestScalingAvoidSwappingAlreadyHaveAsset(t *testing.T) {
+	// Need [USD/2 200]
+	// Got: {USD/2 100, USD 2}
+	// we only want [USD 1] to be swapped
+	sol, got := funds.FindScalingSolution(
+		big.NewInt(200),
+		2,
+		map[int64]*big.Int{
+			2: big.NewInt(100),
+			0: big.NewInt(2),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100), got)
+}
+
+func TestScalingAvoidSpareAmt(t *testing.T) {
+	// Need [USD/2 1]
+	// Got: {USD 99}
+	sol, got := funds.FindScalingSolution(
+		big.NewInt(1),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(99),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100), got)
+}
+
+func TestScalingAvoidSpareAmt2(t *testing.T) {
+	// Need [USD/2 1]
+	// Got: {USD 99}
+	sol, got := funds.FindScalingSolution(
+		big.NewInt(399),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(9999999),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(4)},
+	}, sol)
+	require.Equal(t, big.NewInt(400), got)
+}
+
+func TestScalingDownAvoidSpareAmt(t *testing.T) {
+	sol, got := funds.FindScalingSolution(
+		big.NewInt(1),
+		0,
+		map[int64]*big.Int{
+			2: big.NewInt(123),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{2, big.NewInt(100)},
+	}, sol)
+	require.Equal(t, big.NewInt(1), got)
+}
+
+func TestScalingZeroNeeded(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		big.NewInt(0),
+		42,
+		map[int64]*big.Int{
+			2: big.NewInt(100),
+			1: big.NewInt(1),
+		})
+
+	require.Equal(t, []funds.ScalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
+}
+
+func TestDoNotAllowSpare(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		// Need [EUR/2 1]
+		big.NewInt(1),
+		2,
+
+		// Have: {EUR: 99}
+		map[int64]*big.Int{
+			0: big.NewInt(99),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100), tot)
+}
+
+func TestRepro(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		// Need [EUR/2 400]
+		big.NewInt(400),
+		2,
+
+		// Have: {EUR: 99, EUR/2: 1}
+		map[int64]*big.Int{
+			2: big.NewInt(1),
+			0: big.NewInt(99),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(4)},
+	}, sol)
+	require.Equal(t, big.NewInt(400), tot)
+}
+
+func TestScalingSameAsset(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		// Need [EUR/2 200]
+		big.NewInt(200),
+		2,
+
+		// Have: {EUR/2: 201}
+		map[int64]*big.Int{
+			2: big.NewInt(201),
+		})
+
+	require.Equal(t, []funds.ScalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
+}
+
+func TestScalingSolutionLowerScale(t *testing.T) {
+	sol, _ := funds.FindScalingSolution(
+		// Need [COIN 1]
+		big.NewInt(1),
+		0,
+		// Got: {COIN/2 900}
+		map[int64]*big.Int{
+			2: big.NewInt(900),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{2, big.NewInt(100)},
+	}, sol)
+}
+
+func TestScalingSolutionHigherScale(t *testing.T) {
+	sol, _ := funds.FindScalingSolution(
+		// Need [EUR/2 200]
+		big.NewInt(200),
+		2,
+
+		// Have: {EUR: 4} (eq to EUR/2 400)
+		map[int64]*big.Int{
+			0: big.NewInt(4),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(2)},
+	}, sol)
+}
+
+func TestScalingSolutionHigherScaleNoSolution(t *testing.T) {
+	// TODO change name
+	sol, _ := funds.FindScalingSolution(
+		// Needed: [COIN/2 1]
+		big.NewInt(1),
+		2,
+
+		// Got: {COIN: 100, COIN/1: 100}
+		map[int64]*big.Int{
+			0: big.NewInt(100),
+			1: big.NewInt(100),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{1, big.NewInt(1)},
+	}, sol)
+}
+
+func TestNoSolution(t *testing.T) {
+	sol, got := funds.FindScalingSolution(
+		// Need [USD/2 400]
+		big.NewInt(400),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(1),
+			2: big.NewInt(1),
+			3: big.NewInt(1),
+		})
+
+	require.Equal(t, big.NewInt(100), got)
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+}
+
+func TestNoSolution2(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		// Need [USD/2 400]
+		big.NewInt(400),
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(1),
+			2: big.NewInt(200),
+			3: big.NewInt(10),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{3, big.NewInt(10)},
+		{0, big.NewInt(1)},
+	}, sol)
+	require.Equal(t, big.NewInt(100+1), tot)
+}
+
+func TestUnboundedScalingSameAsset(t *testing.T) {
+	sol, tot := funds.FindScalingSolution(
+		// Need [USD/2 *]
+		nil,
+		2,
+		// Have: {EUR/2: 201}
+		map[int64]*big.Int{
+			2: big.NewInt(123),
+		})
+
+	require.Equal(t, []funds.ScalePair(nil), sol)
+	require.Equal(t, big.NewInt(0), tot)
+}
+
+func TestUnboundedScalingLowerAsset(t *testing.T) {
+	sol, _ := funds.FindScalingSolution(
+		nil,
+		2,
+		map[int64]*big.Int{
+			0: big.NewInt(1),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{0, big.NewInt(1)},
+	}, sol)
+}
+
+func TestUnboundedScalinHigherAsset(t *testing.T) {
+	sol, _ := funds.FindScalingSolution(
+		nil,
+		2,
+		map[int64]*big.Int{
+			3: big.NewInt(10),
+		})
+
+	require.Equal(t,
+		[]funds.ScalePair{
+			{3, big.NewInt(10)},
+		},
+		sol)
+}
+
+func TestUnboundedScalinHigherAssetTrimRemainder(t *testing.T) {
+	sol, _ := funds.FindScalingSolution(
+		nil,
+		2,
+		map[int64]*big.Int{
+			3: big.NewInt(15),
+		})
+
+	require.Equal(t, []funds.ScalePair{
+		{3, big.NewInt(10)},
+	}, sol)
+}

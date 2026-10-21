@@ -5,6 +5,7 @@ import (
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/flags"
+	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -155,6 +156,7 @@ func balance(
 		return Monetary{}, NegativeBalanceError{
 			Account: account.Name,
 			Scope:   account.Scope,
+			Asset:   string(asset),
 			Amount:  *balance,
 		}
 	}
@@ -230,7 +232,7 @@ func scoped(
 		return nil, err
 	}
 
-	if !checkScopeName(scopeStr) {
+	if !funds.ValidateScope(scopeStr) {
 		return nil, InvalidScope{Scope: scopeStr}
 	}
 

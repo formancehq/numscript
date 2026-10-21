@@ -1,0 +1,16 @@
+
+// The oneof's LAST branch (@b) only partially covers the amount (30 of 100).
+// A last branch's result must STAND (never be rolled back), and here it is then
+// consumed by the enclosing inorder source: @b contributes 30, @c the rest (70).
+// If the last branch were wrongly restored, @b's 30 would be undone and only @c
+// would post.
+send [GEM 100] (
+  source = {
+    oneof {
+      @a
+      @b
+    }
+    @c
+  }
+  destination = @dest
+)

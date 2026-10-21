@@ -1,0 +1,9 @@
+// The first branch can only cover 10 of the 50 needed, so it is rolled back:
+// the restore must repay the RED balance it debited, not the uncolored one.
+send [COIN 50] (
+  source = oneof {
+    @src \ "RED"
+    @src \ "BLUE"
+  }
+  destination = @dest
+)

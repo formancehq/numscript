@@ -1,0 +1,4 @@
+send [USD/2 4 + 6] (
+  source = @src
+  destination = @dest
+)

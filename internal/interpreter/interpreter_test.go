@@ -436,6 +436,23 @@ func TestInvalidUnboundedWorldInSendAll(t *testing.T) {
 	test(t, tc)
 }
 
+// same as above, except world is only known at run time
+func TestInvalidUnboundedWorldFromVarInSendAll(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		account $src
+	}
+	send [USD/2 *] (
+		source = $src
+		destination = @dest
+	)`)
+	tc.setVarsFromJSON(t, `{"src": "world"}`)
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidUnboundedInSendAll{Name: "world"},
+	}
+	test(t, tc)
+}
+
 func TestInvalidUnboundedInSendAll(t *testing.T) {
 	tc := NewTestCase()
 	tc.compile(t, `send [USD/2 *] (
@@ -537,6 +554,145 @@ func TestInvalidDestinationAllotmentSum(t *testing.T) {
 	test(t, tc)
 }
 
+func TestInvalidSourceAllotmentSumOverOneWithRemaining(t *testing.T) {
+	// The `remaining` clause absorbs a shortfall, never an excess: portions
+	// past 100% would make it negative.
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 90] (
+		source = {
+			2/3 from @a
+			2/3 from @b
+			remaining from @c
+		}
+		destination = @dest
+	)`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(4, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestInvalidDestinationAllotmentSumOverOneWithRemaining(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `send [COIN 90] (
+		source = @world
+		destination = {
+			2/3 to @x
+			2/3 to @y
+			remaining to @z
+		}
+	)`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.InvalidAllotmentSum{
+			ActualSum: *big.NewRat(4, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestNegativeSourceAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = {
+			$n/3 from @a
+			remaining from @b
+		}
+		destination = @dest
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1"}`)
+	tc.setBalance("a", "COIN", 500)
+	tc.setBalance("b", "COIN", 500)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestNegativeDestinationAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$n/3 to @a
+			remaining to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1"}`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestNegativeAllotmentPortionBalancedToOne(t *testing.T) {
+	// the portions sum to 1, so only the per-clause check rejects it
+	tc := NewTestCase()
+	src := tc.compile(t, `vars {
+		number $n
+		number $m
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$m/3 to @a
+			$n/3 to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "-1", "m": "4"}`)
+
+	tc.expected = CaseResult{
+		Error: interpreter.NegativePortion{
+			Range:   parser.RangeOfIndexed(src, "$n/3", 0),
+			Portion: *big.NewRat(-1, 3),
+		},
+	}
+	test(t, tc)
+}
+
+func TestZeroAllotmentPortion(t *testing.T) {
+	tc := NewTestCase()
+	tc.compile(t, `vars {
+		number $n
+	}
+
+	send [COIN 90] (
+		source = @world
+		destination = {
+			$n/3 to @a
+			remaining to @b
+		}
+	)`)
+	tc.setVarsFromJSON(t, `{"n": "0"}`)
+
+	tc.expected = CaseResult{
+		Postings: []Posting{
+			{Asset: "COIN", Amount: big.NewInt(90), Source: "world", Destination: "b"},
+		},
+	}
+	test(t, tc)
+}
+
 func TestRejectsDuplicateRemainingAllotments(t *testing.T) {
 	tc := NewTestCase()
 	src := tc.compile(t, `send [COIN 100] (
@@ -593,6 +749,7 @@ func TestNegativeBalance(t *testing.T) {
 	tc.expected = CaseResult{
 		Error: interpreter.NegativeBalanceError{
 			Account: "a",
+			Asset:   "EUR/2",
 			Amount:  *big.NewInt(-100),
 		},
 	}
@@ -1147,135 +1304,6 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 		},
 	}
 	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
-}
-
-func TestSafeMaxWithdraft(t *testing.T) {
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(0),
-		big.NewInt(0),
-	))
-
-	require.Equal(t, big.NewInt(200), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(100),
-		big.NewInt(100),
-	))
-
-	require.Equal(t, big.NewInt(105), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(100),
-		big.NewInt(5),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(0),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(5),
-	))
-
-	require.Equal(t, big.NewInt(0), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(10),
-	))
-
-	require.Equal(t, big.NewInt(1), interpreter.CalculateMaxSafeWithdraw(
-		big.NewInt(-10),
-		big.NewInt(11),
-	))
-}
-
-// TODO this should be a fuzz test instead
-func TestSafeWithdraft(t *testing.T) {
-	t.Run("with zero overdraft, only take what's available", func(t *testing.T) {
-		t.Run("balance > 0 allows you to take what's available", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(1), interpreter.CalculateSafeWithdraw(
-				big.NewInt(1),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-
-			// not enough balance:
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(10),
-				big.NewInt(0),
-				big.NewInt(100),
-			))
-
-		})
-
-		t.Run("balance == 0 doesn't let you take anything", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-		})
-
-		t.Run("balance < 0 doesn't let you take anything if there's no overdraft", func(t *testing.T) {
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-100),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-1),
-				big.NewInt(0),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(0), interpreter.CalculateSafeWithdraw(
-				big.NewInt(-10),
-				big.NewInt(0),
-				big.NewInt(0),
-			))
-		})
-	})
-
-	t.Run("when overdraft is not zero, you can go over your balance", func(t *testing.T) {
-		t.Run("if we have enough balance>=requestedAmount, overdraft is ignored matter", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(100),
-				big.NewInt(10),
-			))
-			require.Equal(t, big.NewInt(100), interpreter.CalculateSafeWithdraw(
-				big.NewInt(100),
-				big.NewInt(42),
-				big.NewInt(100),
-			))
-		})
-
-		t.Run("if we have zero balance, overdraft allows us to withdraw", func(t *testing.T) {
-			require.Equal(t, big.NewInt(10), interpreter.CalculateSafeWithdraw(
-				big.NewInt(0),
-				big.NewInt(100),
-				big.NewInt(10),
-			))
-		})
-
-	})
-
 }
 
 func TestInvalidScalingWorld(t *testing.T) {

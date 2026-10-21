@@ -11,7 +11,7 @@ type metadataKey struct {
 // An internal representation of the account metadata. Used to cache metadata we get from external store.
 // Whereas the external representation (interpreter.AccountsMetadata) is user-facing and a stable contract,
 // this one is used internally by the runtime, and could change over time, for example to add more indexes for faster lookups.
-// It mirrors InternalBalances: keyed by the (account, scope) pair, holding that account's (key -> value) entries.
+// It is keyed by the (account, scope) pair, holding that account's (key -> value) entries.
 type InternalAccountsMetadata map[AccountAddress]map[string]string
 
 // Get the (account, key) metadata value from the cache.

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "negates a literal and a variable",
+      "balances": [
+        {
+          "account": "src",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "src",
+          "destination": "dest",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

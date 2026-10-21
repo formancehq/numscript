@@ -154,7 +154,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 		}
 
 		meta := mergeAccountsMeta(specs.Meta, testCase.Meta)
-		mergedBalances := mergeBalances(specs.Balances, testCase.Balances)
+		mergedBalances := MergeBalances(specs.Balances, testCase.Balances)
 
 		vars := mergeVars(specs.Vars, testCase.Vars)
 
@@ -248,7 +248,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				failedAssertions = runAssertion(failedAssertions,
 					"expect.endBalances",
 					testCase.ExpectEndBalances,
-					getBalances(result.Postings, balances),
+					EndBalances(result.Postings, balances),
 					interpreter.CompareBalances,
 				)
 			}
@@ -257,7 +257,7 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				failedAssertions = runAssertion(failedAssertions,
 					"expect.endBalances.include",
 					testCase.ExpectEndBalancesInclude,
-					getBalances(result.Postings, balances),
+					EndBalances(result.Postings, balances),
 					interpreter.CompareBalancesIncluding,
 				)
 			}
@@ -266,8 +266,8 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 				failedAssertions = runAssertion(failedAssertions,
 					"expect.movements",
 					testCase.ExpectMovements,
-					getMovements(result.Postings),
-					compareMovements,
+					GetMovements(result.Postings),
+					CompareMovements,
 				)
 			}
 
@@ -379,7 +379,7 @@ func duplicateAccountMetaErr(dup interpreter.AccountMetadataRow) error {
 
 // Merge two balance inputs, deduping by (account, asset, color).
 // Entries in "inner" override matching entries in "outer".
-func mergeBalances(outer interpreter.Balances, inner interpreter.Balances) interpreter.Balances {
+func MergeBalances(outer interpreter.Balances, inner interpreter.Balances) interpreter.Balances {
 	merged := interpreter.Balances{}
 	indexByKey := map[string]int{}
 
@@ -421,7 +421,7 @@ type Movements = []Movement
 // Compare movements as a set: order does not matter.
 // Each (source, sourceScope, destination, destinationScope, asset, color) tuple
 // is unique within a Movements list, so we match on that tuple and compare amounts.
-func compareMovements(expected Movements, got Movements) bool {
+func CompareMovements(expected Movements, got Movements) bool {
 	if len(expected) != len(got) {
 		return false
 	}
@@ -450,7 +450,8 @@ func compareMovements(expected Movements, got Movements) bool {
 	return true
 }
 
-func getMovements(postings []interpreter.Posting) Movements {
+// GetMovements folds postings into one movement per (source, destination, asset, color).
+func GetMovements(postings []interpreter.Posting) Movements {
 	movements := Movements{}
 
 	for _, posting := range postings {
@@ -485,7 +486,8 @@ func getMovements(postings []interpreter.Posting) Movements {
 	return movements
 }
 
-func getBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
+// EndBalances applies postings to the initial balances, yielding the end state.
+func EndBalances(postings []interpreter.Posting, initialBalances interpreter.Balances) interpreter.Balances {
 	// Working set keyed by (account, scope) for O(1)-ish lookups.
 	balances := map[interpreter.AccountAddress][]interpreter.AccountBalance{}
 

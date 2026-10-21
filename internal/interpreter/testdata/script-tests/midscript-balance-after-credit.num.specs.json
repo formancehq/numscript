@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-mid-script-function-call"
+  ],
+  "testCases": [
+    {
+      "it": "mid-script balance() sees the running balance, starting balance included",
+      "balances": [
+        {
+          "account": "alice",
+          "asset": "USD/2",
+          "amount": 20
+        },
+        {
+          "account": "carol",
+          "asset": "USD/2",
+          "amount": 7
+        }
+      ],
+      "expect.txMetadata": [
+        {
+          "key": "alice",
+          "value": "USD/2 120"
+        },
+        {
+          "key": "carol",
+          "value": "USD/2 7"
+        }
+      ]
+    }
+  ]
+}

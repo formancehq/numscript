@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "the cap binds inside an inorder source",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 3
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 100
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 3,
+          "asset": "USD/2"
+        },
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 5,
+          "asset": "USD/2"
+        },
+        {
+          "source": "c",
+          "destination": "dest",
+          "amount": 2,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

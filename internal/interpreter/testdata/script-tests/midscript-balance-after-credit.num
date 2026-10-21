@@ -1,0 +1,8 @@
+send [USD/2 100] (
+	source = @bob allowing unbounded overdraft
+	destination = @alice
+)
+
+// @alice was written to earlier in this script; @carol was not.
+set_tx_meta("alice", balance(@alice, USD/2))
+set_tx_meta("carol", balance(@carol, USD/2))

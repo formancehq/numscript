@@ -1,0 +1,8 @@
+send [USD/2 10] (
+  source = oneof {
+    @a
+    @b
+    @c
+  }
+  destination = @dest
+)

@@ -1,0 +1,4 @@
+send [COIN -1] (
+  source = @world
+  destination = @dest
+)

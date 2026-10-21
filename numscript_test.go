@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"runtime"
 	"testing"
+	"time"
+	"weak"
 
 	"github.com/formancehq/numscript"
 	"github.com/formancehq/numscript/internal/flags"
@@ -454,12 +457,19 @@ set_tx_meta(
 	})
 	require.Nil(t, err)
 
+	// @alice starts with 20 and receives 100, so its running balance is 120.
+	// (@bob is an unbounded source, so its balance is never fetched; @alice's
+	// starting balance is fetched lazily by the mid-script balance() call.)
 	require.Equal(t, interpreter.Metadata{
-		"k": "USD/2 100",
+		"k": "USD/2 120",
 	}, res.Metadata)
 
 	require.Equal(t,
-		[]numscript.BalanceQuery(nil),
+		[]numscript.BalanceQuery{
+			{
+				{Account: "alice", Asset: "USD/2"},
+			},
+		},
 		store.GetBalancesCalls,
 	)
 
@@ -629,4 +639,157 @@ func TestResolveDependenciesPublicAPI(t *testing.T) {
 		{Account: "alice", Asset: "USD"}: {},
 		{Account: "bob", Asset: "USD"}:   {},
 	}, deps.AccountsWrites)
+}
+
+// vmTestStore is a minimal VMStore for the ExecVm contract tests below.
+type vmTestStore map[string]int64
+
+func (s vmTestStore) GetBalance(_ context.Context, account, _, _, _ string) (*big.Int, error) {
+	return big.NewInt(s[account]), nil
+}
+
+func (s vmTestStore) GetMetadata(_ context.Context, _, _, _ string) (string, bool, error) {
+	return "", false, nil
+}
+
+// ExecVm must report the same contract Run does: postings, tx metadata and
+// account metadata rows — not postings alone.
+func TestExecVmReportsMetadata(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)
+
+set_tx_meta("k", "v")
+set_account_meta(@dest, "owner", "alice")`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	res, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{"src": 100})
+	require.Nil(t, execErr)
+
+	require.Equal(t, []numscript.Posting{
+		{Source: "src", Destination: "dest", Asset: "COIN", Amount: big.NewInt(30)},
+	}, res.Postings)
+	require.Equal(t, numscript.Metadata{"k": "v"}, res.Metadata)
+	require.Equal(t, numscript.SetAccountsMetadata{
+		{Account: "dest", Key: "owner", Value: "alice"},
+	}, res.AccountsMetadata)
+}
+
+// ExecVm's failures must be classifiable through the public aliases, without
+// reaching into internal packages.
+func TestExecVmErrorsAreClassifiable(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	_, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{"src": 10})
+	require.NotNil(t, execErr)
+
+	var missingFunds numscript.VmMissingFundsError
+	require.True(t, errors.As(execErr, &missingFunds))
+}
+
+// releaseTestStore is a VMStore with a heap identity (its map field also keeps
+// it off the tiny allocator), so a weak pointer can observe whether a VM still
+// references it.
+type releaseTestStore struct {
+	balances map[string]int64
+	panics   bool
+}
+
+func (s *releaseTestStore) GetBalance(_ context.Context, account, _, _, _ string) (*big.Int, error) {
+	if s.panics {
+		panic("store panic")
+	}
+	return big.NewInt(s.balances[account]), nil
+}
+
+func (s *releaseTestStore) GetMetadata(_ context.Context, _, _, _ string) (string, bool, error) {
+	return "", false, nil
+}
+
+// A VM is reused across executions, so once ExecVm returns — successfully,
+// with an error, or by a panic from the store — it must not keep the store it
+// ran with reachable: the store may reference arbitrarily large caller state.
+func TestExecVmReleasesStore(t *testing.T) {
+	enc, program, err := numscript.Compile(`send [COIN 30] (
+  source = @src
+  destination = @dest
+)`)
+	require.NoError(t, err)
+
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+
+	for _, tc := range []struct {
+		name  string
+		store func() *releaseTestStore
+		check func(t *testing.T, execErr error, panicked bool)
+	}{
+		{
+			name:  "success",
+			store: func() *releaseTestStore { return &releaseTestStore{balances: map[string]int64{"src": 100}} },
+			check: func(t *testing.T, execErr error, panicked bool) {
+				require.False(t, panicked)
+				require.Nil(t, execErr)
+			},
+		},
+		{
+			name:  "error",
+			store: func() *releaseTestStore { return &releaseTestStore{balances: map[string]int64{"src": 10}} },
+			check: func(t *testing.T, execErr error, panicked bool) {
+				require.False(t, panicked)
+				var missingFunds numscript.VmMissingFundsError
+				require.True(t, errors.As(execErr, &missingFunds))
+			},
+		},
+		{
+			name:  "store panic",
+			store: func() *releaseTestStore { return &releaseTestStore{panics: true} },
+			check: func(t *testing.T, _ error, panicked bool) {
+				require.True(t, panicked)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			machine := numscript.NewVm(program)
+
+			// Run in its own frame so no local of this test keeps the store
+			// reachable; only what the VM kept can.
+			released := func() weak.Pointer[releaseTestStore] {
+				store := tc.store()
+				ref := weak.Make(store)
+
+				var (
+					execErr  error
+					panicked bool
+				)
+				func() {
+					defer func() { panicked = recover() != nil }()
+					_, execErr = numscript.ExecVm(context.Background(), machine, &vars, store)
+				}()
+				tc.check(t, execErr, panicked)
+
+				return ref
+			}()
+
+			// Collect until the store is released; a reference the VM holds
+			// never releases it.
+			require.Eventually(t, func() bool {
+				runtime.GC()
+				return released.Value() == nil
+			}, 5*time.Second, 10*time.Millisecond, "the VM still references the store it ran with")
+
+			runtime.KeepAlive(machine)
+		})
+	}
 }

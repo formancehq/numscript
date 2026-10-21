@@ -1,0 +1,4 @@
+send [COIN 100] (
+  source = @acc \ "RED" allowing overdraft up to [COIN 60]
+  destination = @dest
+)

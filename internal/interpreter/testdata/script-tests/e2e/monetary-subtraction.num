@@ -1,0 +1,8 @@
+vars {
+  monetary $a = [USD/2 30]
+  monetary $b = [USD/2 20]
+}
+send $a - $b (
+  source = @src
+  destination = @dest
+)

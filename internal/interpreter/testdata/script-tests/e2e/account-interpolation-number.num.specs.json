@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-account-interpolation"
+  ],
+  "testCases": [
+    {
+      "it": "interpolates a number var",
+      "expect.postings": [
+        {
+          "source": "world",
+          "destination": "account:42",
+          "amount": 10,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+vars {
+  string $id = "alice"
+}
+send [USD/2 10] (
+  source = @world
+  destination = @users:$id:wallet
+)

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "a negative overdraft bound is clamped to zero",
+      "balances": [
+        {
+          "account": "s",
+          "asset": "COIN",
+          "amount": 1
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "s",
+          "destination": "dest",
+          "amount": 1,
+          "asset": "COIN"
+        }
+      ]
+    }
+  ]
+}

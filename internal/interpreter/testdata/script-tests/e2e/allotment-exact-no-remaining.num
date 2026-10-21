@@ -1,0 +1,7 @@
+send [USD/2 100] (
+  source = @world
+  destination = {
+    1/4 to @a
+    3/4 to @b
+  }
+)

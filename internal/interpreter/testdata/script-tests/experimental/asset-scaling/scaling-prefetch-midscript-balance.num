@@ -1,0 +1,14 @@
+send [EUR 10] (
+	source = @world
+	destination = @alice
+)
+
+// the scaling prefetch reads @alice's balances; @alice's EUR entry holds only
+// the write delta from the send above at that point
+send [USD/2 100] (
+	source = @alice with scaling through @swap
+	destination = @bob
+)
+
+set_tx_meta("eur", balance(@alice, EUR))
+set_tx_meta("usd", balance(@alice, USD/2))

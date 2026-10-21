@@ -1,0 +1,8 @@
+vars {
+  monetary $m = [USD/2 42]
+  number $n = get_amount($m)
+}
+send [USD/2 $n] (
+  source = @src
+  destination = @dest
+)

@@ -1,0 +1,8 @@
+// Two postings between the same pair fold into a single movement.
+send [COIN 100] (
+  source = @src
+  destination = {
+    max [COIN 30] to @dest
+    remaining to @dest
+  }
+)

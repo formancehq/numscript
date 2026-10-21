@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "testCases": [
+    {
+      "it": "stops pulling once the amount is covered",
+      "balances": [
+        {
+          "account": "a",
+          "asset": "USD/2",
+          "amount": 6
+        },
+        {
+          "account": "b",
+          "asset": "USD/2",
+          "amount": 10
+        },
+        {
+          "account": "c",
+          "asset": "USD/2",
+          "amount": 100
+        }
+      ],
+      "expect.postings": [
+        {
+          "source": "a",
+          "destination": "dest",
+          "amount": 6,
+          "asset": "USD/2"
+        },
+        {
+          "source": "b",
+          "destination": "dest",
+          "amount": 4,
+          "asset": "USD/2"
+        }
+      ]
+    }
+  ]
+}
