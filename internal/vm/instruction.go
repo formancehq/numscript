@@ -170,8 +170,7 @@ const (
 	// The most general form: account,cap,overdraft,color,scope
 	// The 0xFF special register means NULL for cap,overdraft,color and scope
 	// ext.A = overdraft (int reg), ext.B = color (str reg), ext.C = scope (str reg)
-	// A (dest) may not be the same register as C or ext.A: verifier-rejected,
-	// and an InternalError at execution time
+	// A (dest) may not be the same register as C or ext.A: verifier-rejected
 	Op_PullAccount Opcode = 0x50
 
 	// account?, cap?, scope?

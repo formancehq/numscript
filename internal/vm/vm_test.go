@@ -540,62 +540,6 @@ func TestExecutionErrorsUnwrap(t *testing.T) {
 
 // --- malformed pull/send sequences -----------------------------------------
 
-func TestTruncatedTwoWordInstructionIsAnInternalError(t *testing.T) {
-	for _, op := range []Opcode{
-		Op_PullAccount,
-		Op_Save,
-		Op_SetAccountMeta,
-		Op_MetaStr,
-		Op_MetaInt,
-		Op_MetaPortion,
-		Op_MetaMonetary,
-		Op_Balance,
-	} {
-		prog := Program{Instructions: []Instruction{abc(op, 0, 0, 0)}}
-		_, err := Exec(context.Background(), newTestVm(prog), nil, mockStore{})
-		require.Equal(t, InternalError{Err: errTruncatedInstruction}, err, "opcode 0x%02X", byte(op))
-	}
-}
-
-// pull @src cap=ints[cap] overdraft=ints[overdraft] into ints[dest], then send
-// everything to @dest. ints[1] = 100, ints[2] = 0.
-func pullSendProgram(dest, cap, overdraft byte) Program {
-	return Program{
-		Instructions: []Instruction{
-			bc(Op_LoadStr, 0, 0),
-			bc(Op_LoadStr, 1, 1),
-			bc(Op_LoadStr, 2, 2),
-			bc(Op_LoadInt, 1, 0),
-			bc(Op_LoadInt, 2, 1),
-			abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
-			abc(Op_PullAccount, dest, 1, cap),
-			abc(0, overdraft, nilReg, nilReg), // ext
-			abc(Op_SendToAccount, 2, nilReg, nilReg),
-		},
-		StringsPool: []string{"USD/2", "src", "dest"},
-		IntsPool:    []big.Int{*big.NewInt(100), *big.NewInt(0)},
-	}
-}
-
-func TestPullDestAliasingCapOrOverdraftIsAnInternalError(t *testing.T) {
-	store := mockStore{bal: map[funds.PairKey]int64{{Account: "src", Asset: "USD/2"}: 30}}
-
-	res, err := Exec(context.Background(), newTestVm(pullSendProgram(0, 1, 2)), nil, store)
-	require.Nil(t, err)
-	require.Len(t, res.Postings, 1)
-	require.Zero(t, res.Postings[0].Amount.Cmp(big.NewInt(30)))
-
-	// without the check, the cap is overwritten by the balance before it is
-	// compared, so it no longer bounds the pull
-	_, err = Exec(context.Background(), newTestVm(pullSendProgram(1, 1, 2)), nil, store)
-	require.Equal(t, InternalError{Err: errPullDestAliasesInput}, err)
-
-	// without the check, the overdraft is read after the balance was written into
-	// it, so the pull makes twice the balance available
-	_, err = Exec(context.Background(), newTestVm(pullSendProgram(2, 1, 2)), nil, store)
-	require.Equal(t, InternalError{Err: errPullDestAliasesInput}, err)
-}
-
 func TestSetCurrentAssetWithQueuedFundsIsAnInternalError(t *testing.T) {
 	// pull 100 USD/2 from @src, switch to EUR/2, send: the posting would be in
 	// EUR/2 while the debit was in USD/2

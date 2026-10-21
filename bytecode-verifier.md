@@ -69,9 +69,7 @@ only one side of a branch").
 The VM still enforces the same rules at execution time, via
 `runstate.HasOpenMark()` and the `errSendWhileMarkOpen` /
 `errSetAssetWhileMarkOpen` / `errSaveWhileMarkOpen` sentinels in `vm.go`:
-`Exec` does not require a verified program. The same goes for a truncated
-two-word instruction (`errTruncatedInstruction`) and an aliased pull destination
-(`errPullDestAliasesInput`).
+`Exec` does not require a verified program.
 
 **`internal/funds` must not be relaxed along with it.** The tree-walking
 interpreter shares `RunState.MarkEnd` (see `interpreter.go`), and it is not

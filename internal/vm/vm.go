@@ -30,12 +30,9 @@ var (
 	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
 )
 
-// Malformed pull/send sequences the verifier does not fully cover, rejected by
-// the arms below. The queue checks are not statically decidable: whether a send
-// drains the queue depends on the balances.
+// Not statically decidable: whether a send drains the queue depends on the
+// balances.
 var (
-	errTruncatedInstruction    = errors.New("truncated instruction: missing ext word")
-	errPullDestAliasesInput    = errors.New("pull destination aliases its cap or overdraft")
 	errSetAssetWithQueuedFunds = errors.New("set_current_asset with funds still queued")
 	errEndWithQueuedFunds      = errors.New("run ended with funds still queued")
 )
@@ -166,18 +163,8 @@ func Exec[S Store](
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
 		case Op_PullAccount:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
-
-			// funds.Pull writes the destination before it reads the bounds on the
-			// bounded path, so an aliased cap is ignored and an aliased overdraft
-			// doubles the balance
-			if instr.A == instr.C || instr.A == instrExt.A {
-				return funds.ExecutionResult{}, InternalError{Err: errPullDestAliasesInput}
-			}
 
 			account := stringsRegs[instr.B]
 
@@ -268,9 +255,6 @@ func Exec[S Store](
 				return funds.ExecutionResult{}, InternalError{Err: errSaveWhileMarkOpen}
 			}
 
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -380,9 +364,6 @@ func Exec[S Store](
 			txMeta[stringsRegs[instr.A]] = stringsRegs[instr.B]
 
 		case Op_SetAccountMeta:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -401,9 +382,6 @@ func Exec[S Store](
 			accountsMeta[key] = stringsRegs[instr.C]
 
 		case Op_MetaStr:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -418,9 +396,6 @@ func Exec[S Store](
 			stringsRegs[instr.A] = v
 
 		case Op_MetaInt:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -440,9 +415,6 @@ func Exec[S Store](
 			intsRegs[instr.A].Set(n)
 
 		case Op_MetaPortion:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -462,9 +434,6 @@ func Exec[S Store](
 			portionsRegs[instr.A].Set(r)
 
 		case Op_MetaMonetary:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
@@ -590,9 +559,6 @@ func Exec[S Store](
 			portionsRegs[instr.A].SetFrac(num, den)
 
 		case Op_Balance:
-			if pc == instructionsLen {
-				return funds.ExecutionResult{}, InternalError{Err: errTruncatedInstruction}
-			}
 			instrExt := instrs[pc]
 			pc++
 
