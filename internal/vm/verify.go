@@ -69,6 +69,12 @@ type decoded struct {
 	markDelta int
 	// notInMark marks an op Exec refuses while a mark is open
 	notInMark bool
+	// fillsQueue marks a pull; drainsQueue an uncapped send, which empties the queue
+	fillsQueue  bool
+	drainsQueue bool
+	// needsEmptyQueue marks set_current_asset: queued funds would be posted under
+	// the new asset
+	needsEmptyQueue bool
 }
 
 type programInfo struct {
@@ -249,6 +255,9 @@ func verify(p Program) (programInfo, error) {
 	if err := checkMarkBalance(steps, g); err != nil {
 		return programInfo{}, err
 	}
+	if err := checkQueueDrained(steps, g); err != nil {
+		return programInfo{}, err
+	}
 
 	return info, nil
 }
@@ -385,6 +394,32 @@ func checkMarkBalance(steps []step, g cfg) error {
 	return nil
 }
 
+// checkQueueDrained rejects a program in which a path from a pull reaches a
+// set_current_asset, or the end of the run, without passing an uncapped send.
+// Capped sends and mark rewinds are not credited with draining anything, so
+// the check is one pass over the steps and never looks at amounts.
+func checkQueueDrained(steps []step, g cfg) error {
+	mayHoldFunds := make([]bool, len(steps))
+	for k, st := range steps {
+		if !g.reachable[k] {
+			continue
+		}
+		in := false
+		for _, p := range g.preds[k] {
+			in = in || (g.reachable[p] && mayHoldFunds[p])
+		}
+		if st.d.needsEmptyQueue && in {
+			return fmt.Errorf("at instruction %d: set_current_asset may run with pulled funds not yet sent", st.at)
+		}
+		out := (in || st.d.fillsQueue) && !st.d.drainsQueue
+		if g.exits[k] && out {
+			return fmt.Errorf("at instruction %d: the run may end with pulled funds not yet sent", st.at)
+		}
+		mayHoldFunds[k] = out
+	}
+	return nil
+}
+
 func filterReachable(preds []int, reachable []bool) []int {
 	out := preds[:0:0]
 	for _, p := range preds {
@@ -454,6 +489,7 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankStr, instr.A)
 		d.writes = append(d.writes, currentAssetRef)
 		d.notInMark = true
+		d.needsEmptyQueue = true
 	case Op_AssertSameAsset:
 		read(bankStr, instr.A)
 		read(bankStr, instr.B)
@@ -591,12 +627,14 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		readOpt(bankStr, ext.C)   // scope
 		d.reads = append(d.reads, currentAssetRef)
 		write(bankInt, instr.A)
+		d.fillsQueue = true
 	case Op_SendToAccount:
 		readOpt(bankStr, instr.A) // destination
 		readOpt(bankInt, instr.B) // cap
 		readOpt(bankStr, instr.C) // scope
 		d.reads = append(d.reads, currentAssetRef)
 		d.notInMark = true
+		d.drainsQueue = instr.B == nilReg
 	case Op_Save:
 		read(bankStr, instr.A)    // account
 		read(bankStr, instr.B)    // asset

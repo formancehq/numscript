@@ -36,6 +36,8 @@ type Opcode byte
 // a category without renumbering. See instruction-encoding.md.
 const (
 	// --- state & assertions (0x00) ---
+	// InternalError while a mark is open. Verifier-rejected while pulled funds may
+	// still be queued
 	Op_SetCurrentAsset Opcode = 0x00
 
 	Op_AssertSameAsset Opcode = 0x01

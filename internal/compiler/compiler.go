@@ -1016,7 +1016,7 @@ func (st *state) compileSourceWithRequiredAmount(
 }
 
 func (st *state) compileDestination(
-	pulledAmtReg ir.Reg,
+	tail bool,
 	currentCap ir.Reg,
 	dest parser.Destination,
 ) CompilerError {
@@ -1033,7 +1033,7 @@ func (st *state) compileDestination(
 		}
 		// send each computed share to its target (capped by that exact amount)
 		for i, item := range dest.Items {
-			if err := st.compileKeptOrDestination(item.To, pulledAmtReg, shares[i]); err != nil {
+			if err := st.compileKeptOrDestination(item.To, tail && i == len(dest.Items)-1, shares[i]); err != nil {
 				return err
 			}
 		}
@@ -1061,14 +1061,14 @@ func (st *state) compileDestination(
 			st.jmpIfAmountZero(diff, clauseLabels[i])
 		}
 
-		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, currentCap); err != nil {
+		if err := st.compileKeptOrDestination(dest.Remaining, tail, currentCap); err != nil {
 			return err
 		}
 		st.Push(ir.Jmp{Target: endLabel})
 
 		for i, clause := range dest.Clauses {
 			st.Push(ir.LabelMarker{Label: clauseLabels[i]})
-			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, currentCap); err != nil {
+			if err := st.compileKeptOrDestination(clause.To, tail, currentCap); err != nil {
 				return err
 			}
 			st.Push(ir.Jmp{Target: endLabel})
@@ -1084,7 +1084,7 @@ func (st *state) compileDestination(
 		}
 
 		var cap *ir.Reg
-		if pulledAmtReg != currentCap {
+		if !tail {
 			cap = &currentCap
 		}
 		st.Push(ir.SendToAccount{
@@ -1120,7 +1120,7 @@ func (st *state) compileDestination(
 
 			skipLabel := st.FreshLabel("dest_inorder_skip")
 			st.jmpIfAmountZero(amtReg, skipLabel)
-			if err := st.compileKeptOrDestination(clause.To, pulledAmtReg, amtReg); err != nil {
+			if err := st.compileKeptOrDestination(clause.To, false, amtReg); err != nil {
 				return err
 			}
 			st.Push(ir.BinaryOp{Op: ir.OpSubInt{}, Dest: remaining, Left: remaining, Right: amtReg})
@@ -1130,10 +1130,20 @@ func (st *state) compileDestination(
 
 		remSkipLabel := st.FreshLabel("dest_inorder_rem_skip")
 		st.jmpIfAmountZero(remaining, remSkipLabel)
-		if err := st.compileKeptOrDestination(dest.Remaining, pulledAmtReg, remaining); err != nil {
+		if err := st.compileKeptOrDestination(dest.Remaining, tail, remaining); err != nil {
 			return err
 		}
+		if !tail {
+			st.Push(ir.LabelMarker{Label: remSkipLabel})
+			return nil
+		}
+		// only zero-amount funds are queued here; the verifier requires every
+		// path to end the statement with an uncapped send
+		remEndLabel := st.FreshLabel("dest_inorder_rem_end")
+		st.Push(ir.Jmp{Target: remEndLabel})
 		st.Push(ir.LabelMarker{Label: remSkipLabel})
+		st.Push(ir.SendToAccount{})
+		st.Push(ir.LabelMarker{Label: remEndLabel})
 		return nil
 
 	default:
@@ -1145,16 +1155,16 @@ func (st *state) compileDestination(
 
 func (st *state) compileKeptOrDestination(
 	keptOrDest parser.KeptOrDestination,
-	pulledAmtReg ir.Reg,
+	tail bool,
 	currentCap ir.Reg,
 ) CompilerError {
 	switch keptOrDest := keptOrDest.(type) {
 	case *parser.DestinationTo:
-		return st.compileDestination(pulledAmtReg, currentCap, keptOrDest.Destination)
+		return st.compileDestination(tail, currentCap, keptOrDest.Destination)
 
 	case *parser.DestinationKept:
 		var cap *ir.Reg
-		if pulledAmtReg != currentCap {
+		if !tail {
 			cap = &currentCap
 		}
 		st.Push(ir.SendToAccount{
@@ -1211,7 +1221,7 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			return err
 		}
 
-		err = st.compileDestination(pulledAmtReg, pulledAmtReg, stmt.Destination)
+		err = st.compileDestination(true, pulledAmtReg, stmt.Destination)
 		if err != nil {
 			return err
 		}

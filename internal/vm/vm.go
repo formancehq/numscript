@@ -156,9 +156,6 @@ func Exec[S Store](
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
 		case Op_PullAccount:
-			// TODO crashes if this is the last instruction (the ext word is
-			// missing): instrs[pc] reads past the end. e.g. a program ending in a
-			// lone Op_PullAccount word.
 			instrExt := instrs[pc]
 			pc++
 
@@ -426,8 +423,6 @@ func Exec[S Store](
 			portionsRegs[instr.A].Set(r)
 
 		case Op_MetaMonetary:
-			// TODO crashes if this is the last instruction (the ext word carrying the
-			// amount destination is missing), same as Op_PullAccount.
 			instrExt := instrs[pc]
 			pc++
 
