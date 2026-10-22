@@ -1,0 +1,3 @@
+only_half_moves: valid
+but_needs_100: valid
+all_or_nothing: counterexample

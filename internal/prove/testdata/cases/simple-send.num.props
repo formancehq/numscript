@@ -1,0 +1,9 @@
+// the canonical first lesson: a failed run keeps every balance as it was,
+// so a property about the outcome needs the `success =>` guard
+prop enough_means_success: before(@src, USD/2) >= 100 => success
+prop dest_credited: success => after(@dest, USD/2) == before(@dest, USD/2) + 100
+prop src_never_negative: after(@src, USD/2) >= 0
+prop src_not_negative_on_success: success => after(@src, USD/2) >= 0
+prop conservation: delta(@src, USD/2) + delta(@dest, USD/2) == 0
+prop moved_all: success => moved(@src, @dest, USD/2) == 100
+prop fails_below_100: before(@src, USD/2) < 100 => fails

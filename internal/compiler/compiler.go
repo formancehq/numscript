@@ -21,21 +21,32 @@ import (
 // interpreter.RunProgram, the script's own #![feature(..)] declarations are
 // unioned in.
 func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, vm.Program, error) {
-	compiled, cErr := compileProgramToIR(program, featureFlags)
-	if cErr != nil {
-		return VarsEncoder{}, vm.Program{}, cErr
-	}
-
-	if err := ir.Typecheck(compiled.instructions); err != nil {
-		return VarsEncoder{}, vm.Program{}, err
-	}
-
-	prog, err := ir.Assemble(compiled.instructions)
+	instrs, varsEncoder, err := CompileToIR(program, featureFlags)
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
 
-	return compiled.varsEncoder, prog, nil
+	prog, err := ir.Assemble(instrs)
+	if err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
+	return varsEncoder, prog, nil
+}
+
+// CompileToIR lowers a parsed program to its typechecked IR stream, for tools
+// that consume the IR rather than bytecode (the ir dump command, the prover).
+func CompileToIR(program parser.Program, featureFlags map[string]struct{}) ([]ir.Instr, VarsEncoder, error) {
+	compiled, cErr := compileProgramToIR(program, featureFlags)
+	if cErr != nil {
+		return nil, VarsEncoder{}, cErr
+	}
+
+	if err := ir.Typecheck(compiled.instructions); err != nil {
+		return nil, VarsEncoder{}, err
+	}
+
+	return compiled.instructions, compiled.varsEncoder, nil
 }
 
 type compiledProgramIR struct {

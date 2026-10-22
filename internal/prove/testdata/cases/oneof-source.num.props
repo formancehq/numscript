@@ -1,0 +1,6 @@
+prop one_pays: success => (sent(@a, USD/2) == 100 and sent(@b, USD/2) == 0) or (sent(@a, USD/2) == 0 and sent(@b, USD/2) == 100)
+prop first_wins: before(@a, USD/2) >= 100 => sent(@a, USD/2) == 100
+prop b_when_able: before(@b, USD/2) >= 100 => sent(@b, USD/2) == 100
+prop outcome: success <=> (before(@a, USD/2) >= 100 or before(@b, USD/2) >= 100)
+// a branch that fell short is rewound: what it pulled goes back
+prop rewind_repaid: before(@a, USD/2) == 50 and before(@b, USD/2) >= 100 => after(@a, USD/2) == 50

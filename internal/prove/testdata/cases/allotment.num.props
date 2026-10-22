@@ -1,0 +1,5 @@
+prop conserved: success => received(@a, USD/2) + received(@b, USD/2) == sent(@src, USD/2)
+// flooring leaves the odd unit to the first share
+prop a_gets_rest: success => received(@a, USD/2) == sent(@src, USD/2) / 2 + sent(@src, USD/2) % 2
+prop equal_split: received(@a, USD/2) == received(@b, USD/2)
+prop negative_noop: before(@src, USD/2) < 0 => sent(@src, USD/2) == 0 and success

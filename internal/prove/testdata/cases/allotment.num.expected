@@ -1,0 +1,4 @@
+conserved: valid
+a_gets_rest: valid
+equal_split: counterexample
+negative_noop: valid

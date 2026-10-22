@@ -1,0 +1,3 @@
+prop needs_150: success => before(@src, USD/2) >= 150
+prop hundred_enough: before(@src, USD/2) >= 100 => success
+prop keeps_saved: success => after(@src, USD/2) >= 50

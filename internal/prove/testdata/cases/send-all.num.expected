@@ -1,0 +1,3 @@
+drains: valid
+ends_empty: counterexample
+never_fails: valid
