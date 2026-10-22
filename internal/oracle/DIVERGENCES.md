@@ -18,8 +18,9 @@ Everything below was measured by running all three engines, not recalled.
 | 4 | source-side negative `max` | rejects the script | rejects the script | clause contributes zero |
 | 5 | negative bounded overdraft cap | applies it as-is | applies it as-is | clamps it to zero |
 | 6 | allotment portions above 100% with `remaining` | rejects the script | rejects the script | rejects the script (fixed 2026-09-25) |
+| 8 | asset var with an underscore suffix (`USD_CASH`) | runs the script | runs the script | rejects the asset (intended, 2026-10-21) |
 
-The oracle matches ledger on 1, 4, 5 and 6. It does not on 2 and 3, the two
+The oracle matches ledger on 1, 4, 5, 6 and 8. It does not on 2 and 3, the two
 places it cannot be trusted to check numscript.
 
 `TestDifferentialSweep` is green: 0 divergences over 3000 seeds, 112 of those
@@ -371,6 +372,41 @@ without the harness.
 
 ---
 
+## 8. Asset var with an underscore suffix
+
+```numscript
+vars {
+  asset $a
+}
+
+// bound to a = USD_CASH
+
+send [$a 10] (
+  source = @world
+  destination = @acc1
+)
+```
+
+| engine | result |
+|---|---|
+| ledger | commits: `world->acc1 10` |
+| oracle | same as ledger |
+| numscript at `edde2b1` | same as ledger |
+| numscript interpreter | `Invalid asset name: USD_CASH`, while running |
+| numscript vm | `variable $a: invalid asset: "USD_CASH"`, while encoding the var |
+
+Introduced by `67969d4` (#186, "update color regex"). A monetary var
+(`USD_CASH 10`) behaves the same.
+
+**Decision (2026-10-21): the stricter asset name is intended.** Numscript
+rejects an asset name containing `_`, on both engines; ledger accepts it. This
+stays a known difference, not a bug to fix. The two numscript engines reject at
+different stages, so the case cannot sit in `TestKnownOpenDivergences`, which
+also requires them to agree; `TestUnderscoreAssetVarRejected` pins it. If the
+rule changes, that test fails: update this section and the table above.
+
+---
+
 ## What the sweep compares
 
 Only scripts both engines run to completion have their postings compared. Of
@@ -418,6 +454,7 @@ interpreter only, and `internal/compiler/scripts_test.go` skips them.
 | 4 | `TestSourceSideNegativeMaxClauseTolerated`, `TestMissingFundsClassificationMismatchStillCaught` and, destination side, `TestDestinationSideNegativeMaxTolerated` |
 | 5 | `TestKnownOpenDivergences` |
 | 6 | `TestKnownBugRepros` (the engines agree now), both sides, and the interpreter's own over-100% tests |
+| 8 | `TestUnderscoreAssetVarRejected` |
 
 `TestKnownOpenDivergences` asserts the divergence is still there. If a case
 starts agreeing, it fails; update this file and move the case to
