@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: 1.27.3
           # internal/oracle and internal/difftest are their own modules with
           # their own go.sum; actions/setup-go only caches the root one by
           # default.

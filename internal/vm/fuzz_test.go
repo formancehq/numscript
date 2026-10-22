@@ -23,6 +23,7 @@ func FuzzExec(f *testing.F) {
 	f.Add([]byte{byte(Op_LoadStr), 0, 0, 0, byte(Op_Jmp), 0, 1, 0}) // jump past the end
 	f.Add([]byte{byte(Op_ConstTrue), 0, 0, 0, byte(Op_JmpIfTrue), 0, 0, 0})
 	f.Add([]byte{byte(Op_MarkPush), 0, 0, 0, byte(Op_MarkEnd), 1, 0, 0})
+	f.Add([]byte{byte(Op_PullAccount), 1, 0, 1, 0xFF, nilReg, nilReg, nilReg}) // dest aliases cap
 
 	stringsPool := []string{"world", "dest", "USD/2"}
 	intsPool := []big.Int{*big.NewInt(0), *big.NewInt(7)}

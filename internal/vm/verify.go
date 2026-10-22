@@ -580,6 +580,10 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 
 	// --- funds & postings
 	case Op_PullAccount:
+		// funds.Pull writes the destination before it reads the bounds
+		if instr.A == instr.C || instr.A == ext.A {
+			err = fmt.Errorf("pull destination int register %d aliases its cap or overdraft", instr.A)
+		}
 		read(bankStr, instr.B)    // account
 		readOpt(bankInt, instr.C) // cap
 		readOpt(bankInt, ext.A)   // overdraft

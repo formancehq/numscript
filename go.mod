@@ -2,6 +2,8 @@ module github.com/formancehq/numscript
 
 go 1.26.0
 
+toolchain go1.27.3
+
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/getsentry/sentry-go v0.43.0
