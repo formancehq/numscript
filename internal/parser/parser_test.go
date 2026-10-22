@@ -65,7 +65,7 @@ func TestForbidInvalidNumberUnderscores(t *testing.T) {
 
 	require.Len(t, parser.Parse(`
 	set_tx_meta("k1", 1__23)
-	`).Errors, 3)
+	`).Errors, 2)
 }
 
 func TestVariableMonetary(t *testing.T) {

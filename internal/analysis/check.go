@@ -178,6 +178,10 @@ func (r *CheckResult) GetVarDeclType(decl parser.VarDeclaration) Type {
 }
 
 func (r *CheckResult) unifyNodeWith(expr parser.ValueExpr, t Type) {
+	if expr == nil {
+		// a missing node of an incomplete program
+		return
+	}
 	exprT := r.GetExprType(expr)
 	r.unify(expr.GetRange(), exprT, t)
 }
