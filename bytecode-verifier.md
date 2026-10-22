@@ -39,6 +39,7 @@ that passes vars should use the second form.
 | The current asset is set before it is used | A `send` or `pull` before any `set_current_asset` |
 | A pull's destination does not alias its cap or overdraft | `funds.Pull` writes the destination before it reads the bounds on the bounded path: aliased, the cap no longer bounds the pull and the overdraft doubles the balance |
 | Mark discipline (see below) | An `Op_MarkEnd` with no open mark, a send/save/asset change inside a region, a run ending with a region open |
+| Every pull is drained (see below) | Funds pulled under one asset and posted under the next, or a debit that never becomes a posting |
 | (`VerifyWithVars`) Var-pool indices are in range | `Op_LoadVar*` indexing past the pool, or dereferencing a nil `*Vars` |
 
 Two properties come for free rather than as their own pass:
@@ -74,6 +75,22 @@ The VM still enforces the same rules at execution time, via
 **`internal/funds` must not be relaxed along with it.** The tree-walking
 interpreter shares `RunState.MarkEnd` (see `interpreter.go`), and it is not
 verified, so `ErrNoOpenMark` and the INVARIANT documented on `MarkEnd` stay.
+
+### Draining the queue
+
+A pull debits its source at once; the posting only exists once a send drains the
+queue. On every path, a pull must be followed by an uncapped `Op_SendToAccount`
+(`B = 0xFF`, which takes everything queued) before the next `Op_SetCurrentAsset`
+and before the run ends.
+
+The check never looks at amounts, so it is one pass over the instructions. It is
+conservative: a chain of capped sends whose caps add up to what was pulled is
+rejected, and so is a rewound region, since a rewind is not counted as draining.
+The compiler ends every send statement with an uncapped send: the last clause of
+an allotment and the `remaining` of an `inorder` are sent uncapped, and the
+branch that skips a zero `remaining` drains with an uncapped `kept`.
+
+Exec does not check the queue: an unverified program can leave funds queued.
 
 ## What it does not check
 

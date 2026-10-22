@@ -311,7 +311,7 @@ func TestIRAllotmentDestination(t *testing.T) {
   $small = "small"
   send_to_account(account: $small, cap: $small_share)
   $big = "big"
-  send_to_account(account: $big, cap: $big_share)
+  send_to_account(account: $big)
 `, balances(nil), nil)
 
 	requirePostings(t, []funds.Posting{
@@ -924,6 +924,7 @@ func TestIRUncappedPull(t *testing.T) {
   set_current_asset($asset)
   $src = "src"
   $pulled = pull_account(account: $src)
+  send_to_account()
 `, balances(map[string]int64{"src": 70}), nil)
 
 		require.IsType(t, vm.InvalidUncappedSource{}, execErr)
@@ -990,7 +991,7 @@ func TestIRMetaTypes(t *testing.T) {
   $a = "a"
   send_to_account(account: $a, cap: $a_share)
   $b = "b"
-  send_to_account(account: $b, cap: $b_share)
+  send_to_account(account: $b)
 `, store, nil)
 
 		requirePostings(t, []funds.Posting{
@@ -1051,6 +1052,7 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
   $src = "src"
   $overdraft = 0
   $pulled = pull_account(account: $src, cap: $amount, overdraft: $overdraft)
+  send_to_account()
 `, failing, nil)
 		require.IsType(t, vm.StoreError{}, execErr)
 	})
@@ -1077,6 +1079,7 @@ func TestIRStoreErrorsPropagate(t *testing.T) {
   $src = "src"
   $overdraft = 0
   $pulled = pull_account(account: $src, overdraft: $overdraft)
+  send_to_account()
 `, failing, nil)
 		require.IsType(t, vm.StoreError{}, execErr)
 	})
@@ -1197,7 +1200,7 @@ func TestIRSurvivesTheWireFormat(t *testing.T) {
   $a = "a"
   send_to_account(account: $a, cap: $a_share)
   $b = "b"
-  send_to_account(account: $b, cap: $b_share)
+  send_to_account(account: $b)
 `)
 
 	decoded, err := vm.DecodeProgram(program.Encode())
@@ -1325,7 +1328,7 @@ const allotThirdsIR = `
   $b = "b"
   send_to_account(account: $b, cap: $out1)
   $c = "c"
-  send_to_account(account: $c, cap: $out2)
+  send_to_account(account: $c)
 `
 
 func TestIRAllotmentFromPureOps(t *testing.T) {
@@ -1349,6 +1352,7 @@ func TestIRErrorsDoNotAliasRegisters(t *testing.T) {
   $overdraft = 0
   $pulled = pull_account(account: $a, cap: $amount, overdraft: $overdraft)
   check_enough_funds($pulled, $amount)
+  send_to_account()
 `))
 		_, first := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(10)}}, balances(map[string]int64{"a": 4}))
 		_, second := vm.Exec(context.Background(), machine, &vm.Vars{IntsPool: []big.Int{*big.NewInt(20)}}, balances(map[string]int64{"a": 7}))
@@ -1400,4 +1404,102 @@ func TestIRPullDestAliasingItsBoundIsRejected(t *testing.T) {
 `)
 		require.ErrorContains(t, vm.Verify(program), "aliases its cap or overdraft")
 	})
+}
+
+const irPullPrelude = `
+  $usd = "USD/2"
+  set_current_asset($usd)
+  $src = "src"
+  $dest = "dest"
+  $overdraft = 0
+  $cap = 100
+`
+
+func TestIRVerifierRequiresAnUncappedSendAfterEveryPull(t *testing.T) {
+	const atEnd = "the run may end with pulled funds not yet sent"
+	const atSetAsset = "set_current_asset may run with pulled funds not yet sent"
+
+	rejected := []struct {
+		name, src, msg string
+	}{
+		{"no send", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+`, atEnd},
+		{"asset switch before the send", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $eur = "EUR/2"
+  set_current_asset($eur)
+  send_to_account(account: $dest)
+`, atSetAsset},
+		{"only a capped send", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $half = 50
+  send_to_account(account: $dest, cap: $half)
+`, atEnd},
+		{"capped by exactly what was pulled", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  send_to_account(account: $dest, cap: $pulled)
+`, atEnd},
+		{"a branch skips the send", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $none = is_zero($pulled)
+  jmp_if_true($none, #end)
+  send_to_account(account: $dest)
+#end
+`, atEnd},
+		{"send before the pull", `
+  send_to_account(account: $dest)
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+`, atEnd},
+		{"a rewound region still counts as pulled", `
+  mark_push()
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  mark_rewind()
+`, atEnd},
+	}
+	for _, tc := range rejected {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorContains(t, vm.Verify(assembleUnverifiedIR(t, irPullPrelude+tc.src)), tc.msg)
+		})
+	}
+
+	accepted := []struct {
+		name, src string
+	}{
+		{"uncapped send", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  send_to_account(account: $dest)
+`},
+		{"capped sends then a kept drain", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $half = 50
+  send_to_account(account: $dest, cap: $half)
+  send_to_account()
+`},
+		{"every branch drains", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $none = is_zero($pulled)
+  jmp_if_true($none, #zero)
+  send_to_account(account: $dest)
+  jmp(#end)
+#zero
+  send_to_account()
+#end
+`},
+		{"asset switch after the drain", `
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  send_to_account(account: $dest)
+  $eur = "EUR/2"
+  set_current_asset($eur)
+`},
+		{"no pull at all", `
+  $half = 50
+  send_to_account(account: $dest, cap: $half)
+`},
+	}
+	for _, tc := range accepted {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, vm.Verify(assembleUnverifiedIR(t, irPullPrelude+tc.src)))
+		})
+	}
 }
