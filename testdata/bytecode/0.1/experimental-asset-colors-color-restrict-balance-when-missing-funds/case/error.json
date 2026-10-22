@@ -1,0 +1,8 @@
+{
+  "type": "MissingFundsError",
+  "value": {
+    "Asset": "COIN",
+    "Needed": 20,
+    "Got": 1
+  }
+}

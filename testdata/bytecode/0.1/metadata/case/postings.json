@@ -1,0 +1,18 @@
+{
+  "postings": [
+    {
+      "source": "sales:042",
+      "destination": "users:053",
+      "amount": 88,
+      "asset": "EUR/2"
+    },
+    {
+      "source": "sales:042",
+      "destination": "platform",
+      "amount": 12,
+      "asset": "EUR/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

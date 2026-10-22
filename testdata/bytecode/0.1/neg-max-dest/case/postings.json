@@ -1,0 +1,12 @@
+{
+  "postings": [
+    {
+      "source": "memo:main",
+      "destination": "world",
+      "amount": 100,
+      "asset": "EUR/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

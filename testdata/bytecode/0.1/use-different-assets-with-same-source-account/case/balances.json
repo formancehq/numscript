@@ -1,0 +1,12 @@
+[
+  {
+    "account": "account1",
+    "asset": "A",
+    "amount": 100
+  },
+  {
+    "account": "account2",
+    "asset": "B",
+    "amount": 100
+  }
+]

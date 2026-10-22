@@ -1,0 +1,13 @@
+{
+  "postings": [
+    {
+      "source": "a",
+      "sourceScope": "s",
+      "destination": "dest",
+      "amount": 70,
+      "asset": "COIN"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "account": "invoice:001",
+    "asset": "USD/2",
+    "amount": -99
+  },
+  {
+    "account": "invoice:002",
+    "asset": "USD/2",
+    "amount": -999
+  }
+]

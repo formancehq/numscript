@@ -1,0 +1,12 @@
+{
+  "postings": [
+    {
+      "source": "users:001",
+      "destination": "platform",
+      "amount": 17,
+      "asset": "USD/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

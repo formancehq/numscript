@@ -1,0 +1,18 @@
+{
+  "postings": [
+    {
+      "source": "world",
+      "destination": "invoice:001",
+      "amount": 99,
+      "asset": "USD/2"
+    },
+    {
+      "source": "world",
+      "destination": "invoice:002",
+      "amount": 1,
+      "asset": "USD/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

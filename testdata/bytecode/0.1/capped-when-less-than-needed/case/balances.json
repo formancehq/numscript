@@ -1,0 +1,12 @@
+[
+  {
+    "account": "src1",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "src2",
+    "asset": "COIN",
+    "amount": 1000
+  }
+]

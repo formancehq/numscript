@@ -1,0 +1,22 @@
+[
+  {
+    "account": "users:1234:main",
+    "asset": "USD/2",
+    "amount": 5000
+  },
+  {
+    "account": "users:1234:vouchers:2024-01-31",
+    "asset": "USD/2",
+    "amount": 1000
+  },
+  {
+    "account": "users:1234:vouchers:2024-02-17",
+    "asset": "USD/2",
+    "amount": 3000
+  },
+  {
+    "account": "users:1234:vouchers:2024-03-22",
+    "asset": "USD/2",
+    "amount": 10000
+  }
+]

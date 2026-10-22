@@ -1,0 +1,22 @@
+[
+  {
+    "account": "a",
+    "asset": "COIN",
+    "amount": 10
+  },
+  {
+    "account": "b",
+    "asset": "COIN",
+    "amount": 20
+  },
+  {
+    "account": "never_reached",
+    "asset": "COIN",
+    "amount": 1000
+  },
+  {
+    "account": "also_never_reached",
+    "asset": "COIN",
+    "amount": 1000
+  }
+]

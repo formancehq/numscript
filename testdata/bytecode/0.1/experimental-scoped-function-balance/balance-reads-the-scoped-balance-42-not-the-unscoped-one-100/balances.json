@@ -1,0 +1,13 @@
+[
+  {
+    "account": "treasury",
+    "asset": "EUR/2",
+    "amount": 42
+  },
+  {
+    "account": "treasury",
+    "asset": "EUR/2",
+    "amount": 42,
+    "scope": "reserve"
+  }
+]

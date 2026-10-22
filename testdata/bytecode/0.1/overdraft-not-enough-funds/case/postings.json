@@ -1,0 +1,18 @@
+{
+  "postings": [
+    {
+      "source": "users:2345:credit",
+      "destination": "payments:4567",
+      "amount": 1000,
+      "asset": "USD/2"
+    },
+    {
+      "source": "users:2345:main",
+      "destination": "payments:4567",
+      "amount": 1200,
+      "asset": "USD/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

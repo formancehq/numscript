@@ -1,0 +1,16 @@
+{
+  "postings": [],
+  "txMeta": {},
+  "accountsMeta": [
+    {
+      "account": "acc",
+      "key": "new",
+      "value": "2"
+    },
+    {
+      "account": "acc",
+      "key": "overridden",
+      "value": "100"
+    }
+  ]
+}

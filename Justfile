@@ -32,3 +32,7 @@ release-ci:
 
 release:
     @goreleaser release --clean
+
+freeze-bytecode suffix="":
+    @go test ./internal/compiler -run 'TestCompilerScripts|TestCompiledCorpusPassesVerify' -count=1
+    @NUMSCRIPT_FREEZE_BYTECODE=1 NUMSCRIPT_FREEZE_SUFFIX={{suffix}} go test . -run TestFreezeBytecodeCorpus -count=1 -v

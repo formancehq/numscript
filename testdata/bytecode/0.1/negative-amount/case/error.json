@@ -1,0 +1,6 @@
+{
+  "type": "NegativeAmountError",
+  "value": {
+    "Amount": -1
+  }
+}
