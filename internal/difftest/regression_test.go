@@ -405,3 +405,36 @@ func TestKnownOpenDivergences(t *testing.T) {
 		})
 	}
 }
+
+// TestUnderscoreAssetVarRejected pins DIVERGENCES.md #8: an asset with an
+// underscore suffix passed through a var. The oracle (and numscript at
+// edde2b1) run the script; numscript rejects the asset name since 67969d4
+// (#186). The two numscript engines reject at different stages -- the vm while
+// encoding the var, the interpreter while running -- so the case cannot live in
+// TestKnownOpenDivergences, which also requires the engines to agree.
+func TestUnderscoreAssetVarRejected(t *testing.T) {
+	const script = `vars {
+  asset $a
+}
+
+send [$a 10] (
+  source = @world
+  destination = @acc1
+)`
+	ctx := context.Background()
+	vars := map[string]string{"a": "USD_CASH"}
+
+	oracleRes := runOracle(ctx, script, vars, nil, nil)
+	if oracleRes.Failed() || len(oracleRes.Postings) != 1 {
+		t.Fatalf("expected the oracle to run the script; got %+v", oracleRes)
+	}
+
+	for name, res := range map[string]SideResult{
+		"new interpreter": runNew(ctx, script, vars, nil, nil, nil),
+		"vm":              runVM(ctx, script, vars, nil, nil, nil),
+	} {
+		if !res.Failed() {
+			t.Fatalf("%s: expected it to reject the asset (the divergence is gone -- update DIVERGENCES.md #8); got %+v", name, res)
+		}
+	}
+}

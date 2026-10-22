@@ -2,6 +2,8 @@ module github.com/formancehq/numscript
 
 go 1.26.0
 
+toolchain go1.27.3
+
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/getsentry/sentry-go v0.43.0
@@ -45,6 +47,6 @@ require (
 	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/sys v0.44.0 // indirect
-	golang.org/x/text v0.39.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

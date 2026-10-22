@@ -355,7 +355,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
       <td>overdraft</td><td>color</td><td>scope</td>
-      <td>Overdraft bound <code>int_regs[A]</code> (<code>0xFF</code> = unbounded), color <code>str_regs[B]</code> and scope <code>str_regs[C]</code> (<code>0xFF</code> = none). Cap and overdraft both <code>0xFF</code> traps (unbounded source)</td>
+      <td>Overdraft bound <code>int_regs[A]</code> (<code>0xFF</code> = unbounded), color <code>str_regs[B]</code> and scope <code>str_regs[C]</code> (<code>0xFF</code> = none). Cap and overdraft both <code>0xFF</code> traps (unbounded source). The destination register may not be the cap or the overdraft register (verifier-rejected)</td>
     </tr>
     <tr>
       <td>81</td><td><code>0x51</code></td><td><strong>SEND_TO_ACCOUNT</strong></td>
