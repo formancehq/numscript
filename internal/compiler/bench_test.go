@@ -260,12 +260,23 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 // reuse one Vm, measure only the run.
 func benchCompiledVM(b *testing.B, src string, store benchStore) {
 	b.Helper()
+	benchCompiledVMWith(b, src, store, compiler.Options{})
+}
+
+// benchCompiledVMOpt is benchCompiledVM on the optimized program.
+func benchCompiledVMOpt(b *testing.B, src string, store benchStore) {
+	b.Helper()
+	benchCompiledVMWith(b, src, store, compiler.Options{Optimize: true})
+}
+
+func benchCompiledVMWith(b *testing.B, src string, store benchStore, opts compiler.Options) {
+	b.Helper()
 
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	_, program, err := compiler.Compile(parsed.Value, nil)
+	_, program, err := compiler.CompileWithOptions(parsed.Value, nil, opts)
 	if err != nil {
 		b.Fatalf("compile: %v", err)
 	}
@@ -313,6 +324,38 @@ func BenchmarkCompiledVMAllotmentThirds(b *testing.B) {
 	benchCompiledVM(b, benchSrcAllotmentThirds, benchStore{balances: map[funds.PairKey]*big.Int{
 		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
 	}})
+}
+
+// --- Optimized programs ----------------------------------------------------
+// The same scripts through compiler.Options{Optimize: true}, so each peephole's
+// effect is a before/after on the same benchmark.
+
+func simpleStore() benchStore {
+	return benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+}
+
+func BenchmarkCompiledVMOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrc, simpleStore())
+}
+
+func BenchmarkCompiledVMCappedOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
+}
+
+// The most common numscript shape: funding an account from @world.
+const benchSrcWorld = `send [USD/2 42] (
+	source = @world
+	destination = @dest
+)`
+
+func BenchmarkCompiledVMWorld(b *testing.B) {
+	benchCompiledVM(b, benchSrcWorld, benchStore{})
+}
+
+func BenchmarkCompiledVMWorldOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcWorld, benchStore{})
 }
 
 // Fan-in: {1/3 from @a; 1/3 from @b; 1/3 from @c} -> @dest. Allotment on the

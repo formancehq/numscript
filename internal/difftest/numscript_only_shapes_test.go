@@ -316,9 +316,13 @@ send $m (
 			ctx := context.Background()
 			newRes := runNew(ctx, tc.script, tc.vars, tc.balances, tc.metadata, tc.flags)
 			vmRes := runVM(ctx, tc.script, tc.vars, tc.balances, tc.metadata, tc.flags)
+			vmOptRes := runVMOptimized(ctx, tc.script, tc.vars, tc.balances, tc.metadata, tc.flags)
 
 			if v := CompareEngines(vmRes, newRes); v.Mismatch {
 				t.Fatalf("vm mismatch: %s\nvm: %+v\nnew: %+v", v.Reason, vmRes, newRes)
+			}
+			if v := CompareIdentical(vmOptRes, vmRes, "optimized vm", "vm"); v.Mismatch {
+				t.Fatalf("optimized vm mismatch: %s\noptimized: %+v\nvm: %+v", v.Reason, vmOptRes, vmRes)
 			}
 			if tc.bothReject {
 				if !newRes.Failed() || !vmRes.Failed() {

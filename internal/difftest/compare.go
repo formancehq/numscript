@@ -2,6 +2,7 @@ package difftest
 
 import (
 	"fmt"
+	"maps"
 	"math/big"
 )
 
@@ -39,6 +40,54 @@ func Compare(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 // mismatch here.
 func CompareEngines(vmRes, newRes SideResult) Verdict {
 	return compare(vmRes, newRes, "vm", "new interpreter", false)
+}
+
+// CompareIdentical is the comparison with no tolerance and no normalization:
+// the optimized program against the plain one. Same compiler, same engine, so
+// every stage's error text, the posting list in its order and the metadata
+// must match to the letter.
+func CompareIdentical(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
+	if aRes.InternalErr != "" {
+		return mismatch("%s reported an internal error: %s", aLabel, aRes.InternalErr)
+	}
+	if bRes.InternalErr != "" {
+		return mismatch("%s reported an internal error: %s", bLabel, bRes.InternalErr)
+	}
+	for _, stage := range []struct {
+		name string
+		a, b string
+	}{
+		{"compileErr", aRes.CompileErr, bRes.CompileErr},
+		{"resolveErr", aRes.ResolveErr, bRes.ResolveErr},
+		{"runErr", aRes.RunErr, bRes.RunErr},
+	} {
+		if stage.a != stage.b {
+			return mismatch("%s differs: %s=%q, %s=%q", stage.name, aLabel, stage.a, bLabel, stage.b)
+		}
+	}
+	if aRes.Failed() {
+		return ok()
+	}
+
+	if len(aRes.Postings) != len(bRes.Postings) {
+		return mismatch("posting count differs: %s has %d, %s has %d\n%s: %+v\n%s: %+v",
+			aLabel, len(aRes.Postings), bLabel, len(bRes.Postings), aLabel, aRes.Postings, bLabel, bRes.Postings)
+	}
+	for i := range aRes.Postings {
+		a, b := aRes.Postings[i], bRes.Postings[i]
+		if a.Source != b.Source || a.Destination != b.Destination || a.Asset != b.Asset || a.Color != b.Color || a.Amount.Cmp(b.Amount) != 0 {
+			return mismatch("posting %d differs: %s=%+v, %s=%+v\n%s: %+v\n%s: %+v",
+				i, aLabel, a, bLabel, b, aLabel, aRes.Postings, bLabel, bRes.Postings)
+		}
+	}
+
+	if !maps.Equal(aRes.TxMeta, bRes.TxMeta) {
+		return mismatch("tx metadata differs\n%s: %v\n%s: %v", aLabel, aRes.TxMeta, bLabel, bRes.TxMeta)
+	}
+	if !maps.Equal(aRes.AccountMeta, bRes.AccountMeta) {
+		return mismatch("account metadata differs\n%s: %v\n%s: %v", aLabel, aRes.AccountMeta, bLabel, bRes.AccountMeta)
+	}
+	return ok()
 }
 
 func compare(aRes, bRes SideResult, aLabel, bLabel string, oracle bool) Verdict {
