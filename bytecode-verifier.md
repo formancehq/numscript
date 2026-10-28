@@ -83,6 +83,18 @@ verified, so `ErrNoOpenMark` and the INVARIANT documented on `MarkEnd` stay.
 it is a legitimate user-facing error (`InvalidUncappedSource`, "unbounded source
 is not allowed here"), not a malformed program. Deliberately left to run time.
 
+### Funds left in the queue
+
+A pull debits its source at once; the posting only exists once a send drains the
+queue. Funds still queued when `Op_SetCurrentAsset` runs would be posted under
+the new asset, and funds still queued when the run ends are a debit that never
+became a posting. Whether a capped send empties the queue depends on the
+balances, so neither is decidable from the instruction stream: `Exec` checks
+both at run time (`errSetAssetWithQueuedFunds`, `errEndWithQueuedFunds`, via
+`runstate.HasQueuedFunds()`). Compiled numscript never trips them: every send
+statement either pulls exactly what it sends (`Op_CheckEnoughFunds`) or sends
+everything it pulled.
+
 ### Anything semantic
 
 A verified program can still produce nonsense: allotment portions that don't sum
