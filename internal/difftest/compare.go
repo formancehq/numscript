@@ -42,16 +42,23 @@ func CompareEngines(vmRes, newRes SideResult) Verdict {
 	return compare(vmRes, newRes, "vm", "new interpreter", false)
 }
 
-// CompareIdentical is the comparison with no tolerance and no normalization:
-// the optimized program against the plain one. Same compiler, same engine, so
-// every stage's error text, the posting list in its order and the metadata
-// must match to the letter.
+// CompareIdentical is the comparison with no normalization: the optimized
+// program against the plain one. Same compiler, same engine, so every stage's
+// error text, the posting list in its order and the metadata must match to the
+// letter, unless the plain program hit a capacity bound the optimized one does
+// not.
 func CompareIdentical(aRes, bRes SideResult, aLabel, bLabel string) Verdict {
 	if aRes.InternalErr != "" {
 		return mismatch("%s reported an internal error: %s", aLabel, aRes.InternalErr)
 	}
 	if bRes.InternalErr != "" {
 		return mismatch("%s reported an internal error: %s", bLabel, bRes.InternalErr)
+	}
+	// the passes may lift a capacity bound of the b-side (fewer live registers, a
+	// shorter stream), never impose one: the compiler falls back to the plain
+	// stream when the optimized one hits a bound
+	if (bRes.RegisterOverflow || bRes.ProgramTooLarge) && aRes.CompileErr == "" {
+		return tolerated("capacity bound lifted by optimization")
 	}
 	for _, stage := range []struct {
 		name string

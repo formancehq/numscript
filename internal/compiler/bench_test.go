@@ -376,3 +376,72 @@ func BenchmarkCompiledVMFanIn(b *testing.B) {
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
 }
+
+func BenchmarkCompiledVMAllotmentOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotment, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+func BenchmarkCompiledVMAllotmentThirdsOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotmentThirds, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+func BenchmarkCompiledVMFanInOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcFanIn, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+}
+
+// The same split with the amount from a var: no constant reaches the portion
+// arithmetic, so it runs on every execution.
+const benchSrcAllotmentVar = `vars { monetary $m }
+send $m (
+	source = @src
+	destination = {
+		10% to @fees
+		remaining to @b
+	}
+)`
+
+func benchVarsWith(b *testing.B, opts compiler.Options) {
+	parsed := parser.Parse(benchSrcAllotmentVar)
+	enc, program, err := compiler.CompileWithOptions(parsed.Value, nil, opts)
+	if err != nil {
+		b.Fatal(err)
+	}
+	vars, err := enc.Encode(map[string]string{"m": "USD/2 100"})
+	if err != nil {
+		b.Fatal(err)
+	}
+	store := benchStore{balances: map[funds.PairKey]*big.Int{{Account: "src", Asset: "USD/2"}: big.NewInt(1000)}}
+	machine := vm.NewVm(program)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, &vars, store); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMAllotmentVar(b *testing.B) { benchVarsWith(b, compiler.Options{}) }
+func BenchmarkCompiledVMAllotmentVarOpt(b *testing.B) {
+	benchVarsWith(b, compiler.Options{Optimize: true})
+}
+
+const benchSrcAllotmentPct = `send [USD/2 100] (
+	source = @src
+	destination = {
+		10% to @fees
+		remaining to @b
+	}
+)`
+
+func BenchmarkCompiledVMAllotmentPctOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotmentPct, benchStore{balances: map[funds.PairKey]*big.Int{{Account: "src", Asset: "USD/2"}: big.NewInt(1000)}})
+}
