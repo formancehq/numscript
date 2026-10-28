@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"math/big"
@@ -53,6 +54,11 @@ func CompileWithOptions(program parser.Program, featureFlags map[string]struct{}
 	}
 
 	prog, err := ir.Assemble(instrs)
+	// the passes can trade one capacity bound for another (a shorter stream
+	// with longer-lived registers), so the plain stream decides those errors
+	if opts.Optimize && (errors.Is(err, ir.ErrRegisterBankOverflow) || errors.Is(err, ir.ErrProgramTooLarge)) {
+		prog, err = ir.Assemble(compiled.instructions)
+	}
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}

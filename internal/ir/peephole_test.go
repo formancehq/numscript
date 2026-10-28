@@ -36,9 +36,9 @@ func requireUnchanged(t *testing.T, pass Peephole, src string) {
 	require.False(t, changed, "the pass changed the program:\n%s", got)
 }
 
-// --- foldConstConditions ---
+// --- constProp ---
 
-func TestFoldConstConditions(t *testing.T) {
+func TestConstProp(t *testing.T) {
 	testCases := []struct {
 		name string
 		src  string
@@ -103,12 +103,12 @@ func TestFoldConstConditions(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requirePass(t, foldConstConditions, tc.src, tc.want)
+			requirePass(t, constProp, tc.src, tc.want)
 		})
 	}
 }
 
-func TestFoldConstConditionsLeavesNonConstants(t *testing.T) {
+func TestConstPropLeavesNonConstants(t *testing.T) {
 	testCases := []struct {
 		name string
 		src  string
@@ -125,29 +125,219 @@ func TestFoldConstConditionsLeavesNonConstants(t *testing.T) {
 			// written twice, so its value depends on the path taken
 			name: "operand written on both arms of a branch",
 			src: `
-  $r0 = true
+  $r0 = load_var<str>(0)
   $r1 = 0
-  jmp_if_true($r0, #end)
+  $r3 = "world"
+  $r4 = str_eq($r0, $r3)
+  jmp_if_true($r4, #end)
   $r1 = 1
 #end
   $r2 = is_zero($r1)
 `,
 		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requireUnchanged(t, constProp, tc.src)
+		})
+	}
+}
+
+func TestConstPropFoldsThroughOps(t *testing.T) {
+	testCases := []struct {
+		name string
+		src  string
+		want string
+	}{
 		{
-			name: "operand computed",
+			name: "arithmetic and copies",
 			src: `
   $r0 = 1
   $r1 = 2
   $r2 = $r0 + $r1
-  $r3 = is_zero($r2)
+  $r3 = int_copy($r2)
+  $r4 = is_zero($r3)
+`,
+			want: `  $r0 = 1
+  $r1 = 2
+  $r2 = 3
+  $r3 = 3
+  $r4 = false
+`,
+		},
+		{
+			// the check fails unless got == needed, so got is needed after it
+			name: "check_enough_funds fixes got",
+			src: `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = 100
+  $r2 = "src"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = 1
+  $r6 = 2
+  $r7 = mk_portion($r5, $r6)
+  $r8 = int_to_portion($r4)
+  $r9 = mul_portion($r7, $r8)
+  $r10 = portion_to_int($r9)
+`,
+			want: `  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = 100
+  $r2 = "src"
+  $r3 = 0
+  $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
+  check_enough_funds($r4, $r1)
+  $r5 = 1
+  $r6 = 2
+  $r7 = mk_portion($r5, $r6)
+  $r8 = int_to_portion($r4)
+  $r9 = mul_portion($r7, $r8)
+  $r10 = 50
+`,
+		},
+		{
+			name: "both arms agree",
+			src: `
+  $r0 = load_var<str>(0)
+  $r1 = 7
+  $r2 = "world"
+  $r3 = str_eq($r0, $r2)
+  jmp_if_true($r3, #end)
+  $r1 = 7
+#end
+  $r4 = is_zero($r1)
+`,
+			want: `  $r0 = load_var<str>(0)
+  $r1 = 7
+  $r2 = "world"
+  $r3 = str_eq($r0, $r2)
+  jmp_if_true($r3, #end)
+  $r1 = 7
+#end
+  $r4 = false
 `,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requireUnchanged(t, foldConstConditions, tc.src)
+			requirePass(t, constProp, tc.src, tc.want)
 		})
 	}
+}
+
+func TestConstPropLeavesDivisionByZero(t *testing.T) {
+	requireUnchanged(t, constProp, `
+  $r0 = 1
+  $r1 = 0
+  $r2 = mk_portion($r0, $r1)
+  $r3 = portion_to_int($r2)
+`)
+}
+
+// --- dropProvenAsserts ---
+
+func TestDropProvenAsserts(t *testing.T) {
+	requirePass(t, dropProvenAsserts, `
+  $r0 = 42
+  assert_non_negative_amount($r0)
+  $r1 = "USD/2"
+  $r2 = "USD/2"
+  assert_same_asset($r1, $r2)
+  $r3 = 1
+  $r4 = 2
+  $r5 = mk_portion($r3, $r4)
+  assert_leftover($r5)
+`, `  $r0 = 42
+  $r1 = "USD/2"
+  $r2 = "USD/2"
+  $r3 = 1
+  $r4 = 2
+  $r5 = mk_portion($r3, $r4)
+`)
+}
+
+func TestDropProvenAssertsKeepsFailingAndUnknown(t *testing.T) {
+	testCases := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "fails",
+			src: `
+  $r0 = -1
+  assert_non_negative_amount($r0)
+`,
+		},
+		{
+			name: "unknown",
+			src: `
+  $r0 = load_var<int>(0)
+  assert_non_negative_amount($r0)
+`,
+		},
+		{
+			name: "mismatched assets",
+			src: `
+  $r0 = "USD/2"
+  $r1 = "EUR/2"
+  assert_same_asset($r0, $r1)
+`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requireUnchanged(t, dropProvenAsserts, tc.src)
+		})
+	}
+}
+
+// --- deadCode ---
+
+func TestDeadCode(t *testing.T) {
+	requirePass(t, deadCode, `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "unused"
+  $r2 = 1
+  $r3 = 2
+  $r4 = mk_portion($r2, $r3)
+  $r5 = load_var<str>(0)
+  $r6 = 10
+  $r7 = str_eq($r5, $r0)
+  jmp_if_true($r7, #end)
+  $r6 = 20
+#end
+  $r8 = int_copy($r6)
+  $r9 = 0
+  $r10 = pull_account(account: $r5, cap: $r6, overdraft: $r9)
+`, `  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r5 = load_var<str>(0)
+  $r6 = 10
+  $r7 = str_eq($r5, $r0)
+  jmp_if_true($r7, #end)
+  $r6 = 20
+#end
+  $r9 = 0
+  $r10 = pull_account(account: $r5, cap: $r6, overdraft: $r9)
+`)
+}
+
+func TestDeadCodeKeepsEffects(t *testing.T) {
+	requireUnchanged(t, deadCode, `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = load_var<int>(0)
+  $r2 = load_var<int>(1)
+  $r3 = mk_portion($r1, $r2)
+  $r4 = "src"
+  $r5 = balance($r4, $r0)
+  $r6 = 0
+  $r7 = pull_account(account: $r4, cap: $r1, overdraft: $r6)
+`)
 }
 
 // --- pruneDeadBranches ---
@@ -332,7 +522,7 @@ func TestPruneDeadBranchesLeavesLiveControlFlow(t *testing.T) {
 // --- Optimize ---
 
 // The compiler's output for `send [USD/2 42] (source = @world destination =
-// @dest)`, minus the amount clamp: the two passes have to compose for the
+// @dest)`, minus the amount clamp: the passes have to compose for the
 // literal @world to end up as a single unbounded pull.
 func TestOptimizeCollapsesWorldDiamond(t *testing.T) {
 	src := `
@@ -360,14 +550,10 @@ func TestOptimizeCollapsesWorldDiamond(t *testing.T) {
 
 	out := Optimize(instrs)
 	require.NoError(t, Typecheck(out))
-	require.Equal(t, `  $r0 = "world"
-  $r1 = "USD/2"
+	require.Equal(t, `  $r1 = "USD/2"
   $r2 = 42
-  assert_non_negative_amount($r2)
   set_current_asset($r1)
   $r3 = "world"
-  $r4 = 0
-  $r5 = true
   $r6 = pull_account(account: $r3, cap: $r2)
   check_enough_funds($r6, $r2)
   $r7 = "dest"

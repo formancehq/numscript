@@ -12,15 +12,15 @@ package ir
 // Jumps only go forward, so one pass in program order knows at every label
 // whether a reachable jump targets it: every jump to a label sits before it.
 func pruneDeadBranches(instrs []Instr) []Instr {
-	defs := regDefs(instrs)
+	conds := constConds(instrs)
 	changed := false
 
 	// jumps on a constant condition
 	folded := make([]Instr, 0, len(instrs))
-	for _, in := range instrs {
+	for i, in := range instrs {
 		switch j := in.(type) {
 		case JmpIfFalse:
-			if v, ok := constBoolOf(instrs, defs, j.Cond); ok {
+			if v, ok := conds[i]; ok {
 				changed = true
 				if !v {
 					folded = append(folded, Jmp{Target: j.Target})
@@ -28,7 +28,7 @@ func pruneDeadBranches(instrs []Instr) []Instr {
 				continue
 			}
 		case JmpIfTrue:
-			if v, ok := constBoolOf(instrs, defs, j.Cond); ok {
+			if v, ok := conds[i]; ok {
 				changed = true
 				if v {
 					folded = append(folded, Jmp{Target: j.Target})
@@ -128,4 +128,28 @@ func jumpsToNext(instrs []Instr, i int, target Label) bool {
 		}
 	}
 	return false
+}
+
+// constConds maps each conditional jump to the value its condition has on
+// every path reaching it, when it has one.
+func constConds(instrs []Instr) map[int]bool {
+	conds := map[int]bool{}
+	walkConsts(instrs, func(i int, env constEnv) {
+		if env == nil {
+			return
+		}
+		var cond Reg
+		switch j := instrs[i].(type) {
+		case JmpIfFalse:
+			cond = j.Cond
+		case JmpIfTrue:
+			cond = j.Cond
+		default:
+			return
+		}
+		if v, ok := env[cond].(bool); ok {
+			conds[i] = v
+		}
+	})
+	return conds
 }

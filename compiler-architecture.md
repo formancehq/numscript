@@ -478,40 +478,43 @@ The contract of every pass is that the optimized program is **behaviorally ident
 
 - the spec corpus (`TestCompilerScripts`) runs the plain and the optimized program on every case and requires identical results and identical error structs, before checking the plain one against the spec;
 - `TestCompiledCorpusPassesVerify` runs both through `vm.Verify` and the `Encode`/`Decode` round trip;
-- the differential sweep (`internal/difftest`) has a `vm vs optimized vm` leg compared with `CompareIdentical`: no tolerance, no aggregation.
+- the differential sweep (`internal/difftest`) has a `vm vs optimized vm` leg compared with `CompareIdentical`: no aggregation, and one tolerance, a capacity bound of the plain program the optimized one does not hit.
 
 #### Implemented peepholes
 
-1. **`foldConstConditions`** — a comparison whose operands are constants is replaced by the bool it always yields: `str_eq`, `eq_int` and `lt_int` over two loads, `is_zero` over one. An operand is a constant when the register is written exactly once, by a `load_str`/`load_int`: jumps only go forward and the typechecker rejects a read before any write, so such a register holds that value at every read.
-2. **`pruneDeadBranches`** — a conditional jump on a constant bool becomes an unconditional `jmp` or nothing; the instructions between a `jmp` and the next label a reachable jump targets go; a jump to the next instruction goes; a label no jump targets goes. Jumps only go forward, so one pass in program order knows at every label whether a reachable jump targets it.
+Three of them share one analysis, `walkConsts`: a forward walk that knows, before each instruction, which registers hold the same constant on every path reaching it. Jumps only go forward, so every edge into a label is known when the walk reaches it and one pass is exact. Unlike a "written once" rule, it does not depend on the typechecker, which checks reads against writes in program order, not per path.
 
-The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is what these two are for: `str_eq` over two `load_str` folds, the branch on it goes, and a literal `@world` source is back to a single unbounded `pull_account` — any other literal account to a single bounded one, i.e. exactly the code the compiler emitted when the VM still special-cased the name. The amount clamp (`max($amount, 0)`) collapses the same way when the amount is a literal. The prologue's `load_str "world"`, the overdraft `0` and the folded `true`/`false` are left behind, dead, for a dead-code pass to drop.
+1. **`constProp`** — a pure op whose result is the same int, str or bool on every path reaching it becomes a load of that value. Portions are tracked but not materialized, as there is no portion load. Each op is folded exactly as the VM computes it; a `mk_portion` with a zero denominator is left to fail at run time. `check_enough_funds` fails unless `got == needed`, so after it `got` takes `needed`'s value: with a literal amount, the whole allotment split is computed at compile time.
+2. **`dropProvenAsserts`** — a check that passes on every path reaching it goes: the `assert_*` family and `check_enough_funds`. A check that may fail stays where it is, so the first error a run hits is unchanged. Dropping `assert_leftover` is what frees the portion arithmetic for `deadCode`.
+3. **`pruneDeadBranches`** — a conditional jump on a constant bool becomes an unconditional `jmp` or nothing; the instructions between a `jmp` and the next label a reachable jump targets go; a jump to the next instruction goes; a label no jump targets goes.
+4. **`deadCode`** — a pure instruction whose dests no path reads goes. Store reads, pulls and every check stay; a `mk_portion` goes only where its denominator is known not to be zero.
+
+The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is what the folding and the pruning are for: `str_eq` over two `load_str` folds, the branch on it goes, and a literal `@world` source is back to a single unbounded `pull_account` — any other literal account to a single bounded one. The amount clamp (`max($amount, 0)`) collapses the same way when the amount is a literal.
 
 `send [USD/2 42] (source = @world destination = @dest)` optimizes to:
 
 ```
-  $r0 = "world"
-  $r1 = "USD/2"
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
   $r2 = 42
-  assert_non_negative_amount($r2)
-  set_current_asset($r1)
-  $r3 = 0
-  $r4 = int_copy($r2)
-  $r5 = true
-  $r6 = "world"
-  $r7 = 0
-  $r8 = true
-  $r9 = pull_account(account: $r6, cap: $r4)
-  check_enough_funds($r9, $r2)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r2)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
 ```
+
+and `send [USD/2 100] (source = @src destination = {1/3 to @a 1/3 to @b remaining to @c})` to three sends of the constants 34, 33 and 33: no portion op is left.
+
+The passes can trade one capacity bound of the assembler for another (a shorter stream with longer-lived registers), so when the optimized stream hits `ErrRegisterBankOverflow` or `ErrProgramTooLarge` the compiler assembles the plain one instead. Optimizing can lift a bound (`deadCode` drops unused `load_var`s, so a script declaring more vars than a bank holds may compile), never impose one.
 
 #### Planned peepholes
 
 - **Post from unbounded** — a send statement with a single unbounded source (`@world`, or `allowing unbounded overdraft`) and a single destination becomes a direct posting, skipping the funds queue.
-- **Dead code** — drop pure instructions whose result is never read (the leftovers above), and the destination credit of a direct posting whose destination's balance is never read either.
+- **Dead credit** — the destination credit of a direct posting whose destination's balance is never read.
 - **Funds bypass** — the Pull-then-Send → take + post rewrite for a bounded single source, a fan-out (one source, allotment destinations) and a fan-in (statically distinct sources, one destination). Never N×M, `oneof` or scaling.
+- **Integer allotment split** — `portion_to_int(mul_portion(p, int_to_portion(x)))` as one integer op, so an allotment over a var amount allocates no `big.Rat`. Needs a new opcode.
 - **Register allocation** — only if the benchmarks justify it; see below.
 
 ### Registers allocator

@@ -42,9 +42,10 @@ type Case struct {
 	OracleVsVM  Verdict
 	NewVsVM     Verdict
 
-	// VMVsVMOpt compares the optimized program against the plain one with no
-	// tolerance at all (CompareIdentical): the passes promise the same postings,
-	// in the same order, and the same errors.
+	// VMVsVMOpt compares the optimized program against the plain one with
+	// CompareIdentical: the passes promise the same postings, in the same order,
+	// and the same errors. The only tolerance is a capacity bound of the plain
+	// program that the optimized one does not hit.
 	VMVsVMOpt Verdict
 }
 

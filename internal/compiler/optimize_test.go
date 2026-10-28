@@ -39,21 +39,15 @@ func TestOptimizedWorldSend(t *testing.T) {
 	`)
 
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
-  $r0 = "world"
-  $r1 = "USD/2"
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
   $r2 = 42
-  assert_non_negative_amount($r2)
-  set_current_asset($r1)
-  $r3 = 0
-  $r4 = int_copy($r2)
-  $r5 = true
-  $r6 = "world"
-  $r7 = 0
-  $r8 = true
-  $r9 = pull_account(account: $r6, cap: $r4)
-  check_enough_funds($r9, $r2)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r2)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
 `))
 }
 
@@ -67,21 +61,16 @@ func TestOptimizedBoundedSend(t *testing.T) {
 	`)
 
 	snaps.MatchInlineSnapshot(t, out, snaps.Inline(`
-  $r0 = "world"
-  $r1 = "USD/2"
+  $r0 = "USD/2"
+  $r1 = 10
+  set_current_asset($r0)
   $r2 = 10
-  assert_non_negative_amount($r2)
-  set_current_asset($r1)
-  $r3 = 0
-  $r4 = int_copy($r2)
-  $r5 = true
-  $r6 = "src"
-  $r7 = 0
-  $r8 = false
-  $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
-  check_enough_funds($r9, $r2)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  $r3 = "src"
+  $r4 = 0
+  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  check_enough_funds($r5, $r1)
+  $r6 = "dest"
+  send_to_account(account: $r6)
 `))
 }
 
@@ -100,22 +89,19 @@ func TestOptimizedSendFromVarKeepsBothArms(t *testing.T) {
   $r1 = load_var<str>(0)
   $r2 = "USD/2"
   $r3 = 10
-  assert_non_negative_amount($r3)
   set_current_asset($r2)
-  $r4 = 0
-  $r5 = int_copy($r3)
-  $r6 = true
-  $r7 = 0
-  $r8 = str_eq($r1, $r0)
-  jmp_if_false($r8, #not_world_1)
-  $r9 = pull_account(account: $r1, cap: $r5)
+  $r4 = 10
+  $r5 = 0
+  $r6 = str_eq($r1, $r0)
+  jmp_if_false($r6, #not_world_1)
+  $r7 = pull_account(account: $r1, cap: $r4)
   jmp(#pull_end_2)
 #not_world_1
-  $r9 = pull_account(account: $r1, cap: $r5, overdraft: $r7)
+  $r7 = pull_account(account: $r1, cap: $r4, overdraft: $r5)
 #pull_end_2
-  check_enough_funds($r9, $r3)
-  $r10 = "dest"
-  send_to_account(account: $r10)
+  check_enough_funds($r7, $r3)
+  $r8 = "dest"
+  send_to_account(account: $r8)
 `))
 }
 
