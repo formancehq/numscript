@@ -471,9 +471,6 @@ check_enough_funds($pulled_sn, $share_n)
 
 ### Optimisations
 
-> [!NOTE]
-> Peephole optimisations aren't implemented yet. There is a POC in another branch, to measure how much perf could be impacted, but it's too soon to consider
-
 You may have noticed that the previous compilation examples emit _a lot_ of garbage.
 That's done by design: the compiler must be simple and declarative. We don't want dozens of special cases in the compilation logic, which must express a general, albeit redundant, template which focuses on correctness.
 
@@ -483,29 +480,57 @@ That change also *enables* a peephole that was previously out of reach. `assert_
 
 However, the `irInstr` layer allows us to easily rewrite the instructions so that we remove garbage instructions, precomputing more aggressively, rewrite them into more efficient code (this is called [peephole optimisation](https://en.wikipedia.org/wiki/Peephole_optimization))
 
-Each peephole is independent and is expressed as a `func(instr []irInstr) []irInstr`, which returns the new instructions set, or nil if it didn't change.
-Each peephole is independently testable and reviewable.
+Each peephole is independent and is expressed as an `ir.Peephole`, a `func([]ir.Instr) []ir.Instr` which returns the new instruction stream, or nil if it didn't change anything. A pass never mutates its input.
+Each peephole is independently testable and reviewable: one file per pass under `internal/ir/peephole_*.go`, with its tests written against the textual IR.
 
-We apply each peephole optimisation sequentially, and repeat until we reach a fixed point for each peephole (the program `p` such that `f(p) == p`, where `f` is the peephole function).
+We apply each peephole optimisation sequentially, and repeat until a full sweep changes nothing (the program `p` such that `f(p) == p` for every peephole `f`).
 
-Note that proving that a peephole function _does_ have a fixed point is usually simple, whereas proving that the function composition of all the peepholes isn't. Pratically speaking, we can avoid non-terminating optimisation passes by imposing a max amount of optimisation passes. A clever order of peepholes should make convergence quite fast anyway.
+Note that proving that a peephole function _does_ have a fixed point is usually simple, whereas proving that the function composition of all the peepholes isn't. Pratically speaking, we avoid a non-terminating optimisation by imposing a max amount of sweeps (`maxOptimizeSweeps`). A clever order of peepholes makes convergence fast anyway: `ir.DefaultPeepholes()` is ordered so that one sweep normally does it all and the second one confirms the fixed point.
 
-> TODO list some peepholes
+Optimisation is **opt-in**. `compiler.Compile` assembles the plain stream; `compiler.CompileWithOptions(program, flags, compiler.Options{Optimize: true})` — `numscript.CompileOptions{Optimize: true}` on the public API — runs `ir.Optimize` first, and typechecks the result again before assembling it. The host decides, per compilation.
 
-The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is
-the clearest case to date, and it needs two passes that compose:
+The contract of every pass is that the optimized program is **behaviorally identical** to the plain one: same postings in the same order, same metadata, same errors — including which error surfaces when more than one could. Three things enforce it:
 
-1. **Const-fold `str_eq`** — when both operands trace back to `load_str` constants, the
-   comparison is statically decidable: replace it with `true` or `false`.
-2. **Dead-branch elimination** — a conditional jump on a register holding a known bool
-   is either a no-op or an unconditional `jmp`; then everything between a `jmp` and the
-   next reachable label is unreachable. `is_zero` over a `load_int` folds the same way,
-   which is what makes the quantity branches reachable for this pass too.
+- the spec corpus (`TestCompilerScripts`) runs the plain and the optimized program on every case and requires identical results and identical error structs, before checking the plain one against the spec;
+- `TestCompiledCorpusPassesVerify` runs both through `vm.Verify` and the `Encode`/`Decode` round trip;
+- the differential sweep (`internal/difftest`) has a `vm vs optimized vm` leg compared with `CompareIdentical`: no aggregation, and one tolerance, a capacity bound of the plain program the optimized one does not hit.
 
-Together they collapse a literal `@world` source back to a single unbounded
-`pull_account`, and any other literal account back to a single bounded one — i.e. to
-exactly the code the compiler emitted when the VM still special-cased the name. The
-prologue's `load_str "world"` also becomes dead once no branch refers to it.
+#### Implemented peepholes
+
+Three of them share one analysis, `walkConsts`: a forward walk that knows, before each instruction, which registers hold the same constant on every path reaching it. Jumps only go forward, so every edge into a label is known when the walk reaches it and one pass is exact. Unlike a "written once" rule, it does not depend on the typechecker, which checks reads against writes in program order, not per path.
+
+1. **`constProp`** — a pure op whose result is the same int, str or bool on every path reaching it becomes a load of that value. Portions are tracked but not materialized, as there is no portion load. Each op is folded exactly as the VM computes it; a `mk_portion` with a zero denominator is left to fail at run time. `check_enough_funds` fails unless `got == needed`, so after it `got` takes `needed`'s value: with a literal amount, the whole allotment split is computed at compile time.
+2. **`dropProvenAsserts`** — a check that passes on every path reaching it goes: the `assert_*` family and `check_enough_funds`. A check that may fail stays where it is, so the first error a run hits is unchanged. Dropping `assert_leftover` is what frees the portion arithmetic for `deadCode`.
+3. **`pruneDeadBranches`** — a conditional jump on a constant bool becomes an unconditional `jmp` or nothing; the instructions between a `jmp` and the next label a reachable jump targets go; a jump to the next instruction goes; a label no jump targets goes.
+4. **`deadCode`** — a pure instruction whose dests no path reads goes. Store reads, pulls and every check stay; a `mk_portion` goes only where its denominator is known not to be zero.
+
+The `@world` diamond (see [Plain account source/dest](#plain-account-sourcedest-bounded)) is what the folding and the pruning are for: `str_eq` over two `load_str` folds, the branch on it goes, and a literal `@world` source is back to a single unbounded `pull_account` — any other literal account to a single bounded one. The amount clamp (`max($amount, 0)`) collapses the same way when the amount is a literal.
+
+`send [USD/2 42] (source = @world destination = @dest)` optimizes to:
+
+```
+  $r0 = "USD/2"
+  $r1 = 42
+  set_current_asset($r0)
+  $r2 = 42
+  $r3 = "world"
+  $r4 = pull_account(account: $r3, cap: $r2)
+  check_enough_funds($r4, $r1)
+  $r5 = "dest"
+  send_to_account(account: $r5)
+```
+
+and `send [USD/2 100] (source = @src destination = {1/3 to @a 1/3 to @b remaining to @c})` to three sends of the constants 34, 33 and 33: no portion op is left.
+
+The passes can trade one capacity bound of the assembler for another (a shorter stream with longer-lived registers), so when the optimized stream hits `ErrRegisterBankOverflow` or `ErrProgramTooLarge` the compiler assembles the plain one instead. Optimizing can lift a bound (`deadCode` drops unused `load_var`s, so a script declaring more vars than a bank holds may compile), never impose one.
+
+#### Planned peepholes
+
+- **Post from unbounded** — a send statement with a single unbounded source (`@world`, or `allowing unbounded overdraft`) and a single destination becomes a direct posting, skipping the funds queue.
+- **Dead credit** — the destination credit of a direct posting whose destination's balance is never read.
+- **Funds bypass** — the Pull-then-Send → take + post rewrite for a bounded single source, a fan-out (one source, allotment destinations) and a fan-in (statically distinct sources, one destination). Never N×M, `oneof` or scaling.
+- **Integer allotment split** — `portion_to_int(mul_portion(p, int_to_portion(x)))` as one integer op, so an allotment over a var amount allocates no `big.Rat`. Needs a new opcode.
+- **Register allocation** — only if the benchmarks justify it; see below.
 
 ### Registers allocator
 

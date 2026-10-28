@@ -260,12 +260,23 @@ func BenchmarkCompiledVMCapped(b *testing.B) {
 // reuse one Vm, measure only the run.
 func benchCompiledVM(b *testing.B, src string, store benchStore) {
 	b.Helper()
+	benchCompiledVMWith(b, src, store, compiler.Options{})
+}
+
+// benchCompiledVMOpt is benchCompiledVM on the optimized program.
+func benchCompiledVMOpt(b *testing.B, src string, store benchStore) {
+	b.Helper()
+	benchCompiledVMWith(b, src, store, compiler.Options{Optimize: true})
+}
+
+func benchCompiledVMWith(b *testing.B, src string, store benchStore, opts compiler.Options) {
+	b.Helper()
 
 	parsed := parser.Parse(src)
 	if len(parsed.Errors) != 0 {
 		b.Fatalf("parse errors: %v", parsed.Errors)
 	}
-	_, program, err := compiler.Compile(parsed.Value, nil)
+	_, program, err := compiler.CompileWithOptions(parsed.Value, nil, opts)
 	if err != nil {
 		b.Fatalf("compile: %v", err)
 	}
@@ -315,6 +326,38 @@ func BenchmarkCompiledVMAllotmentThirds(b *testing.B) {
 	}})
 }
 
+// --- Optimized programs ----------------------------------------------------
+// The same scripts through compiler.Options{Optimize: true}, so each peephole's
+// effect is a before/after on the same benchmark.
+
+func simpleStore() benchStore {
+	return benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}}
+}
+
+func BenchmarkCompiledVMOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrc, simpleStore())
+}
+
+func BenchmarkCompiledVMCappedOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcCapped, cappedStore())
+}
+
+// The most common numscript shape: funding an account from @world.
+const benchSrcWorld = `send [USD/2 42] (
+	source = @world
+	destination = @dest
+)`
+
+func BenchmarkCompiledVMWorld(b *testing.B) {
+	benchCompiledVM(b, benchSrcWorld, benchStore{})
+}
+
+func BenchmarkCompiledVMWorldOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcWorld, benchStore{})
+}
+
 // Fan-in: {1/3 from @a; 1/3 from @b; 1/3 from @c} -> @dest. Allotment on the
 // source side, no early-exit jump.
 const benchSrcFanIn = `send [USD/2 30] (
@@ -332,4 +375,73 @@ func BenchmarkCompiledVMFanIn(b *testing.B) {
 		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
+}
+
+func BenchmarkCompiledVMAllotmentOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotment, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+func BenchmarkCompiledVMAllotmentThirdsOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotmentThirds, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "src", Asset: "USD/2", Color: ""}: big.NewInt(1000),
+	}})
+}
+
+func BenchmarkCompiledVMFanInOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcFanIn, benchStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "a", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "b", Asset: "USD/2", Color: ""}: big.NewInt(100),
+		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
+	}})
+}
+
+// The same split with the amount from a var: no constant reaches the portion
+// arithmetic, so it runs on every execution.
+const benchSrcAllotmentVar = `vars { monetary $m }
+send $m (
+	source = @src
+	destination = {
+		10% to @fees
+		remaining to @b
+	}
+)`
+
+func benchVarsWith(b *testing.B, opts compiler.Options) {
+	parsed := parser.Parse(benchSrcAllotmentVar)
+	enc, program, err := compiler.CompileWithOptions(parsed.Value, nil, opts)
+	if err != nil {
+		b.Fatal(err)
+	}
+	vars, err := enc.Encode(map[string]string{"m": "USD/2 100"})
+	if err != nil {
+		b.Fatal(err)
+	}
+	store := benchStore{balances: map[funds.PairKey]*big.Int{{Account: "src", Asset: "USD/2"}: big.NewInt(1000)}}
+	machine := vm.NewVm(program)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := vm.Exec(context.Background(), machine, &vars, store); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkCompiledVMAllotmentVar(b *testing.B) { benchVarsWith(b, compiler.Options{}) }
+func BenchmarkCompiledVMAllotmentVarOpt(b *testing.B) {
+	benchVarsWith(b, compiler.Options{Optimize: true})
+}
+
+const benchSrcAllotmentPct = `send [USD/2 100] (
+	source = @src
+	destination = {
+		10% to @fees
+		remaining to @b
+	}
+)`
+
+func BenchmarkCompiledVMAllotmentPctOpt(b *testing.B) {
+	benchCompiledVMOpt(b, benchSrcAllotmentPct, benchStore{balances: map[funds.PairKey]*big.Int{{Account: "src", Asset: "USD/2"}: big.NewInt(1000)}})
 }

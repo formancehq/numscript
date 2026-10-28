@@ -63,6 +63,9 @@ func TestCompilerScripts(t *testing.T) {
 	}
 }
 
+// runScriptSpec checks the plain program against the spec, and the optimized
+// program against the plain one: on every case the two must return the same
+// result and the same error, struct for struct.
 func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	parsed := parser.Parse(src)
 	require.Empty(t, parsed.Errors)
@@ -73,6 +76,8 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 	}
 
 	enc, program, cErr := compiler.Compile(parsed.Value, featureFlags)
+	require.Nil(t, cErr)
+	_, optimized, cErr := compiler.CompileWithOptions(parsed.Value, featureFlags, compiler.Options{Optimize: true})
 	require.Nil(t, cErr)
 
 	hasFocused := slices.ContainsFunc(specs.TestCases, func(tc specs_format.TestCase) bool {
@@ -91,9 +96,12 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 
 		balances := specs_format.MergeBalances(specs.Balances, tc.Balances)
 
-		machine := vm.NewVm(program)
 		store := scriptStore(balances, specs.Meta, tc.Meta)
-		res, execErr := vm.Exec(context.Background(), machine, &vars, store)
+		res, execErr := vm.Exec(context.Background(), vm.NewVm(program), &vars, store)
+
+		optimizedRes, optimizedErr := vm.Exec(context.Background(), vm.NewVm(optimized), &vars, store)
+		require.Equal(t, execErr, optimizedErr, "case %q: the optimized program must fail as the plain one does", tc.It)
+		require.Equal(t, res, optimizedRes, "case %q: the optimized program must produce what the plain one does", tc.It)
 
 		if tc.ExpectMissingFunds {
 			require.IsType(t, vm.MissingFundsError{}, execErr, "case %q", tc.It)
