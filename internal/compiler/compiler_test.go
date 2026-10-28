@@ -679,8 +679,11 @@ func TestDestInorder(t *testing.T) {
   $r21 = is_zero($r10)
   jmp_if_true($r21, #dest_inorder_rem_skip_7)
   $r22 = "d2"
-  send_to_account(account: $r22, cap: $r10)
+  send_to_account(account: $r22)
+  jmp(#dest_inorder_rem_end_8)
 #dest_inorder_rem_skip_7
+  send_to_account()
+#dest_inorder_rem_end_8
 `))
 }
 

@@ -269,6 +269,7 @@ func TestVerifyPullDestAliasesCapOrOverdraft(t *testing.T) {
 				abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
 				abc(Op_PullAccount, dest, 0, cap),
 				abc(0, overdraft, nilReg, nilReg), // ext
+				abc(Op_SendToAccount, nilReg, nilReg, nilReg),
 			},
 			StringsPool: []string{"acc"},
 			IntsPool:    []big.Int{*big.NewInt(1)},
