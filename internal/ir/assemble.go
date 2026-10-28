@@ -641,7 +641,13 @@ func (i SetCurrentAsset) assemble(a *assembler) error {
 	return nil
 }
 
-func (i PullAccount) assemble(a *assembler) error {
+func (i PullAccount) assemble(a *assembler) error { return assemblePull(a, vm.Op_PullAccount, i) }
+
+func (i TakeAccount) assemble(a *assembler) error {
+	return assemblePull(a, vm.Op_TakeAccount, PullAccount(i))
+}
+
+func assemblePull(a *assembler, op vm.Opcode, i PullAccount) error {
 	dest, err := a.intReg(i.Dest)
 	if err != nil {
 		return err
@@ -672,7 +678,7 @@ func (i PullAccount) assemble(a *assembler) error {
 		return err
 	}
 
-	a.emit(vm.Op_PullAccount, dest, account, cap)
+	a.emit(op, dest, account, cap)
 
 	a.instructions = append(a.instructions, vm.Instruction{
 		Opcode: maxReg,    // <- UNUSED
@@ -732,7 +738,11 @@ func (i PostAccount) assemble(a *assembler) error {
 		return err
 	}
 
-	a.emit(vm.Op_PostAccount, source, destination, amount)
+	op := vm.Op_PostAccount
+	if i.NoCredit {
+		op = vm.Op_PostAccountNoCredit
+	}
+	a.emit(op, source, destination, amount)
 	a.instructions = append(a.instructions, vm.Instruction{
 		Opcode: maxReg,
 		A:      color,

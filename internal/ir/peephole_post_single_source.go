@@ -63,7 +63,7 @@ func fuseStatement(instrs []Instr, accounts map[int]string, start, end int) (map
 				return nil, false
 			}
 			send = i
-		case PostAccount, MarkPush, MarkEnd:
+		case PostAccount, TakeAccount, MarkPush, MarkEnd:
 			return nil, false
 		}
 	}
@@ -73,16 +73,11 @@ func fuseStatement(instrs []Instr, accounts map[int]string, start, end int) (map
 
 	p := instrs[pull].(PullAccount)
 	s := instrs[send].(SendToAccount)
-	if p.Cap == nil || p.Overdraft != nil {
-		return nil, false // bounded, or the uncapped-unbounded error case
+	if p.Cap == nil && p.Overdraft == nil {
+		return nil, false // the uncapped-unbounded error case
 	}
 	if s.Account == nil || s.Cap != nil {
 		return nil, false // kept, or a partial drain
-	}
-
-	src, ok := accounts[pull]
-	if !ok || sourceBalanceObserved(instrs, accounts, src) {
-		return nil, false
 	}
 
 	// post_account reads these where the send was; nothing in between may
@@ -100,8 +95,16 @@ func fuseStatement(instrs []Instr, accounts map[int]string, start, end int) (map
 		}
 	}
 
+	// an unbounded source whose balance no one reads needs no debit at all
+	var taken Instr = TakeAccount(p)
+	if p.Overdraft == nil {
+		if src, ok := accounts[pull]; ok && !sourceBalanceObserved(instrs, accounts, src) {
+			taken = UnaryOp{Op: OpMaxZero{}, Dest: p.Dest, Arg: *p.Cap}
+		}
+	}
+
 	return map[int]Instr{
-		pull: UnaryOp{Op: OpMaxZero{}, Dest: p.Dest, Arg: *p.Cap},
+		pull: taken,
 		send: PostAccount{
 			Source:           p.Account,
 			Destination:      *s.Account,
@@ -131,6 +134,10 @@ func sourceBalanceObserved(instrs []Instr, accounts map[int]string, src string) 
 			if in.Overdraft != nil && mayBeSrc() {
 				return true
 			}
+		case TakeAccount:
+			if in.Overdraft != nil && mayBeSrc() {
+				return true
+			}
 		case Save:
 			if mayBeSrc() {
 				return true
@@ -144,7 +151,7 @@ func sourceBalanceObserved(instrs []Instr, accounts map[int]string, src string) 
 	return false
 }
 
-// constAccounts maps each pull, save and balance read to its account, when the
+// constAccounts maps each pull, take, save and balance read to its account, when the
 // account is the same constant on every path reaching it.
 func constAccounts(instrs []Instr) map[int]string {
 	accounts := map[int]string{}
@@ -155,6 +162,8 @@ func constAccounts(instrs []Instr) map[int]string {
 		var account Reg
 		switch in := instrs[i].(type) {
 		case PullAccount:
+			account = in.Account
+		case TakeAccount:
 			account = in.Account
 		case Save:
 			account = in.Account

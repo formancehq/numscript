@@ -107,6 +107,8 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 			tc.useOpt(i.Scope, regStr),
 			tc.def(i.Dest, regInt),
 		)
+	case TakeAccount:
+		return tc.check(PullAccount(i))
 	case SendToAccount:
 		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt), tc.useOpt(i.Scope, regStr))
 	case PostAccount:

@@ -27,6 +27,7 @@ type accountMetaKey struct {
 var (
 	errSendWhileMarkOpen     = errors.New("send while a mark is open")
 	errPostWhileMarkOpen     = errors.New("post while a mark is open")
+	errTakeWhileMarkOpen     = errors.New("take while a mark is open")
 	errSetAssetWhileMarkOpen = errors.New("set_current_asset while a mark is open")
 	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
 )
@@ -199,6 +200,45 @@ func Exec[S Store](
 				return funds.ExecutionResult{}, InvalidUncappedSource{Account: account}
 			}
 
+		case Op_TakeAccount:
+			if runstate.HasOpenMark() {
+				return funds.ExecutionResult{}, InternalError{Err: errTakeWhileMarkOpen}
+			}
+			instrExt := instrs[pc]
+			pc++
+
+			account := stringsRegs[instr.B]
+			var cap *big.Int
+			if instr.C != nilReg {
+				cap = &intsRegs[instr.C]
+			}
+			var overdraft *big.Int
+			if instrExt.A != nilReg {
+				overdraft = &intsRegs[instrExt.A]
+			}
+			var color string
+			if instrExt.B != nilReg {
+				color = stringsRegs[instrExt.B]
+			}
+			var scope string
+			if instrExt.C != nilReg {
+				scope = stringsRegs[instrExt.C]
+			}
+
+			out := &intsRegs[instr.A]
+			switch {
+			case cap != nil:
+				if err := runstate.Take(out, account, scope, cap, overdraft, color); err != nil {
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
+				}
+			case overdraft != nil:
+				if err := runstate.TakeUncapped(out, account, scope, overdraft, color); err != nil {
+					return funds.ExecutionResult{}, StoreError{Wrapped: err}
+				}
+			default:
+				return funds.ExecutionResult{}, InvalidUncappedSource{Account: account}
+			}
+
 		case Op_SendToAccount:
 			// a send while a mark is open would consume the queue from the front and
 			// leave that mark pointing at the wrong boundary. Compiled numscript never
@@ -233,7 +273,7 @@ func Exec[S Store](
 				}
 			}
 
-		case Op_PostAccount:
+		case Op_PostAccount, Op_PostAccountNoCredit:
 			// a rewind would credit the source back for a debit this op never made
 			if runstate.HasOpenMark() {
 				return funds.ExecutionResult{}, InternalError{Err: errPostWhileMarkOpen}
@@ -255,7 +295,9 @@ func Exec[S Store](
 				destinationScope = stringsRegs[instrExt.C]
 			}
 
-			if err := runstate.PostDirect(stringsRegs[instr.A], sourceScope, stringsRegs[instr.B], destinationScope, color, &intsRegs[instr.C]); err != nil {
+			if Opcode(instr.Opcode) == Op_PostAccountNoCredit {
+				runstate.PostNoCredit(stringsRegs[instr.A], sourceScope, stringsRegs[instr.B], destinationScope, color, &intsRegs[instr.C])
+			} else if err := runstate.PostDirect(stringsRegs[instr.A], sourceScope, stringsRegs[instr.B], destinationScope, color, &intsRegs[instr.C]); err != nil {
 				return funds.ExecutionResult{}, StoreError{Wrapped: err}
 			}
 

@@ -49,6 +49,10 @@ func (i PullAccount) String() string {
 	return s + ")"
 }
 
+func (i TakeAccount) String() string {
+	return strings.Replace(PullAccount(i).String(), "pull_account", "take_account", 1)
+}
+
 func (i SendToAccount) String() string {
 	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap), optLabel("scope", i.Scope))
 	return fmt.Sprintf("send_to_account(%s)", opts)
@@ -63,6 +67,9 @@ func (i PostAccount) String() string {
 		optLabel("source_scope", i.SourceScope),
 		optLabel("destination_scope", i.DestinationScope),
 	)
+	if i.NoCredit {
+		return fmt.Sprintf("post_account_no_credit(%s)", opts)
+	}
 	return fmt.Sprintf("post_account(%s)", opts)
 }
 

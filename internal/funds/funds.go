@@ -256,6 +256,17 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 // cap and overdraft are not mutated. The only allocation per call is the queued
 // source's own copy of the amount, which must outlive out.
 func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) error {
+	if err := s.Take(out, src, scope, cap, overdraft, color); err != nil {
+		return err
+	}
+	s.sources = append(s.sources, source{src, scope, new(big.Int).Set(out), color})
+	return nil
+}
+
+// Take is Pull without the queue: it debits src and writes the amount made
+// available into out, and the caller posts it itself. PRE: no mark is open, as a
+// rewind only repays queued funds.
+func (s *RunState) Take(out *big.Int, src string, scope string, cap *big.Int, overdraft *big.Int, color string) error {
 	if overdraft == nil {
 		// available = max(0, cap), independent of the balance, so no Store fetch:
 		// the debit is recorded as a delta and folded in only if later needed.
@@ -263,8 +274,6 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
 		return nil
@@ -292,11 +301,6 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// an independent copy: out stays the caller's, while the queued amount is
-	// mutated in place by compactAt/Send
-	amt := new(big.Int).Set(out)
-	s.sources = append(s.sources, source{src, scope, amt, color})
-
 	currentBal.Sub(currentBal, out)
 	return nil
 }
@@ -307,6 +311,17 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 // so it never eats into a positive balance; pass big.NewInt(0) for the "balance
 // only" default. overdraftBound is not mutated.
 func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) error {
+	if err := s.TakeUncapped(out, src, scope, overdraftBound, color); err != nil {
+		return err
+	}
+	if out.Sign() > 0 {
+		s.sources = append(s.sources, source{src, scope, new(big.Int).Set(out), color})
+	}
+	return nil
+}
+
+// TakeUncapped is PullUncapped without the queue, as Take is Pull's.
+func (s *RunState) TakeUncapped(out *big.Int, src string, scope string, overdraftBound *big.Int, color string) error {
 	currentBal, err := s.absoluteBalance(src, scope, s.currentAsset, color)
 	if err != nil {
 		return err
@@ -322,8 +337,6 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 	}
 
 	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
 		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	}
 	return nil
@@ -431,6 +444,24 @@ func (s *RunState) ForcePosting(src, srcScope, dst, dstScope, asset, color strin
 // their source back, which here would repay a debit that was never made.
 func (s *RunState) PostDirect(src, srcScope, dst, dstScope, color string, amount *big.Int) error {
 	return s.addPosting(src, srcScope, dst, dstScope, s.currentAsset, color, amount)
+}
+
+// PostNoCredit is PostDirect without the destination credit, for a destination
+// whose balance is never read afterwards: the result carries postings, not
+// balances.
+func (s *RunState) PostNoCredit(src, srcScope, dst, dstScope, color string, amount *big.Int) {
+	if amount.Sign() <= 0 {
+		return
+	}
+	s.postings = append(s.postings, Posting{
+		Source:           src,
+		SourceScope:      srcScope,
+		Destination:      dst,
+		DestinationScope: dstScope,
+		Asset:            s.currentAsset,
+		Color:            color,
+		Amount:           new(big.Int).Set(amount),
+	})
 }
 
 // Save implements the numscript `save` statement: it protects funds from being

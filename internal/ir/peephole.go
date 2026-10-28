@@ -21,6 +21,7 @@ func DefaultPeepholes() []Peephole {
 		dropProvenAsserts,
 		pruneDeadBranches,
 		postFromUnbounded,
+		deadCredit,
 		deadCode,
 	}
 }

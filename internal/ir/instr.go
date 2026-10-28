@@ -100,6 +100,13 @@ type (
 		Account                      Reg  // str
 		Cap, Overdraft, Color, Scope *Reg // int, int, str, str
 	}
+	// TakeAccount is PullAccount without the funds queue: it debits Account and
+	// writes the amount, which a post_account then posts. Only a peephole emits it.
+	TakeAccount struct {
+		Dest                         Reg
+		Account                      Reg
+		Cap, Overdraft, Color, Scope *Reg
+	}
 	SendToAccount struct {
 		Account, Cap, Scope *Reg // str, int, str
 	}
@@ -112,6 +119,9 @@ type (
 		Amount                        Reg  // int
 		Color                         *Reg // str
 		SourceScope, DestinationScope *Reg // str, str
+		// NoCredit skips the destination credit: the destination balance is
+		// never read afterwards.
+		NoCredit bool
 	}
 	Save struct {
 		Account Reg  // str
@@ -226,6 +236,11 @@ type Instr interface {
 
 func (i PullAccount) dests() []Reg { return []Reg{i.Dest} }
 func (i PullAccount) sources() []Reg {
+	return present(&i.Account, i.Cap, i.Overdraft, i.Color, i.Scope)
+}
+
+func (i TakeAccount) dests() []Reg { return []Reg{i.Dest} }
+func (i TakeAccount) sources() []Reg {
 	return present(&i.Account, i.Cap, i.Overdraft, i.Color, i.Scope)
 }
 

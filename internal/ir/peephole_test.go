@@ -674,7 +674,7 @@ func TestPostFromUnbounded(t *testing.T) {
 	}
 }
 
-func TestPostFromUnboundedLeavesOtherShapes(t *testing.T) {
+func TestPostFromUnboundedKeepsTheDebitOfOtherShapes(t *testing.T) {
 	testCases := []struct {
 		name string
 		src  string
@@ -903,7 +903,9 @@ func TestPostFromUnboundedLeavesOtherShapes(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requireUnchanged(t, postFromUnbounded, tc.src)
+			// the source may still be fused, but never without its debit
+			got, _ := runPass(t, postFromUnbounded, tc.src)
+			require.NotContains(t, got, "max_zero")
 		})
 	}
 }
@@ -944,7 +946,7 @@ func TestOptimizeCollapsesWorldDiamondIntoPostAccount(t *testing.T) {
   $r3 = "world"
   $r6 = 42
   $r7 = "dest"
-  post_account(source: $r3, destination: $r7, amount: $r6)
+  post_account_no_credit(source: $r3, destination: $r7, amount: $r6)
 `, Dump(out))
 }
 
@@ -958,7 +960,7 @@ func TestOptimizeReturnsInputWhenNothingApplies(t *testing.T) {
   $r4 = pull_account(account: $r2, cap: $r1, overdraft: $r3)
   check_enough_funds($r4, $r1)
   $r5 = "dest"
-  send_to_account(account: $r5)
+  send_to_account(account: $r5, cap: $r1)
 `
 	instrs, errs := Parse(src)
 	require.Empty(t, errs)
@@ -974,4 +976,93 @@ func TestOptimizeBoundsTheSweeps(t *testing.T) {
 	}
 	optimize(nil, []Peephole{flip})
 	require.Equal(t, maxOptimizeSweeps, calls)
+}
+
+// --- deadCredit ---
+
+func TestDeadCredit(t *testing.T) {
+	requirePass(t, deadCredit, `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "src"
+  $r2 = 10
+  $r3 = 0
+  $r4 = take_account(account: $r1, cap: $r2, overdraft: $r3)
+  $r5 = "dest"
+  post_account(source: $r1, destination: $r5, amount: $r4)
+  $r6 = take_account(account: $r1, cap: $r2, overdraft: $r3)
+  $r7 = "other"
+  post_account(source: $r1, destination: $r7, amount: $r6)
+`, `  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "src"
+  $r2 = 10
+  $r3 = 0
+  $r4 = take_account(account: $r1, cap: $r2, overdraft: $r3)
+  $r5 = "dest"
+  post_account_no_credit(source: $r1, destination: $r5, amount: $r4)
+  $r6 = take_account(account: $r1, cap: $r2, overdraft: $r3)
+  $r7 = "other"
+  post_account_no_credit(source: $r1, destination: $r7, amount: $r6)
+`)
+}
+
+func TestDeadCreditKeepsReadCredits(t *testing.T) {
+	testCases := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "bounded take of the destination later",
+			src: `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "src"
+  $r2 = 10
+  $r3 = 0
+  $r4 = take_account(account: $r1, cap: $r2, overdraft: $r3)
+  $r5 = "dest"
+  post_account_no_credit(source: $r1, destination: $r5, amount: $r4)
+  $r6 = "a"
+  $r7 = 1
+  $r8 = take_account(account: $r6, cap: $r7, overdraft: $r3)
+  post_account(source: $r6, destination: $r1, amount: $r8)
+  $r9 = take_account(account: $r1, cap: $r7, overdraft: $r3)
+  post_account_no_credit(source: $r1, destination: $r6, amount: $r9)
+`,
+		},
+		{
+			name: "balance read of an account from a var later",
+			src: `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "world"
+  $r2 = 10
+  $r3 = max_zero($r2)
+  $r4 = "dest"
+  post_account(source: $r1, destination: $r4, amount: $r3)
+  $r5 = load_var<str>(0)
+  $r6 = balance($r5, $r0)
+`,
+		},
+		{
+			name: "destination from a var, save later",
+			src: `
+  $r0 = "USD/2"
+  set_current_asset($r0)
+  $r1 = "world"
+  $r2 = 10
+  $r3 = max_zero($r2)
+  $r4 = load_var<str>(0)
+  post_account(source: $r1, destination: $r4, amount: $r3)
+  $r5 = "a"
+  save(account: $r5, asset: $r0)
+`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requireUnchanged(t, deadCredit, tc.src)
+		})
+	}
 }

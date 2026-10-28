@@ -219,7 +219,16 @@ const (
 	// amount posts nothing. Refused while a mark is open, like Op_SendToAccount.
 	Op_PostAccount Opcode = 0x57
 
-	// reserved (0x58..0x5F) for PullAccount specializations, e.g.:
+	// Op_PullAccount without the queue, same operands: debits the account and
+	// writes the amount, which an Op_PostAccount then posts. Refused while a mark
+	// is open, as a rewind only repays queued funds.
+	Op_TakeAccount Opcode = 0x58
+
+	// Op_PostAccount without the destination credit, same operands: the compiler
+	// only emits it where the destination balance is never read afterwards.
+	Op_PostAccountNoCredit Opcode = 0x59
+
+	// reserved (0x5A..0x5F) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero
 	// Op_PullAccountBoundedZero
 	// // cap=None, overdraft=Bounded r

@@ -496,13 +496,22 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Color:     ap.optLabeledReg("color"),
 			Scope:     ap.optLabeledReg("scope"),
 		}
+	case "take_account":
+		instr = TakeAccount{
+			Dest:      dest(),
+			Account:   ap.reqLabeledReg("account"),
+			Cap:       ap.optLabeledReg("cap"),
+			Overdraft: ap.optLabeledReg("overdraft"),
+			Color:     ap.optLabeledReg("color"),
+			Scope:     ap.optLabeledReg("scope"),
+		}
 	case "send_to_account":
 		instr = SendToAccount{
 			Account: ap.optLabeledReg("account"),
 			Cap:     ap.optLabeledReg("cap"),
 			Scope:   ap.optLabeledReg("scope"),
 		}
-	case "post_account":
+	case "post_account", "post_account_no_credit":
 		instr = PostAccount{
 			Source:           ap.reqLabeledReg("source"),
 			Destination:      ap.reqLabeledReg("destination"),
@@ -510,6 +519,7 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Color:            ap.optLabeledReg("color"),
 			SourceScope:      ap.optLabeledReg("source_scope"),
 			DestinationScope: ap.optLabeledReg("destination_scope"),
+			NoCredit:         name == "post_account_no_credit",
 		}
 	case "save":
 		instr = Save{

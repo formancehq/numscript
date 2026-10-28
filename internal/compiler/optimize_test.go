@@ -43,7 +43,7 @@ func TestOptimizedWorldSend(t *testing.T) {
   $r1 = "world"
   $r2 = 42
   $r3 = "dest"
-  post_account(source: $r1, destination: $r3, amount: $r2)
+  post_account_no_credit(source: $r1, destination: $r3, amount: $r2)
 `))
 }
 
@@ -64,10 +64,10 @@ func TestOptimizedBoundedSend(t *testing.T) {
   $r2 = 10
   $r3 = "src"
   $r4 = 0
-  $r5 = pull_account(account: $r3, cap: $r2, overdraft: $r4)
+  $r5 = take_account(account: $r3, cap: $r2, overdraft: $r4)
   check_enough_funds($r5, $r1)
   $r6 = "dest"
-  send_to_account(account: $r6)
+  post_account_no_credit(source: $r3, destination: $r6, amount: $r5)
 `))
 }
 
@@ -85,7 +85,7 @@ func TestOptimizedUnboundedOverdraftSend(t *testing.T) {
   $r1 = "a"
   $r2 = 42
   $r3 = "dest"
-  post_account(source: $r1, destination: $r3, amount: $r2)
+  post_account_no_credit(source: $r1, destination: $r3, amount: $r2)
 `))
 }
 
@@ -93,9 +93,9 @@ func TestOptimizedUnboundedOverdraftSend(t *testing.T) {
 // pull_account and send_to_account left in the optimized stream.
 func TestPostFromUnboundedShapes(t *testing.T) {
 	testCases := []struct {
-		name                string
-		src                 string
-		posts, pulls, sends int
+		name                       string
+		src                        string
+		posts, takes, pulls, sends int
 	}{
 		{
 			name:  "world to a literal destination",
@@ -155,9 +155,10 @@ send $amt (source = @world destination = @dest)`,
 			name: "world, with a bounded send from another literal account",
 			src: `send [USD/2 42] (source = @world destination = @a)
 send [USD/2 10] (source = @a destination = @b)`,
-			posts: 1,
-			pulls: 1,
-			sends: 1,
+			posts: 2,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name: "colored world source",
@@ -168,14 +169,18 @@ send [USD/2 42] (source = @world \ "RED" destination = @dest)`,
 		{
 			name:  "bounded source",
 			src:   `send [USD/2 42] (source = @src destination = @dest)`,
-			pulls: 1,
-			sends: 1,
+			posts: 1,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name:  "bounded overdraft",
 			src:   `send [USD/2 42] (source = @a allowing overdraft up to [USD/2 100] destination = @dest)`,
-			pulls: 1,
-			sends: 1,
+			posts: 1,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			// the @world branch is decided at run time, so both arms stay
@@ -189,8 +194,10 @@ send [USD/2 42] (source = $src destination = @dest)`,
 			name: "world, with a balance read of world",
 			src: `vars { monetary $amt = balance(@world, USD/2) }
 send $amt (source = @world destination = @dest)`,
-			pulls: 1,
-			sends: 1,
+			posts: 1,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name: "world, with a balance read of an account from a var",
@@ -199,30 +206,38 @@ send $amt (source = @world destination = @dest)`,
   monetary $amt = balance($acc, USD/2)
 }
 send $amt (source = @world destination = @dest)`,
-			pulls: 1,
-			sends: 1,
+			posts: 1,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name: "world, with a bounded send from an account from a var",
 			src: `vars { account $src }
 send [USD/2 42] (source = @world destination = @a)
 send [USD/2 10] (source = $src destination = @b)`,
-			pulls: 3,
-			sends: 2,
+			posts: 1,
+			takes: 1,
+			pulls: 2,
+			sends: 1,
 		},
 		{
 			name: "unbounded overdraft, then a bounded send from the same account",
 			src: `send [USD/2 42] (source = @a allowing unbounded overdraft destination = @x)
 send [USD/2 10] (source = @a destination = @y)`,
-			pulls: 2,
-			sends: 2,
+			posts: 2,
+			takes: 2,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name: "unbounded overdraft, with a save of the same account",
 			src: `save [USD/2 1] from @a
 send [USD/2 42] (source = @a allowing unbounded overdraft destination = @x)`,
-			pulls: 1,
-			sends: 1,
+			posts: 1,
+			takes: 1,
+			pulls: 0,
+			sends: 0,
 		},
 		{
 			name: "fan-out",
@@ -265,7 +280,8 @@ send [USD/2 42] (
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			out := getOptimizedOutput(t, tc.src)
-			require.Equal(t, tc.posts, strings.Count(out, "post_account("), "post_account count in:\n%s", out)
+			require.Equal(t, tc.posts, strings.Count(out, "post_account(")+strings.Count(out, "post_account_no_credit("), "post_account count in:\n%s", out)
+			require.Equal(t, tc.takes, strings.Count(out, "take_account("), "take_account count in:\n%s", out)
 			require.Equal(t, tc.pulls, strings.Count(out, "pull_account("), "pull_account count in:\n%s", out)
 			require.Equal(t, tc.sends, strings.Count(out, "send_to_account("), "send_to_account count in:\n%s", out)
 		})
