@@ -30,6 +30,13 @@ var (
 	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
 )
 
+// Not statically decidable: whether a send drains the queue depends on the
+// balances.
+var (
+	errSetAssetWithQueuedFunds = errors.New("set_current_asset with funds still queued")
+	errEndWithQueuedFunds      = errors.New("run ended with funds still queued")
+)
+
 type Vm struct {
 	Program  Program
 	runstate *funds.RunState
@@ -156,9 +163,6 @@ func Exec[S Store](
 		switch Opcode(instr.Opcode) {
 		// --- Domain-specific ops
 		case Op_PullAccount:
-			// TODO crashes if this is the last instruction (the ext word is
-			// missing): instrs[pc] reads past the end. e.g. a program ending in a
-			// lone Op_PullAccount word.
 			instrExt := instrs[pc]
 			pc++
 
@@ -291,6 +295,10 @@ func Exec[S Store](
 			// changing the asset mid-region would repay the wrong one
 			if runstate.HasOpenMark() {
 				return funds.ExecutionResult{}, InternalError{Err: errSetAssetWhileMarkOpen}
+			}
+			// funds queued under the previous asset would be posted under the new one
+			if runstate.HasQueuedFunds() {
+				return funds.ExecutionResult{}, InternalError{Err: errSetAssetWithQueuedFunds}
 			}
 			currentAsset = stringsRegs[instr.A]
 			runstate.SetCurrentAsset(currentAsset)
@@ -426,8 +434,6 @@ func Exec[S Store](
 			portionsRegs[instr.A].Set(r)
 
 		case Op_MetaMonetary:
-			// TODO crashes if this is the last instruction (the ext word carrying the
-			// amount destination is missing), same as Op_PullAccount.
 			instrExt := instrs[pc]
 			pc++
 
@@ -633,6 +639,11 @@ func Exec[S Store](
 			}
 			return a.Key < b.Key
 		})
+	}
+
+	// a debit that never became a posting
+	if runstate.HasQueuedFunds() {
+		return funds.ExecutionResult{}, InternalError{Err: errEndWithQueuedFunds}
 	}
 
 	postings := runstate.GetPostings()

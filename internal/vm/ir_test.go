@@ -1401,3 +1401,34 @@ func TestIRPullDestAliasingItsBoundIsRejected(t *testing.T) {
 		require.ErrorContains(t, vm.Verify(program), "aliases its cap or overdraft")
 	})
 }
+
+// Funds pulled under one asset and still queued when the asset changes would be
+// posted under the new asset. Not statically decidable (a capped send drains the
+// queue or not depending on the balances), so this is a run-time check only.
+func TestIRSetCurrentAssetWithQueuedFundsIsAnInternalError(t *testing.T) {
+	execErr := runIRExpectingError(t, `
+  $usd = "USD/2"
+  set_current_asset($usd)
+  $src = "src"
+  $dest = "dest"
+  $overdraft = 0
+  $cap = 100
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+  $eur = "EUR/2"
+  set_current_asset($eur)
+  send_to_account(account: $dest)
+`, balances(map[string]int64{"src": 100}), nil)
+	require.Equal(t, vm.InternalError{Err: vm.ErrSetAssetWithQueuedFunds}, execErr)
+}
+
+func TestIREndWithQueuedFundsIsAnInternalError(t *testing.T) {
+	execErr := runIRExpectingError(t, `
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $src = "src"
+  $overdraft = 0
+  $cap = 100
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $overdraft)
+`, balances(map[string]int64{"src": 100}), nil)
+	require.Equal(t, vm.InternalError{Err: vm.ErrEndWithQueuedFunds}, execErr)
+}

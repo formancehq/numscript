@@ -537,3 +537,81 @@ func TestExecutionErrorsUnwrap(t *testing.T) {
 	require.ErrorIs(t, InternalError{Err: cause}, cause)
 	require.ErrorIs(t, StoreError{Wrapped: cause}, cause)
 }
+
+// --- malformed pull/send sequences -----------------------------------------
+
+func TestSetCurrentAssetWithQueuedFundsIsAnInternalError(t *testing.T) {
+	// pull 100 USD/2 from @src, switch to EUR/2, send: the posting would be in
+	// EUR/2 while the debit was in USD/2
+	prog := Program{
+		Instructions: []Instruction{
+			bc(Op_LoadStr, 0, 0),
+			bc(Op_LoadStr, 1, 1),
+			bc(Op_LoadStr, 2, 2),
+			bc(Op_LoadStr, 3, 3),
+			bc(Op_LoadInt, 1, 0),
+			bc(Op_LoadInt, 2, 1),
+			abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
+			abc(Op_PullAccount, 0, 1, 1),
+			abc(0, 2, nilReg, nilReg), // ext
+			abc(Op_SetCurrentAsset, 3, nilReg, nilReg),
+			abc(Op_SendToAccount, 2, nilReg, nilReg),
+		},
+		StringsPool: []string{"USD/2", "src", "dest", "EUR/2"},
+		IntsPool:    []big.Int{*big.NewInt(100), *big.NewInt(0)},
+	}
+	store := mockStore{bal: map[funds.PairKey]int64{{Account: "src", Asset: "USD/2"}: 100}}
+
+	require.NoError(t, Verify(fullBanks(prog)))
+	_, err := Exec(context.Background(), newTestVm(prog), nil, store)
+	require.Equal(t, InternalError{Err: errSetAssetWithQueuedFunds}, err)
+}
+
+func TestEndWithQueuedFundsIsAnInternalError(t *testing.T) {
+	prog := Program{
+		Instructions: []Instruction{
+			bc(Op_LoadStr, 0, 0),
+			bc(Op_LoadStr, 1, 1),
+			bc(Op_LoadInt, 1, 0),
+			bc(Op_LoadInt, 2, 1),
+			abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
+			abc(Op_PullAccount, 0, 1, 1),
+			abc(0, 2, nilReg, nilReg), // ext
+		},
+		StringsPool: []string{"USD/2", "src"},
+		IntsPool:    []big.Int{*big.NewInt(100), *big.NewInt(0)},
+	}
+	store := mockStore{bal: map[funds.PairKey]int64{{Account: "src", Asset: "USD/2"}: 100}}
+
+	require.NoError(t, Verify(fullBanks(prog)))
+	_, err := Exec(context.Background(), newTestVm(prog), nil, store)
+	require.Equal(t, InternalError{Err: errEndWithQueuedFunds}, err)
+}
+
+// `send [USD/2 0]` lowers to a zero-cap pull followed by a zero-cap send, which
+// never drains the queue: the zero pull must not count as queued funds, at the
+// next asset switch or at the end of the run.
+func TestQueuedZeroAmountIsNotQueuedFunds(t *testing.T) {
+	prog := Program{
+		Instructions: []Instruction{
+			bc(Op_LoadStr, 0, 0),
+			bc(Op_LoadStr, 1, 1),
+			bc(Op_LoadStr, 2, 2),
+			bc(Op_LoadInt, 0, 0), // 0
+			abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
+			abc(Op_PullAccount, 1, 1, 0),
+			abc(0, nilReg, nilReg, nilReg), // ext: unbounded overdraft
+			abc(Op_SendToAccount, 2, 0, nilReg),
+			abc(Op_SetCurrentAsset, 0, nilReg, nilReg),
+			abc(Op_PullAccount, 1, 1, 0),
+			abc(0, nilReg, nilReg, nilReg), // ext: unbounded overdraft
+		},
+		StringsPool: []string{"USD/2", "world", "dest"},
+		IntsPool:    []big.Int{*big.NewInt(0)},
+	}
+
+	require.NoError(t, Verify(fullBanks(prog)))
+	res, err := Exec(context.Background(), newTestVm(prog), nil, mockStore{})
+	require.Nil(t, err)
+	require.Empty(t, res.Postings)
+}

@@ -27,7 +27,7 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
     <tr>
       <td>0</td><td><code>0x00</code></td><td><strong>SET_CURRENT_ASSET</strong></td>
       <td>asset</td><td>-</td><td>-</td>
-      <td>Sets the current asset (used by <code>PULL_ACCOUNT</code> / <code>SEND_TO_ACCOUNT</code>) from <code>str_regs[A]</code></td>
+      <td>Sets the current asset (used by <code>PULL_ACCOUNT</code> / <code>SEND_TO_ACCOUNT</code>) from <code>str_regs[A]</code>. Traps while a mark is open, or while the source queue still holds funds pulled under the previous asset</td>
     </tr>
     <tr>
       <td>1</td><td><code>0x01</code></td><td><strong>ASSERT_SAME_ASSET</strong></td>

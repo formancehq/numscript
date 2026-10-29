@@ -244,9 +244,15 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 	return new(big.Int).Set(bal), nil
 }
 
+// HasQueuedFunds reports whether any source is still queued. Every queued
+// source holds a positive amount: Pull and PullUncapped never queue a zero.
+func (s *RunState) HasQueuedFunds() bool {
+	return len(s.sources) > 0
+}
+
 // Pull debits up to cap from src's (currentAsset, color) balance, queues the
-// pulled amount as a funding source tagged with color, and writes the amount made
-// available into out:
+// pulled amount as a funding source tagged with color (only when positive), and
+// writes the amount made available into out:
 //
 //	overdraft == nil -> unbounded: available = max(0, cap)
 //	overdraft == b   -> available = min(max(0, balance + max(0,b)), max(0, cap))
@@ -263,8 +269,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
+		s.enqueue(src, scope, out, color)
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
 		return nil
@@ -292,11 +297,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// an independent copy: out stays the caller's, while the queued amount is
-	// mutated in place by compactAt/Send
-	amt := new(big.Int).Set(out)
-	s.sources = append(s.sources, source{src, scope, amt, color})
-
+	s.enqueue(src, scope, out, color)
 	currentBal.Sub(currentBal, out)
 	return nil
 }
@@ -321,12 +322,18 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 		out.SetInt64(0)
 	}
 
-	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
-		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
-	}
+	s.enqueue(src, scope, out, color)
+	currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	return nil
+}
+
+// enqueue queues a copy of amount, so the caller keeps amount while the queued
+// one is mutated in place by compactAt/Send. A zero amount is not queued.
+func (s *RunState) enqueue(src, scope string, amount *big.Int, color string) {
+	if amount.Sign() > 0 {
+		out := new(big.Int).Set(amount)
+		s.sources = append(s.sources, source{src, scope, out, color})
+	}
 }
 
 // Send drains queued funding sources in FIFO order until cap is satisfied or
