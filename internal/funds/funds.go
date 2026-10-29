@@ -269,10 +269,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		if out.Sign() > 0 {
-			amt := new(big.Int).Set(out)
-			s.sources = append(s.sources, source{src, scope, amt, color})
-		}
+		s.enqueue(src, scope, out, color)
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
 		return nil
@@ -300,13 +297,7 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		out.SetInt64(0)
 	}
 
-	// an independent copy: out stays the caller's, while the queued amount is
-	// mutated in place by compactAt/Send
-	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
-	}
-
+	s.enqueue(src, scope, out, color)
 	currentBal.Sub(currentBal, out)
 	return nil
 }
@@ -331,12 +322,18 @@ func (s *RunState) PullUncapped(out *big.Int, src string, scope string, overdraf
 		out.SetInt64(0)
 	}
 
-	if out.Sign() > 0 {
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
-		currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
-	}
+	s.enqueue(src, scope, out, color)
+	currentBal.Sub(currentBal, out) // debit in place; cache keeps the pointer
 	return nil
+}
+
+// enqueue queues a copy of amount, so the caller keeps amount while the queued
+// one is mutated in place by compactAt/Send. A zero amount is not queued.
+func (s *RunState) enqueue(src, scope string, amount *big.Int, color string) {
+	if amount.Sign() > 0 {
+		out := new(big.Int).Set(amount)
+		s.sources = append(s.sources, source{src, scope, out, color})
+	}
 }
 
 // Send drains queued funding sources in FIFO order until cap is satisfied or
