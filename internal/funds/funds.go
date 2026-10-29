@@ -244,21 +244,15 @@ func (s *RunState) GetAccountBalance(account, scope, asset, color string) (*big.
 	return new(big.Int).Set(bal), nil
 }
 
-// HasQueuedFunds reports whether a queued source still holds a positive amount.
-// Zero-amount entries do not count: a Pull of a zero cap queues one, and a Send
-// of a zero cap does not consume it.
+// HasQueuedFunds reports whether any source is still queued. Every queued
+// source holds a positive amount: Pull and PullUncapped never queue a zero.
 func (s *RunState) HasQueuedFunds() bool {
-	for i := range s.sources {
-		if s.sources[i].amount.Sign() > 0 {
-			return true
-		}
-	}
-	return false
+	return len(s.sources) > 0
 }
 
 // Pull debits up to cap from src's (currentAsset, color) balance, queues the
-// pulled amount as a funding source tagged with color, and writes the amount made
-// available into out:
+// pulled amount as a funding source tagged with color (only when positive), and
+// writes the amount made available into out:
 //
 //	overdraft == nil -> unbounded: available = max(0, cap)
 //	overdraft == b   -> available = min(max(0, balance + max(0,b)), max(0, cap))
@@ -275,8 +269,10 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 		if out.Sign() < 0 {
 			out.SetInt64(0)
 		}
-		amt := new(big.Int).Set(out)
-		s.sources = append(s.sources, source{src, scope, amt, color})
+		if out.Sign() > 0 {
+			amt := new(big.Int).Set(out)
+			s.sources = append(s.sources, source{src, scope, amt, color})
+		}
 		e := s.entryFor(PairKey{src, scope, s.currentAsset, color})
 		e.amount.Sub(&e.amount, out)
 		return nil
@@ -306,8 +302,10 @@ func (s *RunState) Pull(out *big.Int, src string, scope string, cap *big.Int, ov
 
 	// an independent copy: out stays the caller's, while the queued amount is
 	// mutated in place by compactAt/Send
-	amt := new(big.Int).Set(out)
-	s.sources = append(s.sources, source{src, scope, amt, color})
+	if out.Sign() > 0 {
+		amt := new(big.Int).Set(out)
+		s.sources = append(s.sources, source{src, scope, amt, color})
+	}
 
 	currentBal.Sub(currentBal, out)
 	return nil

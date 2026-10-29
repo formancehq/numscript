@@ -588,9 +588,9 @@ func TestEndWithQueuedFundsIsAnInternalError(t *testing.T) {
 	require.Equal(t, InternalError{Err: errEndWithQueuedFunds}, err)
 }
 
-// `send [USD/2 0]` lowers to a zero-cap pull (which queues a zero-amount source)
-// followed by a zero-cap send (which does not consume it): the queued zero must
-// not count as funds, at the next asset switch or at the end of the run.
+// `send [USD/2 0]` lowers to a zero-cap pull followed by a zero-cap send, which
+// never drains the queue: the zero pull must not count as queued funds, at the
+// next asset switch or at the end of the run.
 func TestQueuedZeroAmountIsNotQueuedFunds(t *testing.T) {
 	prog := Program{
 		Instructions: []Instruction{
