@@ -34,7 +34,7 @@ func Execute(options CliOptions) {
 	// of --help unless NUMSCRIPT_EXPERIMENTAL_CLI is set. It is always registered
 	// and runnable, like lsp and mcp.
 	hidden := os.Getenv("NUMSCRIPT_EXPERIMENTAL_CLI") == ""
-	for _, experimentalCmd := range []*cobra.Command{getAssembleCmd(), getBytecodeRunCmd()} {
+	for _, experimentalCmd := range []*cobra.Command{getAssembleCmd(), getBytecodeRunCmd(), getIRCmd(), getProveCmd()} {
 		experimentalCmd.Hidden = hidden
 		rootCmd.AddCommand(experimentalCmd)
 	}

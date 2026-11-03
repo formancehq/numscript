@@ -1,0 +1,7 @@
+enough_means_success: valid
+dest_credited: valid
+src_never_negative: counterexample
+src_not_negative_on_success: valid
+conservation: valid
+moved_all: valid
+fails_below_100: valid

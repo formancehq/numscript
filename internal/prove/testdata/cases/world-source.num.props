@@ -1,0 +1,3 @@
+prop always: success
+prop world_debited: after(@world, USD/2) == before(@world, USD/2) - 100
+prop world_positive: after(@world, USD/2) >= 0
