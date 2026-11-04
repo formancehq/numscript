@@ -93,6 +93,8 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 
 		machine := vm.NewVm(program)
 		store := scriptStore(balances, specs.Meta, tc.Meta)
+		var deleted []specs_format.DeletedMetadataRow
+		store.deleted = &deleted
 		res, execErr := vm.Exec(context.Background(), machine, &vars, store)
 
 		if tc.ExpectMissingFunds {
@@ -134,6 +136,11 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 		if tc.ExpectAccountsMeta != nil {
 			require.Equal(t, accountsMetaAsStrings(tc.ExpectAccountsMeta), res.AccountsMetadata,
 				"case %q: expect.metadata", tc.It)
+		}
+
+		if tc.ExpectDeletedMeta != nil {
+			require.True(t, slices.Equal(tc.ExpectDeletedMeta, deleted),
+				"case %q: expect.deletedMetadata: want %v, got %v", tc.It, tc.ExpectDeletedMeta, deleted)
 		}
 	}
 }

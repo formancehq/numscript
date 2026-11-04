@@ -130,8 +130,9 @@ type (
 // Interpreter errors reporting that a Store call failed; Unwrap yields the
 // store's own error.
 type (
-	QueryBalanceError  = interpreter.QueryBalanceError
-	QueryMetadataError = interpreter.QueryMetadataError
+	QueryBalanceError   = interpreter.QueryBalanceError
+	QueryMetadataError  = interpreter.QueryMetadataError
+	DeleteMetadataError = interpreter.DeleteMetadataError
 )
 
 // Interpreter errors reporting defects in numscript itself, never caused by the

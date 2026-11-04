@@ -1432,3 +1432,7 @@ func TestIREndWithQueuedFundsIsAnInternalError(t *testing.T) {
 `, balances(map[string]int64{"src": 100}), nil)
 	require.Equal(t, vm.InternalError{Err: vm.ErrEndWithQueuedFunds}, execErr)
 }
+
+func (s irStore) DeleteAccountMetadata(context.Context, string, string, string) error {
+	return nil
+}

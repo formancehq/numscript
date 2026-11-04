@@ -615,3 +615,7 @@ func TestQueuedZeroAmountIsNotQueuedFunds(t *testing.T) {
 	require.Nil(t, err)
 	require.Empty(t, res.Postings)
 }
+
+func (m mockStore) DeleteAccountMetadata(context.Context, string, string, string) error {
+	return nil
+}

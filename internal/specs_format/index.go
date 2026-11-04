@@ -64,6 +64,23 @@ const SchemaURL = "https://raw.githubusercontent.com/formancehq/numscript/main/v
 // InputsSchemaURL is the equivalent for the inputs format.
 const InputsSchemaURL = "https://raw.githubusercontent.com/formancehq/numscript/main/v1.inputs.schema.json"
 
+// DeletedMetadataRow is one Store.DeleteAccountMetadata call.
+type DeletedMetadataRow struct {
+	Account string `json:"account"`
+	Key     string `json:"key"`
+	Scope   string `json:"scope,omitempty"`
+}
+
+type deletionRecorder struct {
+	interpreter.StaticStore
+	deleted []DeletedMetadataRow
+}
+
+func (s *deletionRecorder) DeleteAccountMetadata(_ context.Context, account, scope, key string) error {
+	s.deleted = append(s.deleted, DeletedMetadataRow{Account: account, Key: key, Scope: scope})
+	return nil
+}
+
 // --- Specs:
 type Specs struct {
 	Schema       string                       `json:"$schema,omitempty"`
@@ -93,6 +110,7 @@ type TestCase struct {
 	ExpectPostings           []interpreter.Posting           `json:"expect.postings,omitempty"`
 	ExpectTxMeta             ExpectedTxMeta                  `json:"expect.txMetadata,omitempty"`
 	ExpectAccountsMeta       interpreter.SetAccountsMetadata `json:"expect.metadata,omitempty"`
+	ExpectDeletedMeta        []DeletedMetadataRow            `json:"expect.deletedMetadata,omitempty"`
 	ExpectEndBalances        interpreter.Balances            `json:"expect.endBalances,omitempty"`
 	ExpectEndBalancesInclude interpreter.Balances            `json:"expect.endBalances.include,omitempty"`
 	ExpectMovements          Movements                       `json:"expect.movements,omitempty"`
@@ -163,14 +181,15 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 			featureFlags[flag] = struct{}{}
 		}
 
+		store := &deletionRecorder{StaticStore: interpreter.StaticStore{
+			Meta:     meta,
+			Balances: mergedBalances,
+		}}
 		result, err := interpreter.RunProgram(
 			context.Background(),
 			program,
 			vars,
-			interpreter.StaticStore{
-				Meta:     meta,
-				Balances: mergedBalances,
-			},
+			store,
 			featureFlags,
 		)
 
@@ -241,6 +260,15 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
 					interpreter.CompareSetAccountsMetadata,
+				)
+			}
+
+			if testCase.ExpectDeletedMeta != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.deletedMetadata",
+					testCase.ExpectDeletedMeta,
+					store.deleted,
+					slices.Equal,
 				)
 			}
 

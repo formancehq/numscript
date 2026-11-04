@@ -1,0 +1,3 @@
+set_account_meta(@acc, "k1", "v1")
+set_account_meta(@acc, "k2", "v2")
+delete_account_metadata(@acc, "k1")

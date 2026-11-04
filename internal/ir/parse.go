@@ -558,6 +558,8 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 		instr = SetTxMeta{Key: ap.reg(), Value: ap.reg()}
 	case "set_account_meta":
 		instr = SetAccountMeta{Account: ap.reg(), Key: ap.reg(), Value: ap.reg(), Scope: ap.optLabeledReg("scope")}
+	case "delete_account_meta":
+		instr = DeleteAccountMeta{Account: ap.reg(), Key: ap.reg(), Scope: ap.optLabeledReg("scope")}
 
 	case "jmp_if_false":
 		cond, target := ap.reg(), ap.labelRef()

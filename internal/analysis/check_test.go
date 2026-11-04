@@ -1216,3 +1216,82 @@ func TestIncompleteVarOriginDoesNotPanic(t *testing.T) {
 		})
 	}
 }
+
+func TestRequireFlagForDeleteAccountMetadata(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.1.4
+delete_account_metadata(@acc, "k")
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, `delete_account_metadata(@acc, "k")`, 0),
+				Kind: analysis.ExperimentalFeature{
+					Name: flags.ExperimentalDeleteAccountMetadata,
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestRequireVersionForDeleteAccountMetadata(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.1.3
+delete_account_metadata(@acc, "k")
+`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, `delete_account_metadata(@acc, "k")`, 0),
+				Kind: analysis.VersionMismatch{
+					GotVersion:      parser.NewVersionInterpreter(0, 1, 3),
+					RequiredVersion: parser.NewVersionInterpreter(0, 1, 4),
+				},
+			},
+		},
+		checkSource(input),
+	)
+}
+
+func TestDeleteAccountMetadataWithFlag(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.1.4
+// @feature_flag experimental-delete-account-metadata
+delete_account_metadata(@acc, "k")
+`
+
+	require.Empty(t, checkSource(input))
+}
+
+func TestDeleteAccountMetadataSignature(t *testing.T) {
+	t.Parallel()
+
+	input := `delete_account_metadata("acc", @k, @extra)`
+
+	require.Equal(t,
+		[]analysis.Diagnostic{
+			{
+				Range: parser.RangeOfIndexed(input, "@extra", 0),
+				Kind:  analysis.BadArity{Expected: 2, Actual: 3},
+			},
+			{
+				Range: parser.RangeOfIndexed(input, `"acc"`, 0),
+				Kind:  analysis.TypeMismatch{Expected: analysis.TypeAccount, Got: analysis.TypeString},
+			},
+			{
+				Range: parser.RangeOfIndexed(input, "@k", 0),
+				Kind:  analysis.TypeMismatch{Expected: analysis.TypeString, Got: analysis.TypeAccount},
+			},
+		},
+		checkSource(input),
+	)
+}
