@@ -42,8 +42,9 @@ type VarOriginFnCallResolution struct {
 	VersionConstraints []VersionClause
 }
 type StatementFnCallResolution struct {
-	Params []string
-	Docs   string
+	Params             []string
+	Docs               string
+	VersionConstraints []VersionClause
 }
 
 func (VarOriginFnCallResolution) ContextName() string { return "variable origin" }
@@ -57,8 +58,9 @@ func (r StatementFnCallResolution) GetParams() []string { return r.Params }
 
 const (
 	// Statement fns
-	FnSetTxMeta      = builtins.SetTxMeta
-	FnSetAccountMeta = builtins.SetAccountMeta
+	FnSetTxMeta             = builtins.SetTxMeta
+	FnSetAccountMeta        = builtins.SetAccountMeta
+	FnDeleteAccountMetadata = builtins.DeleteAccountMetadata
 
 	// Expr fns
 	FnVarOriginMeta      = builtins.Meta
@@ -77,6 +79,16 @@ var Builtins = map[string]FnCallResolution{
 	FnSetAccountMeta: StatementFnCallResolution{
 		Params: []string{TypeAccount, TypeString, TypeAny},
 		Docs:   "set account metadata",
+	},
+	FnDeleteAccountMetadata: StatementFnCallResolution{
+		Params: []string{TypeAccount, TypeString},
+		Docs:   "delete account metadata",
+		VersionConstraints: []VersionClause{
+			{
+				Version:     parser.NewVersionInterpreter(0, 1, 4),
+				FeatureFlag: flags.ExperimentalDeleteAccountMetadata,
+			},
+		},
 	},
 	FnVarOriginMeta: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeString},
@@ -363,6 +375,7 @@ func (res *CheckResult) checkStatement(statement parser.Statement) {
 		if ok {
 			if varOrigin, ok := resolution.(StatementFnCallResolution); ok {
 				res.fnCallResolution[statement.Caller] = varOrigin
+				res.requireVersion(statement.Range, varOrigin.VersionConstraints...)
 			}
 		}
 

@@ -104,6 +104,11 @@ func TestFeatureFlagGating(t *testing.T) {
 			)`,
 		},
 		{
+			name: "delete_account_metadata",
+			flag: flags.ExperimentalDeleteAccountMetadata,
+			src:  `delete_account_metadata(@a, "k")`,
+		},
+		{
 			name: "account interpolation",
 			flag: flags.ExperimentalAccountInterpolationFlag,
 			src: `vars { string $s }

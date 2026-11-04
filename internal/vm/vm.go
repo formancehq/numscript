@@ -21,13 +21,15 @@ type accountMetaKey struct {
 	key     string
 }
 
-// The three ops a mark cannot survive, rejected by the arms below. save is on the
-// list permanently, unlike the other two: it floors the balance at zero, and the
-// clamp destroys the information needed to invert it.
+// The ops a mark cannot survive, rejected by the arms below. save and
+// delete_account_meta are on the list permanently: save floors the balance at
+// zero, and the clamp destroys the information needed to invert it; a store
+// delete cannot be undone.
 var (
-	errSendWhileMarkOpen     = errors.New("send while a mark is open")
-	errSetAssetWhileMarkOpen = errors.New("set_current_asset while a mark is open")
-	errSaveWhileMarkOpen     = errors.New("save while a mark is open")
+	errSendWhileMarkOpen       = errors.New("send while a mark is open")
+	errSetAssetWhileMarkOpen   = errors.New("set_current_asset while a mark is open")
+	errSaveWhileMarkOpen       = errors.New("save while a mark is open")
+	errDeleteMetaWhileMarkOpen = errors.New("delete_account_meta while a mark is open")
 )
 
 // Not statically decidable: whether a send drains the queue depends on the
@@ -83,6 +85,11 @@ type Store interface {
 		scope,
 		key string,
 	) (string, bool, error)
+
+	// Called during execution, in script order, even by a run that later fails.
+	// The result's AccountsMetadata holds only writes made after the key's last
+	// delete, so apply the deletions first.
+	DeleteAccountMetadata(ctx context.Context, account, scope, key string) error
 }
 
 func lookupMeta(ctx context.Context, store Store, account, scope, key string) (string, ExecutionError) {
@@ -380,6 +387,23 @@ func Exec[S Store](
 				key:     stringsRegs[instr.B],
 			}
 			accountsMeta[key] = stringsRegs[instr.C]
+
+		case Op_DeleteAccountMeta:
+			if runstate.HasOpenMark() {
+				return funds.ExecutionResult{}, InternalError{Err: errDeleteMetaWhileMarkOpen}
+			}
+
+			key := accountMetaKey{
+				account: stringsRegs[instr.A],
+				key:     stringsRegs[instr.B],
+			}
+			if instr.C != nilReg {
+				key.scope = stringsRegs[instr.C]
+			}
+			delete(accountsMeta, key)
+			if err := store.DeleteAccountMetadata(ctx, key.account, key.scope, key.key); err != nil {
+				return funds.ExecutionResult{}, StoreError{Wrapped: err}
+			}
 
 		case Op_MetaStr:
 			instrExt := instrs[pc]

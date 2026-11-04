@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": ["experimental-delete-account-metadata"],
+  "testCases": [
+    {
+      "it": "drops an earlier write to the deleted key",
+      "expect.metadata": [{ "account": "acc", "key": "k2", "value": "v2" }],
+      "expect.deletedMetadata": [{ "account": "acc", "key": "k1" }]
+    }
+  ]
+}

@@ -372,3 +372,7 @@ func decodeJSONExact(t *testing.T, data []byte) any {
 	require.NoError(t, dec.Decode(&v))
 	return v
 }
+
+func (s corpusStore) DeleteAccountMetadata(context.Context, string, string, string) error {
+	return nil
+}

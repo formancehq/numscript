@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": ["experimental-delete-account-metadata"],
+  "variables": { "acc": "alice", "key": "status" },
+  "testCases": [
+    {
+      "it": "deletes each key from the store, in script order",
+      "expect.deletedMetadata": [
+        { "account": "alice", "key": "status" },
+        { "account": "other", "key": "k" }
+      ]
+    }
+  ]
+}

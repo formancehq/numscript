@@ -37,6 +37,17 @@ func StmtSetTxMeta[T ExprType](key string, value Expression[T]) Statement {
 	}
 }
 
+// StmtDeleteAccountMetadata: `delete_account_metadata(<account>, "<key>")`.
+func StmtDeleteAccountMetadata(account Expression[ExprTypeAccount], key string) Statement {
+	return func(env *env, w int) {
+		env.builder.WriteString("delete_account_metadata(")
+		account(env, w)
+		env.builder.WriteString(", ")
+		writeStringLiteral(env, key)
+		env.builder.WriteString(")")
+	}
+}
+
 // StmtSetAccountMeta: `set_account_meta(<account>, "<key>", <value>)`.
 func StmtSetAccountMeta[T ExprType](
 	account Expression[ExprTypeAccount],

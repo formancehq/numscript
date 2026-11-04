@@ -1276,6 +1276,21 @@ func (st *state) compileStatements(stmt parser.Statement) CompilerError {
 			st.Push(ir.SetAccountMeta{Account: acc.Name, Key: key, Value: value, Scope: acc.Scope})
 			return nil
 
+		case builtins.DeleteAccountMetadata:
+			if err := st.checkFeatureFlag(stmt.Range, flags.ExperimentalDeleteAccountMetadata); err != nil {
+				return err
+			}
+			acc, err := st.compileAccountExpr(stmt.Args[0])
+			if err != nil {
+				return err
+			}
+			key, err := st.compileExpr(stmt.Args[1])
+			if err != nil {
+				return err
+			}
+			st.Push(ir.DeleteAccountMeta{Account: acc.Name, Key: key, Scope: acc.Scope})
+			return nil
+
 		default:
 			return UnsupportedNode{Range: stmt.Range, Node: stmt.Caller.Name}
 		}

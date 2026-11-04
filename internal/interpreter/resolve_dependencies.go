@@ -62,6 +62,10 @@ func (s *recordingStore) GetAccountsMetadata(ctx context.Context, q MetadataQuer
 	return s.inner.GetAccountsMetadata(ctx, q)
 }
 
+func (s *recordingStore) DeleteAccountMetadata(context.Context, string, string, string) error {
+	return errors.New("dependency resolution must not delete metadata")
+}
+
 type resolveDependenciesState struct {
 	env  *evalEnv
 	deps ResolvedDependencies
@@ -193,6 +197,16 @@ func (st *resolveDependenciesState) resolveFnCallStatement(fnCall *parser.FnCall
 		account := parseArg(p, fnCall.Range, expectAccount)
 		key := parseArg(p, fnCall.Range, expectString)
 		_ = parseArg(p, fnCall.Range, expectAnything)
+		if err := p.parse(); err != nil {
+			return err
+		}
+		addMetaDep(st.deps.MetaWrites, account, string(key))
+		return nil
+
+	case analysis.FnDeleteAccountMetadata:
+		p := NewArgsParser(args)
+		account := parseArg(p, fnCall.Range, expectAccount)
+		key := parseArg(p, fnCall.Range, expectString)
 		if err := p.parse(); err != nil {
 			return err
 		}

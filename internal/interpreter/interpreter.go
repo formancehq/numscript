@@ -274,6 +274,8 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 			return setTxMeta(st, statement.Caller.Range, args)
 		case analysis.FnSetAccountMeta:
 			return setAccountMeta(st, statement.Caller.Range, args)
+		case analysis.FnDeleteAccountMetadata:
+			return deleteAccountMetadata(st, statement.Caller.Range, args)
 		default:
 			return UnboundFunctionErr{Name: statement.Caller.Name}
 		}

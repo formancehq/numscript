@@ -50,6 +50,10 @@ func (m internalSetAccountsMeta) Set(account, scope, key string, value Value) {
 	m[metadataKey{Account: account, Scope: scope, Key: key}] = value
 }
 
+func (m internalSetAccountsMeta) Delete(account, scope, key string) {
+	delete(m, metadataKey{Account: account, Scope: scope, Key: key})
+}
+
 // toRows flattens the set metadata into the external representation, sorted by
 // (account, scope, key) for deterministic output. Values are rendered here: the
 // runtime keeps them typed, the wire format does not.

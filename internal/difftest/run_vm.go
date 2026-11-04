@@ -127,3 +127,7 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 
 	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
 }
+
+func (s vmStore) DeleteAccountMetadata(context.Context, string, string, string) error {
+	return nil
+}

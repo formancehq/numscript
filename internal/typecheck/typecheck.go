@@ -120,14 +120,15 @@ type fnSig struct {
 }
 
 var builtinSigs = map[string]fnSig{
-	builtins.SetTxMeta:      {params: []Type{TypeString, TypeAny}},
-	builtins.SetAccountMeta: {params: []Type{TypeAccount, TypeString, TypeAny}},
-	builtins.Meta:           {params: []Type{TypeAccount, TypeString}, ret: TypeAny},
-	builtins.Balance:        {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
-	builtins.Overdraft:      {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
-	builtins.GetAsset:       {params: []Type{TypeMonetary}, ret: TypeAsset},
-	builtins.GetAmount:      {params: []Type{TypeMonetary}, ret: TypeNumber},
-	builtins.Scoped:         {params: []Type{TypeAccount, TypeString}, ret: TypeAccount},
+	builtins.SetTxMeta:             {params: []Type{TypeString, TypeAny}},
+	builtins.SetAccountMeta:        {params: []Type{TypeAccount, TypeString, TypeAny}},
+	builtins.DeleteAccountMetadata: {params: []Type{TypeAccount, TypeString}},
+	builtins.Meta:                  {params: []Type{TypeAccount, TypeString}, ret: TypeAny},
+	builtins.Balance:               {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
+	builtins.Overdraft:             {params: []Type{TypeAccount, TypeAsset}, ret: TypeMonetary},
+	builtins.GetAsset:              {params: []Type{TypeMonetary}, ret: TypeAsset},
+	builtins.GetAmount:             {params: []Type{TypeMonetary}, ret: TypeNumber},
+	builtins.Scoped:                {params: []Type{TypeAccount, TypeString}, ret: TypeAccount},
 }
 
 // --- Result / entrypoint

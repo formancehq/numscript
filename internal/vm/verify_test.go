@@ -213,6 +213,20 @@ func TestVerifyMarkBalance(t *testing.T) {
 		}})
 	})
 
+	t.Run("delete_account_meta inside a mark", func(t *testing.T) {
+		requireRejectedWith(t, Program{
+			MaxRegString: 2,
+			StringsPool:  []string{"acc"},
+			Instructions: []Instruction{
+				bc(Op_LoadStr, 0, 0),
+				bc(Op_LoadStr, 1, 0),
+				push,
+				abc(Op_DeleteAccountMeta, 0, 1, nilReg),
+				commit,
+			},
+		}, "delete_account_meta while a mark is open")
+	})
+
 	t.Run("unreachable mark end is ignored", func(t *testing.T) {
 		mustAccept(t, Program{Instructions: []Instruction{
 			bc(Op_Jmp, 0, 1), // 0: -> 2
