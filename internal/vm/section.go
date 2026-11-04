@@ -27,7 +27,7 @@ type BytecodeVersion struct {
 
 // CurrentBytecodeVersion is the version Encode writes and the newest one the
 // decoders read.
-var CurrentBytecodeVersion = BytecodeVersion{Major: 0, Minor: 1}
+var CurrentBytecodeVersion = BytecodeVersion{Major: 0, Minor: 2}
 
 // CanRead reports whether a reader at version v accepts a blob encoded with
 // version encoded: the same major, and a minor no newer than the reader's. An

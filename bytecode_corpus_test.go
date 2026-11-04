@@ -3,6 +3,7 @@ package numscript_test
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -90,6 +91,13 @@ func TestFreezeBytecodeCorpus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, rawSpecs)
 
+	var earlier []string
+	for _, freeze := range readCorpusFreezes(t) {
+		if runsOnCurrentVm(freezeVersion(t, freeze)) {
+			earlier = append(earlier, freeze)
+		}
+	}
+
 	frozen := 0
 	for _, rawSpec := range rawSpecs {
 		rel, err := filepath.Rel(bytecodeFixturesDir, rawSpec.NumscriptPath)
@@ -115,8 +123,7 @@ func TestFreezeBytecodeCorpus(t *testing.T) {
 		}
 		require.NoError(t, cErr, rel)
 
-		require.NoError(t, os.MkdirAll(filepath.Join(dir, programName), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, programName+corpusProgramExt), program.Encode(), 0o644))
+		files := map[string][]byte{programName + corpusProgramExt: program.Encode()}
 
 		used := map[string]bool{}
 		for _, tc := range specs.TestCases {
@@ -131,22 +138,29 @@ func TestFreezeBytecodeCorpus(t *testing.T) {
 
 			res, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, newCorpusStore(balances, metadata))
 
-			caseDir := filepath.Join(dir, programName, caseFolderName(tc.It, used))
-			require.NoError(t, os.MkdirAll(caseDir, 0o755))
-			require.NoError(t, os.WriteFile(filepath.Join(caseDir, corpusVarsFile), vars.Encode(), 0o644))
-			writeCorpusJSON(t, filepath.Join(caseDir, corpusBalancesFile), balances)
+			caseDir := filepath.Join(programName, caseFolderName(tc.It, used))
+			files[filepath.Join(caseDir, corpusVarsFile)] = vars.Encode()
+			files[filepath.Join(caseDir, corpusBalancesFile)] = corpusJSON(t, balances)
 			if len(metadata) != 0 {
-				writeCorpusJSON(t, filepath.Join(caseDir, corpusMetadataFile), metadata)
+				files[filepath.Join(caseDir, corpusMetadataFile)] = corpusJSON(t, metadata)
 			}
 			if execErr != nil {
-				writeCorpusJSON(t, filepath.Join(caseDir, corpusErrorFile), corpusErrorOf(t, execErr))
+				files[filepath.Join(caseDir, corpusErrorFile)] = corpusJSON(t, corpusErrorOf(t, execErr))
 			} else {
-				writeCorpusJSON(t, filepath.Join(caseDir, corpusPostingsFile), corpusResult(res))
+				files[filepath.Join(caseDir, corpusPostingsFile)] = corpusJSON(t, corpusResult(res))
 			}
-			frozen++
 		}
+
+		if slices.ContainsFunc(earlier, func(freeze string) bool { return freezeHasFiles(t, freeze, programName, files) }) {
+			continue
+		}
+		for path, data := range files {
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.Dir(path)), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, path), data, 0o644))
+		}
+		frozen++
 	}
-	t.Logf("froze %d cases into %s", frozen, dir)
+	t.Logf("froze %d programs into %s", frozen, dir)
 }
 
 func TestBytecodeCorpusHasCurrentVersion(t *testing.T) {
@@ -205,6 +219,7 @@ func checkFrozenProgram(t *testing.T, dir, name string, version numscript.Byteco
 	require.NotEmpty(t, cases, "no cases")
 
 	readable := numscript.CurrentBytecodeVersion.CanRead(programVersion)
+	restamp := !readable && runsOnCurrentVm(programVersion)
 	for _, c := range cases {
 		require.True(t, c.IsDir(), "%s: not a case folder", c.Name())
 		t.Run(c.Name(), func(t *testing.T) {
@@ -223,14 +238,21 @@ func checkFrozenProgram(t *testing.T, dir, name string, version numscript.Byteco
 				_, err = numscript.DecodeVars(varsBytes)
 				require.ErrorAs(t, err, &unsupported)
 				require.Equal(t, varsVersion, unsupported.Encoded)
-				return
+				if !restamp {
+					return
+				}
+				varsBytes = withCurrentVersion(varsBytes)
+			}
+			programBytes := programBytes
+			if restamp {
+				programBytes = withCurrentVersion(programBytes)
 			}
 
 			program, err := numscript.DecodeCompiledProgram(programBytes)
 			require.NoError(t, err)
 			vars, err := numscript.DecodeVars(varsBytes)
 			require.NoError(t, err)
-			if programVersion == numscript.CurrentBytecodeVersion {
+			if programVersion == numscript.CurrentBytecodeVersion || restamp {
 				require.Equal(t, programBytes, program.Encode(), "re-encoding changed the program bytes")
 				require.Equal(t, varsBytes, vars.Encode(), "re-encoding changed the vars bytes")
 			}
@@ -349,10 +371,61 @@ func sortedKeys(m map[string]bool) []string {
 	return keys
 }
 
-func writeCorpusJSON(t *testing.T, path string, v any) {
+func corpusJSON(t *testing.T, v any) []byte {
 	data, err := json.MarshalIndent(v, "", "  ")
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, append(data, '\n'), 0o644))
+	return append(data, '\n')
+}
+
+// Under 0.x a reader rejects every other version, but an older 0.x freeze still
+// runs, re-stamped, so unchanged programs are not frozen again on a bump.
+func runsOnCurrentVm(v numscript.BytecodeVersion) bool {
+	current := numscript.CurrentBytecodeVersion
+	return current.CanRead(v) || (current.Major == 0 && v.Major == 0)
+}
+
+// bytes 4..8 of a program or vars blob are the little-endian major and minor
+func withCurrentVersion(blob []byte) []byte {
+	out := slices.Clone(blob)
+	binary.LittleEndian.PutUint16(out[4:], numscript.CurrentBytecodeVersion.Major)
+	binary.LittleEndian.PutUint16(out[6:], numscript.CurrentBytecodeVersion.Minor)
+	return out
+}
+
+// freezeHasFiles reports whether freeze holds exactly files for programName,
+// comparing .numb and .nvar blobs without their version.
+func freezeHasFiles(t *testing.T, freeze, programName string, files map[string][]byte) bool {
+	root := filepath.Join(bytecodeCorpusDir, freeze)
+	onDisk := []string{programName + corpusProgramExt}
+	if _, err := os.Stat(filepath.Join(root, onDisk[0])); err != nil {
+		return false
+	}
+	require.NoError(t, filepath.WalkDir(filepath.Join(root, programName), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(root, p)
+		onDisk = append(onDisk, rel)
+		return err
+	}))
+	if len(onDisk) != len(files) {
+		return false
+	}
+	for _, path := range onDisk {
+		want, ok := files[path]
+		if !ok {
+			return false
+		}
+		got, err := os.ReadFile(filepath.Join(root, path))
+		require.NoError(t, err)
+		if strings.HasSuffix(path, corpusProgramExt) || strings.HasSuffix(path, corpusVarsFile) {
+			got, want = withCurrentVersion(got), withCurrentVersion(want)
+		}
+		if !bytes.Equal(got, want) {
+			return false
+		}
+	}
+	return true
 }
 
 func readCorpusJSON(t *testing.T, path string, v any) {
