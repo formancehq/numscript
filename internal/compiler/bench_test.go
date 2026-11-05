@@ -337,3 +337,7 @@ func BenchmarkCompiledVMFanIn(b *testing.B) {
 func (benchStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
 }
+
+func (benchStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

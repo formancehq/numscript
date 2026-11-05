@@ -97,6 +97,11 @@ type (
 		Account                      Reg  // str
 		Cap, Overdraft, Color, Scope *Reg // int, int, str, str
 	}
+	ScaleAccount struct {
+		Account, Swap    Reg  // str, str
+		Cap              *Reg // int; nil = convert all
+		Scope, SwapScope *Reg // str, str
+	}
 	SendToAccount struct {
 		Account, Cap, Scope *Reg // str, int, str
 	}
@@ -218,6 +223,11 @@ type Instr interface {
 func (i PullAccount) dests() []Reg { return []Reg{i.Dest} }
 func (i PullAccount) sources() []Reg {
 	return present(&i.Account, i.Cap, i.Overdraft, i.Color, i.Scope)
+}
+
+func (i ScaleAccount) dests() []Reg { return nil }
+func (i ScaleAccount) sources() []Reg {
+	return present(&i.Account, &i.Swap, i.Cap, i.Scope, i.SwapScope)
 }
 
 func (i SendToAccount) dests() []Reg   { return nil }

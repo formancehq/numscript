@@ -2,10 +2,13 @@ package compiler_test
 
 import (
 	"context"
+	"errors"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
 	"github.com/formancehq/numscript/internal/specs_format"
@@ -389,4 +392,70 @@ func requirePostingsEqual(t *testing.T, want, got []funds.Posting) {
 		require.Equal(t, w.Color, g.Color, "posting[%d].Color", i)
 		require.Zero(t, g.Amount.Cmp(w.Amount), "posting[%d].Amount: got %s want %s", i, g.Amount, w.Amount)
 	}
+}
+
+func (s e2eStore) GetScaledBalances(_ context.Context, account, scope, baseAsset string) (map[string]*big.Int, error) {
+	out := map[string]*big.Int{}
+	for k, v := range s.balances {
+		if k.Account == account && k.Scope == scope && k.Color == "" && (k.Asset == baseAsset || strings.HasPrefix(k.Asset, baseAsset+"/")) {
+			out[k.Asset] = v
+		}
+	}
+	return out, nil
+}
+
+func compileScaling(t *testing.T, src string) vm.Program {
+	t.Helper()
+	parsed := parser.Parse(src)
+	require.Empty(t, parsed.Errors)
+	_, program, cErr := compiler.Compile(parsed.Value, map[string]struct{}{flags.AssetScaling: {}})
+	require.Nil(t, cErr)
+	return program
+}
+
+// @world's balances are never fetched, so with nothing moved yet there is no
+// family to scale from, as in the interpreter.
+func TestE2E_ScalingFromWorld(t *testing.T) {
+	program := compileScaling(t, `send [EUR/2 100] (
+  source = @world with scaling through @swap
+  destination = @dest
+)`)
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "world", Asset: "EUR"}: big.NewInt(100),
+	}})
+	require.Equal(t, vm.InvalidScalingSource{Account: "world"}, execErr)
+}
+
+// See TestScalingNegativeConversionIsRejected: the -100 EUR/2 leg must fail the
+// run, not be dropped.
+func TestE2E_ScalingNegativeConversionIsRejected(t *testing.T) {
+	program := compileScaling(t, `send [EUR 1] (
+  source = @acc1 with scaling through @swap
+  destination = @dest
+)`)
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, e2eStore{balances: map[funds.PairKey]*big.Int{
+		{Account: "acc1", Asset: "EUR/2"}: big.NewInt(-100),
+		{Account: "acc1", Asset: "EUR/1"}: big.NewInt(20),
+	}})
+	require.Equal(t, vm.InternalError{Err: vm.InvalidPostingError{Posting: funds.Posting{
+		Source:      "acc1",
+		Destination: "swap",
+		Asset:       "EUR/2",
+		Amount:      big.NewInt(-100),
+	}}}, execErr)
+}
+
+type scaledBalancesErrStore struct{ e2eStore }
+
+func (scaledBalancesErrStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, errors.New("scaled balances unavailable")
+}
+
+func TestE2E_ScalingStoreError(t *testing.T) {
+	program := compileScaling(t, `send [EUR/2 1] (
+  source = @src with scaling through @swap
+  destination = @dest
+)`)
+	_, execErr := vm.Exec(context.Background(), vm.NewVm(program), nil, scaledBalancesErrStore{})
+	require.Equal(t, vm.StoreError{Wrapped: errors.New("scaled balances unavailable")}, execErr)
 }

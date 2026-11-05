@@ -619,3 +619,7 @@ func TestQueuedZeroAmountIsNotQueuedFunds(t *testing.T) {
 func (m mockStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
 }
+
+func (m mockStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

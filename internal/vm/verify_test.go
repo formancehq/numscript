@@ -32,6 +32,7 @@ func TestVerifyTruncatedMultiWord(t *testing.T) {
 		Op_MetaPortion,
 		Op_MetaMonetary,
 		Op_Balance,
+		Op_ScaleAccount,
 	} {
 		mustReject(t, Program{
 			Instructions: []Instruction{bc(Op_LoadStr, 0, 0), abc(op, 0, 0, 0)},

@@ -677,6 +677,38 @@ func (i PullAccount) assemble(a *assembler) error {
 	return nil
 }
 
+func (i ScaleAccount) assemble(a *assembler) error {
+	account, err := a.strReg(i.Account)
+	if err != nil {
+		return err
+	}
+	swap, err := a.strReg(i.Swap)
+	if err != nil {
+		return err
+	}
+	cap, err := a.optionalReg((*assembler).intReg, i.Cap)
+	if err != nil {
+		return err
+	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+	swapScope, err := a.optionalReg((*assembler).strReg, i.SwapScope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_ScaleAccount, account, swap, cap)
+	a.instructions = append(a.instructions, vm.Instruction{
+		Opcode: maxReg, // <- UNUSED
+		A:      scope,
+		B:      swapScope,
+		C:      maxReg, // <- UNUSED
+	})
+	return nil
+}
+
 func (i SendToAccount) assemble(a *assembler) error {
 	account, err := a.optionalReg((*assembler).strReg, i.Account)
 	if err != nil {

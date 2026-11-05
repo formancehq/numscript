@@ -68,6 +68,11 @@ func TestBytecodeTypecheck_OperandTypes(t *testing.T) {
 		name  string
 		instr Instr
 	}{
+		{"scale_account account", ScaleAccount{Account: intReg, Swap: strReg}},
+		{"scale_account swap", ScaleAccount{Account: strReg, Swap: intReg}},
+		{"scale_account cap", ScaleAccount{Account: strReg, Swap: strReg, Cap: &strReg}},
+		{"scale_account scope", ScaleAccount{Account: strReg, Swap: strReg, Scope: &intReg}},
+		{"scale_account swap scope", ScaleAccount{Account: strReg, Swap: strReg, SwapScope: &intReg}},
 		{"pull_account account", PullAccount{Dest: 9, Account: intReg}},
 		{"pull_account cap", PullAccount{Dest: 9, Account: strReg, Cap: &strReg}},
 		{"pull_account overdraft", PullAccount{Dest: 9, Account: strReg, Overdraft: &strReg}},

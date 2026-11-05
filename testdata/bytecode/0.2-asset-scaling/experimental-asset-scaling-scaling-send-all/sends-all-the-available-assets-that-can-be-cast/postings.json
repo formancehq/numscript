@@ -1,0 +1,30 @@
+{
+  "postings": [
+    {
+      "source": "src",
+      "destination": "swap",
+      "amount": 30,
+      "asset": "EUR/3"
+    },
+    {
+      "source": "src",
+      "destination": "swap",
+      "amount": 2,
+      "asset": "EUR"
+    },
+    {
+      "source": "swap",
+      "destination": "src",
+      "amount": 203,
+      "asset": "EUR/2"
+    },
+    {
+      "source": "src",
+      "destination": "dest",
+      "amount": 204,
+      "asset": "EUR/2"
+    }
+  ],
+  "txMeta": {},
+  "accountsMeta": []
+}

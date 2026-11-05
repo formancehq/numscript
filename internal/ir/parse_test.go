@@ -547,6 +547,25 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "scale_account minimal",
+			ir: `
+  $r0 = "src"
+  $r1 = "swap"
+  scale_account(account: $r0, swap: $r1)
+`,
+		},
+		{
+			name: "scale_account with all labeled args",
+			ir: `
+  $r0 = "src"
+  $r1 = "swap"
+  $r2 = 100
+  $r3 = "s"
+  $r4 = "t"
+  scale_account(account: $r0, swap: $r1, cap: $r2, scope: $r3, swap_scope: $r4)
+`,
+		},
+		{
 			name: "send_to_account",
 			ir: `
   $r0 = "dest"

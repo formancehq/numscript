@@ -449,3 +449,13 @@ func decodeJSONExact(t *testing.T, data []byte) any {
 func (s corpusStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
 }
+
+func (s corpusStore) GetScaledBalances(_ context.Context, account, scope, baseAsset string) (map[string]*big.Int, error) {
+	out := map[string]*big.Int{}
+	for k, v := range s.balances {
+		if k[0] == account && k[1] == scope && k[3] == "" && (k[2] == baseAsset || strings.HasPrefix(k[2], baseAsset+"/")) {
+			out[k[2]] = new(big.Int).Set(v)
+		}
+	}
+	return out, nil
+}

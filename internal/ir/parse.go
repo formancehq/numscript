@@ -494,6 +494,14 @@ func (t *transformer) transformCall(s *syntax.InstrStmt) (Instr, *Error) {
 			Color:     ap.optLabeledReg("color"),
 			Scope:     ap.optLabeledReg("scope"),
 		}
+	case "scale_account":
+		instr = ScaleAccount{
+			Account:   ap.reqLabeledReg("account"),
+			Swap:      ap.reqLabeledReg("swap"),
+			Cap:       ap.optLabeledReg("cap"),
+			Scope:     ap.optLabeledReg("scope"),
+			SwapScope: ap.optLabeledReg("swap_scope"),
+		}
 	case "send_to_account":
 		instr = SendToAccount{
 			Account: ap.optLabeledReg("account"),

@@ -279,3 +279,13 @@ The bytecode format tracks an unstable instruction set and is not a public inter
 func (s vmStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
 }
+
+func (s vmStore) GetScaledBalances(_ context.Context, account, scope, baseAsset string) (map[string]*big.Int, error) {
+	out := map[string]*big.Int{}
+	for k, v := range s.balances {
+		if k.Account == account && k.Scope == scope && k.Color == "" && (k.Asset == baseAsset || strings.HasPrefix(k.Asset, baseAsset+"/")) {
+			out[k.Asset] = new(big.Int).Set(v)
+		}
+	}
+	return out, nil
+}

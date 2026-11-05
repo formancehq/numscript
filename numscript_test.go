@@ -858,3 +858,11 @@ func TestResolveDependenciesDeleteMetadata(t *testing.T) {
 		{Account: "acc", Key: "k"}: {},
 	}, deps.MetaWrites)
 }
+
+func (s vmTestStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}
+
+func (s *releaseTestStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

@@ -213,7 +213,13 @@ const (
 	// Op_MarkPush, while A == 0 commits it.
 	Op_MarkEnd Opcode = 0x56
 
-	// reserved (0x57..0x5F) for PullAccount specializations, e.g.:
+	// asset scaling: converts account A's other scales of the current asset's base
+	// into the current asset through swap account B, posting A->B per scale and
+	// one B->A in the current asset. C = cap (int reg, 0xFF = convert all), ext.A =
+	// account scope, ext.B = swap scope (str regs, 0xFF = unscoped). Pulls nothing.
+	Op_ScaleAccount Opcode = 0x5F
+
+	// reserved (0x57..0x5E) for PullAccount specializations, e.g.:
 	// // cap=None, overdraft=BoundedZero
 	// Op_PullAccountBoundedZero
 	// // cap=None, overdraft=Bounded r

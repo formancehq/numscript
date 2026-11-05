@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/funds"
@@ -1435,4 +1436,17 @@ func TestIREndWithQueuedFundsIsAnInternalError(t *testing.T) {
 
 func (s irStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
+}
+
+func (s irStore) GetScaledBalances(_ context.Context, account, scope, baseAsset string) (map[string]*big.Int, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	out := map[string]*big.Int{}
+	for k, v := range s.balances {
+		if k.Account == account && k.Scope == scope && k.Color == "" && (k.Asset == baseAsset || strings.HasPrefix(k.Asset, baseAsset+"/")) {
+			out[k.Asset] = new(big.Int).Set(v)
+		}
+	}
+	return out, nil
 }

@@ -90,6 +90,11 @@ type Store interface {
 	// The result's AccountsMetadata holds only writes made after the key's last
 	// delete, so apply the deletions first.
 	DeleteAccountMetadata(ctx context.Context, account, scope, key string) error
+
+	// Returns the uncolored balances of every asset in baseAsset's family
+	// (baseAsset itself and baseAsset/N), keyed by asset. Absent assets may be
+	// omitted. Only called by asset scaling, never for @world.
+	GetScaledBalances(ctx context.Context, account, scope, baseAsset string) (map[string]*big.Int, error)
 }
 
 func lookupMeta(ctx context.Context, store Store, account, scope, key string) (string, ExecutionError) {
@@ -207,6 +212,25 @@ func Exec[S Store](
 				}
 			default:
 				return funds.ExecutionResult{}, InvalidUncappedSource{Account: account}
+			}
+
+		case Op_ScaleAccount:
+			instrExt := instrs[pc]
+			pc++
+
+			var cap *big.Int
+			if instr.C != nilReg {
+				cap = &intsRegs[instr.C]
+			}
+			var scope, swapScope string
+			if instrExt.A != nilReg {
+				scope = stringsRegs[instrExt.A]
+			}
+			if instrExt.B != nilReg {
+				swapScope = stringsRegs[instrExt.B]
+			}
+			if err := scaleAccount(ctx, store, runstate, currentAsset, stringsRegs[instr.A], scope, stringsRegs[instr.B], swapScope, cap); err != nil {
+				return funds.ExecutionResult{}, err
 			}
 
 		case Op_SendToAccount:

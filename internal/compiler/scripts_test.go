@@ -21,21 +21,6 @@ import (
 
 const scriptsFolder = "../interpreter/testdata/script-tests"
 
-// scriptsBlacklist lists spec files the compiler+VM can't run yet. What's left
-// is asset-scaling, which the compiler has no lowering for. Delete entries as
-// features land, until it's empty.
-var scriptsBlacklist = []string{
-	"experimental/asset-scaling/no-solution.num",
-	"experimental/asset-scaling/scaling-all-allotment.num",
-	"experimental/asset-scaling/scaling-allotment.num",
-	"experimental/asset-scaling/scaling-kept.num",
-	"experimental/asset-scaling/scaling-prefetch-midscript-balance.num",
-	"experimental/asset-scaling/scaling-send-all.num",
-	"experimental/asset-scaling/scaling-with-oneof.num",
-	"experimental/asset-scaling/scaling.num",
-	"experimental/asset-scaling/update-swap-account-balance.num",
-}
-
 func TestCompilerScripts(t *testing.T) {
 	rawSpecs, err := specs_format.ReadSpecsFiles([]string{scriptsFolder})
 	require.NoError(t, err)
@@ -45,10 +30,6 @@ func TestCompilerScripts(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Run(rel, func(t *testing.T) {
-			if slices.Contains(scriptsBlacklist, rel) {
-				t.Skip("blacklisted: not supported yet")
-			}
-
 			var specs specs_format.Specs
 			require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
 

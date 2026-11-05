@@ -985,7 +985,29 @@ func (st *state) compileSource(
 		if err := st.checkFeatureFlag(src.GetRange(), flags.AssetScaling); err != nil {
 			return 0, err
 		}
-		return 0, FeatureNotImplemented{Range: src.GetRange(), Feature: "scaling"}
+		acc, err := st.compileAccountExpr(src.Address)
+		if err != nil {
+			return 0, err
+		}
+		swap, err := st.compileAccountExpr(src.Through)
+		if err != nil {
+			return 0, err
+		}
+		st.Push(ir.ScaleAccount{
+			Account:   acc.Name,
+			Swap:      swap.Name,
+			Cap:       capReg,
+			Scope:     acc.Scope,
+			SwapScope: swap.Scope,
+		})
+
+		overdraftReg := st.PushWithDest(func(dest ir.Reg) ir.Instr {
+			return ir.LoadInt{
+				Value: *big.NewInt(0),
+				Dest:  dest,
+			}
+		})
+		return st.pullFromAccount(acc, capReg, &overdraftReg, nil), nil
 
 	default:
 		return 0, UnsupportedNode{Range: src.GetRange(), Node: src}

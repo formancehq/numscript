@@ -87,3 +87,7 @@ func (testStore) GetMetadata(ctx context.Context, account, scope, key string) (s
 func (testStore) DeleteAccountMetadata(context.Context, string, string, string) error {
 	return nil
 }
+
+func (testStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}
