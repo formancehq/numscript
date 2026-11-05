@@ -615,3 +615,7 @@ func TestQueuedZeroAmountIsNotQueuedFunds(t *testing.T) {
 	require.Nil(t, err)
 	require.Empty(t, res.Postings)
 }
+
+func (m mockStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

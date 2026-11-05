@@ -107,6 +107,14 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 			tc.useOpt(i.Scope, regStr),
 			tc.def(i.Dest, regInt),
 		)
+	case ScaleAccount:
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Swap, regStr),
+			tc.useOpt(i.Cap, regInt),
+			tc.useOpt(i.Scope, regStr),
+			tc.useOpt(i.SwapScope, regStr),
+		)
 	case SendToAccount:
 		return firstErr(tc.useOpt(i.Account, regStr), tc.useOpt(i.Cap, regInt), tc.useOpt(i.Scope, regStr))
 	case Save:

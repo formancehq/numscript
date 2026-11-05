@@ -401,7 +401,17 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td>Closes the innermost region. <code>A = 1</code> rewinds it: repays everything pulled and reverses everything posted since the matching MARK_PUSH. <code>A = 0</code> commits it. Any other value is rejected by the verifier; traps if no region is open. Textual IR: <code>mark_rewind()</code> / <code>mark_commit()</code></td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x57..0x5F reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving nine slots for the four specializations sketched in <code>instruction.go</code></em></td>
+      <td colspan="7" align="center"><em>0x57..0x5E reserved (e.g. PULL_ACCOUNT specializations). This block used to run to 0x8F; §7 and §8 took 0x60..0x7F out of it, leaving eight slots for the four specializations sketched in <code>instruction.go</code></em></td>
+    </tr>
+    <tr>
+      <td>95</td><td><code>0x5F</code></td><td><strong>SCALE_ACCOUNT</strong></td>
+      <td>acc</td><td>swap</td><td>cap</td>
+      <td><code>with scaling through</code>: reads every uncolored balance of account <code>str_regs[A]</code> in the current asset's family (<code>Store.GetScaledBalances</code>, skipped for <code>@world</code>) and converts enough of the other scales to cover <code>int_regs[C]</code> in the current asset (<code>0xFF</code> = convert everything), posting <code>A → B</code> once per converted scale and <code>B → A</code> once in the current asset. Touches no queue; the pull is a following PULL_ACCOUNT. Traps if the account holds nothing in the family, or on a negative conversion. 2 words:</td>
+    </tr>
+    <tr>
+      <td>&#8203;</td><td>&#8203;</td><td><strong>&#8627; cont.</strong></td>
+      <td>scope</td><td>swap scope</td><td>-</td>
+      <td>Scope regs of the account and of the swap account (<code>0xFF</code> = unscoped)</td>
     </tr>
   </tbody>
 </table>

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-asset-scaling",
+    "experimental-scoped-function",
+    "experimental-mid-script-function-call"
+  ],
+  "balances": [
+    { "account": "src", "asset": "EUR", "amount": 1, "scope": "s" },
+    { "account": "src", "asset": "EUR/2", "amount": 50, "scope": "s" },
+    { "account": "src", "asset": "EUR", "amount": 100 }
+  ],
+  "testCases": [
+    {
+      "it": "scales within the source's scope, through the swap's scope",
+      "expect.postings": [
+        {
+          "source": "src",
+          "sourceScope": "s",
+          "destination": "swap",
+          "destinationScope": "t",
+          "asset": "EUR",
+          "amount": 1
+        },
+        {
+          "source": "swap",
+          "sourceScope": "t",
+          "destination": "src",
+          "destinationScope": "s",
+          "asset": "EUR/2",
+          "amount": 100
+        },
+        {
+          "source": "src",
+          "sourceScope": "s",
+          "destination": "dest",
+          "asset": "EUR/2",
+          "amount": 150
+        }
+      ]
+    }
+  ]
+}

@@ -344,6 +344,7 @@ type (
 	VmInvalidScope                    = vm.InvalidScope
 	VmCannotCastScopedAccountToString = vm.CannotCastScopedAccountToString
 	VmInvalidUncappedSource           = vm.InvalidUncappedSource
+	VmInvalidScalingSource            = vm.InvalidScalingSource
 	VmMetadataNotFoundError           = vm.MetadataNotFoundError
 	VmBadMetaValueError               = vm.BadMetaValueError
 	VmInternalError                   = vm.InternalError

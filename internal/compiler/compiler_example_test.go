@@ -83,3 +83,7 @@ func (s testStore) GetBalance(ctx context.Context, account, scope, asset, color 
 func (testStore) GetMetadata(ctx context.Context, account, scope, key string) (string, bool, error) {
 	return "", false, nil
 }
+
+func (testStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

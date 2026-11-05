@@ -3,7 +3,6 @@ package compiler_test
 import (
 	"encoding/json"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	"github.com/formancehq/numscript/internal/compiler"
@@ -27,10 +26,6 @@ func TestCompiledCorpusPassesVerify(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Run(rel, func(t *testing.T) {
-			if slices.Contains(scriptsBlacklist, rel) {
-				t.Skip("blacklisted: not supported yet")
-			}
-
 			var specs specs_format.Specs
 			require.NoError(t, json.Unmarshal(rawSpec.SpecsFileContent, &specs))
 

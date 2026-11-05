@@ -333,3 +333,7 @@ func BenchmarkCompiledVMFanIn(b *testing.B) {
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
 }
+
+func (benchStore) GetScaledBalances(context.Context, string, string, string) (map[string]*big.Int, error) {
+	return nil, nil
+}

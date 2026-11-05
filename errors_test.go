@@ -469,14 +469,6 @@ func TestCompilerErrorsAreClassifiable(t *testing.T) {
 				require.Equal(t, "nope", requireAs[numscript.CompilerInvalidFeature](t, err).Feature)
 			},
 		},
-		{
-			name:   "feature not implemented",
-			script: `send [EUR/2 100] ( source = @a with scaling through @swap destination = @b )`,
-			flags:  []string{flags.AssetScaling},
-			check: func(t *testing.T, err error) {
-				require.Equal(t, "scaling", requireAs[numscript.CompilerFeatureNotImplemented](t, err).Feature)
-			},
-		},
 	}
 
 	for _, tc := range cases {

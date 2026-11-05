@@ -235,6 +235,11 @@ No destination. All arguments are optional: no `cap` sends everything currently 
 ```
 No destination. `account: str` and `asset: str` are required, `amount: int` and `scope: str` are optional — omitting `amount` saves the whole balance, omitting `scope` saves the unscoped balance.
 
+```
+  scale_account(account: $a, swap: $sw, cap: $c, scope: $s, swap_scope: $ss)
+```
+No destination. `account: str` and `swap: str` are required; `cap: int`, `scope: str`, `swap_scope: str` are optional. Converts the account's other scales of the current asset into the current asset through `swap`, without pulling; no `cap` converts everything. Canonical dump order: `account, swap, cap, scope, swap_scope`.
+
 There is no allotment instruction. Splitting an amount across portions is built out of the pure ops above: each share is `portion_to_int(mul_portion($p_i, int_to_portion($amount)))`, and the leftover from flooring is then handed to the earliest shares a unit at a time, using `lt_int` and forward jumps to a shared exit. See `compileAllotmentSplit` in `internal/compiler/compiler.go`.
 
 ### Assertions and checks

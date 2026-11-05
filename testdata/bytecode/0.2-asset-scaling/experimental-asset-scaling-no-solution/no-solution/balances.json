@@ -1,0 +1,22 @@
+[
+  {
+    "account": "src",
+    "asset": "EUR",
+    "amount": 0
+  },
+  {
+    "account": "src",
+    "asset": "EUR/2",
+    "amount": 1
+  },
+  {
+    "account": "src",
+    "asset": "EUR/3",
+    "amount": 1
+  },
+  {
+    "account": "src",
+    "asset": "EUR/4",
+    "amount": 10
+  }
+]

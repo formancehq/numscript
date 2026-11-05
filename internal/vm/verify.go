@@ -155,7 +155,8 @@ func instrWords(op byte) int {
 		Op_MetaInt,
 		Op_MetaPortion,
 		Op_MetaMonetary,
-		Op_Balance:
+		Op_Balance,
+		Op_ScaleAccount:
 		return 2
 	default:
 		return 1
@@ -602,6 +603,13 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		readOpt(bankStr, instr.C) // scope
 		d.reads = append(d.reads, currentAssetRef)
 		d.notInMark = true
+	case Op_ScaleAccount:
+		read(bankStr, instr.A)    // account
+		read(bankStr, instr.B)    // swap
+		readOpt(bankInt, instr.C) // cap, nil = convert all
+		readOpt(bankStr, ext.A)   // account scope
+		readOpt(bankStr, ext.B)   // swap scope
+		d.reads = append(d.reads, currentAssetRef)
 	case Op_Save:
 		read(bankStr, instr.A)    // account
 		read(bankStr, instr.B)    // asset

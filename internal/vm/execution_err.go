@@ -28,6 +28,13 @@ type (
 		Account string
 	}
 
+	// InvalidScalingSource is a `with scaling` source holding no balance in the
+	// asset's family. @world's balances are never fetched, so for @world only
+	// what the run already moved counts.
+	InvalidScalingSource struct {
+		Account string
+	}
+
 	InvalidAllotmentSum struct {
 		ActualSum big.Rat
 	}
@@ -110,6 +117,10 @@ func (e InvalidUncappedSource) Error() string {
 	return fmt.Sprintf("unbounded source is not allowed here: @%s", e.Account)
 }
 
+func (e InvalidScalingSource) Error() string {
+	return fmt.Sprintf("no balance to scale from: @%s", e.Account)
+}
+
 func (e InternalError) Error() string {
 	return "internal error: " + e.Err.Error()
 }
@@ -176,6 +187,7 @@ func (e StoreError) Unwrap() error { return e.Wrapped }
 func (MissingFundsError) execErr()               {}
 func (AssetMismatchError) execErr()              {}
 func (InvalidUncappedSource) execErr()           {}
+func (InvalidScalingSource) execErr()            {}
 func (InvalidAllotmentSum) execErr()             {}
 func (NegativePortionError) execErr()            {}
 func (MetadataNotFoundError) execErr()           {}
@@ -194,6 +206,7 @@ var (
 	_ ExecutionError = (*MissingFundsError)(nil)
 	_ ExecutionError = (*AssetMismatchError)(nil)
 	_ ExecutionError = (*InvalidUncappedSource)(nil)
+	_ ExecutionError = (*InvalidScalingSource)(nil)
 	_ ExecutionError = (*InvalidAllotmentSum)(nil)
 	_ ExecutionError = (*NegativePortionError)(nil)
 	_ ExecutionError = (*MetadataNotFoundError)(nil)

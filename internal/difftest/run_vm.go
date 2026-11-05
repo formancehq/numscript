@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strings"
 
 	"github.com/formancehq/numscript"
 	"github.com/formancehq/numscript/internal/gen"
@@ -126,4 +127,17 @@ func runVM(ctx context.Context, script string, vars map[string]string, balances 
 	}
 
 	return SideResult{Postings: postings, TxMeta: txMeta, AccountMeta: accountMeta}
+}
+
+func (s vmStore) GetScaledBalances(_ context.Context, account, scope, baseAsset string) (map[string]*big.Int, error) {
+	out := map[string]*big.Int{}
+	if scope != "" {
+		return out, nil
+	}
+	for k, v := range s.balances {
+		if k.Account == account && (k.Asset == baseAsset || strings.HasPrefix(k.Asset, baseAsset+"/")) {
+			out[k.Asset] = new(big.Int).Set(v)
+		}
+	}
+	return out, nil
 }

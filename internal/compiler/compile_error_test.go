@@ -162,7 +162,6 @@ func TestFeatureFlagGating(t *testing.T) {
 			require.Equal(t, tc.flag, cErr.(ExperimentalFeature).FlagName)
 
 			// with the flag on, whatever comes back must not be about the flag
-			// (scaling still hits FeatureNotImplemented)
 			_, cErr = compileProgramToIR(parsed.Value, map[string]struct{}{tc.flag: {}})
 			_, stillGated := cErr.(ExperimentalFeature)
 			require.False(t, stillGated, "still gated with the flag on: %v", cErr)

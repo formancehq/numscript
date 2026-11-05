@@ -1,0 +1,4 @@
+send [EUR/2 150] (
+  source = scoped(@src, "s") with scaling through scoped(@swap, "t")
+  destination = @dest
+)

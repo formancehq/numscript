@@ -48,6 +48,15 @@ func (i PullAccount) String() string {
 	return s + ")"
 }
 
+func (i ScaleAccount) String() string {
+	opts := joinOpts(optLabel("cap", i.Cap), optLabel("scope", i.Scope), optLabel("swap_scope", i.SwapScope))
+	s := fmt.Sprintf("scale_account(account: %s, swap: %s", i.Account, i.Swap)
+	if opts != "" {
+		s += ", " + opts
+	}
+	return s + ")"
+}
+
 func (i SendToAccount) String() string {
 	opts := joinOpts(optLabel("account", i.Account), optLabel("cap", i.Cap), optLabel("scope", i.Scope))
 	return fmt.Sprintf("send_to_account(%s)", opts)
