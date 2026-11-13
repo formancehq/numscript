@@ -62,10 +62,6 @@ func (s *recordingStore) GetAccountsMetadata(ctx context.Context, q MetadataQuer
 	return s.inner.GetAccountsMetadata(ctx, q)
 }
 
-func (s *recordingStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return errors.New("dependency resolution must not delete metadata")
-}
-
 type resolveDependenciesState struct {
 	env  *evalEnv
 	deps ResolvedDependencies

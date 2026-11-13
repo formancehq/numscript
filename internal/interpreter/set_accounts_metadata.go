@@ -50,8 +50,9 @@ func (m internalSetAccountsMeta) Set(account, scope, key string, value Value) {
 	m[metadataKey{Account: account, Scope: scope, Key: key}] = value
 }
 
+// Delete leaves a nil value: a deletion a later Set replaces.
 func (m internalSetAccountsMeta) Delete(account, scope, key string) {
-	delete(m, metadataKey{Account: account, Scope: scope, Key: key})
+	m[metadataKey{Account: account, Scope: scope, Key: key}] = nil
 }
 
 // toRows flattens the set metadata into the external representation, sorted by
@@ -60,6 +61,9 @@ func (m internalSetAccountsMeta) Delete(account, scope, key string) {
 func (m internalSetAccountsMeta) toRows() SetAccountsMetadata {
 	rows := make(SetAccountsMetadata, 0, len(m))
 	for k, value := range m {
+		if value == nil {
+			continue
+		}
 		rows = append(rows, SetAccountMetadataRow{
 			Account: k.Account,
 			Scope:   k.Scope,
@@ -76,5 +80,38 @@ func (m internalSetAccountsMeta) toRows() SetAccountsMetadata {
 		}
 		return rows[i].Key < rows[j].Key
 	})
+	return rows
+}
+
+// DeletedAccountMetadataRow is an account metadata key the script deleted and
+// did not set again afterwards.
+type DeletedAccountMetadataRow struct {
+	Account string `json:"account"`
+	Key     string `json:"key"`
+	Scope   string `json:"scope,omitempty"`
+}
+
+type DeletedAccountsMetadata []DeletedAccountMetadataRow
+
+func sortDeletedAccountsMetadata(rows DeletedAccountsMetadata) {
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Account != rows[j].Account {
+			return rows[i].Account < rows[j].Account
+		}
+		if rows[i].Scope != rows[j].Scope {
+			return rows[i].Scope < rows[j].Scope
+		}
+		return rows[i].Key < rows[j].Key
+	})
+}
+
+func (m internalSetAccountsMeta) deletedRows() DeletedAccountsMetadata {
+	rows := DeletedAccountsMetadata{}
+	for k, value := range m {
+		if value == nil {
+			rows = append(rows, DeletedAccountMetadataRow{Account: k.Account, Scope: k.Scope, Key: k.Key})
+		}
+	}
+	sortDeletedAccountsMetadata(rows)
 	return rows
 }

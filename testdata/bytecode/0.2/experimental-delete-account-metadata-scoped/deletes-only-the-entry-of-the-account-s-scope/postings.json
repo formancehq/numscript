@@ -7,5 +7,12 @@
       "key": "k",
       "value": "unscoped"
     }
+  ],
+  "deletedAccountsMeta": [
+    {
+      "account": "acc",
+      "key": "k",
+      "scope": "myscope"
+    }
   ]
 }

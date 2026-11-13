@@ -333,7 +333,3 @@ func BenchmarkCompiledVMFanIn(b *testing.B) {
 		{Account: "c", Asset: "USD/2", Color: ""}: big.NewInt(100),
 	}})
 }
-
-func (benchStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return nil
-}

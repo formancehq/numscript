@@ -253,7 +253,3 @@ func (s *TestInitStore) GetBalances(ctx context.Context, q interpreter.BalanceQu
 func (s *TestInitStore) GetAccountsMetadata(c context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	return s.StaticStore.GetAccountsMetadata(c, q)
 }
-
-func (s *TestInitStore) DeleteAccountMetadata(c context.Context, account, scope, key string) error {
-	return s.StaticStore.DeleteAccountMetadata(c, account, scope, key)
-}

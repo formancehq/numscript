@@ -5,7 +5,7 @@
     {
       "it": "keeps a write made after the delete",
       "expect.metadata": [{ "account": "acc", "key": "k", "value": "v" }],
-      "expect.deletedMetadata": [{ "account": "acc", "key": "k" }]
+      "expect.deletedMetadata": []
     }
   ]
 }

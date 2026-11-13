@@ -31,11 +31,6 @@ type Store interface {
 	// Malformed Balances will result it undefined behaviour, and the implementation doesn't guarantee keys are deduped.
 	GetBalances(context.Context, BalanceQuery) (Balances, error)
 	GetAccountsMetadata(context.Context, MetadataQuery) (AccountsMetadata, error)
-
-	// Called during execution, in script order, even by a run that later fails.
-	// The result's AccountsMetadata holds only writes made after the key's last
-	// delete, so apply the deletions first.
-	DeleteAccountMetadata(ctx context.Context, account, scope, key string) error
 }
 
 type StaticStore struct {
@@ -103,9 +98,4 @@ func (s StaticStore) GetAccountsMetadata(_ context.Context, q MetadataQuery) (Ac
 		}
 	}
 	return output, nil
-}
-
-// DeleteAccountMetadata is a no-op: a StaticStore is an immutable snapshot.
-func (s StaticStore) DeleteAccountMetadata(_ context.Context, _, _, _ string) error {
-	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/formancehq/numscript/internal/compiler"
 	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
-	"github.com/formancehq/numscript/internal/specs_format"
 	"github.com/formancehq/numscript/internal/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -17,14 +16,6 @@ import (
 type e2eStore struct {
 	balances map[funds.PairKey]*big.Int
 	metadata map[e2eMetaKey]string
-	deleted  *[]specs_format.DeletedMetadataRow
-}
-
-func (s e2eStore) DeleteAccountMetadata(_ context.Context, account, scope, key string) error {
-	if s.deleted != nil {
-		*s.deleted = append(*s.deleted, specs_format.DeletedMetadataRow{Account: account, Key: key, Scope: scope})
-	}
-	return nil
 }
 
 // e2eMetaKey identifies one metadata slot: account, scope and key.

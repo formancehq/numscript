@@ -29,3 +29,11 @@ func (m AccountsMetadata) PrettyPrint() string {
 
 	return utils.CsvPretty(header, rows, true)
 }
+
+// DeletedAccountMetadataEntry is an account metadata key the script deleted
+// and did not set again afterwards.
+type DeletedAccountMetadataEntry struct {
+	Account string `json:"account"`
+	Scope   string `json:"scope,omitempty"`
+	Key     string `json:"key"`
+}

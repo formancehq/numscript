@@ -21,10 +21,10 @@ type accountMetaKey struct {
 	key     string
 }
 
-// The ops a mark cannot survive, rejected by the arms below. save and
-// delete_account_meta are on the list permanently: save floors the balance at
-// zero, and the clamp destroys the information needed to invert it; a store
-// delete cannot be undone.
+// The ops a mark cannot survive, rejected by the arms below. save is on the
+// list permanently: it floors the balance at zero, and the clamp destroys the
+// information needed to invert it. No compiled program deletes metadata inside
+// a mark.
 var (
 	errSendWhileMarkOpen       = errors.New("send while a mark is open")
 	errSetAssetWhileMarkOpen   = errors.New("set_current_asset while a mark is open")
@@ -85,11 +85,6 @@ type Store interface {
 		scope,
 		key string,
 	) (string, bool, error)
-
-	// Called during execution, in script order, even by a run that later fails.
-	// The result's AccountsMetadata holds only writes made after the key's last
-	// delete, so apply the deletions first.
-	DeleteAccountMetadata(ctx context.Context, account, scope, key string) error
 }
 
 func lookupMeta(ctx context.Context, store Store, account, scope, key string) (string, ExecutionError) {
@@ -146,6 +141,7 @@ func Exec[S Store](
 	// (account, scope, key) wins), so it is keyed during the run and only
 	// flattened into the row-based funds.AccountsMetadata at the very end.
 	var accountsMeta map[accountMetaKey]string
+	var deletedMeta map[accountMetaKey]struct{}
 
 	// Hoist register banks and constant pools into locals so the hot loop indexes
 	// them directly instead of reloading the header off *vm / vm.program on every
@@ -387,6 +383,7 @@ func Exec[S Store](
 				key:     stringsRegs[instr.B],
 			}
 			accountsMeta[key] = stringsRegs[instr.C]
+			delete(deletedMeta, key)
 
 		case Op_DeleteAccountMeta:
 			if runstate.HasOpenMark() {
@@ -401,9 +398,10 @@ func Exec[S Store](
 				key.scope = stringsRegs[instr.C]
 			}
 			delete(accountsMeta, key)
-			if err := store.DeleteAccountMetadata(ctx, key.account, key.scope, key.key); err != nil {
-				return funds.ExecutionResult{}, StoreError{Wrapped: err}
+			if deletedMeta == nil {
+				deletedMeta = map[accountMetaKey]struct{}{}
 			}
+			deletedMeta[key] = struct{}{}
 
 		case Op_MetaStr:
 			instrExt := instrs[pc]
@@ -665,6 +663,28 @@ func Exec[S Store](
 		})
 	}
 
+	var deletedMetaRows []funds.DeletedAccountMetadataEntry
+	if len(deletedMeta) != 0 {
+		deletedMetaRows = make([]funds.DeletedAccountMetadataEntry, 0, len(deletedMeta))
+		for k := range deletedMeta {
+			deletedMetaRows = append(deletedMetaRows, funds.DeletedAccountMetadataEntry{
+				Account: k.account,
+				Scope:   k.scope,
+				Key:     k.key,
+			})
+		}
+		sort.Slice(deletedMetaRows, func(i, j int) bool {
+			a, b := deletedMetaRows[i], deletedMetaRows[j]
+			if a.Account != b.Account {
+				return a.Account < b.Account
+			}
+			if a.Scope != b.Scope {
+				return a.Scope < b.Scope
+			}
+			return a.Key < b.Key
+		})
+	}
+
 	// a debit that never became a posting
 	if runstate.HasQueuedFunds() {
 		return funds.ExecutionResult{}, InternalError{Err: errEndWithQueuedFunds}
@@ -678,8 +698,9 @@ func Exec[S Store](
 	}
 
 	return funds.ExecutionResult{
-		Postings:         postings,
-		Metadata:         txMeta,
-		AccountsMetadata: accountsMetaRows,
+		Postings:                postings,
+		Metadata:                txMeta,
+		AccountsMetadata:        accountsMetaRows,
+		DeletedAccountsMetadata: deletedMetaRows,
 	}, nil
 }
