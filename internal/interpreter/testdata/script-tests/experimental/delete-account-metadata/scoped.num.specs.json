@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
+  "featureFlags": [
+    "experimental-delete-account-metadata",
+    "experimental-mid-script-function-call",
+    "experimental-scoped-function"
+  ],
+  "testCases": [
+    {
+      "it": "deletes only the entry of the account's scope",
+      "expect.metadata": [{ "account": "acc", "key": "k", "value": "unscoped" }],
+      "expect.deletedMetadata": [{ "account": "acc", "key": "k", "scope": "myscope" }]
+    }
+  ]
+}

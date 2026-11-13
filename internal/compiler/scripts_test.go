@@ -135,6 +135,11 @@ func runScriptSpec(t *testing.T, specs specs_format.Specs, src string) {
 			require.Equal(t, accountsMetaAsStrings(tc.ExpectAccountsMeta), res.AccountsMetadata,
 				"case %q: expect.metadata", tc.It)
 		}
+
+		if tc.ExpectDeletedMeta != nil {
+			require.True(t, slices.Equal(deletedMetaAsEntries(tc.ExpectDeletedMeta), res.DeletedAccountsMetadata),
+				"case %q: expect.deletedMetadata: want %v, got %v", tc.It, tc.ExpectDeletedMeta, res.DeletedAccountsMetadata)
+		}
 	}
 }
 
@@ -173,4 +178,12 @@ func scriptStore(balances interpreter.Balances, metaOuter, metaInner interpreter
 	}
 
 	return e2eStore{balances: m, metadata: meta}
+}
+
+func deletedMetaAsEntries(rows interpreter.DeletedAccountsMetadata) []funds.DeletedAccountMetadataEntry {
+	out := make([]funds.DeletedAccountMetadataEntry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, funds.DeletedAccountMetadataEntry{Account: row.Account, Scope: row.Scope, Key: row.Key})
+	}
+	return out
 }

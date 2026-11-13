@@ -199,6 +199,16 @@ func (st *resolveDependenciesState) resolveFnCallStatement(fnCall *parser.FnCall
 		addMetaDep(st.deps.MetaWrites, account, string(key))
 		return nil
 
+	case analysis.FnDeleteAccountMetadata:
+		p := NewArgsParser(args)
+		account := parseArg(p, fnCall.Range, expectAccount)
+		key := parseArg(p, fnCall.Range, expectString)
+		if err := p.parse(); err != nil {
+			return err
+		}
+		addMetaDep(st.deps.MetaWrites, account, string(key))
+		return nil
+
 	case analysis.FnSetTxMeta:
 		p := NewArgsParser(args)
 		key := parseArg(p, fnCall.Range, expectString)

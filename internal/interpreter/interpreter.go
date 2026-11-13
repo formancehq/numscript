@@ -38,6 +38,8 @@ type ExecutionResult struct {
 	Metadata Metadata `json:"txMeta"`
 
 	AccountsMetadata SetAccountsMetadata `json:"accountsMeta"`
+
+	DeletedAccountsMetadata DeletedAccountsMetadata `json:"deletedAccountsMeta,omitempty"`
 }
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
@@ -181,9 +183,10 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings:         postings,
-		Metadata:         st.txMetaToRendered(),
-		AccountsMetadata: st.SetAccountsMeta.toRows(),
+		Postings:                postings,
+		Metadata:                st.txMetaToRendered(),
+		AccountsMetadata:        st.SetAccountsMeta.toRows(),
+		DeletedAccountsMetadata: st.SetAccountsMeta.deletedRows(),
 	}
 	return res, nil
 }
@@ -274,6 +277,8 @@ func (st *programState) runStatement(statement parser.Statement) InterpreterErro
 			return setTxMeta(st, statement.Caller.Range, args)
 		case analysis.FnSetAccountMeta:
 			return setAccountMeta(st, statement.Caller.Range, args)
+		case analysis.FnDeleteAccountMetadata:
+			return deleteAccountMetadata(st, statement.Caller.Range, args)
 		default:
 			return UnboundFunctionErr{Name: statement.Caller.Name}
 		}

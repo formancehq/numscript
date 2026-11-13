@@ -793,3 +793,50 @@ func TestExecVmReleasesStore(t *testing.T) {
 		})
 	}
 }
+
+var deleteMetaFlags = map[string]struct{}{flags.ExperimentalDeleteAccountMetadata: {}}
+
+func TestDeleteMetadataRequiresFlag(t *testing.T) {
+	parseResult := numscript.Parse(`delete_account_metadata(@acc, "k")`)
+	require.Empty(t, parseResult.GetParsingErrors())
+
+	_, err := parseResult.Run(context.Background(), interpreter.VariablesMap{}, numscript.StaticStore{})
+	require.Equal(t, numscript.ExperimentalFeature{FlagName: flags.ExperimentalDeleteAccountMetadata}, err)
+}
+
+func TestDeletedAccountsMetadataOnBothEngines(t *testing.T) {
+	script := `set_account_meta(@a, "k1", "v")
+delete_account_metadata(@a, "k1")
+delete_account_metadata(@b, "k2")
+set_account_meta(@b, "k2", "v")
+delete_account_metadata(@c, "k3")`
+	want := numscript.DeletedAccountsMetadata{
+		{Account: "a", Key: "k1"},
+		{Account: "c", Key: "k3"},
+	}
+
+	parseResult := numscript.Parse(script)
+	require.Empty(t, parseResult.GetParsingErrors())
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), interpreter.VariablesMap{}, numscript.StaticStore{}, deleteMetaFlags)
+	require.Nil(t, err)
+	require.Equal(t, want, res.DeletedAccountsMetadata)
+
+	enc, program, compileErr := numscript.CompileWithFeatureFlags(script, deleteMetaFlags)
+	require.NoError(t, compileErr)
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+	vmRes, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{})
+	require.NoError(t, execErr)
+	require.Equal(t, want, vmRes.DeletedAccountsMetadata)
+}
+
+func TestResolveDependenciesDeleteMetadata(t *testing.T) {
+	parseResult := numscript.Parse(`delete_account_metadata(@acc, "k")`)
+	require.Empty(t, parseResult.GetParsingErrors())
+
+	deps, err := parseResult.ResolveDependencies(context.Background(), nil, numscript.StaticStore{})
+	require.NoError(t, err)
+	require.Equal(t, map[numscript.MetaDependency]struct{}{
+		{Account: "acc", Key: "k"}: {},
+	}, deps.MetaWrites)
+}

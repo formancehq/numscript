@@ -188,9 +188,9 @@ Major 0 is **unstable**, and the format is at `0.1` today. Any 0.x change may ch
 
 #### Frozen bytecode
 
-`testdata/bytecode/` holds, per freeze, the bytecode the compiler produced from every script fixture at one point in time, with each test case's vars blob, inputs and the output it produced then. A freeze directory is named after the bytecode version (`0.1`, or `0.1-<suffix>` for a later freeze at the same version) and is never edited once committed. Inside it, `<script>.numb` is the program and `<script>/<case>/` holds `vars.nvar`, `balances.json`, `metadata.json` (when the case has any) and either `postings.json` or `error.json`.
+`testdata/bytecode/` holds, per freeze, the bytecode the compiler produced from every script fixture at one point in time, with each test case's vars blob, inputs and the output it produced then. A freeze directory is named after the bytecode version (`0.1`, or `0.1-<suffix>` for a later freeze at the same version) and is never edited once committed. A freeze only holds the programs that no older freeze run by this build already holds with the same files, ignoring the version header. Inside it, `<script>.numb` is the program and `<script>/<case>/` holds `vars.nvar`, `balances.json`, `metadata.json` (when the case has any) and either `postings.json` or `error.json`.
 
-`TestBytecodeCorpus` (module root) runs every frozen case through the public API the ledger uses. A blob this build can read is decoded, verified and executed, and must produce the frozen output. A blob it cannot read must be rejected with `UnsupportedBytecodeVersionError`, which is what makes a host recompile from source. `TestBytecodeCorpusHasCurrentVersion` fails when `CurrentBytecodeVersion` has no directory.
+`TestBytecodeCorpus` (module root) runs every frozen case through the public API the ledger uses. A blob this build can read is decoded, verified and executed, and must produce the frozen output. A blob it cannot read must be rejected with `UnsupportedBytecodeVersionError`, which is what makes a host recompile from source. Under 0.x an older 0.x blob is then also run with its header changed to the current version, so it keeps covering this VM. `TestBytecodeCorpusHasCurrentVersion` fails when `CurrentBytecodeVersion` has no directory.
 
 When to freeze (`just freeze-bytecode [suffix]`):
 
@@ -199,7 +199,7 @@ When to freeze (`just freeze-bytecode [suffix]`):
 
 Compiler changes never invalidate a freeze: the frozen files test the decoder, the verifier and the VM, not the compiler. A red `TestBytecodeCorpus` on a readable directory means this build runs existing bytecode differently. Either the change is a bug, or the bytecode version has to be bumped so that older blobs are rejected.
 
-Under 0.x every bump rejects all older bytecode, so until 1.0 the corpus only catches a forgotten bump. From 1.0 a 1.1 VM must run frozen 1.0 bytecode identically, and a VM fix that changes a frozen output is a major bump.
+Under 0.x every bump rejects all older bytecode, but the corpus still runs it re-stamped: a 0.x bump that deliberately changes what an old program does fails that case. That is the one edit an older freeze gets: delete the program from it, then freeze again. From 1.0 a 1.1 VM must run frozen 1.0 bytecode identically, and a VM fix that changes a frozen output is a major bump.
 
 ### Constant pools
 

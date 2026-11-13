@@ -1,0 +1,7 @@
+vars {
+  account $acc
+  string $key
+}
+
+delete_account_metadata($acc, $key)
+delete_account_metadata(@other, "k")

@@ -108,6 +108,11 @@ const (
 	// scope (str reg, 0xFF = unscoped)
 	Op_MetaMonetary Opcode = 0x25
 
+	// A = account (str reg), B = key (str reg), C = scope (str reg, 0xFF =
+	// unscoped). Drops a pending write to the key and reports it in the result's
+	// DeletedAccountsMetadata until a later set_account_meta to it.
+	Op_DeleteAccountMeta Opcode = 0x26
+
 	// --- arithmetic & constructors (0x30) ---
 	Op_AddInt Opcode = 0x30
 	Op_SubInt Opcode = 0x31

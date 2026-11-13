@@ -125,6 +125,10 @@ type (
 		Account, Key, Value Reg  // str, str, str
 		Scope               *Reg // str
 	}
+	DeleteAccountMeta struct {
+		Account, Key Reg  // str, str
+		Scope        *Reg // str
+	}
 	MetaVar struct {
 		Dest         Reg
 		Account, Key Reg  // str, str
@@ -269,6 +273,9 @@ func (i SetTxMeta) sources() []Reg { return []Reg{i.Key, i.Value} }
 
 func (i SetAccountMeta) dests() []Reg   { return nil }
 func (i SetAccountMeta) sources() []Reg { return present(&i.Account, &i.Key, &i.Value, i.Scope) }
+
+func (i DeleteAccountMeta) dests() []Reg   { return nil }
+func (i DeleteAccountMeta) sources() []Reg { return present(&i.Account, &i.Key, i.Scope) }
 
 func (i MetaVar) dests() []Reg   { return []Reg{i.Dest} }
 func (i MetaVar) sources() []Reg { return present(&i.Account, &i.Key, i.Scope) }

@@ -1061,3 +1061,21 @@ func (i MarkEnd) assemble(a *assembler) error {
 	a.emit(vm.Op_MarkEnd, rewind, maxReg, maxReg)
 	return nil
 }
+
+func (i DeleteAccountMeta) assemble(a *assembler) error {
+	account, err := a.strReg(i.Account)
+	if err != nil {
+		return err
+	}
+	key, err := a.strReg(i.Key)
+	if err != nil {
+		return err
+	}
+	scope, err := a.optionalReg((*assembler).strReg, i.Scope)
+	if err != nil {
+		return err
+	}
+
+	a.emit(vm.Op_DeleteAccountMeta, account, key, scope)
+	return nil
+}

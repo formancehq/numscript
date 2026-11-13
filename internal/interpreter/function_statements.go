@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/parser"
 )
 
@@ -44,5 +45,22 @@ func setAccountMeta(st *programState, r parser.Range, args []Value) InterpreterE
 
 	st.SetAccountsMeta.Set(account.Name, account.Scope, string(key), meta)
 
+	return nil
+}
+
+func deleteAccountMetadata(st *programState, r parser.Range, args []Value) InterpreterError {
+	if err := st.checkFeatureFlag(flags.ExperimentalDeleteAccountMetadata); err != nil {
+		return err
+	}
+
+	p := NewArgsParser(args)
+	account := parseArg(p, r, expectAccount)
+	key := parseArg(p, r, expectString)
+	err := p.parse()
+	if err != nil {
+		return err
+	}
+
+	st.SetAccountsMeta.Delete(account.Name, account.Scope, string(key))
 	return nil
 }
