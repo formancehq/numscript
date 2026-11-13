@@ -38,6 +38,8 @@ type ExecutionResult struct {
 	Metadata Metadata `json:"txMeta"`
 
 	AccountsMetadata SetAccountsMetadata `json:"accountsMeta"`
+
+	DeletedAccountsMetadata DeletedAccountsMetadata `json:"deletedAccountsMeta,omitempty"`
 }
 
 func parseMonetary(source string) (Monetary, InterpreterError) {
@@ -181,9 +183,10 @@ func RunProgram(
 	}
 
 	res := &ExecutionResult{
-		Postings:         postings,
-		Metadata:         st.txMetaToRendered(),
-		AccountsMetadata: st.SetAccountsMeta.toRows(),
+		Postings:                postings,
+		Metadata:                st.txMetaToRendered(),
+		AccountsMetadata:        st.SetAccountsMeta.toRows(),
+		DeletedAccountsMetadata: st.SetAccountsMeta.deletedRows(),
 	}
 	return res, nil
 }

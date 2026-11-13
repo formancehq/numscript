@@ -62,8 +62,5 @@ func deleteAccountMetadata(st *programState, r parser.Range, args []Value) Inter
 	}
 
 	st.SetAccountsMeta.Delete(account.Name, account.Scope, string(key))
-	if err := st.Store.DeleteAccountMetadata(st.ctx, account.Name, account.Scope, string(key)); err != nil {
-		return DeleteMetadataError{Range: r, WrappedError: err}
-	}
 	return nil
 }

@@ -275,7 +275,3 @@ The bytecode format tracks an unstable instruction set and is not a public inter
 
 	return &cmd
 }
-
-func (s vmStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return nil
-}

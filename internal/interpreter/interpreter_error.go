@@ -253,19 +253,6 @@ func (e QueryMetadataError) Unwrap() error {
 	return e.WrappedError
 }
 
-type DeleteMetadataError struct {
-	parser.Range
-	WrappedError error
-}
-
-func (e DeleteMetadataError) Error() string {
-	return e.WrappedError.Error()
-}
-
-func (e DeleteMetadataError) Unwrap() error {
-	return e.WrappedError
-}
-
 type ExperimentalFeature struct {
 	parser.Range
 	FlagName string

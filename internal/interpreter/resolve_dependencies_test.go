@@ -35,10 +35,6 @@ func (q *queryLog) GetAccountsMetadata(ctx context.Context, query interpreter.Me
 	return q.inner.GetAccountsMetadata(ctx, query)
 }
 
-func (q *queryLog) DeleteAccountMetadata(ctx context.Context, account, scope, key string) error {
-	return q.inner.DeleteAccountMetadata(ctx, account, scope, key)
-}
-
 // TestResolveDependenciesCoversRuntime checks the soundness property: for a
 // script that executes successfully, every balance/metadata the interpreter
 // queries is a resolved read, and every account a posting touches is a resolved

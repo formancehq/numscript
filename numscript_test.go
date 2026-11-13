@@ -572,10 +572,6 @@ func (s *AliasingStore) GetAccountsMetadata(_ context.Context, _ interpreter.Met
 	return nil, nil
 }
 
-func (s *AliasingStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return nil
-}
-
 func TestStoreBalancesNotMutatedInPlace(t *testing.T) {
 	parseResult := numscript.Parse(`send [COIN 100] (
 	source = @alice
@@ -615,10 +611,6 @@ func (os *ObservableStore) GetAccountsMetadata(ctx context.Context, q interprete
 	return os.StaticStore.GetAccountsMetadata(ctx, q)
 }
 
-func (os *ObservableStore) DeleteAccountMetadata(ctx context.Context, account, scope, key string) error {
-	return os.StaticStore.DeleteAccountMetadata(ctx, account, scope, key)
-}
-
 type ErrorStore struct{}
 
 func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) (interpreter.Balances, error) {
@@ -627,10 +619,6 @@ func (*ErrorStore) GetBalances(ctx context.Context, q interpreter.BalanceQuery) 
 
 func (*ErrorStore) GetAccountsMetadata(ctx context.Context, q interpreter.MetadataQuery) (interpreter.AccountsMetadata, error) {
 	return nil, errors.New("Error while fetching metadata")
-}
-
-func (*ErrorStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return errors.New("Error while deleting metadata")
 }
 
 func TestResolveDependenciesPublicAPI(t *testing.T) {
@@ -806,14 +794,6 @@ func TestExecVmReleasesStore(t *testing.T) {
 	}
 }
 
-func (s vmTestStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return nil
-}
-
-func (s *releaseTestStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return nil
-}
-
 var deleteMetaFlags = map[string]struct{}{flags.ExperimentalDeleteAccountMetadata: {}}
 
 func TestDeleteMetadataRequiresFlag(t *testing.T) {
@@ -824,28 +804,30 @@ func TestDeleteMetadataRequiresFlag(t *testing.T) {
 	require.Equal(t, numscript.ExperimentalFeature{FlagName: flags.ExperimentalDeleteAccountMetadata}, err)
 }
 
-func TestDeleteMetadataErr(t *testing.T) {
-	parseResult := numscript.Parse(`delete_account_metadata(@acc, "k")`)
+func TestDeletedAccountsMetadataOnBothEngines(t *testing.T) {
+	script := `set_account_meta(@a, "k1", "v")
+delete_account_metadata(@a, "k1")
+delete_account_metadata(@b, "k2")
+set_account_meta(@b, "k2", "v")
+delete_account_metadata(@c, "k3")`
+	want := numscript.DeletedAccountsMetadata{
+		{Account: "a", Key: "k1"},
+		{Account: "c", Key: "k3"},
+	}
+
+	parseResult := numscript.Parse(script)
 	require.Empty(t, parseResult.GetParsingErrors())
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), interpreter.VariablesMap{}, numscript.StaticStore{}, deleteMetaFlags)
+	require.Nil(t, err)
+	require.Equal(t, want, res.DeletedAccountsMetadata)
 
-	_, err := parseResult.RunWithFeatureFlags(context.Background(), interpreter.VariablesMap{}, &ErrorStore{}, deleteMetaFlags)
-	require.IsType(t, numscript.DeleteMetadataError{}, err)
-}
-
-type vmDeleteErrStore struct{ vmTestStore }
-
-func (vmDeleteErrStore) DeleteAccountMetadata(context.Context, string, string, string) error {
-	return errors.New("Error while deleting metadata")
-}
-
-func TestVmDeleteMetadataErr(t *testing.T) {
-	enc, program, err := numscript.CompileWithFeatureFlags(`delete_account_metadata(@acc, "k")`, deleteMetaFlags)
-	require.NoError(t, err)
-	vars, err := enc.Encode(nil)
-	require.NoError(t, err)
-
-	_, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmDeleteErrStore{})
-	require.IsType(t, numscript.VmStoreError{}, execErr)
+	enc, program, compileErr := numscript.CompileWithFeatureFlags(script, deleteMetaFlags)
+	require.NoError(t, compileErr)
+	vars, encErr := enc.Encode(nil)
+	require.NoError(t, encErr)
+	vmRes, execErr := numscript.ExecVm(context.Background(), numscript.NewVm(program), &vars, vmTestStore{})
+	require.NoError(t, execErr)
+	require.Equal(t, want, vmRes.DeletedAccountsMetadata)
 }
 
 func TestResolveDependenciesDeleteMetadata(t *testing.T) {

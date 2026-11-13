@@ -170,7 +170,7 @@
 
     "DeletedAccountsMetadata": {
       "type": "array",
-      "description": "The account metadata deletions requested during execution, in script order.",
+      "description": "The account metadata keys the script deleted and did not set again afterwards, sorted by account, scope and key.",
       "items": { "$ref": "#/definitions/DeletedAccountMetadataRow" }
     },
 

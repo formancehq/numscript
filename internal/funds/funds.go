@@ -61,9 +61,10 @@ type Posting struct {
 }
 
 type ExecutionResult struct {
-	Postings         []Posting         `json:"postings"`
-	Metadata         map[string]string `json:"txMeta"`
-	AccountsMetadata AccountsMetadata  `json:"accountsMeta"`
+	Postings                []Posting                     `json:"postings"`
+	Metadata                map[string]string             `json:"txMeta"`
+	AccountsMetadata        AccountsMetadata              `json:"accountsMeta"`
+	DeletedAccountsMetadata []DeletedAccountMetadataEntry `json:"deletedAccountsMeta,omitempty"`
 }
 
 // PairKey identifies a balance slot. Scope is a second dimension of the account
