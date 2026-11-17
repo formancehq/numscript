@@ -149,7 +149,6 @@ func TestMigrateSpecsContentUnsupportedShapeStillErrors(t *testing.T) {
 // to migrate. This is the case the structural check alone can't catch.
 func TestMigrateSpecsContentDecodesColorsInCurrentShape(t *testing.T) {
 	raw := []byte(`{
-  "featureFlags": ["experimental-asset-colors"],
   "balances": [
     { "account": "acc", "asset": "COIN_RED", "amount": 1 }
   ],

@@ -1,8 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
-  "featureFlags": [
-    "experimental-asset-colors"
-  ],
   "testCases": [
     {
       "it": "caps the colored pull, then falls back to the uncolored balance",
