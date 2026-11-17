@@ -1,0 +1,3 @@
+prop only_half_moves: success => sent(@src, USD/2) == 50 and received(@dest, USD/2) == 50
+prop but_needs_100: before(@src, USD/2) == 60 => fails
+prop all_or_nothing: sent(@src, USD/2) == 100 or fails

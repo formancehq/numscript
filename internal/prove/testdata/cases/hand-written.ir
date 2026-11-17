@@ -1,0 +1,11 @@
+  $asset = "USD/2"
+  set_current_asset($asset)
+  $zero = 0
+  $src = "src"
+  $cap = 100
+  $pulled = pull_account(account: $src, cap: $cap, overdraft: $zero)
+  $dest = "dest"
+  $thirty = 30
+  send_to_account(account: $dest, cap: $thirty)
+  $rest = "rest"
+  send_to_account(account: $rest)

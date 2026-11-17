@@ -62,6 +62,7 @@
             goperf
             gotools
             just
+            z3
           ];
           goPackages = [ go golangci-lint ];
           otherPackages = [

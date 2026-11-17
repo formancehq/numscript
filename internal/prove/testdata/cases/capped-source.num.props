@@ -1,0 +1,5 @@
+prop cap_respected: success => sent(@a, USD/2) <= 30
+prop total: success => sent(@a, USD/2) + sent(@b, USD/2) == 100
+prop exact_a: success => sent(@a, USD/2) == min(30, max(0, before(@a, USD/2)))
+prop via_moved: success => moved(@a, @dest, USD/2) + moved(@b, @dest, USD/2) == 100
+prop a_always_30: sent(@a, USD/2) == 30

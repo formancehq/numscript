@@ -1,0 +1,27 @@
+
+[TestSimpleSendText - 1]
+(set-logic QF_LIA)
+(set-option :produce-models true)
+(declare-const |before(@dest,USD/2)| Int)
+(declare-const |before(@src,USD/2)| Int)
+; 18: $r9 = pull_account(account: $r6, cap: $r4, overdraft: $r7)
+(define-fun available@18 () Int (ite (< |before(@src,USD/2)| 0) 0 |before(@src,USD/2)|))
+(define-fun $r9@18 () Int (ite (< 10 available@18) 10 available@18))
+(define-fun |bal(@src,USD/2)@18| () Int (- |before(@src,USD/2)| $r9@18))
+(define-fun fail@20 () Bool (not (= $r9@18 10)))
+(define-fun alive@20 () Bool (= $r9@18 10))
+; 22: send_to_account(account: $r10)
+(define-fun |bal(@dest,USD/2)@22| () Int (+ |before(@dest,USD/2)| $r9@18))
+
+; outputs: the ledger applies nothing on failure
+(define-fun fails () Bool fail@20)
+(define-fun success () Bool (not fails))
+(define-fun |sent(@dest,USD/2)| () Int 0)
+(define-fun |received(@dest,USD/2)| () Int (ite fails 0 $r9@18))
+(define-fun |after(@dest,USD/2)| () Int (+ |before(@dest,USD/2)| (- |received(@dest,USD/2)| |sent(@dest,USD/2)|)))
+(define-fun |sent(@src,USD/2)| () Int (ite fails 0 $r9@18))
+(define-fun |received(@src,USD/2)| () Int 0)
+(define-fun |after(@src,USD/2)| () Int (+ |before(@src,USD/2)| (- |received(@src,USD/2)| |sent(@src,USD/2)|)))
+(define-fun |moved(@src,@dest,USD/2)| () Int (ite fails 0 $r9@18))
+
+---
