@@ -452,9 +452,7 @@ set_tx_meta(
 			},
 		},
 	}
-	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
-		flags.ExperimentalMidScriptFunctionCall: {},
-	})
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{})
 	require.Nil(t, err)
 
 	// @alice starts with 20 and receives 100, so its running balance is 120.
@@ -504,9 +502,7 @@ send [USD/2 10] (
 			},
 		},
 	}
-	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{
-		flags.ExperimentalMidScriptFunctionCall: {},
-	})
+	res, err := parseResult.RunWithFeatureFlags(context.Background(), nil, &store, map[string]struct{}{})
 	require.Nil(t, err)
 
 	require.Equal(t,

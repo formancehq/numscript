@@ -105,8 +105,7 @@ var Builtins = map[string]FnCallResolution{
 		Docs:   "get the asset of the given monetary",
 		VersionConstraints: []VersionClause{
 			{
-				Version:     parser.NewVersionInterpreter(0, 0, 16),
-				FeatureFlag: flags.ExperimentalGetAssetFunctionFeatureFlag,
+				Version: parser.NewVersionInterpreter(0, 0, 16),
 			},
 		},
 	},
@@ -116,8 +115,7 @@ var Builtins = map[string]FnCallResolution{
 		Docs:   "get the amount of the given monetary",
 		VersionConstraints: []VersionClause{
 			{
-				Version:     parser.NewVersionInterpreter(0, 0, 16),
-				FeatureFlag: flags.ExperimentalGetAmountFunctionFeatureFlag,
+				Version: parser.NewVersionInterpreter(0, 0, 16),
 			},
 		},
 	},

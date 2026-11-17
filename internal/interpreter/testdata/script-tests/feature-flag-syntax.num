@@ -1,4 +1,4 @@
-#![feature("experimental-overdraft-function", "experimental-mid-script-function-call")]
+#![feature("experimental-overdraft-function")]
 
 send overdraft(@acc, TK) (
   source = @world

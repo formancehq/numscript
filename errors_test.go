@@ -242,7 +242,6 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 		{
 			name:    "nested meta",
 			script:  `vars { number $x = 1 + meta(@acc, "k") }`,
-			flags:   []string{flags.ExperimentalMidScriptFunctionCall},
 			resolve: true,
 			check:   func(t *testing.T, err error) { requireAs[numscript.InvalidNestedMeta](t, err) },
 		},
@@ -285,7 +284,6 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 		{
 			name:   "invalid color",
 			script: `send [USD 1] ( source = @a \ "red" allowing unbounded overdraft destination = @b )`,
-			flags:  []string{flags.ExperimentalAssetColors},
 			check: func(t *testing.T, err error) {
 				require.Equal(t, "red", requireAs[numscript.InvalidColor](t, err).Color)
 			},
@@ -435,7 +433,6 @@ func TestCompilerErrorsAreClassifiable(t *testing.T) {
 		{
 			name:   "meta outside a variable origin",
 			script: `set_tx_meta("k", meta(@acc, "k"))`,
-			flags:  []string{flags.ExperimentalMidScriptFunctionCall},
 			check:  func(t *testing.T, err error) { requireAs[numscript.CompilerInvalidMetaPosition](t, err) },
 		},
 		{

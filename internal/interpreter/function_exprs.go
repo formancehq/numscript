@@ -10,12 +10,6 @@ import (
 )
 
 func evaluateFnCall(env *evalEnv, type_ *string, fnCall parser.FnCall) (Value, InterpreterError) {
-	if type_ == nil {
-		if err := env.checkFeatureFlag(flags.ExperimentalMidScriptFunctionCall); err != nil {
-			return nil, err
-		}
-	}
-
 	args, err := evaluateExpressions(env, fnCall.Args)
 	if err != nil {
 		return nil, err
@@ -175,14 +169,9 @@ func getAsset(
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
-	err := env.checkFeatureFlag(flags.ExperimentalGetAssetFunctionFeatureFlag)
-	if err != nil {
-		return nil, err
-	}
-
 	p := NewArgsParser(args)
 	mon := parseArg(p, r, expectMonetary)
-	err = p.parse()
+	err := p.parse()
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +184,9 @@ func getAmount(
 	r parser.Range,
 	args []Value,
 ) (Value, InterpreterError) {
-	err := env.checkFeatureFlag(flags.ExperimentalGetAmountFunctionFeatureFlag)
-	if err != nil {
-		return nil, err
-	}
-
 	p := NewArgsParser(args)
 	mon := parseArg(p, r, expectMonetary)
-	err = p.parse()
+	err := p.parse()
 	if err != nil {
 		return nil, err
 	}

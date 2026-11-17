@@ -9,7 +9,6 @@
     }
   ],
   "featureFlags": [
-    "experimental-mid-script-function-call",
     "experimental-scoped-function"
   ],
   "testCases": [
