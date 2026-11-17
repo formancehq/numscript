@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"errors"
+	"fmt"
 	"maps"
 	"math/big"
 	"slices"
@@ -21,6 +23,18 @@ import (
 // interpreter.RunProgram, the script's own #![feature(..)] declarations are
 // unioned in.
 func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, vm.Program, error) {
+	return CompileWithOptions(program, featureFlags, Options{})
+}
+
+// Options configures CompileWithOptions. The zero value is what Compile uses.
+type Options struct {
+	// Optimize runs ir.Optimize over the instruction stream before assembling.
+	// The optimized program produces the same postings, metadata and errors as
+	// the plain one.
+	Optimize bool
+}
+
+func CompileWithOptions(program parser.Program, featureFlags map[string]struct{}, opts Options) (VarsEncoder, vm.Program, error) {
 	compiled, cErr := compileProgramToIR(program, featureFlags)
 	if cErr != nil {
 		return VarsEncoder{}, vm.Program{}, cErr
@@ -30,7 +44,21 @@ func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEnco
 		return VarsEncoder{}, vm.Program{}, err
 	}
 
-	prog, err := ir.Assemble(compiled.instructions)
+	instrs := compiled.instructions
+	if opts.Optimize {
+		instrs = ir.Optimize(instrs)
+		// a pass that breaks register typing is a bug in the pass
+		if err := ir.Typecheck(instrs); err != nil {
+			return VarsEncoder{}, vm.Program{}, fmt.Errorf("optimized program: %w", err)
+		}
+	}
+
+	prog, err := ir.Assemble(instrs)
+	// the passes can trade one capacity bound for another (a shorter stream
+	// with longer-lived registers), so the plain stream decides those errors
+	if opts.Optimize && (errors.Is(err, ir.ErrRegisterBankOverflow) || errors.Is(err, ir.ErrProgramTooLarge)) {
+		prog, err = ir.Assemble(compiled.instructions)
+	}
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
