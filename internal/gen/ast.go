@@ -42,8 +42,7 @@ type Source struct {
 	AccountAsVar bool
 
 	// SrcAccount, SrcAccountOverdraft: non-empty adds a `\ "COLOR"` clause.
-	// numscript-only (experimental-asset-colors): scripts containing it skip
-	// the oracle legs.
+	// numscript-only: scripts containing it skip the oracle legs.
 	Color      string
 	ColorAsVar bool
 

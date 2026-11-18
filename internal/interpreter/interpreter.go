@@ -358,13 +358,6 @@ func (st *programState) runSendStatement(statement parser.SendStatement) Interpr
 
 // PRE: overdraft >= 0
 func (s *programState) takeAllFromAccount(accountLiteral parser.ValueExpr, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
-	if colorExpr != nil {
-		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err
@@ -521,13 +514,6 @@ func (s *programState) tryTakingExact(source parser.Source, amount MonetaryInt) 
 
 // PRE: overdraft >= 0
 func (s *programState) tryTakingFromAccount(accountLiteral parser.ValueExpr, amount *big.Int, overdraft *big.Int, colorExpr parser.ValueExpr) (*big.Int, InterpreterError) {
-	if colorExpr != nil {
-		err := s.checkFeatureFlag(flags.ExperimentalAssetColors)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	account, err := evaluateExprAs(&s.evalEnv, accountLiteral, expectAccount)
 	if err != nil {
 		return nil, err

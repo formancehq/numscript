@@ -33,7 +33,6 @@ func TestE2E_RejectsMetaOutsideVarOrigin(t *testing.T) {
 	// meta() is only supported as a direct variable origin; nested in an
 	// expression it must be a compile error, not a panic.
 	parsed := parser.Parse(`
-		#![feature("experimental-mid-script-function-call")]
 		vars {
 			account $a
 			number $n = meta($a, "k") + 1
@@ -110,32 +109,10 @@ func TestFeatureFlagGating(t *testing.T) {
 			send [C 10] (source = @world destination = @dest:$s)`,
 		},
 		{
-			name: "mid-script function call",
-			flag: flags.ExperimentalMidScriptFunctionCall,
-			src:  `send balance(@a, C) (source = @world destination = @d)`,
-		},
-		{
 			name: "overdraft function",
 			flag: flags.ExperimentalOverdraftFunctionFeatureFlag,
 			src: `vars { monetary $m = overdraft(@a, C) }
 			send $m (source = @world destination = @d)`,
-		},
-		{
-			name: "get_asset function",
-			flag: flags.ExperimentalGetAssetFunctionFeatureFlag,
-			src: `vars { monetary $m asset $a = get_asset($m) }
-			send [$a 10] (source = @world destination = @d)`,
-		},
-		{
-			name: "get_amount function",
-			flag: flags.ExperimentalGetAmountFunctionFeatureFlag,
-			src: `vars { monetary $m number $n = get_amount($m) }
-			send [C $n] (source = @world destination = @d)`,
-		},
-		{
-			name: "asset colors",
-			flag: flags.ExperimentalAssetColors,
-			src:  `send [C 10] (source = @a \ "RED" destination = @d)`,
 		},
 		{
 			name: "asset scaling",
@@ -174,18 +151,6 @@ func TestFnCallAsVarOriginIsNotMidScript(t *testing.T) {
 	require.Empty(t, parsed.Errors)
 	_, cErr := compileProgramToIR(parsed.Value, nil)
 	require.Nil(t, cErr)
-}
-
-// ... but one nested inside the origin expression is
-func TestNestedFnCallInVarOriginIsMidScript(t *testing.T) {
-	parsed := parser.Parse(`
-		vars { monetary $m = balance(@a, C) + balance(@b, C) }
-		send $m (source = @world destination = @d)
-	`)
-	require.Empty(t, parsed.Errors)
-	_, cErr := compileProgramToIR(parsed.Value, nil)
-	require.IsType(t, ExperimentalFeature{}, cErr)
-	require.Equal(t, flags.ExperimentalMidScriptFunctionCall, cErr.(ExperimentalFeature).FlagName)
 }
 
 // #![feature(..)] in the source enables a flag the host didn't pass
@@ -229,7 +194,7 @@ func TestCompilerErrorMessages(t *testing.T) {
 		{"InvalidMetaPosition", InvalidMetaPosition{}, "meta() is only allowed as a variable origin"},
 		{"CannotCastToString", CannotCastToString{Type: typecheck.TypeMonetary}, "cannot cast a value of type monetary to string"},
 		{"FeatureNotImplemented", FeatureNotImplemented{Feature: "scaling"}, "internal error: feature not implemented: scaling"},
-		{"ExperimentalFeature", ExperimentalFeature{FlagName: flags.ExperimentalAssetColors}, "You need the 'experimental-asset-colors' feature flag to enable it"},
+		{"ExperimentalFeature", ExperimentalFeature{FlagName: flags.ExperimentalScopedFunction}, "You need the 'experimental-scoped-function' feature flag to enable it"},
 		{"InvalidFeature", InvalidFeature{Feature: "nope"}, "Invalid feature: nope"},
 	}
 

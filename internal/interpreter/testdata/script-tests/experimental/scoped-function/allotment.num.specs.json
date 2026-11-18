@@ -1,8 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
   "featureFlags": [
-    "experimental-scoped-function",
-    "experimental-mid-script-function-call"
+    "experimental-scoped-function"
   ],
   "balances": [
     { "account": "a", "asset": "COIN", "amount": 60, "scope": "s" },

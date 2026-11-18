@@ -260,7 +260,6 @@ func TestE2E_DivideByZero(t *testing.T) {
 
 func TestE2E_InvalidColor(t *testing.T) {
 	src := `
-		#![feature("experimental-asset-colors")]
 		send [COIN 10] (
 			source = @src \ "not a color"
 			destination = @dest

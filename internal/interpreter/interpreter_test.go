@@ -295,8 +295,7 @@ func runScopedSend(t *testing.T, scope string) interpreter.InterpreterError {
 		map[string]string{"scope": scope},
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 	return err
@@ -363,8 +362,7 @@ func TestCannotStoreScopedAccountInAccountMeta(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -386,8 +384,7 @@ func TestCannotStoreScopedAccountInTxMeta(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -1279,7 +1276,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 		Error: interpreter.InvalidNestedMeta{},
 	}
 
-	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
+	test(t, tc)
 }
 
 func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
@@ -1303,7 +1300,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 			Asset:     "COIN",
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+	test(t, tc)
 }
 
 func TestInvalidScalingWorld(t *testing.T) {

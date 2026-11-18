@@ -49,58 +49,79 @@ func (res *CheckResult) checkAccountInterpolationVersion(expr parser.AccountInte
 	)
 }
 
+func (res *CheckResult) checkMidScriptFnCallVersion(rng parser.Range) {
+	res.requireVersion(rng, flaggedUntilStable(parser.NewVersionInterpreter(0, 0, 15), flags.ExperimentalMidScriptFunctionCall)...)
+}
+
+func (res *CheckResult) checkColorVersion(color parser.ValueExpr) {
+	if color == nil {
+		return
+	}
+
+	res.requireVersion(color.GetRange(), flaggedUntilStable(parser.NewVersionInterpreter(0, 0, 17), flags.ExperimentalAssetColors)...)
+}
+
 // -- version check utilities
+
+func flaggedUntilStable(since parser.VersionInterpreter, flag flags.FeatureFlag) []VersionClause {
+	return []VersionClause{
+		{Version: since, FeatureFlag: flag},
+		{Version: parser.NewVersionInterpreter(1, 0, 0)},
+	}
+}
 
 type VersionClause struct {
 	Version     parser.Version
 	FeatureFlag flags.FeatureFlag
 }
 
+// Clauses are alternatives: when none is satisfied, the first one's failure is reported.
 func (res *CheckResult) requireVersion(
 	rng parser.Range,
 	clauses ...VersionClause,
 ) {
 	flags := res.Program.GetFlags()
 	actualVersion := res.Program.GetVersion()
-	if actualVersion == nil {
+	if actualVersion == nil || len(clauses) == 0 {
 		return
 	}
 
 	for _, clause := range clauses {
-		switch requiredVersion := clause.Version.(type) {
-		case parser.VersionMachine:
-			_, ok := actualVersion.(parser.VersionMachine)
-			if !ok {
-
-				res.pushDiagnostic(rng.GetRange(), VersionMismatch{
-					GotVersion:      actualVersion,
-					RequiredVersion: requiredVersion,
-				})
-				return
-			}
-
-		case parser.VersionInterpreter:
-
-			interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
-
-			if !ok || !interpreterActualVersion.GtEq(requiredVersion) {
-				res.pushDiagnostic(rng, VersionMismatch{
-					GotVersion:      actualVersion,
-					RequiredVersion: requiredVersion,
-				})
-				return
-			}
-
-			if clause.FeatureFlag == "" {
-				return
-			}
-
-			_, flagEnabled := flags[clause.FeatureFlag]
-			if !flagEnabled {
-				res.pushDiagnostic(rng, ExperimentalFeature{
-					Name: clause.FeatureFlag,
-				})
-			}
+		if clauseFailure(actualVersion, flags, clause) == nil {
+			return
 		}
 	}
+
+	res.pushDiagnostic(rng, clauseFailure(actualVersion, flags, clauses[0]))
+}
+
+func clauseFailure(
+	actualVersion parser.Version,
+	flags map[string]struct{},
+	clause VersionClause,
+) DiagnosticKind {
+	switch requiredVersion := clause.Version.(type) {
+	case parser.VersionMachine:
+		if _, ok := actualVersion.(parser.VersionMachine); !ok {
+			return VersionMismatch{GotVersion: actualVersion, RequiredVersion: requiredVersion}
+		}
+		return nil
+
+	case parser.VersionInterpreter:
+		interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
+		if !ok || !interpreterActualVersion.GtEq(requiredVersion) {
+			return VersionMismatch{GotVersion: actualVersion, RequiredVersion: requiredVersion}
+		}
+
+		if clause.FeatureFlag == "" {
+			return nil
+		}
+
+		if _, flagEnabled := flags[clause.FeatureFlag]; !flagEnabled {
+			return ExperimentalFeature{Name: clause.FeatureFlag}
+		}
+		return nil
+	}
+
+	return nil
 }
