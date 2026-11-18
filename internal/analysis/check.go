@@ -100,24 +100,16 @@ var Builtins = map[string]FnCallResolution{
 		},
 	},
 	FnVarOriginGetAsset: VarOriginFnCallResolution{
-		Params: []string{TypeMonetary},
-		Return: TypeAsset,
-		Docs:   "get the asset of the given monetary",
-		VersionConstraints: []VersionClause{
-			{
-				Version: parser.NewVersionInterpreter(0, 0, 16),
-			},
-		},
+		Params:             []string{TypeMonetary},
+		Return:             TypeAsset,
+		Docs:               "get the asset of the given monetary",
+		VersionConstraints: flaggedUntilStable(parser.NewVersionInterpreter(0, 0, 16), flags.ExperimentalGetAssetFunctionFeatureFlag),
 	},
 	FnVarOriginGetAmount: VarOriginFnCallResolution{
-		Params: []string{TypeMonetary},
-		Return: TypeNumber,
-		Docs:   "get the amount of the given monetary",
-		VersionConstraints: []VersionClause{
-			{
-				Version: parser.NewVersionInterpreter(0, 0, 16),
-			},
-		},
+		Params:             []string{TypeMonetary},
+		Return:             TypeNumber,
+		Docs:               "get the amount of the given monetary",
+		VersionConstraints: flaggedUntilStable(parser.NewVersionInterpreter(0, 0, 16), flags.ExperimentalGetAmountFunctionFeatureFlag),
 	},
 	FnVarOriginScoped: VarOriginFnCallResolution{
 		Params: []string{TypeAccount, TypeString},
@@ -147,6 +139,7 @@ type CheckResult struct {
 	unusedVars             map[string]parser.Range
 	varResolution          map[*parser.Variable]parser.VarDeclaration
 	fnCallResolution       map[*parser.FnCallIdentifier]FnCallResolution
+	currentVarOrigin       parser.ValueExpr
 	Diagnostics            []Diagnostic
 	Program                parser.Program
 
@@ -267,7 +260,9 @@ func (res *CheckResult) check() {
 			}
 
 			if varDecl.Origin != nil && *varDecl.Origin != nil && varDecl.Type != nil {
+				res.currentVarOrigin = *varDecl.Origin
 				res.checkExpression(*varDecl.Origin, varDecl.Type.Name)
+				res.currentVarOrigin = nil
 				res.unifyNodeWith(*varDecl.Origin, res.GetVarDeclType(varDecl))
 			}
 		}
@@ -482,6 +477,10 @@ func (res *CheckResult) checkDuplicateVars(variableName parser.Variable, decl pa
 func (res *CheckResult) checkFnCall(fnCall *parser.FnCall) string {
 	returnType := TypeAny
 
+	if res.currentVarOrigin != fnCall {
+		res.checkMidScriptFnCallVersion(fnCall.Range)
+	}
+
 	if resolution, ok := Builtins[fnCall.Caller.Name]; ok {
 		if resolution, ok := resolution.(VarOriginFnCallResolution); ok {
 			res.fnCallResolution[fnCall.Caller] = resolution
@@ -656,6 +655,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 	case *parser.SourceAccount:
 		res.checkExpression(source.ValueExpr, TypeAccount)
 		res.checkExpression(source.Color, TypeString)
+		res.checkColorVersion(source.Color)
 		if account, ok := source.ValueExpr.(*parser.AccountInterpLiteral); ok {
 			if account.IsWorld() && res.unboundedSend {
 				res.pushDiagnostic(source.GetRange(), InvalidUnboundedAccount{})
@@ -698,6 +698,7 @@ func (res *CheckResult) checkSource(source parser.Source) {
 
 		res.checkExpression(source.Address, TypeAccount)
 		res.checkExpression(source.Color, TypeString)
+		res.checkColorVersion(source.Color)
 		if source.Bounded != nil {
 			res.checkExpression(*source.Bounded, TypeMonetary)
 			res.unifyNodeWith(*source.Bounded, res.stmtType)
