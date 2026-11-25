@@ -13,8 +13,8 @@ tidy:
     @go mod tidy
 
 generate:
-    @antlr4 -Dlanguage=Go Lexer.g4 Numscript.g4 -o internal/parser/antlrParser -package antlrParser
-    @mv internal/parser/antlrParser/_lexer.go internal/parser/antlrParser/lexer.go
+    @antlr4 -Dlanguage=Go Lexer.g4 Numscript.g4 -o internal/parser/internal/legacy/antlrParser -package antlrParser
+    @mv internal/parser/internal/legacy/antlrParser/_lexer.go internal/parser/internal/legacy/antlrParser/lexer.go
     @antlr4 -Dlanguage=Go IR.g4 -o internal/ir/internal/syntax/antlrParser -package antlrParser
 
 tests:

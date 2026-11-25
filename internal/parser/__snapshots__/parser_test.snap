@@ -2359,20 +2359,18 @@ parser.Program{
 
 [TestShowErrorLines - 1]
 Got errors while parsing:
-no viable alternative at input 'errdestination'
+expected an expression, found `err`
+  0 | send [EUR/2 100] (
+  1 |   source = err
+    |            ~~~
+  2 |   destination = ee
+
+expected an expression, found `ee`
   1 |   source = err
   2 |   destination = ee
-    |   ~~~~~~~~~~
+    |                 ~~
   3 | )
 
-missing '(' at ')'
-  2 |   destination = ee
-  3 | )
-    | 
-missing ')' at '<EOF>'
-  2 |   destination = ee
-  3 | )
-    |  ~~~~
 
 ---
 
@@ -3423,16 +3421,16 @@ parser.Program{
         {
             Range: parser.Range{
                 Start: parser.Position{Character:2, Line:1},
-                End:   parser.Position{Character:19, Line:1},
+                End:   parser.Position{Character:18, Line:1},
             },
-            Content: " first comment\n",
+            Content: " first comment",
         },
         {
             Range: parser.Range{
                 Start: parser.Position{Character:2, Line:4},
-                End:   parser.Position{Character:20, Line:4},
+                End:   parser.Position{Character:19, Line:4},
             },
-            Content: " second comment\n",
+            Content: " second comment",
         },
     },
 }

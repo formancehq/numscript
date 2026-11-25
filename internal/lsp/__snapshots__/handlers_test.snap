@@ -149,3 +149,117 @@
  "uri": "example.num"
 }
 ---
+
+
+[TestCompletionKeyword - 1]
+{
+ "isIncomplete": false,
+ "items": [
+  {
+   "insertTextFormat": 1,
+   "kind": 14,
+   "label": "allowing",
+   "sortText": "0000",
+   "textEdit": {
+    "newText": "allowing",
+    "range": {
+     "end": {
+      "character": 19,
+      "line": 1
+     },
+     "start": {
+      "character": 15,
+      "line": 1
+     }
+    }
+   }
+  },
+  {
+   "insertTextFormat": 1,
+   "kind": 14,
+   "label": "with",
+   "sortText": "0001",
+   "textEdit": {
+    "newText": "with",
+    "range": {
+     "end": {
+      "character": 19,
+      "line": 1
+     },
+     "start": {
+      "character": 15,
+      "line": 1
+     }
+    }
+   }
+  },
+  {
+   "insertTextFormat": 1,
+   "kind": 14,
+   "label": "destination",
+   "sortText": "0002",
+   "textEdit": {
+    "newText": "destination",
+    "range": {
+     "end": {
+      "character": 19,
+      "line": 1
+     },
+     "start": {
+      "character": 15,
+      "line": 1
+     }
+    }
+   }
+  }
+ ]
+}
+---
+
+[TestSignatureHelp - 1]
+{
+ "activeParameter": 1,
+ "signatures": [
+  {
+   "documentation": "fetch account balance",
+   "label": "balance(account, asset) -\u003e monetary",
+   "parameters": [
+    {
+     "label": "account"
+    },
+    {
+     "label": "asset"
+    }
+   ]
+  }
+ ]
+}
+---
+
+[TestCompletion - 1]
+{
+ "isIncomplete": false,
+ "items": [
+  {
+   "detail": "account",
+   "insertTextFormat": 1,
+   "kind": 6,
+   "label": "$acc",
+   "sortText": "0000",
+   "textEdit": {
+    "newText": "$acc",
+    "range": {
+     "end": {
+      "character": 11,
+      "line": 6
+     },
+     "start": {
+      "character": 10,
+      "line": 6
+     }
+    }
+   }
+  }
+ ]
+}
+---

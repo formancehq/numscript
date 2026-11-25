@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"sync/atomic"
 
 	"github.com/formancehq/numscript/internal/analysis"
 	"github.com/formancehq/numscript/internal/jsonrpc2"
@@ -20,6 +21,9 @@ type InMemoryDocument struct {
 
 type State struct {
 	documents documentStore[InMemoryDocument]
+
+	// whether the client supports snippets in completion items
+	snippetSupport atomic.Bool
 }
 
 func (state *State) updateDocument(conn *jsonrpc2.Conn, uri protocol.DocumentURI, text string) {
@@ -136,6 +140,96 @@ func (state *State) handleGotoDefinition(params protocol.DefinitionParams) *prot
 	}
 }
 
+func (state *State) handleCompletion(params protocol.CompletionParams) *protocol.CompletionList {
+	doc, ok := state.documents.Get(params.TextDocument.URI)
+	if !ok {
+		return nil
+	}
+
+	snippetSupport := state.snippetSupport.Load()
+	items := analysis.Complete(doc.Text, fromLspPosition(params.Position))
+
+	lspItems := make([]protocol.CompletionItem, 0, len(items))
+	for index, item := range items {
+		newText := item.InsertText
+		format := protocol.InsertTextFormatPlainText
+		if item.SnippetText != "" {
+			if snippetSupport {
+				newText = item.SnippetText
+				format = protocol.InsertTextFormatSnippet
+			} else if item.Kind == analysis.CompletionSnippet {
+				continue
+			}
+		}
+
+		var docs any
+		if item.Docs != "" {
+			docs = item.Docs
+		}
+
+		lspItems = append(lspItems, protocol.CompletionItem{
+			Label:            item.Label,
+			Kind:             toLspCompletionKind(item.Kind),
+			Detail:           item.Detail,
+			Documentation:    docs,
+			InsertTextFormat: format,
+			// keep the order computed by the analysis
+			SortText: fmt.Sprintf("%04d", index),
+			TextEdit: &protocol.TextEdit{
+				Range:   *toLspRange(item.Range),
+				NewText: newText,
+			},
+		})
+	}
+
+	return &protocol.CompletionList{Items: lspItems}
+}
+
+func toLspCompletionKind(kind analysis.CompletionItemKind) protocol.CompletionItemKind {
+	switch kind {
+	case analysis.CompletionKeyword:
+		return protocol.CompletionItemKindKeyword
+	case analysis.CompletionVariable:
+		return protocol.CompletionItemKindVariable
+	case analysis.CompletionFunction:
+		return protocol.CompletionItemKindFunction
+	case analysis.CompletionType:
+		return protocol.CompletionItemKindTypeParameter
+	case analysis.CompletionAccount, analysis.CompletionAsset:
+		return protocol.CompletionItemKindValue
+	case analysis.CompletionSnippet:
+		return protocol.CompletionItemKindSnippet
+	default:
+		return protocol.CompletionItemKindText
+	}
+}
+
+func (state *State) handleSignatureHelp(params protocol.SignatureHelpParams) *protocol.SignatureHelp {
+	doc, ok := state.documents.Get(params.TextDocument.URI)
+	if !ok {
+		return nil
+	}
+
+	help := analysis.SignatureHelpAt(doc.Text, fromLspPosition(params.Position))
+	if help == nil {
+		return nil
+	}
+
+	params_ := make([]protocol.ParameterInformation, len(help.Params))
+	for index, param := range help.Params {
+		params_[index] = protocol.ParameterInformation{Label: param}
+	}
+
+	return &protocol.SignatureHelp{
+		Signatures: []protocol.SignatureInformation{{
+			Label:         help.Label,
+			Documentation: help.Docs,
+			Parameters:    params_,
+		}},
+		ActiveParameter: uint32(help.ActiveParam),
+	}
+}
+
 func (state *State) handleGetSymbols(params protocol.DocumentSymbolParams) []protocol.DocumentSymbol {
 	doc, ok := state.documents.Get(params.TextDocument.URI)
 	if !ok {
@@ -235,6 +329,13 @@ var initializeResult protocol.InitializeResult = protocol.InitializeResult{
 		DefinitionProvider:     true,
 		DocumentSymbolProvider: true,
 		CodeActionProvider:     true,
+		CompletionProvider: &protocol.CompletionOptions{
+			TriggerCharacters: []string{"$", "@", ":"},
+		},
+		SignatureHelpProvider: &protocol.SignatureHelpOptions{
+			TriggerCharacters:   []string{"(", ","},
+			RetriggerCharacters: []string{","},
+		},
 	},
 	ServerInfo: &protocol.ServerInfo{
 		Name:    "numscript-ls",
@@ -253,7 +354,10 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 	}
 
 	return jsonrpc2.NewConn(objStream,
-		jsonrpc2.NewRequestHandler("initialize", jsonrpc2.SyncHandling, func(_ any, conn *jsonrpc2.Conn) any {
+		jsonrpc2.NewRequestHandler("initialize", jsonrpc2.SyncHandling, func(p protocol.InitializeParams, conn *jsonrpc2.Conn) any {
+			if completion := p.Capabilities.TextDocument; completion != nil && completion.Completion != nil && completion.Completion.CompletionItem != nil {
+				state.snippetSupport.Store(completion.Completion.CompletionItem.SnippetSupport)
+			}
 			return initializeResult
 		}),
 		jsonrpc2.NewNotificationHandler("textDocument/didOpen", jsonrpc2.SyncHandling, func(p protocol.DidOpenTextDocumentParams, conn *jsonrpc2.Conn) {
@@ -269,6 +373,12 @@ func NewConn(objStream jsonrpc2.MessageStream) *jsonrpc2.Conn {
 
 		jsonrpc2.NewRequestHandler("textDocument/hover", jsonrpc2.AsyncHandling, func(p protocol.HoverParams, conn *jsonrpc2.Conn) any {
 			return state.handleHover(p)
+		}),
+		jsonrpc2.NewRequestHandler("textDocument/completion", jsonrpc2.AsyncHandling, func(p protocol.CompletionParams, _ *jsonrpc2.Conn) any {
+			return state.handleCompletion(p)
+		}),
+		jsonrpc2.NewRequestHandler("textDocument/signatureHelp", jsonrpc2.AsyncHandling, func(p protocol.SignatureHelpParams, _ *jsonrpc2.Conn) any {
+			return state.handleSignatureHelp(p)
 		}),
 		jsonrpc2.NewRequestHandler("textDocument/codeAction", jsonrpc2.AsyncHandling, func(p protocol.CodeActionParams, _ *jsonrpc2.Conn) any {
 			return state.handleCodeAction(p)
