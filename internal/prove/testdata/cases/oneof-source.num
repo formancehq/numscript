@@ -1,0 +1,6 @@
+#![feature("experimental-oneof")]
+
+send [USD/2 100] (
+  source = oneof { @a @b }
+  destination = @dest
+)

@@ -1,0 +1,5 @@
+cap_respected: valid
+total: valid
+exact_a: valid
+via_moved: valid
+a_always_30: counterexample

@@ -74,3 +74,18 @@ jobs:
       - name: difftest regressions and differential sweep
         working-directory: internal/difftest
         run: go test ./...
+
+  # The prover's solver-backed tests skip when z3 is missing, so they need a
+  # job that installs it and makes a missing solver a failure.
+  Prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: install z3
+        run: sudo apt-get update && sudo apt-get install -y z3
+      - name: prover tests
+        run: NUMSCRIPT_REQUIRE_Z3=1 go test ./internal/prove/... ./internal/cmd/...
