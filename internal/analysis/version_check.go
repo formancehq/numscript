@@ -66,7 +66,7 @@ func flaggedUntilStable(since parser.VersionInterpreter, flag flags.FeatureFlag)
 }
 
 type VersionClause struct {
-	Version     parser.Version
+	Version     parser.VersionInterpreter
 	FeatureFlag flags.FeatureFlag
 }
 
@@ -95,28 +95,17 @@ func clauseFailure(
 	flags map[string]struct{},
 	clause VersionClause,
 ) DiagnosticKind {
-	switch requiredVersion := clause.Version.(type) {
-	case parser.VersionMachine:
-		if _, ok := actualVersion.(parser.VersionMachine); !ok {
-			return VersionMismatch{GotVersion: actualVersion, RequiredVersion: requiredVersion}
-		}
-		return nil
+	interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
+	if !ok || !interpreterActualVersion.GtEq(clause.Version) {
+		return VersionMismatch{GotVersion: actualVersion, RequiredVersion: clause.Version}
+	}
 
-	case parser.VersionInterpreter:
-		interpreterActualVersion, ok := actualVersion.(parser.VersionInterpreter)
-		if !ok || !interpreterActualVersion.GtEq(requiredVersion) {
-			return VersionMismatch{GotVersion: actualVersion, RequiredVersion: requiredVersion}
-		}
-
-		if clause.FeatureFlag == "" {
-			return nil
-		}
-
-		if _, flagEnabled := flags[clause.FeatureFlag]; !flagEnabled {
-			return ExperimentalFeature{Name: clause.FeatureFlag}
-		}
+	if clause.FeatureFlag == "" {
 		return nil
 	}
 
+	if _, flagEnabled := flags[clause.FeatureFlag]; !flagEnabled {
+		return ExperimentalFeature{Name: clause.FeatureFlag}
+	}
 	return nil
 }
