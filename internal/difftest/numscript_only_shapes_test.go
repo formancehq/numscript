@@ -159,8 +159,7 @@ send [COIN 90] (
 )`,
 		},
 		{
-			name:  "colored funds pulled from world stay colored downstream",
-			flags: []string{flags.ExperimentalAssetColors},
+			name: "colored funds pulled from world stay colored downstream",
 			script: `send [COIN 30] (
   source = @world \ "RED"
   destination = @a
@@ -174,8 +173,7 @@ send [COIN 10] (
 		{
 			// A colored pull must not see the uncolored store balance: the
 			// account has 25 RED and 7 uncolored, and only the 25 move.
-			name:  "colored pull reads only the colored balance",
-			flags: []string{flags.ExperimentalAssetColors},
+			name: "colored pull reads only the colored balance",
 			balances: map[gen.BalanceKey]*big.Int{
 				{Account: "b", Asset: "COIN"}: big.NewInt(7),
 			},
@@ -191,7 +189,6 @@ send [COIN *] (
 		},
 		{
 			name:       "invalid color via var rejected by both",
-			flags:      []string{flags.ExperimentalAssetColors},
 			bothReject: true,
 			vars:       map[string]string{"c": "not-valid-color"},
 			balances:   map[gen.BalanceKey]*big.Int{{Account: "a", Asset: "COIN"}: big.NewInt(25)},
@@ -205,9 +202,8 @@ send [COIN 20] (
 )`,
 		},
 		{
-			name:  "interpolated account from a number var",
-			flags: []string{flags.ExperimentalAccountInterpolationFlag},
-			vars:  map[string]string{"id": "42"},
+			name: "interpolated account from a number var",
+			vars: map[string]string{"id": "42"},
 			script: `vars {
   number $id
 }
@@ -219,7 +215,6 @@ send [COIN 10] (
 		},
 		{
 			name:       "invalid interpolated account rejected by both",
-			flags:      []string{flags.ExperimentalAccountInterpolationFlag},
 			bothReject: true,
 			vars:       map[string]string{"id": "no spaces!"},
 			script: `vars {
@@ -232,8 +227,7 @@ send [COIN 10] (
 )`,
 		},
 		{
-			name:  "mid-script balance reflects earlier statements",
-			flags: []string{flags.ExperimentalMidScriptFunctionCall},
+			name: "mid-script balance reflects earlier statements",
 			balances: map[gen.BalanceKey]*big.Int{
 				{Account: "dest", Asset: "COIN"}: big.NewInt(7),
 			},
@@ -245,8 +239,7 @@ send [COIN 10] (
 set_tx_meta("bal", balance(@dest, COIN))`,
 		},
 		{
-			name:  "mid-script balance as a send amount",
-			flags: []string{flags.ExperimentalMidScriptFunctionCall},
+			name: "mid-script balance as a send amount",
 			balances: map[gen.BalanceKey]*big.Int{
 				{Account: "a", Asset: "COIN"}: big.NewInt(30),
 			},
@@ -262,7 +255,6 @@ send balance(@a, COIN) (
 		},
 		{
 			name:       "negative mid-script balance rejected by both",
-			flags:      []string{flags.ExperimentalMidScriptFunctionCall},
 			bothReject: true,
 			balances:   map[gen.BalanceKey]*big.Int{{Account: "a", Asset: "COIN"}: big.NewInt(-5)},
 			script:     `set_tx_meta("bal", balance(@a, COIN))`,

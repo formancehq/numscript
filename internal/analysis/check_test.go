@@ -1216,3 +1216,133 @@ func TestIncompleteVarOriginDoesNotPanic(t *testing.T) {
 		})
 	}
 }
+
+func TestStabilizedFeaturesVersionRequirements(t *testing.T) {
+	t.Parallel()
+
+	type feature struct {
+		name        string
+		minVersion  string
+		flag        flags.FeatureFlag
+		body        string
+		diagnosedAt string
+	}
+
+	features := []feature{
+		{
+			name:       "get_asset",
+			minVersion: "0.0.16",
+			flag:       flags.ExperimentalGetAssetFunctionFeatureFlag,
+			body: `
+				vars {
+					asset $a = get_asset([USD/2 100])
+				}
+
+				send [$a 1] (
+					source = @world
+					destination = @dest
+				)
+			`,
+			diagnosedAt: "get_asset([USD/2 100])",
+		},
+		{
+			name:       "get_amount",
+			minVersion: "0.0.16",
+			flag:       flags.ExperimentalGetAmountFunctionFeatureFlag,
+			body: `
+				vars {
+					number $n = get_amount([USD/2 100])
+				}
+
+				send [USD/2 $n] (
+					source = @world
+					destination = @dest
+				)
+			`,
+			diagnosedAt: "get_amount([USD/2 100])",
+		},
+		{
+			name:       "mid-script function call",
+			minVersion: "0.0.15",
+			flag:       flags.ExperimentalMidScriptFunctionCall,
+			body: `
+				send balance(@acc, USD/2) (
+					source = @world
+					destination = @dest
+				)
+			`,
+			diagnosedAt: "balance(@acc, USD/2)",
+		},
+		{
+			name:       "asset colors",
+			minVersion: "0.0.17",
+			flag:       flags.ExperimentalAssetColors,
+			body: `
+				send [USD/2 1] (
+					source = @acc \ "RED" allowing unbounded overdraft
+					destination = @dest
+				)
+			`,
+			diagnosedAt: `"RED"`,
+		},
+		{
+			name:       "account interpolation",
+			minVersion: "0.0.15",
+			flag:       flags.ExperimentalAccountInterpolationFlag,
+			body: `
+				vars {
+					number $id
+				}
+
+				send [USD/2 1] (
+					source = @world
+					destination = @user:$id
+				)
+			`,
+			diagnosedAt: "@user:$id",
+		},
+	}
+
+	for _, f := range features {
+		t.Run(f.name+": min version without flag", func(t *testing.T) {
+			input := "// @version interpreter " + f.minVersion + "\n" + f.body
+			require.Equal(t,
+				[]analysis.Diagnostic{
+					{
+						Range: parser.RangeOfIndexed(input, f.diagnosedAt, 0),
+						Kind:  analysis.ExperimentalFeature{Name: f.flag},
+					},
+				},
+				checkSource(input),
+			)
+		})
+
+		t.Run(f.name+": min version with flag", func(t *testing.T) {
+			input := "// @version interpreter " + f.minVersion + "\n// @feature_flag " + f.flag + "\n" + f.body
+			require.Empty(t, checkSource(input))
+		})
+
+		t.Run(f.name+": 1.0.0 without flag", func(t *testing.T) {
+			input := "// @version interpreter 1.0.0\n" + f.body
+			require.Empty(t, checkSource(input))
+		})
+
+		t.Run(f.name+": below min version", func(t *testing.T) {
+			input := "// @version interpreter 0.0.1\n// @feature_flag " + f.flag + "\n" + f.body
+			ds := checkSource(input)
+			require.Len(t, ds, 1)
+			require.IsType(t, analysis.VersionMismatch{}, ds[0].Kind)
+		})
+	}
+}
+
+func TestFnCallAsWholeVarOriginIsNotMidScript(t *testing.T) {
+	t.Parallel()
+
+	input := `
+// @version interpreter 0.0.15
+vars { monetary $m = balance(@acc, USD/2) }
+send $m (source = @world destination = @dest)
+`
+	require.Empty(t, checkSource(input))
+}

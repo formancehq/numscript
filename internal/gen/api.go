@@ -59,9 +59,6 @@ func Generate(rng *rand.Rand) Generated {
 	if shape.HasOneof {
 		featureFlags = append(featureFlags, flags.ExperimentalOneofFeatureFlag)
 	}
-	if shape.HasColoredSource {
-		featureFlags = append(featureFlags, flags.ExperimentalAssetColors)
-	}
 
 	return Generated{
 		Vars:     vars,

@@ -1,8 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/formancehq/numscript/main/v1.specs.schema.json",
-  "featureFlags": [
-    "experimental-account-interpolation"
-  ],
   "testCases": [
     {
       "it": "unboundedness is decided on the interpolated name, not on the syntax",

@@ -174,7 +174,7 @@ func TestE2E_MonetaryAdditionAssetMismatch(t *testing.T) {
 // The interpreter rejects this with CannotCastScopedAccountToString.
 func TestE2E_AccountInterpolationOfScopedAccountIsRejected(t *testing.T) {
 	src := `
-		#![feature("experimental-account-interpolation", "experimental-scoped-function")]
+		#![feature("experimental-scoped-function")]
 		vars {
 			account $a = scoped(@src, "reserve")
 		}
@@ -260,7 +260,6 @@ func TestE2E_DivideByZero(t *testing.T) {
 
 func TestE2E_InvalidColor(t *testing.T) {
 	src := `
-		#![feature("experimental-asset-colors")]
 		send [COIN 10] (
 			source = @src \ "not a color"
 			destination = @dest

@@ -144,8 +144,6 @@ send [COIN *] (
 
 ### New function: `get_asset :: monetary -> asset`
 
-> flag: `experimental-get-asset-function` (available from 0.0.16)
-
 Get the asset of the given monetary. For example:
 
 ```numscript
@@ -157,8 +155,6 @@ vars {
 
 ### New function: `get_amount :: monetary -> number`
 
-> flag: `experimental-get-amount-function` (available from 0.0.16)
-
 Get the amount of the given monetary. For example:
 
 ```numscript
@@ -169,8 +165,6 @@ vars {
 ```
 
 ### Account interpolation syntax
-
-> flag: `experimental-account-interpolation` (available from 0.0.15)
 
 You can now interpolate variables inside account literals:
 
@@ -186,8 +180,6 @@ Only the following types are accepted: `account`, `number`, `string` (interpolat
 Creating invalid account names (e.g. by interpolating string like `"!"`) will raise a runtime error.
 
 ### Mid-script function call
-
-> flag: `experimental-mid-script-function-call` (available from 0.0.15)
 
 The values that initiate vars can now be any kind of expression, not just function calls:
 
@@ -301,7 +293,6 @@ For example, we can top-up the debt (overdraft) of some accounts, by making sure
 ```numscript
 // we'll also need the following for this example:
 // experimental-overdraft-function
-// experimental-mid-script-function-call
 send [USD/2 150] (
   source = @world
   destination = oneof {
@@ -315,8 +306,6 @@ send [USD/2 150] (
 ```
 
 ### Colored assets
-
-> flag: `experimental-asset-colors` (available from 0.0.17)
 
 This functionality allows to deal with semi-fungible assets. While this is already possible, by using conventions like `JPMUSD` and `STRIPEUSD`, there is no way for a statement to deal simultaneously with two different assets.
 We therefore introduce a restriction operator that you can use on account on source positions to specify what sub-asset to pull from the balance. An asset `ASSET/n` marked with the "X" color will be represented in the store (for example, the ledger's database) as the `ASSET_X/n` asset.

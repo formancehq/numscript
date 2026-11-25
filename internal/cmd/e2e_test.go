@@ -184,9 +184,6 @@ const e2eLegacyColorNumscript = `send [USD/4 10] (
 `
 
 const e2eLegacyColorSpecs = `{
-	"featureFlags": [
-		"experimental-asset-colors"
-	],
 	"testCases": [
 		{
 			"it": "-",

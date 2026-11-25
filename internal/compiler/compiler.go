@@ -270,9 +270,6 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
-				if err := st.checkFeatureFlag(part.Range, flags.ExperimentalAccountInterpolationFlag); err != nil {
-					return 0, err
-				}
 				hasVar = true
 				// reject before compiling, so a non-castable part doesn't reach
 				// compileExpr (which only handles non-monetary expressions)
@@ -397,19 +394,10 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 
 // compileFnCall takes isVarOrigin to tell apart the two positions the interpreter
 // distinguishes: a call that *is* a variable's origin expression, versus one
-// nested anywhere else (which needs the mid-script-function-call flag).
+// nested anywhere else.
 func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, CompilerError) {
-	if !isVarOrigin {
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
-			return 0, err
-		}
-	}
-
 	switch expr.Caller.Name {
 	case builtins.GetAmount:
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAmountFunctionFeatureFlag); err != nil {
-			return 0, err
-		}
 		mon, err := st.compileMonetaryExpr(expr.Args[0])
 		if err != nil {
 			return 0, err
@@ -417,9 +405,6 @@ func (st *state) compileFnCall(expr *parser.FnCall, isVarOrigin bool) (ir.Reg, C
 		return mon.Amount, nil
 
 	case builtins.GetAsset:
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalGetAssetFunctionFeatureFlag); err != nil {
-			return 0, err
-		}
 		mon, err := st.compileMonetaryExpr(expr.Args[0])
 		if err != nil {
 			return 0, err
@@ -517,12 +502,6 @@ func (st *state) compileMonetaryExpr(expr parser.ValueExpr) (monetaryValue, Comp
 // compileMonetaryFnCall handles the builtins that return a monetary. isVarOrigin
 // carries the same meaning as in compileFnCall.
 func (st *state) compileMonetaryFnCall(expr *parser.FnCall, isVarOrigin bool) (monetaryValue, CompilerError) {
-	if !isVarOrigin {
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
-			return monetaryValue{}, err
-		}
-	}
-
 	switch expr.Caller.Name {
 	case builtins.Balance:
 		acc, err := st.compileAccountExpr(expr.Args[0])
@@ -606,11 +585,6 @@ func (st *state) compileAccountExpr(expr parser.ValueExpr) (accountValue, Compil
 // compileMonetaryFnCall: true only when this call is itself a variable's whole
 // origin expression.
 func (st *state) compileScopedFnCall(expr *parser.FnCall, isVarOrigin bool) (accountValue, CompilerError) {
-	if !isVarOrigin {
-		if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalMidScriptFunctionCall); err != nil {
-			return accountValue{}, err
-		}
-	}
 	if err := st.checkFeatureFlag(expr.Range, flags.ExperimentalScopedFunction); err != nil {
 		return accountValue{}, err
 	}
@@ -634,9 +608,6 @@ func (st *state) compileScopedFnCall(expr *parser.FnCall, isVarOrigin bool) (acc
 func (st *state) compileColor(colorExpr parser.ValueExpr) (*ir.Reg, CompilerError) {
 	if colorExpr == nil {
 		return nil, nil
-	}
-	if err := st.checkFeatureFlag(colorExpr.GetRange(), flags.ExperimentalAssetColors); err != nil {
-		return nil, err
 	}
 	reg, err := st.compileExpr(colorExpr)
 	if err != nil {

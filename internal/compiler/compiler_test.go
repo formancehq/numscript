@@ -223,7 +223,6 @@ func TestMonetarySubtraction(t *testing.T) {
 
 func TestGetAmount(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-get-amount-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			number $n = get_amount($m)
@@ -264,7 +263,6 @@ func TestGetAmount(t *testing.T) {
 
 func TestGetAsset(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-get-asset-function")]
 		vars {
 			monetary $m = [USD/2 42]
 			asset $a = get_asset($m)
@@ -386,7 +384,6 @@ func TestBalance(t *testing.T) {
 
 func TestAccountInterpolation(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-account-interpolation")]
 		vars {
 			string $id = "alice"
 		}
@@ -434,7 +431,6 @@ func TestAccountInterpolation(t *testing.T) {
 
 func TestAccountInterpolationInt(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-account-interpolation")]
 		vars {
 			number $n = 42
 		}
@@ -872,7 +868,6 @@ func TestDestOneof(t *testing.T) {
 
 func TestColoredSource(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-asset-colors")]
 		send [COIN 10] (
 			source = @src \ "RED"
 			destination = @dest
@@ -910,7 +905,6 @@ func TestColoredSource(t *testing.T) {
 
 func TestColoredOverdraftSource(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-asset-colors")]
 		send [COIN 10] (
 			source = @src \ "RED" allowing unbounded overdraft
 			destination = @dest

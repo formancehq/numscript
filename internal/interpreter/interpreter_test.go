@@ -295,8 +295,7 @@ func runScopedSend(t *testing.T, scope string) interpreter.InterpreterError {
 		map[string]string{"scope": scope},
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 	return err
@@ -340,8 +339,7 @@ func TestCannotInterpolateScopedAccount(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:           {},
-			flags.ExperimentalAccountInterpolationFlag: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -363,8 +361,7 @@ func TestCannotStoreScopedAccountInAccountMeta(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -386,8 +383,7 @@ func TestCannotStoreScopedAccountInTxMeta(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:        {},
-			flags.ExperimentalMidScriptFunctionCall: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -1229,7 +1225,7 @@ func TestInvalidInterpAccount(t *testing.T) {
 			Name: "user:!invalid acc..",
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
+	test(t, tc)
 }
 
 func TestAccountInvalidString(t *testing.T) {
@@ -1259,7 +1255,7 @@ func TestAccountInvalidString(t *testing.T) {
 			},
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
+	test(t, tc)
 }
 
 func TestInvalidNestedMetaCall(t *testing.T) {
@@ -1279,7 +1275,7 @@ func TestInvalidNestedMetaCall(t *testing.T) {
 		Error: interpreter.InvalidNestedMeta{},
 	}
 
-	testWithFeatureFlag(t, tc, flags.ExperimentalMidScriptFunctionCall)
+	test(t, tc)
 }
 
 func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
@@ -1303,7 +1299,7 @@ func TestColorRestrictBalanceWhenMissingFunds(t *testing.T) {
 			Asset:     "COIN",
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAssetColors)
+	test(t, tc)
 }
 
 func TestInvalidScalingWorld(t *testing.T) {

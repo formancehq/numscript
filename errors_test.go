@@ -242,7 +242,6 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 		{
 			name:    "nested meta",
 			script:  `vars { number $x = 1 + meta(@acc, "k") }`,
-			flags:   []string{flags.ExperimentalMidScriptFunctionCall},
 			resolve: true,
 			check:   func(t *testing.T, err error) { requireAs[numscript.InvalidNestedMeta](t, err) },
 		},
@@ -250,13 +249,12 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 			name:   "cannot cast to string",
 			script: `vars { monetary $m } set_tx_meta("k", @acc:$m)`,
 			vars:   numscript.VariablesMap{"m": "USD/2 10"},
-			flags:  []string{flags.ExperimentalAccountInterpolationFlag},
 			check:  func(t *testing.T, err error) { requireAs[numscript.CannotCastToString](t, err) },
 		},
 		{
 			name:   "cannot cast scoped account to string",
 			script: `vars { account $s = scoped(@a, "s") } set_tx_meta("k", @foo:$s)`,
-			flags:  []string{flags.ExperimentalScopedFunction, flags.ExperimentalAccountInterpolationFlag},
+			flags:  []string{flags.ExperimentalScopedFunction},
 			check: func(t *testing.T, err error) {
 				e := requireAs[numscript.CannotCastScopedAccountToString](t, err)
 				require.Equal(t, "a", e.Account)
@@ -285,7 +283,6 @@ func TestInterpreterErrorsAreClassifiable(t *testing.T) {
 		{
 			name:   "invalid color",
 			script: `send [USD 1] ( source = @a \ "red" allowing unbounded overdraft destination = @b )`,
-			flags:  []string{flags.ExperimentalAssetColors},
 			check: func(t *testing.T, err error) {
 				require.Equal(t, "red", requireAs[numscript.InvalidColor](t, err).Color)
 			},
@@ -435,13 +432,11 @@ func TestCompilerErrorsAreClassifiable(t *testing.T) {
 		{
 			name:   "meta outside a variable origin",
 			script: `set_tx_meta("k", meta(@acc, "k"))`,
-			flags:  []string{flags.ExperimentalMidScriptFunctionCall},
 			check:  func(t *testing.T, err error) { requireAs[numscript.CompilerInvalidMetaPosition](t, err) },
 		},
 		{
 			name:   "cannot cast to string",
 			script: `vars { monetary $m } set_tx_meta("k", @acc:$m)`,
-			flags:  []string{flags.ExperimentalAccountInterpolationFlag},
 			check: func(t *testing.T, err error) {
 				require.Equal(t, "monetary", requireAs[numscript.CompilerCannotCastToString](t, err).Type)
 			},
