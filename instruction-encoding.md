@@ -194,7 +194,12 @@ Instructions are **4 bytes** wide: `[Opcode: 8] [A: 8] [B: 8] [C: 8]`.
       <td><code>int_regs[A] =</code> amount; scope reg in <code>B</code> (<code>0xFF</code> = unscoped)</td>
     </tr>
     <tr>
-      <td colspan="7" align="center"><em>0x26..0x2F reserved</em></td>
+      <td>38</td><td><code>0x26</code></td><td><strong>DELETE_ACCOUNT_META</strong></td>
+      <td>acc</td><td>key</td><td>scope</td>
+      <td>Deletes key <code>B</code> of account <code>A</code>, scope <code>C</code> (<code>0xFF</code> = unscoped): drops a pending write to it and reports it in the result's <code>DeletedAccountsMetadata</code> until a later <code>set_account_meta</code> to it. Not allowed while a mark is open</td>
+    </tr>
+    <tr>
+      <td colspan="7" align="center"><em>0x27..0x2F reserved</em></td>
     </tr>
   </tbody>
 </table>

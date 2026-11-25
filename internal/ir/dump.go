@@ -250,3 +250,10 @@ func joinOpts(parts ...string) string {
 	}
 	return strings.Join(kept, ", ")
 }
+
+func (i DeleteAccountMeta) String() string {
+	if i.Scope != nil {
+		return fmt.Sprintf("delete_account_meta(%s, %s, %s)", i.Account, i.Key, optLabel("scope", i.Scope))
+	}
+	return fmt.Sprintf("delete_account_meta(%s, %s)", i.Account, i.Key)
+}

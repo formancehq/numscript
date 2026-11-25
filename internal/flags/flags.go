@@ -12,6 +12,7 @@ const (
 	ExperimentalMidScriptFunctionCall        FeatureFlag = "experimental-mid-script-function-call"
 	ExperimentalAssetColors                  FeatureFlag = "experimental-asset-colors"
 	AssetScaling                             FeatureFlag = "experimental-asset-scaling"
+	ExperimentalDeleteAccountMetadata        FeatureFlag = "experimental-delete-account-metadata"
 )
 
 var AllFlags []string = []string{
@@ -24,4 +25,5 @@ var AllFlags []string = []string{
 	ExperimentalMidScriptFunctionCall,
 	ExperimentalAssetColors,
 	AssetScaling,
+	ExperimentalDeleteAccountMetadata,
 }

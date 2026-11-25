@@ -1,0 +1,17 @@
+{
+  "postings": [],
+  "txMeta": {},
+  "accountsMeta": [
+    {
+      "account": "acc",
+      "key": "k2",
+      "value": "v2"
+    }
+  ],
+  "deletedAccountsMeta": [
+    {
+      "account": "acc",
+      "key": "k1"
+    }
+  ]
+}

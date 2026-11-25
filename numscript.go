@@ -70,6 +70,10 @@ type (
 	SetAccountMetadataRow = interpreter.SetAccountMetadataRow
 	SetAccountsMetadata   = interpreter.SetAccountsMetadata
 
+	// The account metadata keys deleted during the execution, net of later writes
+	DeletedAccountMetadataRow = interpreter.DeletedAccountMetadataRow
+	DeletedAccountsMetadata   = interpreter.DeletedAccountsMetadata
+
 	// The transaction metadata, set by set_tx_meta()
 	Metadata = interpreter.Metadata
 
@@ -371,9 +375,19 @@ func ExecVm[S VMStore](ctx context.Context, machine *Vm, vars *Vars, store S) (E
 		})
 	}
 
+	deletedMeta := make(DeletedAccountsMetadata, 0, len(res.DeletedAccountsMetadata))
+	for _, e := range res.DeletedAccountsMetadata {
+		deletedMeta = append(deletedMeta, DeletedAccountMetadataRow{
+			Account: e.Account,
+			Key:     e.Key,
+			Scope:   e.Scope,
+		})
+	}
+
 	return ExecutionResult{
-		Postings:         res.Postings,
-		Metadata:         txMeta,
-		AccountsMetadata: accountsMeta,
+		Postings:                res.Postings,
+		Metadata:                txMeta,
+		AccountsMetadata:        accountsMeta,
+		DeletedAccountsMetadata: deletedMeta,
 	}, nil
 }

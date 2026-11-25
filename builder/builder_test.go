@@ -598,8 +598,9 @@ func TestSaveAndSetMeta(t *testing.T) {
 		`with "quotes"`,
 		builder.ExprString("value"),
 	)
+	stmt5 := builder.StmtDeleteAccountMetadata(builder.UnsafeAccount("acc2"), "k")
 
-	_, _, script := builder.BuildProgram(stmt1, stmt2, stmt3, stmt4)
+	_, _, script := builder.BuildProgram(stmt1, stmt2, stmt3, stmt4, stmt5)
 	snaps.MatchInlineSnapshot(t, script, snaps.Inline(`vars {
   string $string_0
   asset $asset_0
@@ -611,7 +612,9 @@ save [$asset_0 *] from @acc1
 
 set_tx_meta("my key", 42)
 
-set_account_meta(@acc2, "with \"quotes\"", $string_0)`))
+set_account_meta(@acc2, "with \"quotes\"", $string_0)
+
+delete_account_metadata(@acc2, "k")`))
 }
 
 func TestOriginVars(t *testing.T) {

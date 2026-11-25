@@ -652,6 +652,23 @@ func TestRoundtripAllInstructions(t *testing.T) {
 `,
 		},
 		{
+			name: "delete_account_meta",
+			ir: `
+  $r0 = "acct"
+  $r1 = "key"
+  delete_account_meta($r0, $r1)
+`,
+		},
+		{
+			name: "delete_account_meta scoped",
+			ir: `
+  $r0 = "acct"
+  $r1 = "key"
+  $r2 = "scope"
+  delete_account_meta($r0, $r1, scope: $r2)
+`,
+		},
+		{
 			name: "set_current_asset",
 			ir: `
   $r0 = "USD/2"

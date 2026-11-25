@@ -1,0 +1,18 @@
+{
+  "postings": [],
+  "txMeta": {},
+  "accountsMeta": [
+    {
+      "account": "acc",
+      "key": "k",
+      "value": "unscoped"
+    }
+  ],
+  "deletedAccountsMeta": [
+    {
+      "account": "acc",
+      "key": "k",
+      "scope": "myscope"
+    }
+  ]
+}

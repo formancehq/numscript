@@ -259,6 +259,7 @@ There is no allotment instruction. Splitting an amount across portions is built 
 | --- | --- |
 | `set_tx_meta($key, $value)` | `str, str` |
 | `set_account_meta($account, $key, $value)` | `str, str, str` |
+| `delete_account_meta($account, $key)` | `str, str` |
 
 ### Control flow
 

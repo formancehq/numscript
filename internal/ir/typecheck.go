@@ -149,6 +149,12 @@ func (tc *bytecodeTypechecker) check(instr Instr) error {
 			tc.use(i.Value, regStr),
 			tc.useOpt(i.Scope, regStr),
 		)
+	case DeleteAccountMeta:
+		return firstErr(
+			tc.use(i.Account, regStr),
+			tc.use(i.Key, regStr),
+			tc.useOpt(i.Scope, regStr),
+		)
 	case MetaVar:
 		t, err := metaRegType(i.Typ)
 		if err != nil {

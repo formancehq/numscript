@@ -353,8 +353,8 @@ func checkDefiniteAssignment(steps []step, g cfg) error {
 
 // checkMarkBalance rejects a program in which the number of open marks is not
 // the same on every path reaching an instruction, a mark end runs with no open
-// mark, a send, save or set_current_asset runs with a mark open, or the run can
-// end with a mark open.
+// mark, a send, save, set_current_asset or delete_account_meta runs with a mark
+// open, or the run can end with a mark open.
 func checkMarkBalance(steps []step, g cfg) error {
 	depthOut := make([]int, len(steps))
 	for k, st := range steps {
@@ -371,7 +371,7 @@ func checkMarkBalance(steps []step, g cfg) error {
 			}
 		}
 		if st.d.notInMark && in > 0 {
-			return fmt.Errorf("at instruction %d: send, save or set_current_asset while a mark is open", st.at)
+			return fmt.Errorf("at instruction %d: send, save, set_current_asset or delete_account_meta while a mark is open", st.at)
 		}
 		out := in + st.d.markDelta
 		if out < 0 {
@@ -503,6 +503,11 @@ func decodeInstr(instr, ext Instruction) (decoded, error) {
 		read(bankStr, instr.B)
 		read(bankStr, instr.C)
 		readOpt(bankStr, ext.A) // scope
+	case Op_DeleteAccountMeta:
+		read(bankStr, instr.A)
+		read(bankStr, instr.B)
+		readOpt(bankStr, instr.C) // scope
+		d.notInMark = true
 	case Op_MetaStr:
 		read(bankStr, instr.B)
 		read(bankStr, instr.C)

@@ -90,12 +90,13 @@ type TestCase struct {
 	ExpectMissingFunds   bool `json:"expect.error.missingFunds,omitempty"`
 	ExpectNegativeAmount bool `json:"expect.error.negativeAmount,omitempty"`
 
-	ExpectPostings           []interpreter.Posting           `json:"expect.postings,omitempty"`
-	ExpectTxMeta             ExpectedTxMeta                  `json:"expect.txMetadata,omitempty"`
-	ExpectAccountsMeta       interpreter.SetAccountsMetadata `json:"expect.metadata,omitempty"`
-	ExpectEndBalances        interpreter.Balances            `json:"expect.endBalances,omitempty"`
-	ExpectEndBalancesInclude interpreter.Balances            `json:"expect.endBalances.include,omitempty"`
-	ExpectMovements          Movements                       `json:"expect.movements,omitempty"`
+	ExpectPostings           []interpreter.Posting               `json:"expect.postings,omitempty"`
+	ExpectTxMeta             ExpectedTxMeta                      `json:"expect.txMetadata,omitempty"`
+	ExpectAccountsMeta       interpreter.SetAccountsMetadata     `json:"expect.metadata,omitempty"`
+	ExpectDeletedMeta        interpreter.DeletedAccountsMetadata `json:"expect.deletedMetadata,omitempty"`
+	ExpectEndBalances        interpreter.Balances                `json:"expect.endBalances,omitempty"`
+	ExpectEndBalancesInclude interpreter.Balances                `json:"expect.endBalances.include,omitempty"`
+	ExpectMovements          Movements                           `json:"expect.movements,omitempty"`
 }
 
 type TestCaseResult struct {
@@ -241,6 +242,15 @@ func Check(program parser.Program, specs Specs) (SpecsResult, interpreter.Interp
 					testCase.ExpectAccountsMeta,
 					result.AccountsMetadata,
 					interpreter.CompareSetAccountsMetadata,
+				)
+			}
+
+			if testCase.ExpectDeletedMeta != nil {
+				failedAssertions = runAssertion(failedAssertions,
+					"expect.deletedMetadata",
+					testCase.ExpectDeletedMeta,
+					result.DeletedAccountsMetadata,
+					slices.Equal,
 				)
 			}
 
