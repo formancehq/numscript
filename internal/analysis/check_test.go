@@ -1285,6 +1285,22 @@ func TestStabilizedFeaturesVersionRequirements(t *testing.T) {
 			`,
 			diagnosedAt: `"RED"`,
 		},
+		{
+			name:       "account interpolation",
+			minVersion: "0.0.15",
+			flag:       flags.ExperimentalAccountInterpolationFlag,
+			body: `
+				vars {
+					number $id
+				}
+
+				send [USD/2 1] (
+					source = @world
+					destination = @user:$id
+				)
+			`,
+			diagnosedAt: "@user:$id",
+		},
 	}
 
 	for _, f := range features {

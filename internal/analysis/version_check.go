@@ -41,12 +41,7 @@ func (res *CheckResult) checkAccountInterpolationVersion(expr parser.AccountInte
 		return
 	}
 
-	res.requireVersion(expr.Range,
-		VersionClause{
-			Version:     parser.NewVersionInterpreter(0, 0, 15),
-			FeatureFlag: flags.ExperimentalAccountInterpolationFlag,
-		},
-	)
+	res.requireVersion(expr.Range, flaggedUntilStable(parser.NewVersionInterpreter(0, 0, 15), flags.ExperimentalAccountInterpolationFlag)...)
 }
 
 func (res *CheckResult) checkMidScriptFnCallVersion(rng parser.Range) {

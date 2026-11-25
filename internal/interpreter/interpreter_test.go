@@ -339,8 +339,7 @@ func TestCannotInterpolateScopedAccount(t *testing.T) {
 		nil,
 		interpreter.StaticStore{},
 		map[string]struct{}{
-			flags.ExperimentalScopedFunction:           {},
-			flags.ExperimentalAccountInterpolationFlag: {},
+			flags.ExperimentalScopedFunction: {},
 		},
 	)
 
@@ -1226,7 +1225,7 @@ func TestInvalidInterpAccount(t *testing.T) {
 			Name: "user:!invalid acc..",
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
+	test(t, tc)
 }
 
 func TestAccountInvalidString(t *testing.T) {
@@ -1256,7 +1255,7 @@ func TestAccountInvalidString(t *testing.T) {
 			},
 		},
 	}
-	testWithFeatureFlag(t, tc, flags.ExperimentalAccountInterpolationFlag)
+	test(t, tc)
 }
 
 func TestInvalidNestedMetaCall(t *testing.T) {

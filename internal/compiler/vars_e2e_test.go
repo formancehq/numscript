@@ -48,7 +48,6 @@ func TestE2E_ExternalVars(t *testing.T) {
 
 func TestE2E_InvalidInterpolatedAccount(t *testing.T) {
 	src := `
-		#![feature("experimental-account-interpolation")]
 		vars { string $status }
 		set_tx_meta("k", @user:$status)
 	`

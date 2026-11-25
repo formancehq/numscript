@@ -270,9 +270,6 @@ func (st *state) compileExpr(expr parser.ValueExpr) (ir.Reg, CompilerError) {
 				})
 				parts = append(parts, dest)
 			case *parser.Variable:
-				if err := st.checkFeatureFlag(part.Range, flags.ExperimentalAccountInterpolationFlag); err != nil {
-					return 0, err
-				}
 				hasVar = true
 				// reject before compiling, so a non-castable part doesn't reach
 				// compileExpr (which only handles non-monetary expressions)

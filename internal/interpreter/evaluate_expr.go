@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/formancehq/numscript/internal/flags"
 	"github.com/formancehq/numscript/internal/funds"
 	"github.com/formancehq/numscript/internal/parser"
 )
@@ -165,11 +164,6 @@ func evaluateExpr(env *evalEnv, expr parser.ValueExpr) (Value, InterpreterError)
 			case parser.AccountTextPart:
 				parts = append(parts, part.Name)
 			case *parser.Variable:
-				err := env.checkFeatureFlag(flags.ExperimentalAccountInterpolationFlag)
-				if err != nil {
-					return nil, err
-				}
-
 				value, err := evaluateExpr(env, part)
 				if err != nil {
 					return nil, err

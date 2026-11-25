@@ -384,7 +384,6 @@ func TestBalance(t *testing.T) {
 
 func TestAccountInterpolation(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-account-interpolation")]
 		vars {
 			string $id = "alice"
 		}
@@ -432,7 +431,6 @@ func TestAccountInterpolation(t *testing.T) {
 
 func TestAccountInterpolationInt(t *testing.T) {
 	out := getCompiledOutput(t, `
-		#![feature("experimental-account-interpolation")]
 		vars {
 			number $n = 42
 		}

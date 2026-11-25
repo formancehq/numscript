@@ -48,7 +48,6 @@ func TestE2E_RejectsNonCastableInterpVar(t *testing.T) {
 	// a monetary var has no string form: interpolating it must be a compile
 	// error (matching the interpreter's runtime CannotCastToString), not a panic.
 	parsed := parser.Parse(`
-		#![feature("experimental-account-interpolation")]
 		vars { monetary $m }
 		set_tx_meta("k", @acc:$m)
 	`)
@@ -101,12 +100,6 @@ func TestFeatureFlagGating(t *testing.T) {
 					remaining to @b
 				}
 			)`,
-		},
-		{
-			name: "account interpolation",
-			flag: flags.ExperimentalAccountInterpolationFlag,
-			src: `vars { string $s }
-			send [C 10] (source = @world destination = @dest:$s)`,
 		},
 		{
 			name: "overdraft function",

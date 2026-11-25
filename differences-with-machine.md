@@ -166,8 +166,6 @@ vars {
 
 ### Account interpolation syntax
 
-> flag: `experimental-account-interpolation` (available from 0.0.15)
-
 You can now interpolate variables inside account literals:
 
 ```numscript

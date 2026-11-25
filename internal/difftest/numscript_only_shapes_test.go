@@ -202,9 +202,8 @@ send [COIN 20] (
 )`,
 		},
 		{
-			name:  "interpolated account from a number var",
-			flags: []string{flags.ExperimentalAccountInterpolationFlag},
-			vars:  map[string]string{"id": "42"},
+			name: "interpolated account from a number var",
+			vars: map[string]string{"id": "42"},
 			script: `vars {
   number $id
 }
@@ -216,7 +215,6 @@ send [COIN 10] (
 		},
 		{
 			name:       "invalid interpolated account rejected by both",
-			flags:      []string{flags.ExperimentalAccountInterpolationFlag},
 			bothReject: true,
 			vars:       map[string]string{"id": "no spaces!"},
 			script: `vars {
