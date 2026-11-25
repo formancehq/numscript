@@ -21,21 +21,31 @@ import (
 // interpreter.RunProgram, the script's own #![feature(..)] declarations are
 // unioned in.
 func Compile(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, vm.Program, error) {
-	compiled, cErr := compileProgramToIR(program, featureFlags)
-	if cErr != nil {
-		return VarsEncoder{}, vm.Program{}, cErr
-	}
-
-	if err := ir.Typecheck(compiled.instructions); err != nil {
-		return VarsEncoder{}, vm.Program{}, err
-	}
-
-	prog, err := ir.Assemble(compiled.instructions)
+	enc, instrs, err := CompileIR(program, featureFlags)
 	if err != nil {
 		return VarsEncoder{}, vm.Program{}, err
 	}
 
-	return compiled.varsEncoder, prog, nil
+	prog, err := ir.Assemble(instrs)
+	if err != nil {
+		return VarsEncoder{}, vm.Program{}, err
+	}
+
+	return enc, prog, nil
+}
+
+// CompileIR is Compile stopped before assembly: the typechecked instructions.
+func CompileIR(program parser.Program, featureFlags map[string]struct{}) (VarsEncoder, []ir.Instr, error) {
+	compiled, cErr := compileProgramToIR(program, featureFlags)
+	if cErr != nil {
+		return VarsEncoder{}, nil, cErr
+	}
+
+	if err := ir.Typecheck(compiled.instructions); err != nil {
+		return VarsEncoder{}, nil, err
+	}
+
+	return compiled.varsEncoder, compiled.instructions, nil
 }
 
 type compiledProgramIR struct {
