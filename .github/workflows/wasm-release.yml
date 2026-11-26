@@ -1,0 +1,56 @@
+name: WASM Release
+
+# Builds the client-side Numscript WebAssembly artifact and attaches it to a
+# GitHub release, so consumers (e.g. platform-ui's numscript-playground) can pull
+# it at build time. The repo is public, so the release assets download
+# anonymously — no token needed on the consumer side.
+#
+# Trigger: push a tag `wasm-vX.Y.Z` (separate from the Go CLI `vX.Y.Z` tags, so
+# it never collides with GoReleaser). Uses the built-in GITHUB_TOKEN — no admin
+# setup, no secret to provision.
+
+on:
+  push:
+    tags:
+      - 'wasm-v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.3
+          cache-dependency-path: go.sum
+
+      - name: Build wasm (+ matching toolchain glue)
+        run: |
+          mkdir -p dist
+          GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o dist/numscript.wasm ./cmd/wasm
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" dist/wasm_exec.js
+          ( cd dist && shasum -a 256 numscript.wasm > numscript.wasm.sha256 ) || \
+            ( cd dist && sha256sum numscript.wasm > numscript.wasm.sha256 )
+          ls -lh dist
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES="Client-side Numscript WebAssembly build (Go $(go env GOVERSION)).
+
+          - \`numscript.wasm\` — the numscript library compiled to js/wasm.
+          - \`wasm_exec.js\` — matching Go toolchain glue (version-locked).
+          - \`numscript.wasm.sha256\` — checksum for the build-time download.
+
+          Consumed by platform-ui's numscript-playground via a pinned build-time download."
+          gh release create "$TAG" --prerelease --title "Numscript WASM $TAG" --notes "$NOTES" \
+            dist/numscript.wasm dist/wasm_exec.js dist/numscript.wasm.sha256 \
+          || gh release upload "$TAG" \
+            dist/numscript.wasm dist/wasm_exec.js dist/numscript.wasm.sha256 --clobber

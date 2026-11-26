@@ -24,6 +24,15 @@ tests:
 test:
     @go test -race -covermode=atomic -coverprofile coverage.txt ./...
 
+# Build the browser WebAssembly binding (dist/numscript.wasm + wasm_exec.js).
+# wasm_exec.js is version-locked to the building toolchain, so always copy it
+# from GOROOT rather than pinning a checked-in copy.
+wasm:
+    @mkdir -p dist
+    @GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o dist/numscript.wasm ./cmd/wasm
+    @cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" dist/wasm_exec.js
+    @ls -lh dist/numscript.wasm
+
 release-local:
     @goreleaser release --nightly --skip=publish --clean
 
