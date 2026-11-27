@@ -127,6 +127,34 @@ send [USD/2 100] (
 
 }
 
+func TestCreateVarWhenNoVarsBlockAfterFeatureDecl(t *testing.T) {
+	initial := `#![feature("experimental-oneof")]
+
+send [USD/2 100] (
+  source = max $example from @a
+  destination = @b
+)
+`
+
+	final := `#![feature("experimental-oneof")]
+
+vars {
+  monetary $example
+}
+
+send [USD/2 100] (
+  source = max $example from @a
+  destination = @b
+)
+`
+
+	performAction(t, initial, final, func(kind analysis.DiagnosticKind, program parser.Program) protocol.TextEdit {
+		return lsp.CreateVar(kind.(analysis.UnboundVariable), program)
+	})
+
+	require.Empty(t, parser.Parse(final).Errors)
+}
+
 func TestPositionToOffset(t *testing.T) {
 	str := `abc
 def
