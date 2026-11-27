@@ -19,6 +19,12 @@ func CreateVar(diagnostic analysis.UnboundVariable, program parser.Program) prot
 			rng = *toLspRange(program.Vars.Range)
 		} else {
 			text += "\n\n"
+			// The grammar puts the vars block after an optional feature
+			// declaration and before the first statement
+			if len(program.Statements) != 0 {
+				start := ParserToLspPosition(program.Statements[0].GetRange().Start)
+				rng = protocol.Range{Start: start, End: start}
+			}
 		}
 
 		return protocol.TextEdit{
